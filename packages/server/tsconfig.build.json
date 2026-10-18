@@ -1,0 +1,11 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // CommonJS for the build only: the emitted `require` needs no file
+        // extensions, which ESM output would, and dev keeps running on ts-node.
+        "module": "CommonJS",
+        "moduleResolution": "Node",
+        "noEmit": false
+    },
+    "exclude": ["dist", "node_modules", "**/*.spec.ts"]
+}

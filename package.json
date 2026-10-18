@@ -1,0 +1,23 @@
+{
+    "name": "quarry",
+    "version": "0.0.1",
+    "private": true,
+    "workspaces": [
+        "packages/*"
+    ],
+    "scripts": {
+        "dev": "concurrently -n api,sync,system -c cyan,magenta,yellow \"npm:dev:api\" \"npm:dev:sync\" \"npm:dev:system\"",
+        "dev:api": "npm run dev:api --workspace=packages/server",
+        "dev:sync": "npm run dev:sync --workspace=packages/server",
+        "dev:system": "npm run dev:system --workspace=packages/server",
+        "migrate": "npm run migrate --workspace=packages/server",
+        "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/server",
+        "build": "npm run build --workspaces --if-present",
+        "infra": "docker compose up -d postgres redis gotrue minio minio-init"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "concurrently": "^9.2.1",
+        "typescript": "^5.9.3"
+    }
+}

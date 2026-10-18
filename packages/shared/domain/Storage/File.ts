@@ -1,0 +1,40 @@
+import { z } from "zod"
+
+/**
+ * A file in object storage: bytes at a key, plus what its format lets us know
+ * about them. Storage-level only — it knows nothing about datasets. Whatever
+ * uses a file adds its own context (a dataset adds a logical path).
+ *
+ * One namespace per format; `File.Schema` is the union, discriminated by
+ * `format`. Add a format by adding a namespace and listing it in the union.
+ */
+export namespace File {
+
+    /** The object's key in the bucket. Written once, never reused. */
+    export const Key = z.string().min(1)
+    export type  Key = z.infer<typeof Key>
+
+    const Base = z.object({
+        key:   Key,
+        bytes: z.number().int().nonnegative(),
+    })
+
+    /** Columnar, typed, compressed — every tabular dataset's files. */
+    export namespace Parquet {
+        export const Schema = Base.extend({
+            format:   z.literal("parquet"),
+            rowCount: z.number().int().nonnegative().nullable(),    // from the footer; null if the writer didn't report it
+        })
+        export type Schema = z.infer<typeof Schema>
+    }
+
+    export const Schema = z.discriminatedUnion("format", [Parquet.Schema])
+    export type  Schema = z.infer<typeof Schema>
+
+    export const Format = z.enum(["parquet"])
+    export type  Format = z.infer<typeof Format>
+
+    /** The format a key's extension says it is, or null if it's not one we know. */
+    export const formatOf = (key: Key): Format | null =>
+        key.endsWith(".parquet") ? "parquet" : null
+}
