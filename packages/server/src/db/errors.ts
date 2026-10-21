@@ -1,6 +1,7 @@
 import {
     BadRequestException,
     ConflictException,
+    ForbiddenException,
     HttpException,
     InternalServerErrorException,
     Logger,
@@ -17,9 +18,19 @@ const BY_SQLSTATE: Record<string, () => HttpException> = {
     '23514': () => new BadRequestException('Invalid value'),
     '22P02': () => new BadRequestException('Malformed value'),
     'P0001': () => new BadRequestException('Not allowed here'),      // RAISE EXCEPTION in our triggers
+    '42501': () => new ForbiddenException('Not allowed'),            // a row-level security policy refused the write
 };
 
 const logger = new Logger('Database');
+
+/**
+ * RLS hides the rows it refuses: an UPDATE or DELETE that touched nothing means
+ * the row doesn't exist or isn't yours to change — the same 404 either way.
+ */
+export function requireAffected(result: { numUpdatedRows?: bigint; numDeletedRows?: bigint }): void {
+    if ((result.numUpdatedRows ?? result.numDeletedRows ?? 0n) === 0n)
+        throw new NotFoundException('Not found');
+}
 
 export function catchDatabaseErrors(fn: (...args: unknown[]) => unknown, operation: string) {
     return async function (this: unknown, ...args: unknown[]) {

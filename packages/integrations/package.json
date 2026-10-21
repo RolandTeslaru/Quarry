@@ -1,0 +1,18 @@
+{
+    "name": "@quarry/integrations",
+    "version": "0.0.1",
+    "private": true,
+    "sideEffects": false,
+    "description": "One folder per external system: definition.ts (API-safe) + runtime.ts (Data Connection worker only).",
+    "scripts": {
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@duckdb/node-api": "1.4.5-r.1",
+        "@quarry/shared": "*",
+        "zod": "^4.3.6"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2"
+    }
+}

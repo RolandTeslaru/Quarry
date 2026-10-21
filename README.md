@@ -5,10 +5,10 @@ A self-hosted data platform: connect source systems, land their data as versione
 ## Getting started
 
 ```bash
-cp .env.example .env            # set QUARRY_BOOTSTRAP_ADMIN_EMAIL to your GoTrue login
+cp .env.example .env            # set QUARRY_BOOTSTRAP_ADMIN_EMAIL, and QUARRY_ENCRYPTION_KEY (openssl rand -hex 32)
 npm install
 npm run infra                   # postgres · redis · gotrue · minio (docker compose)
-npm run dev                     # api (migrates on boot) + sync worker + system worker
+npm run dev                     # api (migrates on boot) + Data Connection worker + system worker
 ```
 
 The first login with `QUARRY_BOOTSTRAP_ADMIN_EMAIL` becomes the workspace admin.
@@ -16,7 +16,10 @@ The first login with `QUARRY_BOOTSTRAP_ADMIN_EMAIL` becomes the workspace admin.
 | Package | What |
 |---|---|
 | `packages/shared` | Domain types + API contracts (zod), used by server and frontend |
-| `packages/server` | One codebase, three entry points: `src/api.ts`, `src/workers/sync.ts`, `src/workers/system.ts` |
+| `packages/integrations` | One folder per external system (Postgres, …): source definition, credential template, runtime |
+| `packages/server` | The CRUD backend (NestJS) — the only package with database access; `/api/internal/…` for the workers |
+| `packages/data-connection-worker` | Runs syncs and source probes — the only process that reaches source systems (decrypts their Keychain credentials) and runs DuckDB |
+| `packages/system-worker` | Housekeeping: outbox relay, storage GC, stuck-run reaper, schedule reconcile |
 
 ## Docs
 
@@ -24,6 +27,7 @@ The first login with `QUARRY_BOOTSTRAP_ADMIN_EMAIL` becomes the workspace admin.
 - [Database design](docs/design/database.md)
 - [Jobs & queues](docs/design/jobs.md)
 - [Gatekeeper — authorization](docs/design/gatekeeper.md)
+- [Keychain — credentials](docs/design/keychain.md)
 - [Catalog — datasets](docs/design/catalog.md)
 - [Data Connection — sources and syncs](docs/design/data-connection.md)
 - [Research: Palantir Foundry's ontology](docs/research/palantir-foundry-ontology.md)

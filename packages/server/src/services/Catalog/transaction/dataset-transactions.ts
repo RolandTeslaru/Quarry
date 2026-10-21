@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Catalog } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
-import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
-import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { CatalogDB } from '../catalog.db';
 import { TransactionRepository } from './transaction.repository';
 
@@ -15,23 +13,20 @@ import { TransactionRepository } from './transaction.repository';
  * drops a logical path from the view, and storage GC alone deletes objects.
  *
  * A transaction is always addressed through its dataset (datasetRid, then
- * transactionRid), so @SecurityGate checks the dataset and @Transactional its
- * liveness; the repository 404s if the transaction isn't that dataset's.
+ * transactionRid): RLS needs write on that dataset for every step, and
+ * @Transactional checks it's live; the repository 404s if the transaction isn't
+ * that dataset's.
  */
 @Injectable()
 export class DatasetTransactions {
 
-    constructor(
-        readonly gatekeeper:         GatekeeperService,
-        private readonly repository: TransactionRepository,
-    ) {}
+    constructor(private readonly repository: TransactionRepository) {}
 
     /** Where a transaction's files go in the bucket. Physical keys are write-once. */
     storagePrefix(datasetRid: Catalog.Dataset.Rid, transactionRid: Catalog.Transaction.Rid): string {
         return `${datasetRid}/${transactionRid}/`;
     }
 
-    @SecurityGate('write')
     async open(
         principal:  Principal,
         datasetRid: Catalog.Dataset.Rid,
@@ -49,7 +44,6 @@ export class DatasetTransactions {
         return CatalogDB.Transaction.toDomain(row);
     }
 
-    @SecurityGate('write')
     /** Adds stored files to the transaction (or removes logical paths from the view). */
     async registerChanges(
         principal:      Principal,
@@ -60,7 +54,6 @@ export class DatasetTransactions {
         await this.repository.registerChanges(principal, datasetRid, transactionRid, changes);
     }
 
-    @SecurityGate('write')
     async commit(
         principal:      Principal,
         datasetRid:     Catalog.Dataset.Rid,
@@ -73,7 +66,6 @@ export class DatasetTransactions {
     }
 
     /** Works on a trashed dataset — aborting is how a writer cleans up after one. */
-    @SecurityGate('write')
     async abort(principal: Principal, datasetRid: Catalog.Dataset.Rid, transactionRid: Catalog.Transaction.Rid): Promise<void> {
         await this.repository.abort(principal, datasetRid, transactionRid);
     }

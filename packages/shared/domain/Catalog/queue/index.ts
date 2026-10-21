@@ -31,7 +31,7 @@ export namespace Queue {
         export const Definition = Foundations.Queue.define({
             name:    "catalog.storage-gc",
             job:     z.object({}),
-            result:  Result,
+            result:  Result, 
             options: { removeOnComplete: 50, removeOnFail: 50 },
         })
     }

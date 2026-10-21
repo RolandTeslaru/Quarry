@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-import type { z } from 'zod';
 import { Library } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
@@ -23,7 +22,7 @@ export class LibraryController {
     @Post('projects')
     async createProject(
         @CurrentPrincipal() principal: Principal.User,
-        @Body(new ZodPipe(API.Project.Create.Request)) body: z.output<typeof API.Project.Create.Request>,
+        @Body(new ZodPipe(API.Project.Create.Request)) body: API.Project.Create.Request,
     ): Promise<API.Project.Create.Response> {
         return { project: await this.library.createProject(principal, body) };
     }
@@ -47,7 +46,7 @@ export class LibraryController {
     async createFolder(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', RidParam) rid: Library.Resource.Rid,
-        @Body(new ZodPipe(API.Folder.Create.Request)) body: z.output<typeof API.Folder.Create.Request>,
+        @Body(new ZodPipe(API.Folder.Create.Request)) body: API.Folder.Create.Request,
     ): Promise<API.Folder.Create.Response> {
         return { folder: await this.library.createFolder(principal, rid, body) };
     }
@@ -56,7 +55,7 @@ export class LibraryController {
     async rename(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', RidParam) rid: Library.Resource.Rid,
-        @Body(new ZodPipe(API.Resource.Rename.Request)) body: z.output<typeof API.Resource.Rename.Request>,
+        @Body(new ZodPipe(API.Resource.Rename.Request)) body: API.Resource.Rename.Request,
     ): Promise<void> {
         await this.library.rename(principal, rid, body.name);
     }
@@ -65,7 +64,7 @@ export class LibraryController {
     async move(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', RidParam) rid: Library.Resource.Rid,
-        @Body(new ZodPipe(API.Resource.Move.Request)) body: z.output<typeof API.Resource.Move.Request>,
+        @Body(new ZodPipe(API.Resource.Move.Request)) body: API.Resource.Move.Request,
     ): Promise<void> {
         await this.library.move(principal, rid, body.parentRid);
     }

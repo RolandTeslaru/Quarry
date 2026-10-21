@@ -12,7 +12,7 @@ export namespace Dataset {
             name:        ResourceD.Name,
             description: z.string().nullable().default(null),
         })
-        export type  Request = z.input<typeof Request>
+        export type  Request = z.infer<typeof Request>
 
         export const Response = z.object({ dataset: DatasetD.Schema })
         export type  Response = z.infer<typeof Response>
@@ -26,7 +26,7 @@ export namespace Dataset {
     /** The file set at `sequence` (default: latest) on branch main. Needs read. */
     export namespace GetView {
         export const Query = z.object({ sequence: z.coerce.number().int().positive().optional() })
-        export type  Query = z.input<typeof Query>
+        export type  Query = z.infer<typeof Query>
 
         export const Response = z.object({ view: DatasetD.View.Schema })
         export type  Response = z.infer<typeof Response>

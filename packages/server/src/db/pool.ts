@@ -43,9 +43,12 @@ export interface Database<T> {
 }
 
 /**
- * Builds a schema's database module. No RLS: `app.user_rid` (and `app.via` for
- * delegates) are set for audit triggers and logs, not for row filtering —
- * authorization is Gatekeeper's.
+ * Builds a schema's database module. A user's (or delegate's) transaction runs
+ * as the `quarry_user` role with `app.user_rid` set, so every table's row-level
+ * security applies — the policies ask Gatekeeper's rank function for that user
+ * (gatekeeper/001_initial.sql). `app.via` names a delegate's job, for logs.
+ * Service transactions stay on the connecting role, which owns the tables and
+ * so isn't subject to RLS.
  */
 export function defineDatabase<T>(): Database<T> {
     return {
@@ -54,6 +57,7 @@ export function defineDatabase<T>(): Database<T> {
                 const via = principal.type === 'delegate' ? principal.via : '';
 
                 await sql`select set_config('app.user_rid', ${principal.userRid}, true), set_config('app.via', ${via}, true)`.execute(trx);
+                await sql`set local role quarry_user`.execute(trx);
 
                 return fn(trx as unknown as Transaction<T>);
             }),

@@ -1,0 +1,28 @@
+// infra first: reflect-metadata and the env every other module reads.
+import { waitForServer } from './infra';
+import { NestFactory } from '@nestjs/core';
+import { Encryption } from '@quarry/shared/server/encryption';
+import { WorkerModule } from './worker.module';
+
+async function bootstrap(): Promise<void> {
+    // Credentials arrive encrypted; without the workspace key no run could start — fail now, not on the first job.
+    Encryption.assertConfigured();
+
+    // Started alongside the server, it may come up first — runs need the server's /internal API.
+    await waitForServer();
+
+    const app = await NestFactory.create(WorkerModule);
+
+    app.enableShutdownHooks();                      // finish or release the current job on stop
+
+    const port = Number(process.env.WORKER_PORT ?? 4101);
+
+    await app.listen(port);
+
+    console.log(`Quarry Data Connection worker running (health on :${port}/health)`);
+}
+
+bootstrap().catch((error: unknown) => {
+    console.error('Data Connection worker boot failed:', error);
+    process.exit(1);
+});

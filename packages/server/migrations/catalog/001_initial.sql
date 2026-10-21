@@ -79,3 +79,43 @@ CREATE TABLE catalog.outbox (
 );
 
 CREATE INDEX outbox_unpublished ON catalog.outbox (id) WHERE published_at IS NULL;
+
+-- ── row-level security (gatekeeper/001_initial.sql explains the setup) ─────
+--
+-- The dataset and its branch are metadata (discover); transactions and their file
+-- changes are contents (read); writing any of them is write on the dataset.
+
+-- The dataset a transaction belongs to, whatever the user can see — for the change rows' policies.
+CREATE FUNCTION catalog.dataset_of(p_transaction text) RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+    SELECT dataset_rid FROM catalog.transaction WHERE rid = p_transaction
+$$;
+
+ALTER TABLE catalog.dataset ENABLE ROW LEVEL SECURITY;
+CREATE POLICY discover ON catalog.dataset FOR SELECT TO quarry_user USING (gatekeeper.can(rid, 'discover'));
+CREATE POLICY create_  ON catalog.dataset FOR INSERT TO quarry_user WITH CHECK (gatekeeper.can(rid, 'write'));
+
+ALTER TABLE catalog.branch ENABLE ROW LEVEL SECURITY;
+CREATE POLICY discover ON catalog.branch FOR SELECT TO quarry_user USING (gatekeeper.can(dataset_rid, 'discover'));
+CREATE POLICY create_  ON catalog.branch FOR INSERT TO quarry_user WITH CHECK (gatekeeper.can(dataset_rid, 'write'));
+CREATE POLICY change   ON catalog.branch FOR UPDATE TO quarry_user
+    USING (gatekeeper.can(dataset_rid, 'write')) WITH CHECK (gatekeeper.can(dataset_rid, 'write'));
+
+ALTER TABLE catalog.transaction ENABLE ROW LEVEL SECURITY;
+CREATE POLICY read    ON catalog.transaction FOR SELECT TO quarry_user USING (gatekeeper.can(dataset_rid, 'read'));
+CREATE POLICY open    ON catalog.transaction FOR INSERT TO quarry_user WITH CHECK (gatekeeper.can(dataset_rid, 'write'));
+CREATE POLICY finish  ON catalog.transaction FOR UPDATE TO quarry_user             -- commit, abort
+    USING (gatekeeper.can(dataset_rid, 'write')) WITH CHECK (gatekeeper.can(dataset_rid, 'write'));
+
+ALTER TABLE catalog.transaction_change ENABLE ROW LEVEL SECURITY;
+CREATE POLICY read     ON catalog.transaction_change FOR SELECT TO quarry_user
+    USING (gatekeeper.can(catalog.dataset_of(transaction_rid), 'read'));
+CREATE POLICY register ON catalog.transaction_change FOR INSERT TO quarry_user
+    WITH CHECK (gatekeeper.can(catalog.dataset_of(transaction_rid), 'write'));
+
+GRANT USAGE ON SCHEMA catalog TO quarry_user;
+GRANT SELECT, INSERT ON catalog.dataset, catalog.transaction_change TO quarry_user;
+GRANT SELECT, INSERT, UPDATE ON catalog.branch, catalog.transaction TO quarry_user;
+-- The outbox: users only append (a commit writes its event); the relay reads it as the system.
+GRANT INSERT ON catalog.outbox TO quarry_user;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA catalog TO quarry_user;

@@ -7,7 +7,7 @@ import { User } from "../Identity/User"
 export namespace Resource {
 
     /** Mirrors library.resource_type. */
-    export const Type = z.enum(["project", "folder", "dataset", "source"])
+    export const Type = z.enum(["project", "folder", "dataset", "source", "credential"])
     export type  Type = z.infer<typeof Type>
 
     export const CONTAINERS: readonly Type[] = ["project", "folder"]

@@ -1,5 +1,4 @@
 import { Injectable, type OnModuleDestroy } from '@nestjs/common';
-import { WorkerHost } from '@nestjs/bullmq';
 import { Queue, QueueEvents, type Job, type JobsOptions, type RepeatOptions } from 'bullmq';
 import { Foundations } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, closeSharedRedis, redisConnection, sharedRedis } from './redis';
@@ -10,12 +9,11 @@ import { QUEUE_PREFIX, closeSharedRedis, redisConnection, sharedRedis } from './
  */
 type Definition = Foundations.Queue.Definition;
 type InputOf<Q extends Definition>  = Foundations.Queue.InputOf<Q>;
-type JobOf<Q extends Definition>    = Foundations.Queue.JobOf<Q>;
 type ResultOf<Q extends Definition> = Foundations.Queue.ResultOf<Q>;
 
 /**
- * The only way code enqueues. Payloads are validated on the way in; the
- * processor validates them again on the way out (JobProcessor).
+ * The only way the server enqueues. Payloads are validated on the way in; the
+ * workers (their own packages) validate them again when they consume.
  */
 @Injectable()
 export class QueueManager implements OnModuleDestroy {
@@ -88,23 +86,5 @@ export class QueueManager implements OnModuleDestroy {
         }
 
         return events;
-    }
-}
-
-/**
- * Base for processors: Redis data is untyped and a deploy can leave old-shaped
- * jobs behind, so `job.data` is parsed before `handle` sees it, and the result
- * is parsed before BullMQ stores it.
- */
-export abstract class JobProcessor<Q extends Definition> extends WorkerHost {
-
-    protected abstract readonly definition: Q;
-
-    protected abstract handle(job: JobOf<Q>, raw: Job): Promise<ResultOf<Q>>;
-
-    async process(raw: Job): Promise<ResultOf<Q>> {
-        const job = this.definition.job.parse(raw.data) as JobOf<Q>;
-
-        return this.definition.result.parse(await this.handle(job, raw)) as ResultOf<Q>;
     }
 }

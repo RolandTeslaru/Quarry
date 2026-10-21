@@ -42,11 +42,9 @@ export class GatekeeperService {
         return new Set(rids.filter((rid) => Gatekeeper.Action.isAllowed(ranks.get(rid) ?? 0, action)));
     }
 
-    // ── grants ──────────────────────────────────────────────────────────
+    // ── grants — rows, so RLS decides: read to list, manage to change ──────
 
     async listGrants(principal: Principal, rid: Library.Resource.Rid): Promise<Gatekeeper.Grant.Schema[]> {
-        await this.assert(principal, 'read', rid);
-
         const rows = await this.repository.list(principal, rid);
 
         return rows.map(GatekeeperDB.RoleGrant.toDomain);
@@ -58,15 +56,12 @@ export class GatekeeperService {
         subject:   Gatekeeper.Grant.Subject,
         role:      Gatekeeper.Role.Name,
     ): Promise<Gatekeeper.Grant.Schema> {
-        await this.assert(principal, 'manage', rid);
-
         const row = await this.repository.put(principal, rid, subject, role);
 
         return GatekeeperDB.RoleGrant.toDomain(row);
     }
 
     async revoke(principal: Principal, rid: Library.Resource.Rid, subject: Gatekeeper.Grant.Subject): Promise<void> {
-        await this.assert(principal, 'manage', rid);
         await this.repository.revoke(principal, rid, subject);
     }
 

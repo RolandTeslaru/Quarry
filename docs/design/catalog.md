@@ -57,7 +57,7 @@ Small, explicit, independent of any source's native types (`Catalog.ColumnSchema
 
 `string · integer (i32) · long (i64) · double · decimal(p,s) · boolean · date · timestamp (UTC) · binary` — nested `array / struct / map` deferred.
 
-Each source adapter maps its native types onto these; unmappable types become `string` (with a warning), never a silent drop. Postgres mapping: [data-connection.md §3](data-connection.md#3-sources-and-adapters).
+Each source's columns are mapped onto these; unmappable types become `string` (with a warning), never a silent drop. Postgres mapping: [data-connection.md §3](data-connection.md#3-source-definitions-and-runtimes).
 
 ---
 
@@ -182,7 +182,7 @@ Nothing readable depends on listing the bucket — the catalog's file list is th
 
 ## 6. Events and housekeeping
 
-All in the **system worker**; definitions in `Catalog.Queue` ([jobs.md](jobs.md)).
+Scheduled by the **system worker** (`packages/system-worker`), which has no database: the Postgres part of each job is a server endpoint (`Catalog.API.Internal`: `GET /internal/outbox`, `POST /internal/outbox/published`, `POST /internal/storage-gc`). Queue definitions in `Catalog.Queue` ([jobs.md](jobs.md)).
 
 | Job | Cadence | Does |
 |---|---|---|

@@ -39,6 +39,16 @@ export namespace LibraryDB {
         export const toFolder  = (row: Row) => Library.Folder.Schema.parse(toBase(row));
     }
 
+    // Seeded by the migration — never written by code.
+    export namespace ResourceType {
+        export const Row = z.object({
+            type:             Library.Resource.Type,
+            is_container:     z.boolean(),
+            show_in_explorer: z.boolean(),
+        });
+        export type Row = z.infer<typeof Row>;
+    }
+
     // Closure table — trigger-maintained, never written by code.
     export namespace ResourceAncestor {
         export const Row = z.object({
@@ -50,6 +60,7 @@ export namespace LibraryDB {
     }
 
     export interface Tables {
+        'library.resource_type':     ReadOnly<Table<typeof ResourceType.Row>>;
         'library.resource':          Table<typeof Resource.Row, 'created_at' | 'updated_at' | 'trashed_by' | 'trashed_at'>;
         'library.resource_ancestor': ReadOnly<Table<typeof ResourceAncestor.Row>>;
     }

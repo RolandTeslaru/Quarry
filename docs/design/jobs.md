@@ -44,7 +44,7 @@ export namespace Queue {
 ### The runtime — `server/src/infra/queue.ts`
 
 ```ts
-/** The only way code enqueues. */
+/** The only way the server enqueues (server/src/infra/queue.ts). The workers consume with @nestjs/bullmq processors on a typed JobProcessor base. */
 @Injectable()
 export class QueueManager {
     add<Q extends Foundations.Queue.Definition>(queue: Q, job: InputOf<Q>, options?: JobsOptions): Promise<Job>;
@@ -53,8 +53,11 @@ export class QueueManager {
     removeScheduler(queue, schedulerId): Promise<void>;
     schedulerIds(queue): Promise<string[]>;
 }
+```
 
-/** Base for processors: parses job.data before `handle` sees it, and the result before BullMQ stores it. */
+```ts
+// data-connection-worker/src/infra.ts, system-worker/src/infra.ts — the consumer side
+/** Base for @Processor classes: parses job.data before `handle` sees it, and the result before BullMQ stores it. */
 export abstract class JobProcessor<Q extends Foundations.Queue.Definition> extends WorkerHost { … }
 ```
 
@@ -84,7 +87,7 @@ export namespace Queue {                                    // → DataConnectio
         export const deduplication = (syncRid: SyncD.Rid) => ({ id: `sync:${syncRid}` })
     }
 
-    export namespace SourceProbe { Job, Result, Definition }   // request/reply: test, explore, shape
+    export namespace SourceProbe { Job, Result, Definition }   // request/reply: test, explore
     export namespace SyncReaper  { Result, Definition }        // housekeeping singleton
 }
 ```
@@ -94,24 +97,20 @@ export namespace Queue {                                    // → DataConnectio
 ### Using them
 
 ```ts
-// producer — DataConnectionService (api)
+// producer — DataConnectionService (server)
 await this.queueManager.add(DataConnection.Queue.Sync.Definition,
     { syncRid, trigger: 'manual', triggeredBy: principal.userRid },
     { deduplication: DataConnection.Queue.Sync.deduplication(syncRid) });
 
-// request/reply — DataConnectionService.testSource (api)
-const result = await this.queueManager.request(DataConnection.Queue.SourceProbe.Definition, { op: 'test', sourceRid }, PROBE_TIMEOUT_MS);
+// request/reply — DataConnectionService.testSource (server)
+const result = await this.queueManager.request(DataConnection.Queue.SourceProbe.Definition, { op: 'test', source }, PROBE_TIMEOUT_MS);
 
-// consumer — runtime/sync.processor.ts (sync-worker)
-@Processor(DataConnection.Queue.Sync.Definition.name, { concurrency: 2 })
+// consumer — data-connection-worker/src/processors.ts (its own package)
+@Processor(DataConnection.Queue.Sync.Definition.name, { concurrency: 1 })
 export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync.Definition> {
     protected readonly definition = DataConnection.Queue.Sync.Definition;
 
-    constructor(private readonly runner: SyncRunner) { super(); }
-
-    protected handle(job: DataConnection.Queue.Sync.Job) {
-        return this.runner.run(job);
-    }
+    protected async handle(job: DataConnection.Queue.Sync.Job) { … }   // server start → copy → server complete / fail
 }
 ```
 
@@ -121,8 +120,8 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
 
 | Queue | Owner namespace | Consumer | Producer | Dedup | Retries | Schedule |
 |---|---|---|---|---|---|---|
-| `data-connection.sync` | `DataConnection.Queue.Sync` | **sync-worker** | API (run now), job schedulers (cron) | `syncRid` | 3, exponential | per-sync cron |
-| `data-connection.source-probe` | `DataConnection.Queue.SourceProbe` | **sync-worker** | API (test / explore / shape), request-reply | — | 1 | — |
+| `data-connection.sync` | `DataConnection.Queue.Sync` | **data-connection-worker** | API (run now), job schedulers (cron) | `syncRid` | 3, exponential | per-sync cron |
+| `data-connection.source-probe` | `DataConnection.Queue.SourceProbe` | **data-connection-worker** | API (test / explore), request-reply | — | 1 | — |
 | `data-connection.sync-reaper` | `DataConnection.Queue.SyncReaper` | **system-worker** | repeatable | singleton | — | every 2 min |
 | `catalog.outbox-relay` | `Catalog.Queue.OutboxRelay` | **system-worker** | repeatable + `NOTIFY` nudge | singleton | — | every 5 s |
 | `catalog.storage-gc` | `Catalog.Queue.StorageGc` | **system-worker** | repeatable | singleton | — | hourly |
@@ -138,64 +137,64 @@ Library has no queue in layer 1. Its first will be `library.purge` — when tras
 
 ```mermaid
 sequenceDiagram
-    participant API
+    participant S as server
     participant Q as data-connection.sync
-    participant W as sync-worker (SyncRunner)
-    participant C as Catalog
+    participant W as data-connection-worker
     participant S3
 
-    API->>Q: add(job, dedup syncRid)
+    S->>Q: add(job, dedup syncRid)
     Q->>W: deliver
-    W->>W: 1. insert sync_run (one running per sync)
-    W->>C: 2. open transaction
-    W->>S3: 3. DuckDB COPY → {datasetRid}/{transactionRid}/
-    Note over W: heartbeat_at every 30 s
-    W->>C: 4. register files, commit (+ outbox row)
-    W->>W: 5. finish sync_run (cursor_to, row_count)
+    W->>S: POST /internal/sync-runs
+    Note over S: insert sync_run, open the dataset transaction
+    S-->>W: source config, sync config, state, destination
+    W->>S3: open → read (DuckDB COPY) → close
+    Note over W,S: heartbeat every 30 s
+    W->>S: POST /internal/sync-runs/:rid/complete (row counts, schema)
+    Note over S: list the prefix, register files, commit (+ outbox row), finish the run
     opt on error
-        W->>C: abort transaction
-        W->>W: fail sync_run, rethrow
-        Note over Q,W: BullMQ retries — a new sync_run per attempt
+        W->>S: POST /internal/sync-runs/:rid/fail
+        Note over S: abort the transaction, fail the run
+        Note over Q,W: BullMQ retries — a new run per attempt
     end
 ```
 
-The processor creates the `sync_run` row, so manual and scheduled runs share one path, and each retry is its own visible run.
+The server creates the `sync_run` row when the worker starts the run, so manual and scheduled runs share one path, and each retry is its own visible run. The Data Connection worker never touches Postgres.
 
 ### Schedules
 
 Cron schedules are **BullMQ job schedulers** on `data-connection.sync` — not a separate queue:
 
-- **API** — on sync create / update / delete: `upsertJobScheduler(syncRid, { pattern: cron }, { data: { syncRid, trigger: 'schedule', triggeredBy: null } })` or `removeJobScheduler(syncId)`.
-- **system-worker on boot** — reconcile: upsert a scheduler for every enabled sync with a schedule, remove schedulers with no matching sync. A wiped Redis heals on the next boot.
+- **server** — on sync create / update / delete: `upsertJobScheduler(syncRid, { pattern: cron }, { data: { syncRid, trigger: 'schedule', triggeredBy: null } })` or `removeJobScheduler(syncId)`.
+- **system-worker on boot** — reconcile (`GET /internal/syncs/scheduled`): upsert a scheduler for every enabled sync with a schedule, remove schedulers with no matching sync. A wiped Redis heals on the next boot.
 
 ### Outbox relay
 
 ```mermaid
 sequenceDiagram
-    participant C as Catalog commit
-    participant PG as catalog.outbox
-    participant R as Outbox relay
+    participant C as Catalog commit (server)
+    participant S as server /internal
+    participant R as system-worker
     participant Q as dataset-updated queue
 
-    C->>PG: insert row + NOTIFY (same transaction)
+    C->>C: insert catalog.outbox row + NOTIFY (same transaction)
     loop every 5 s
-        R->>PG: read up to 100 unpublished rows
+        R->>S: GET /internal/outbox?limit=100
         R->>Q: add(payload, jobId = transactionRid)
-        R->>PG: mark published
+        R->>S: POST /internal/outbox/published
     end
 ```
 
-The relay reads with `ORDER BY id LIMIT 100 FOR UPDATE SKIP LOCKED`. Using the transaction RID as `jobId` makes a re-publish after a crash a no-op.
+The server reads oldest first (`ORDER BY id LIMIT 100`). Using the transaction RID as `jobId` makes a re-publish after a crash a no-op.
 
 Crash between enqueue and mark → the row is re-published next tick; the `jobId` makes that harmless.
 
 ### Reaper
 
-A run is **stuck** when `status = 'running'` and `heartbeat_at < now() - 5 min`. The reaper marks it `failed` (`error = { reason: 'worker lost' }`) and aborts its open dataset transaction; storage GC later removes the orphaned files. BullMQ's own stalled-job detection may also re-deliver the job — then the retry starts a fresh run, since the old one is no longer `running`.
+Every 2 minutes the system worker calls `POST /internal/sync-runs/reap`. A run is **stuck** when `status = 'running'` and `heartbeat_at < now() - 5 min`. The reaper marks it `failed` (`error = { reason: 'worker lost' }`) and aborts its open dataset transaction; storage GC later removes the orphaned files. BullMQ's own stalled-job detection may also re-deliver the job — then the retry starts a fresh run, since the old one is no longer `running`.
 
 ### Storage GC
 
-Hourly, in order:
+Hourly, the system worker calls `POST /internal/storage-gc`; the server, in order:
 1. Abort catalog transactions left `open` longer than 24 h.
 2. Delete objects of `aborted` transactions.
 3. Delete files under `datasets/` with no `transaction_change` row, older than a 24 h grace period (uploads that never registered).

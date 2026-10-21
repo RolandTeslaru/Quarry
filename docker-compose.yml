@@ -91,18 +91,19 @@ services:
         mc alias set local http://minio:9000 "${S3_ACCESS_KEY:-quarry}" "${S3_SECRET_KEY:-quarry-secret}" &&
         mc mb --ignore-existing "local/${S3_BUCKET:-datasets}"
 
-  # ── app (profile "app") — one image, three entry points ─────────────────────
+  # ── app (profile "app") — one image, three packages ─────────────────────────
 
-  api:
+  # packages/server — the CRUD API, plus /api/internal/… for the workers. The only container with database access.
+  server:
     profiles: [app]
     build: .
     image: quarry:latest
     restart: unless-stopped
-    command: ["node", "dist/server/src/api.js"]
+    command: ["node", "packages/server/dist/server/src/api.js"]
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
-    environment: &app-env
+    environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-quarry}@postgres:5432/${POSTGRES_DB:-quarry}
       REDIS_URL: redis://redis:6379
       GOTRUE_URL: http://gotrue:9999
@@ -112,31 +113,57 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-quarry}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-quarry-secret}
       S3_BUCKET: ${S3_BUCKET:-datasets}
+      QUARRY_INTERNAL_TOKEN: ${QUARRY_INTERNAL_TOKEN:-dev-internal-token-change-me}
+      QUARRY_ENCRYPTION_KEY: ${QUARRY_ENCRYPTION_KEY:?set QUARRY_ENCRYPTION_KEY (openssl rand -hex 32)}
       PORT: 4000
       CORS_ORIGIN: ${APP_URL:-http://localhost:5173}
     ports:
       - "${API_PORT:-4000}:4000"
 
-  # The only container that reaches source systems and resolves their credentials.
-  sync-worker:
+  # packages/data-connection-worker — the only container that reaches source systems; it decrypts their credentials.
+  # No DATABASE_URL: run bookkeeping goes through the server's /internal API.
+  data-connection-worker:
     profiles: [app]
     image: quarry:latest
     restart: unless-stopped
-    command: ["node", "dist/server/src/workers/sync.js"]
+    command: ["node", "packages/data-connection-worker/dist/data-connection-worker/src/main.js"]
     depends_on:
-      api: { condition: service_started }
+      server: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4101/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
     environment:
-      <<: *app-env
+      WORKER_PORT: 4101
+      REDIS_URL: redis://redis:6379
+      QUARRY_SERVER_URL: http://server:4000
+      QUARRY_INTERNAL_TOKEN: ${QUARRY_INTERNAL_TOKEN:-dev-internal-token-change-me}
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-quarry}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-quarry-secret}
+      S3_BUCKET: ${S3_BUCKET:-datasets}
+      QUARRY_ENCRYPTION_KEY: ${QUARRY_ENCRYPTION_KEY:?set QUARRY_ENCRYPTION_KEY (openssl rand -hex 32)}
 
+  # packages/system-worker — housekeeping on a schedule. No DATABASE_URL either.
   system-worker:
     profiles: [app]
     image: quarry:latest
     restart: unless-stopped
-    command: ["node", "dist/server/src/workers/system.js"]
+    command: ["node", "packages/system-worker/dist/system-worker/src/main.js"]
     depends_on:
-      api: { condition: service_started }
+      server: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4102/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
     environment:
-      <<: *app-env
+      WORKER_PORT: 4102
+      REDIS_URL: redis://redis:6379
+      QUARRY_SERVER_URL: http://server:4000
+      QUARRY_INTERNAL_TOKEN: ${QUARRY_INTERNAL_TOKEN:-dev-internal-token-change-me}
 
 volumes:
   postgres-data:

@@ -8,7 +8,8 @@ Gatekeeper answers one question for every service: **may this principal do this 
 
 ## 1. Principles
 
-- **Authorization lives in the application, not in Postgres RLS.** Rules span the database *and* object storage (Parquet files), so a database-only mechanism can't cover them.
+- **Row-level security decides every plain read and write of a row** (decided 2026-10-21). User and delegate transactions run as `quarry_user` under policies built on the same rank function ([database.md §8](database.md#8-database-roles-and-row-level-security)); service code doesn't gate them. A 404 means *doesn't exist, or not yours*.
+- **`@SecurityGate` / `assert` only for business rules RLS can't express:** effects that aren't rows (a queued sync run, a source probe, object storage), actions stricter than the row's policy (revealing or using a credential — its row is readable at discover), results RLS would silently empty (a dataset's view, a sync's run history), and side effects that come before the guarded row (creating a sync makes its dataset and scheduler first).
 - **Every service asks before acting.** Gatekeeper is an in-process module — a check is a function call plus one indexed query, no network hop.
 - **Relationship-based.** Permissions are edges in a graph: user → member of → group → role on → folder → ancestor of → dataset.
 - **Additive.** Grants only add access; there are no deny rules. (Mandatory controls that *restrict* — markings — come later, §9.)
@@ -68,8 +69,8 @@ Four roles, ranked; a higher role includes everything below it.
 | Rank | Role | Can |
 |---|---|---|
 | 1 | **discoverer** | See that the resource exists: name, type, location. Not its contents. |
-| 2 | **viewer** | Read contents: dataset files and schema, source config (never secrets), sync history. |
-| 3 | **editor** | Change it: commit transactions, edit config, run syncs, create children, rename, move, trash. |
+| 2 | **viewer** | Read contents: dataset files and schema, source config, sync history; **use** a credential (name it on a source, run with it) without seeing its values. |
+| 3 | **editor** | Change it: commit transactions, edit config, run syncs, create children, rename, move, trash; **reveal** and change a credential's values. |
 | 4 | **owner** | Manage it: grant and revoke roles, purge. |
 
 Services check **actions**, not roles — each action maps to a minimum rank:
@@ -200,7 +201,7 @@ Compile-time guarantees (verified with `tsc --strict --experimentalDecorators`):
 
 ### Layering and nesting
 
-Services check with the caller's principal (`@SecurityGate`, `assert`), then **pass that same principal to the repositories they call** — repositories don't re-check; the service layer is the one place authorization happens. Passing the real principal down means the transaction carries `app.user_rid` (and `app.via` for delegates) for audit, and repositories derive `created_by` / `started_by` / `granted_by` / `trashed_by` from it with `Principal.actorOf` — callers never pass an actor by hand. Repository methods are `@Transactional()` (any principal) unless system-only (`@Transactional('service')`). No RLS: `app.user_rid` is for audit, not filtering.
+Services check with the caller's principal (`@SecurityGate`, `assert`), then **pass that same principal to the repositories they call** — repositories don't re-check; the service layer is the one place authorization happens. Passing the real principal down means the transaction carries `app.user_rid` (and `app.via` for delegates) for audit, and repositories derive `created_by` / `started_by` / `granted_by` / `trashed_by` from it with `Principal.actorOf` — callers never pass an actor by hand. Repository methods are `@Transactional()` (any principal) unless system-only (`@Transactional('service')`). `app.user_rid` also drives row-level security: the policies ask `gatekeeper.can(rid, action)` for that user, so a repository call a service forgot to gate is still filtered or refused by Postgres.
 
 Nesting gated service calls is **safe** — unlike `@Transactional`, a gate holds no transaction or connection, it's just a read. Three rules:
 

@@ -1,6 +1,6 @@
 # Database Design
 
-_Draft, 2026-10-13. Covers `identity`, `library`, `gatekeeper`, `catalog` and `data_connection`. Concepts are in [catalog.md](catalog.md), [data-connection.md](data-connection.md) and [gatekeeper.md](gatekeeper.md); Foundry background in the [research notes](../research/palantir-foundry-ontology.md)._
+_Draft, 2026-10-13. Covers `identity`, `library`, `gatekeeper`, `keychain`, `catalog` and `data_connection`. Concepts are in [catalog.md](catalog.md), [data-connection.md](data-connection.md), [keychain.md](keychain.md) and [gatekeeper.md](gatekeeper.md); Foundry background in the [research notes](../research/palantir-foundry-ontology.md)._
 
 ---
 
@@ -14,6 +14,7 @@ workspace database (`quarry`)
 ├── identity          users and groups of this workspace       (foundation: every service may read)
 ├── library           resource identity, folder tree, ancestry (foundation: every service may read)
 ├── gatekeeper        role grants, permission epoch
+├── keychain          credentials, encrypted at rest
 ├── catalog           datasets, branches, transactions, files
 └── data_connection   sources, syncs, sync runs
     (later: code_repository, ontology, …)
@@ -82,7 +83,7 @@ export namespace Foundations {
 
 // Library — RIDs of library resources (mirrors library.resource_type)
 export namespace Library.Resource {
-    export type Type = 'project' | 'folder' | 'dataset' | 'source';
+    export type Type = 'project' | 'folder' | 'dataset' | 'source' | 'credential';
     export type Rid  = Foundations.Rid<string, Type>;
 }
 
@@ -164,18 +165,19 @@ Authoritative for what **every** resource shares: identity, type, name, location
 ```sql
 CREATE SCHEMA library;
 
--- Registry of resource types and which service owns each
+-- Registry of resource types: which can hold children, which the explorer lists
 CREATE TABLE library.resource_type (
-    type          text PRIMARY KEY,                -- 'project' | 'folder' | 'dataset' | 'source' | …
-    service       text NOT NULL,                   -- 'library' | 'catalog' | 'data-connection'
-    is_container  boolean NOT NULL DEFAULT false   -- can have children (project, folder)
+    type              text PRIMARY KEY,                -- 'project' | 'folder' | 'dataset' | 'source' | 'credential' | …
+    is_container      boolean NOT NULL DEFAULT false,  -- can have children (project, folder)
+    show_in_explorer  boolean NOT NULL DEFAULT true    -- listed by the library explorer; credentials live in Keychain
 );
 
 INSERT INTO library.resource_type VALUES
-    ('project', 'library',         true),
-    ('folder',  'library',         true),
-    ('dataset', 'catalog',         false),
-    ('source',  'data-connection', false);
+    ('project',    true,  true),
+    ('folder',     true,  true),
+    ('dataset',    false, true),
+    ('source',     false, true),
+    ('credential', false, false);
 
 CREATE TABLE library.resource (
     rid         foundations.rid PRIMARY KEY,
@@ -408,6 +410,30 @@ CREATE TRIGGER epoch_on_user
 
 ---
 
+## 5b. `keychain`
+
+Credentials — logins to external systems. Each is a library resource of type `credential` (hidden from the explorer: `show_in_explorer = false`). Concepts in [keychain.md](keychain.md).
+
+```sql
+CREATE SCHEMA keychain;
+
+CREATE DOMAIN keychain.credential_rid AS foundations.rid CHECK (VALUE LIKE 'ri.keychain.main.credential.%');
+
+CREATE TABLE keychain.credential (
+    rid          keychain.credential_rid PRIMARY KEY,
+    type         text NOT NULL DEFAULT 'credential' CHECK (type = 'credential'),
+    template_id  text NOT NULL CHECK (template_id ~ '^[a-z][a-z0-9-]*$'),   -- 'postgres', … — declared in code (integrations/<System>/credential.ts)
+    blob         text NOT NULL,                   -- every value, encrypted together: keyId:iv:authTag:ciphertext — never plain text
+    updated_by   identity.user_rid REFERENCES identity.user(rid),          -- who last set the values
+    updated_at   timestamptz NOT NULL DEFAULT now(),
+    FOREIGN KEY (rid, type) REFERENCES library.resource (rid, type) ON DELETE RESTRICT
+);
+```
+
+Sources reference a credential through `library.resource` (rule 3): `data_connection.source.credential_rid`.
+
+---
+
 ## 6. `catalog`
 
 Datasets as versioned file sets. Files live in object storage; this schema is authoritative for which files make up each version.
@@ -546,35 +572,37 @@ CREATE DOMAIN data_connection.sync_run_rid AS foundations.rid CHECK (VALUE LIKE 
 CREATE TABLE data_connection.source (
     rid           data_connection.source_rid PRIMARY KEY,
     type          text NOT NULL DEFAULT 'source' CHECK (type = 'source'),
-    kind          text NOT NULL CHECK (kind IN ('postgres', 'mysql', 's3', 'rest')),
-    config        jsonb NOT NULL,                 -- host, port, database, … — validated per kind
-    secret_ref    text,                           -- name resolved at runtime; never the credential
+    definition_id text NOT NULL CHECK (definition_id ~ '^[a-z][a-z0-9-]*$'),   -- 'postgres', … — defined in code (sources/)
+    config        jsonb NOT NULL,                 -- validated against the definition's Config; never credential values
+
+    -- the Keychain credential it logs in with, referenced through library (rule 3); NULL iff the definition takes none
+    credential_rid foundations.rid REFERENCES library.resource (rid) ON DELETE RESTRICT
+                   CHECK (credential_rid LIKE 'ri.keychain.main.credential.%'),
+
     FOREIGN KEY (rid, type) REFERENCES library.resource (rid, type) ON DELETE RESTRICT
 );
+
+CREATE INDEX source_credential ON data_connection.source (credential_rid) WHERE credential_rid IS NOT NULL;
 
 CREATE TABLE data_connection.sync (
     rid                 data_connection.sync_rid PRIMARY KEY,
     source_rid          data_connection.source_rid NOT NULL REFERENCES data_connection.source(rid) ON DELETE CASCADE,
     name                text NOT NULL,
-    target              jsonb NOT NULL,           -- { "kind": "table", "schema": "public", "table": "tools" }
-                                                  -- | { "kind": "query", "sql": "…" }
-    mode                text NOT NULL CHECK (mode IN ('snapshot', 'append')),
-    cursor_column       text,                     -- required for 'append'
+    config              jsonb NOT NULL,           -- the source integration's sync Config, validated by the server:
+                                                  -- { "kind": "table", "schema": "public", "table": "tools" } | { "kind": "query", "sql": "…" }
 
-    -- output dataset: a catalog resource, referenced through library (rule 3)
-    output_dataset_rid  foundations.rid NOT NULL,     -- type checked by the FK below
-    output_dataset_type text NOT NULL DEFAULT 'dataset' CHECK (output_dataset_type = 'dataset'),
+    -- output dataset: a catalog resource, referenced through library (rule 3). The FK says it exists;
+    -- the RID prefix says it's a dataset (library keeps each resource's RID type segment = its type).
+    output_dataset_rid  foundations.rid NOT NULL REFERENCES library.resource (rid) ON DELETE RESTRICT
+                        CHECK (output_dataset_rid LIKE 'ri.catalog.main.dataset.%'),
 
     schedule            text,                     -- cron expression; NULL = manual only
     enabled             boolean NOT NULL DEFAULT true,
     created_by          identity.user_rid REFERENCES identity.user(rid),
     created_at          timestamptz NOT NULL DEFAULT now(),
 
-    FOREIGN KEY (output_dataset_rid, output_dataset_type)
-        REFERENCES library.resource (rid, type) ON DELETE RESTRICT,
     UNIQUE (output_dataset_rid),                   -- a raw dataset has exactly one writing sync
-    UNIQUE (source_rid, name),
-    CHECK ((mode = 'append') = (cursor_column IS NOT NULL))
+    UNIQUE (source_rid, name)
 );
 
 CREATE TABLE data_connection.sync_run (
@@ -582,8 +610,8 @@ CREATE TABLE data_connection.sync_run (
     sync_rid         data_connection.sync_rid NOT NULL REFERENCES data_connection.sync(rid) ON DELETE CASCADE,
     status           text NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'succeeded', 'failed')),
     transaction_rid  foundations.rid,                 -- catalog transaction; no FK (rule 3)
-    cursor_from      text,
-    cursor_to        text,                        -- next run starts here (append mode)
+    state_from     text,                     -- the previous successful run's state_to; opaque to all but the integration
+    state_to         text,                     -- what the next run starts from (e.g. a high-water mark)
     row_count        bigint,
     error            jsonb,
     trigger          text NOT NULL CHECK (trigger IN ('manual', 'schedule')),
@@ -604,20 +632,39 @@ CREATE INDEX sync_run_latest ON data_connection.sync_run (sync_rid, started_at D
 
 A run is **stuck** when it's still `running` but `heartbeat_at` is minutes old — see [jobs.md](jobs.md#reaper).
 
-Syncs are **not** library resources: they live under their source and have no independent name, location or permissions. The current append cursor is the `cursor_to` of the latest succeeded run.
+Syncs are **not** library resources: they live under their source and have no independent name, location or permissions. A sync's current state (e.g. its incremental high-water mark) is the `state_to` of the latest succeeded run.
 
 `sync_run.transaction_rid` has no FK on purpose — it's another service's internal record, not a library resource. The catalog side records the link back in `transaction.provenance`.
 
 ---
 
-## 8. Database roles
+## 8. Database roles and row-level security
 
-**No row-level security.** Authorization is application-level, in [Gatekeeper](gatekeeper.md) — it has to cover object storage too, which RLS can't.
+**Row-level security is the base layer** (decided 2026-10-21). Gatekeeper's services still check first — for proper 403s and object storage, which RLS can't cover — and Postgres refuses anything they miss.
 
 | Role | Used by | Access |
 |---|---|---|
-| `workspace_app` | The application (all services, one pool) | Owns `identity`, `library`, `gatekeeper`, `catalog`, `data_connection`; no access to `auth` |
+| The connecting role (`DATABASE_URL`) | Migrations; **service** transactions (system work) | Owns every schema; as owner it isn't subject to RLS |
+| `quarry_user` (NOLOGIN, created by `foundations/001`) | **User and delegate** transactions: `asUser` runs `SET LOCAL ROLE quarry_user` after `set_config('app.user_rid', …)` | `SELECT`/`INSERT`/`UPDATE` per table as needed, filtered by RLS; `INSERT` only on `catalog.outbox` |
 | GoTrue's own role | GoTrue | `auth` only |
+
+**How a policy decides.** `gatekeeper.can(rid, 'read')` — the SQL twin of `GatekeeperService.can` — compares the current user's effective rank (`gatekeeper.my_rank`: `effective_ranks` with `app.user_rid`; 0 without a user) with the action's minimum (`gatekeeper.action`: discover · read · write · manage, mirroring `Gatekeeper.Action`; a misspelt action fails the domain check). Computed per row, on the fly — a materialised access table can replace it later without changing the policies:
+
+| Rows | SELECT | INSERT / UPDATE |
+|---|---|---|
+| `library.resource` | discover (on itself or its parent) | create: write on the parent (projects: admins); rename / move / trash: write — plus write on a new parent for a move, checked by the `check_parent` trigger (a policy can't see the old row) |
+| `library.resource_ancestor` | discover | — (definer triggers only) |
+| `gatekeeper.role_grant` | read | manage |
+| `catalog.dataset`, `catalog.branch`, `keychain.credential`, `data_connection.source` | discover | write (a source naming a credential also needs read on it) |
+| `data_connection.sync` | discover on the source | write on the source **and** on the output dataset |
+| `catalog.transaction`, `catalog.transaction_change` | read on the dataset | write on the dataset |
+| `data_connection.sync_run` | read on the source | read on the source (runs act as their delegate) |
+
+Not resource-scoped, so no RLS: `identity.*` (admin-checked in the server), `library.resource_type`, `gatekeeper.role`, `gatekeeper.epoch`, `catalog.outbox` (users can only append to it).
+
+**SECURITY DEFINER functions** see past RLS where they must: `gatekeeper.effective_ranks` (the policies call it), `library.is_live` (liveness must see trashed ancestors the user can't), the library ancestry triggers, `gatekeeper.bump_epoch`, `catalog.dataset_of`, `data_connection.source_of`.
+
+What RLS does to errors: hidden rows are simply absent — a get is a 404, an UPDATE or DELETE that touches nothing is a 404 too (`requireAffected`): *doesn't exist, or not yours*. A refused insert or update raises SQLSTATE 42501, which `catchDatabaseErrors` maps to 403. A create under a parent that exists but is hidden is a 404, not a 403 (`@EnsureResource` checks the parent is visible), so a refused create never reveals a hidden resource.
 
 Service boundaries (rule 1) are enforced at compile time by typed database modules, not by Postgres roles. If a service is ever split into its own process, it gets its own role with grants on its schema plus `SELECT` on the foundation schemas.
 
@@ -652,5 +699,5 @@ Where each schema's tables are used in code (DB modules, repositories) is in [ar
 
 _Settled:_ trash cascades by ancestry — only the trashed resource gets `trashed_at`; descendants are hidden because an ancestor is trashed, and `@Transactional` 404s on them (architecture.md §6).
 - **Large file lists** — snapshots with tens of thousands of files: is `transaction_change` enough, or do we need manifest files in object storage (Iceberg-style)?
-- **Secrets** — `secret_ref` resolved from env for now; where it moves later (Vault, cloud secret manager).
+- **Encryption key rotation** — one `QUARRY_ENCRYPTION_KEY` per workspace; rotating means re-encrypting every `keychain.credential.blob` (keychain.md §4).
 - **GoTrue user sync** — copy email from GoTrue on login, or treat `identity.user.email` as authoritative?

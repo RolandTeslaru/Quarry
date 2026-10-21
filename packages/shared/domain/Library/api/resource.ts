@@ -23,12 +23,12 @@ export namespace Resource {
 
     export namespace Rename {
         export const Request = z.object({ name: ResourceD.Name })
-        export type  Request = z.input<typeof Request>
+        export type  Request = z.infer<typeof Request>
     }
 
     export namespace Move {
         export const Request = z.object({ parentRid: ResourceD.Rid })
-        export type  Request = z.input<typeof Request>
+        export type  Request = z.infer<typeof Request>
     }
 
     export async function get(api: AxiosInstance, rid: ResourceD.Rid): Promise<Get.Response> {

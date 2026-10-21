@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { Gatekeeper, Identity, Library } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
+import { requireAffected } from '@/db/errors';
 import { Repository, Transactional } from '@/db/repository';
 import { GatekeeperDB } from './gatekeeper.db';
 
@@ -67,13 +68,14 @@ export class GrantRepository extends Repository(GatekeeperDB.database) {
         await this._delete(rid, subject);
     }
 
+    /** No grant, or not yours to revoke (RLS) — 404 either way. */
     private async _delete(rid: Library.Resource.Rid, subject: Gatekeeper.Grant.Subject): Promise<void> {
-        await this.trx
+        requireAffected(await this.trx
             .deleteFrom('gatekeeper.role_grant')
             .where('resource_rid', '=', rid)
             .$call((query) => subject.type === 'user'
                 ? query.where('user_rid', '=', subject.userRid)
                 : query.where('group_rid', '=', subject.groupRid))
-            .execute();
+            .executeTakeFirstOrThrow());
     }
 }

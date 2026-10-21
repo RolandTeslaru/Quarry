@@ -1,17 +1,19 @@
-# One image for api, sync-worker and system-worker — docker-compose picks the entry point.
-# Debian, not Alpine: DuckDB's native bindings need glibc.
+# One image for the server and both workers — docker-compose picks the command.
+# Debian, not Alpine: DuckDB's native bindings (Data Connection worker) need glibc.
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/integrations/package.json packages/integrations/
 COPY packages/server/package.json packages/server/
+COPY packages/data-connection-worker/package.json packages/data-connection-worker/
+COPY packages/system-worker/package.json packages/system-worker/
 RUN npm ci
 
-COPY packages/shared packages/shared
-COPY packages/server packages/server
-RUN npm run build --workspace=packages/server
+COPY packages packages
+RUN npm run build
 
 FROM node:22-bookworm-slim
 WORKDIR /app
@@ -19,10 +21,15 @@ ENV NODE_ENV=production
 
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/integrations/package.json packages/integrations/
 COPY packages/server/package.json packages/server/
+COPY packages/data-connection-worker/package.json packages/data-connection-worker/
+COPY packages/system-worker/package.json packages/system-worker/
 RUN npm ci --omit=dev
 
-COPY --from=build /app/packages/server/dist packages/server/dist
-WORKDIR /app/packages/server
+# Each package's dist carries the shared/integrations code it compiled in.
+COPY --from=build /app/packages/server/dist        packages/server/dist
+COPY --from=build /app/packages/data-connection-worker/dist   packages/data-connection-worker/dist
+COPY --from=build /app/packages/system-worker/dist packages/system-worker/dist
 
-CMD ["node", "dist/server/src/api.js"]
+CMD ["node", "packages/server/dist/server/src/api.js"]

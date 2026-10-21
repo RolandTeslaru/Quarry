@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Library } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
+import { requireAffected } from '@/db/errors';
 import { Repository, Transactional } from '@/db/repository';
 import { LibraryDB } from './library.db';
-import { insertResource, liveResources } from './library.statements';
+import { insertResource, isLive, liveResources, visibleResources } from './library.statements';
 
 /** Row operations on library.resource. Trashed resources — and anything under them — read as absent. */
 @Injectable()
@@ -16,13 +17,7 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
             .selectFrom('library.resource as r')
             .selectAll('r')
             .where('r.rid', '=', rid)
-            .where(({ not, exists, selectFrom }) => not(exists(
-                selectFrom('library.resource_ancestor as a')
-                    .innerJoin('library.resource as anc', 'anc.rid', 'a.ancestor_rid')
-                    .select('a.ancestor_rid')
-                    .whereRef('a.resource_rid', '=', 'r.rid')
-                    .where('anc.trashed_at', 'is not', null),
-            )))
+            .where(isLive('r.rid'))
             .executeTakeFirst();
 
         return row ?? null;
@@ -39,16 +34,21 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
             .execute();
     }
 
-    /** Live children. @Transactional checks the parent itself is live. */
+    /**
+     * Live children the explorer lists — types with show_in_explorer (credentials
+     * are Keychain's). @Transactional checks the parent itself is live.
+     */
     @Transactional()
     async children(principal: Principal, parentRid: Library.Resource.Rid): Promise<LibraryDB.Resource.Row[]> {
         return this.trx
-            .selectFrom('library.resource')
-            .selectAll()
-            .where('parent_rid', '=', parentRid)
-            .where('trashed_at', 'is', null)
-            .orderBy('type')
-            .orderBy('name')
+            .selectFrom('library.resource as r')
+            .innerJoin('library.resource_type as t', 't.type', 'r.type')
+            .selectAll('r')
+            .where('r.parent_rid', '=', parentRid)
+            .where('r.trashed_at', 'is', null)
+            .where('t.show_in_explorer', '=', true)
+            .orderBy('r.type')
+            .orderBy('r.name')
             .execute();
     }
 
@@ -73,7 +73,8 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
         description: string | null;
         parentRid:   Library.Resource.Rid | null;
     }): Promise<LibraryDB.Resource.Row> {
-        if (values.parentRid && !(await liveResources(this.trx, [values.parentRid])).has(values.parentRid))
+        if (values.parentRid && (!(await liveResources(this.trx, [values.parentRid])).has(values.parentRid)
+            || !(await visibleResources(this.trx, [values.parentRid])).has(values.parentRid)))
             throw new NotFoundException('Not found');
 
         return insertResource(this.trx, { ...values, createdBy: Principal.actorOf(principal) });
@@ -81,30 +82,33 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
 
     @Transactional()
     async rename(principal: Principal, rid: Library.Resource.Rid, name: string): Promise<void> {
-        await this.trx
+        requireAffected(await this.trx
             .updateTable('library.resource')
             .set({ name, updated_at: new Date() })
             .where('rid', '=', rid)
-            .executeTakeFirstOrThrow();
+            .executeTakeFirstOrThrow());
     }
 
-    /** Triggers re-link the closure table and reject non-container parents and cycles. */
+    /**
+     * Triggers re-link the closure table and reject non-container parents and
+     * cycles; RLS needs write on the resource and on the new parent.
+     */
     @Transactional()
     async move(principal: Principal, rid: Library.Resource.Rid, parentRid: Library.Resource.Rid): Promise<void> {
-        await this.trx
+        requireAffected(await this.trx
             .updateTable('library.resource')
             .set({ parent_rid: parentRid, updated_at: new Date() })
             .where('rid', '=', rid)
-            .executeTakeFirstOrThrow();
+            .executeTakeFirstOrThrow());
     }
 
     @Transactional()
     async trash(principal: Principal, rid: Library.Resource.Rid): Promise<void> {
-        await this.trx
+        requireAffected(await this.trx
             .updateTable('library.resource')
             .set({ trashed_at: new Date(), trashed_by: Principal.actorOf(principal) })
             .where('rid', '=', rid)
             .where('trashed_at', 'is', null)
-            .executeTakeFirstOrThrow();
+            .executeTakeFirstOrThrow());
     }
 }

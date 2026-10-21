@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import type { Library } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { currentTransaction, runWithResource } from '@/db/repository';
-import { insertResource, liveResources } from './library.statements';
+import { insertResource, liveResources, visibleResources } from './library.statements';
 
 /** What a subtype's create method must receive (second parameter) for its library row. */
 export interface ResourceValues {
@@ -29,7 +29,9 @@ type ValuesSecond<M> = M extends (principal: Principal, values: infer V, ...rest
  *       …insert the subtype's own rows…
  *   }
  *
- * The parent must be live (404 otherwise). Must sit under @Transactional. The SQL stays Library's (library.statements).
+ * The parent must be live and visible to the user (404 otherwise); whether they
+ * may write into it is RLS's call on the insert (403). Must sit under
+ * @Transactional. The SQL stays Library's (library.statements).
  */
 export function EnsureResource(type: Exclude<Library.Resource.Type, 'project' | 'folder'>) {
     return function <M extends (principal: Principal, values: never, ...rest: never[]) => Promise<unknown>>(
@@ -42,7 +44,8 @@ export function EnsureResource(type: Exclude<Library.Resource.Type, 'project' | 
         descriptor.value = async function (this: unknown, principal: Principal, values: ResourceValues, ...rest: unknown[]) {
             const trx = currentTransaction();
 
-            if (!(await liveResources(trx, [values.parentRid])).has(values.parentRid))
+            if (!(await liveResources(trx, [values.parentRid])).has(values.parentRid)
+                || !(await visibleResources(trx, [values.parentRid])).has(values.parentRid))
                 throw new NotFoundException('Not found');
 
             const row = await insertResource(trx, {

@@ -9,6 +9,9 @@
             ],
             "@quarry/shared/*": [
                 "../shared/*"
+            ],
+            "@quarry/integrations/*": [
+                "../integrations/*"
             ]
         },
         "rootDir": "..",

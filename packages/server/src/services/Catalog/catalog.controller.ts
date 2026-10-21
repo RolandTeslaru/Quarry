@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import type { z } from 'zod';
 import { Catalog } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
@@ -18,11 +17,9 @@ export class CatalogController {
     @Post()
     async create(
         @CurrentPrincipal() principal: Principal.User,
-        @Body(new ZodPipe(API.Dataset.Create.Request)) body: z.output<typeof API.Dataset.Create.Request>,
+        @Body(new ZodPipe(API.Dataset.Create.Request)) body: API.Dataset.Create.Request,
     ): Promise<API.Dataset.Create.Response> {
-        const { parentRid, ...request } = body;
-
-        return { dataset: await this.catalog.createDataset(principal, parentRid, request) };
+        return { dataset: await this.catalog.createDataset(principal, body) };
     }
 
     @Get(':rid')
@@ -34,7 +31,7 @@ export class CatalogController {
     async view(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
-        @Query(new ZodPipe(API.Dataset.GetView.Query)) query: z.output<typeof API.Dataset.GetView.Query>,
+        @Query(new ZodPipe(API.Dataset.GetView.Query)) query: API.Dataset.GetView.Query,
     ): Promise<API.Dataset.GetView.Response> {
         return { view: await this.catalog.view(principal, rid, query.sequence) };
     }

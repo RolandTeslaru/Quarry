@@ -1,4 +1,4 @@
-import type { Transaction } from 'kysely';
+import { sql, type Transaction } from 'kysely';
 import { Identity, Library } from '@quarry/shared/domain';
 import { LibraryDB } from './library.db';
 
@@ -38,26 +38,33 @@ export async function insertResource(
 
 /**
  * Which of these RIDs are live — they exist, aren't trashed, and no ancestor
- * is. One query for any number, in the caller's transaction.
+ * is. One query for any number, in the caller's transaction. Asks
+ * `library.is_live`, which sees the whole tree whatever the user may see (RLS).
  */
 export async function liveResources(trx: Transaction<any>, rids: Library.Resource.Rid[]): Promise<Set<Library.Resource.Rid>> {
     if (rids.length === 0)
         return new Set();
 
-    const library = trx as unknown as Transaction<LibraryDB.Tables>;
-
-    const rows = await library
-        .selectFrom('library.resource as r')
-        .select('r.rid')
-        .where('r.rid', 'in', rids)
-        .where(({ not, exists, selectFrom }) => not(exists(
-            selectFrom('library.resource_ancestor as a')
-                .innerJoin('library.resource as anc', 'anc.rid', 'a.ancestor_rid')
-                .select('a.ancestor_rid')
-                .whereRef('a.resource_rid', '=', 'r.rid')
-                .where('anc.trashed_at', 'is not', null),
-        )))
-        .execute();
+    const { rows } = await sql<{ rid: Library.Resource.Rid }>`
+        select rid from unnest(${rids}::text[]) as t(rid) where library.is_live(rid)`.execute(trx);
 
     return new Set(rows.map((row) => row.rid));
 }
+
+/**
+ * Which of these RIDs the transaction's user can see (RLS-filtered; all of them
+ * for the system). A parent that's live but hidden must 404 like a missing one —
+ * otherwise the insert's 403 would reveal that it exists.
+ */
+export async function visibleResources(trx: Transaction<any>, rids: Library.Resource.Rid[]): Promise<Set<Library.Resource.Rid>> {
+    if (rids.length === 0)
+        return new Set();
+
+    const library = trx as unknown as Transaction<LibraryDB.Tables>;
+    const rows = await library.selectFrom('library.resource').select('rid').where('rid', 'in', rids).execute();
+
+    return new Set(rows.map((row) => row.rid));
+}
+
+/** `library.is_live(<column>)` — for queries that list resources and must drop dead ones. */
+export const isLive = (column: string) => sql<boolean>`library.is_live(${sql.ref(column)})`;

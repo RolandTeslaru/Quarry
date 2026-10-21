@@ -11,14 +11,19 @@ import { LibraryController } from '@/services/Library/library.controller';
 import { GatekeeperModule } from '@/services/Gatekeeper/gatekeeper.module';
 import { GrantsController } from '@/services/Gatekeeper/grants.controller';
 import { RequestMemoMiddleware } from '@/services/Gatekeeper/request-memo';
+import { KeychainModule } from '@/services/Keychain/keychain.module';
+import { KeychainController } from '@/services/Keychain/keychain.controller';
 import { CatalogModule } from '@/services/Catalog/catalog.module';
 import { CatalogController } from '@/services/Catalog/catalog.controller';
+import { CatalogInternalController } from '@/services/Catalog/catalog.internal.controller';
 import { DataConnectionModule } from '@/services/DataConnection/data-connection.module';
 import { DataConnectionController } from '@/services/DataConnection/data-connection.controller';
+import { DataConnectionInternalController } from '@/services/DataConnection/data-connection.internal.controller';
 
 /**
- * The API process: every service's API-safe module + all controllers. No
- * queue processors, no source adapters, no DuckDB.
+ * The server: every service's module + all controllers, including the
+ * /internal endpoints the workers (their own packages) call. It never
+ * consumes a queue, opens a source, or runs DuckDB.
  */
 @Module({
     imports: [
@@ -26,6 +31,7 @@ import { DataConnectionController } from '@/services/DataConnection/data-connect
         IdentityModule,
         LibraryModule,
         GatekeeperModule,
+        KeychainModule,
         CatalogModule,
         DataConnectionModule,
     ],
@@ -35,8 +41,12 @@ import { DataConnectionController } from '@/services/DataConnection/data-connect
         UsersController,
         LibraryController,
         GrantsController,
+        KeychainController,
         CatalogController,
         DataConnectionController,
+        // /api/internal/… — service token only, for the sync and system workers
+        CatalogInternalController,
+        DataConnectionInternalController,
     ],
     providers: [
         { provide: APP_GUARD, useClass: AuthGuard },

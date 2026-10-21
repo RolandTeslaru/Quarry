@@ -7,18 +7,19 @@
 
 CREATE SCHEMA IF NOT EXISTS library;
 
--- Registry of resource types and which service owns each
+-- Registry of resource types: which can hold children, which the explorer lists
 CREATE TABLE library.resource_type (
-    type          text PRIMARY KEY,                -- 'project' | 'folder' | 'dataset' | 'source' | …
-    service       text NOT NULL,                   -- 'library' | 'catalog' | 'data-connection'
-    is_container  boolean NOT NULL DEFAULT false   -- can have children (project, folder)
+    type              text PRIMARY KEY,                -- 'project' | 'folder' | 'dataset' | 'source' | 'credential' | …
+    is_container      boolean NOT NULL DEFAULT false,  -- can have children (project, folder)
+    show_in_explorer  boolean NOT NULL DEFAULT true    -- listed by the library explorer; credentials live in Keychain
 );
 
 INSERT INTO library.resource_type VALUES
-    ('project', 'library',         true),
-    ('folder',  'library',         true),
-    ('dataset', 'catalog',         false),
-    ('source',  'data-connection', false);
+    ('project',    true,  true),
+    ('folder',     true,  true),
+    ('dataset',    false, true),
+    ('source',     false, true),
+    ('credential', false, false);
 
 CREATE TABLE library.resource (
     rid         foundations.rid PRIMARY KEY,
@@ -58,8 +59,14 @@ CREATE TABLE library.resource_ancestor (
 
 CREATE INDEX resource_ancestor_by_ancestor ON library.resource_ancestor (ancestor_rid, depth);
 
--- Parent must be a container; a move must not create a cycle.
-CREATE FUNCTION library.check_parent() RETURNS trigger LANGUAGE plpgsql AS $$
+-- Trigger functions are SECURITY DEFINER: they must see the whole tree and write the
+-- closure table, whatever the user's row-level access (RLS: gatekeeper/001_initial.sql).
+
+-- Parent must be a container; a move must not create a cycle, and a user moving
+-- something needs write on the new parent (RLS policies can't see the old row, so
+-- they can't tell a move from a rename — this trigger fires only on a parent change).
+-- gatekeeper.can is defined later, by gatekeeper/001_initial.sql; plpgsql resolves it when it runs.
+CREATE FUNCTION library.check_parent() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
     IF NEW.parent_rid IS NULL THEN
         RETURN NEW;
@@ -77,6 +84,12 @@ BEGIN
         RAISE EXCEPTION 'moving % under % would create a cycle', NEW.rid, NEW.parent_rid;
     END IF;
 
+    IF TG_OP = 'UPDATE'
+       AND coalesce(current_setting('app.user_rid', true), '') <> ''          -- a user, not the system
+       AND NOT gatekeeper.can(NEW.parent_rid, 'write') THEN
+        RAISE EXCEPTION 'no write access to %', NEW.parent_rid USING ERRCODE = 'insufficient_privilege';
+    END IF;
+
     RETURN NEW;
 END $$;
 
@@ -85,7 +98,7 @@ CREATE TRIGGER resource_check_parent
     FOR EACH ROW EXECUTE FUNCTION library.check_parent();
 
 -- New resource: itself + every ancestor of its parent.
-CREATE FUNCTION library.ancestry_insert() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION library.ancestry_insert() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
     INSERT INTO library.resource_ancestor (resource_rid, ancestor_rid, depth)
     SELECT NEW.rid, NEW.rid, 0
@@ -101,7 +114,7 @@ CREATE TRIGGER resource_ancestry_insert
     FOR EACH ROW EXECUTE FUNCTION library.ancestry_insert();
 
 -- Move: detach the subtree from its old ancestors, attach it to the new parent's.
-CREATE FUNCTION library.ancestry_move() RETURNS trigger LANGUAGE plpgsql AS $$
+CREATE FUNCTION library.ancestry_move() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
     DELETE FROM library.resource_ancestor ra
      USING library.resource_ancestor sub
@@ -123,3 +136,22 @@ CREATE TRIGGER resource_ancestry_move
     AFTER UPDATE OF parent_rid ON library.resource
     FOR EACH ROW WHEN (OLD.parent_rid IS DISTINCT FROM NEW.parent_rid)
     EXECUTE FUNCTION library.ancestry_move();
+
+-- Live: it exists, isn't trashed, and no ancestor is. SECURITY DEFINER: liveness must see
+-- ancestors the user can't (a trashed folder above a shared dataset still hides it).
+CREATE FUNCTION library.is_live(p_rid text) RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+    SELECT EXISTS (SELECT 1 FROM library.resource r WHERE r.rid = p_rid)
+       AND NOT EXISTS (
+           SELECT 1
+             FROM library.resource_ancestor a
+             JOIN library.resource anc ON anc.rid = a.ancestor_rid
+            WHERE a.resource_rid = p_rid
+              AND anc.trashed_at IS NOT NULL)
+$$;
+
+GRANT USAGE ON SCHEMA library TO quarry_user;
+GRANT SELECT ON library.resource_type, library.resource_ancestor TO quarry_user;
+GRANT SELECT, INSERT, UPDATE ON library.resource TO quarry_user;
+-- RLS on library.resource and resource_ancestor is installed by gatekeeper/001_initial.sql,
+-- which defines the rank function the policies call.

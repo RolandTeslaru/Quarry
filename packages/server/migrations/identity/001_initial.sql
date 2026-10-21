@@ -40,3 +40,7 @@ CREATE TABLE identity.group_member (
 );
 
 CREATE INDEX group_member_by_user ON identity.group_member (user_rid);
+
+-- Not resource-scoped: no RLS. Who may manage users and groups is the server's check (workspace admins).
+GRANT USAGE ON SCHEMA identity TO quarry_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON identity.user, identity.group, identity.group_member TO quarry_user;

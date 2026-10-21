@@ -16,7 +16,7 @@ export namespace Project {
             name:        ResourceD.Name,
             description: z.string().nullable().default(null),
         })
-        export type  Request = z.input<typeof Request>
+        export type  Request = z.infer<typeof Request>
 
         export const Response = z.object({ project: ProjectD.Schema })
         export type  Response = z.infer<typeof Response>

@@ -48,16 +48,17 @@ points to. Written 2026-10-18.
 | Area | Decision |
 |---|---|
 | Tenancy | Silo: one deployment = one workspace. No tenant columns. An `identity.user` row = workspace member. |
-| Shape | Modular monolith. `packages/shared` (domain, zod namespaces) + `packages/server` (one image, three entry points). |
-| Processes | `api` (HTTP, runs migrations on boot) · `sync-worker` (only process with source-system network access + credentials; runs syncs and `source-probe` test/explore jobs) · `system-worker` (outbox relay, scheduler, storage GC, reaper). Workers `waitForMigrations` before booting. |
-| Database | One Postgres DB, **one schema per service**: `foundations` (the `rid` domain type; migrated first), `identity`, `library`, `gatekeeper`, `catalog`, `data_connection`. Cross-schema FKs only to foundation tables (`identity.*`, `library.resource`). |
+| Shape | Five packages: `shared` (domain, zod namespaces, API + queue contracts) · `integrations` (per external system: definition.ts + runtime.ts) · `server` (the CRUD backend — the **only** package with database access) · `data-connection-worker` · `system-worker` (both own packages, never import the server; they call `/api/internal/…` with a service token). One image. |
+| Processes | `server` (HTTP, runs migrations on boot, `/api/internal/…` for workers) · `data-connection-worker` (only process with source-system access + DuckDB; decrypts Keychain credentials it receives encrypted; no DB; runs syncs and `source-probe` test/explore) · `system-worker` (no DB; outbox relay, storage GC, reaper, schedule reconcile via `/internal`). |
+| Database | One Postgres DB, **one schema per service**: `foundations` (the `rid` domain type; migrated first), `identity`, `library`, `gatekeeper`, `keychain`, `catalog`, `data_connection`. Cross-schema FKs only to foundation tables (`identity.*`, `library.resource`). |
 | Migrations | `.sql` files, `migrations/<schema>/001_initial.sql`, one Kysely Migrator per schema. `docs/design/database.md` is the DDL source of truth. |
 | Auth | GoTrue (own `gotrue` database) for authentication; API verifies JWTs locally with jose. First verified login matching `QUARRY_BOOTSTRAP_ADMIN_EMAIL` becomes admin. |
-| Authorization | Own **Gatekeeper**: app-level ReBAC, no Postgres RLS. Roles discoverer < viewer < editor < owner; actions discover / read / write / manage. Inheritance via closure table `library.resource_ancestor` (trigger-maintained). Groups supported. Check-then-write race accepted. |
-| Library | Compass equivalent. Authoritative for identity, name and tree location of every resource. Subtype tables (dataset, source) share its primary key. Trash = soft delete (`trashed_at`); "live" = not trashed and no trashed ancestor. |
+| Authorization | Own **Gatekeeper**: app-level ReBAC checked in services, **plus Postgres RLS as the base layer** (user/delegate transactions `SET LOCAL ROLE quarry_user`; policies call `gatekeeper.can(rid, 'read')`, on the fly; database.md §8). Roles discoverer < viewer < editor < owner; actions discover / read / write / manage. Inheritance via closure table `library.resource_ancestor` (trigger-maintained). Groups supported. Check-then-write race accepted. |
+| Library | Compass equivalent. Authoritative for identity, name and tree location of every resource. Subtype tables (dataset, source, credential) share its primary key. `library.resource_type.show_in_explorer` hides credentials from the explorer. Trash = soft delete (`trashed_at`); "live" = not trashed and no trashed ancestor. |
 | Data | Datasets = Parquet in S3-compatible storage (MinIO locally) + Postgres catalog of transactions/files/branches. DuckDB (`@duckdb/node-api` 1.4.5-r.1) is the sync engine. |
 | Jobs | BullMQ 5 + ioredis; Postgres is the source of truth. Outbox → BullMQ with idempotent jobIds. |
-| Stack | NestJS (API + workers via `createApplicationContext`), Kysely 0.28, zod 4, npm workspaces, TypeScript 5.9. |
+| Credentials | **Keychain** (PretzelGraph's Vault, renamed): `Keychain.Credential` = a project-scoped library resource holding one AES-256-GCM blob (workspace key `QUARRY_ENCRYPTION_KEY`, code in `@quarry/shared/server/encryption.ts`); `Keychain.Credential.Template` declared in code on the source definition (`integrations/<System>/credential.ts`), never at runtime. Holds the whole login (host, port, user, password…). read = use, write = change values + reveal. Server hands it to the worker encrypted; the worker decrypts. See keychain.md. |
+| Stack | NestJS (server + both workers; workers use @nestjs/bullmq and serve only GET /health), Kysely 0.28, zod 4, npm workspaces, TypeScript 5.9. |
 
 ### RIDs
 - Format `ri.<service>.main.<type>.<uuid>` — Foundry style.
@@ -67,7 +68,7 @@ points to. Written 2026-10-18.
 - Users: `ri.identity.main.user.<GoTrue sub>`; groups:
   `ri.identity.main.group.<uuidv7>`. Users/groups are RIDs but **not** library
   resources.
-- Library resource types: `project`, `folder`, `dataset`, `source`.
+- Library resource types: `project`, `folder`, `dataset`, `source`, `credential`.
 
 ### Principals
 - `user` | `delegate` (background work on behalf of a user; Gatekeeper checks it
@@ -135,7 +136,7 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
   `dataset_rid`. Only non-RID keys are `id`: role_grant's internal uuid (never exposed — a grant is identified by resource + subject) and the outbox bigint.
 - Infra: `FileStorage` — "file" means an object in storage everywhere
   (`Storage.File`, discriminated by `format`); never "blob"; `QueueManager` (`ensure`,
-  `ensureEvents`, shared ioredis for producers), `JobProcessor` base class,
+  `ensureEvents`, shared ioredis for producers) in the server; workers consume with @nestjs/bullmq processors on a typed `JobProcessor` base,
   `GatekeeperService`.
 - Shared domain layout: entity files are pure domain; `<Service>.API` in an
   `api/` folder (axios clients, `Request = z.input`); `<Service>.Queue` in a
@@ -151,21 +152,23 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
 ├── docs/design/        architecture.md · database.md (DDL source) · gatekeeper.md · catalog.md · data-connection.md · jobs.md · ai-context.md (this)
 ├── docs/research/      palantir-foundry-ontology.md
 ├── docker-compose.yml  postgres, redis, gotrue, minio (+ init)
-├── packages/shared/domain/   Foundations · Identity · Library · Gatekeeper · Catalog · DataConnection
+├── packages/shared/domain/   Foundations · Storage · Identity · Library · Gatekeeper · Catalog · DataConnection
+├── packages/integrations/   Postgres/ (definition.ts · runtime.ts) · core/ · definitions.ts (API) · runtimes.ts (Data Connection worker)
+├── packages/data-connection-worker/src/    main.ts · worker.module.ts · processors.ts · infra.ts — NestJS, no DB, /health :4101
+├── packages/system-worker/src/  main.ts · worker.module.ts · schedules.ts · infra.ts · processors/ — NestJS, no DB, /health :4102
 └── packages/server/
     ├── migrations/<schema>/001_initial.sql
     └── src/
         ├── api.ts, api.module.ts, load-env.ts (ENV_FILE override, then root .env)
-        ├── auth/       principal.ts · auth.guard.ts · current-principal.ts
+        ├── auth/       principal.ts · auth.guard.ts · current-principal.ts (@Public, @Internal)
         ├── db/         repository.ts (Repository, @Transactional, @AllowTrashed) · pool.ts · migrator.ts · errors.ts · table.ts
-        ├── infra/      redis.ts · queue.ts · file-storage.ts · duckdb.ts
-        ├── workers/    sync.ts · system.ts · bull.ts · *-worker.module.ts
+        ├── infra/      redis.ts · queue.ts (producer only) · file-storage.ts
         └── services/
             ├── Identity/        users, groups, /me
             ├── Library/         resource.repository · library.statements (insertResource, liveResources) · ensure-resource · library.service
             ├── Gatekeeper/      gatekeeper.service · grant.repository (effective_ranks SQL fn) · security-gate · request-memo
-            ├── Catalog/         dataset.repository · transaction/ · outbox/ · storage-gc.processor
-            └── DataConnection/  source/sync/sync-run repositories · runtime/ (sync worker: adapters, secrets, runner) · housekeeping/ (system worker)
+            ├── Catalog/         dataset.repository · transaction/ · outbox/ · internal.controller (outbox, storage-gc)
+            └── DataConnection/  controller · internal.controller · service · module · repository (.source · .sync · .run)
 ```
 
 Run locally: `npm run infra` (Docker) → copy `.env.example` to `.env` →

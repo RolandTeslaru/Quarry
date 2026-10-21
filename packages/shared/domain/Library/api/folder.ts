@@ -11,7 +11,7 @@ export namespace Folder {
             name:        ResourceD.Name,
             description: z.string().nullable().default(null),
         })
-        export type  Request = z.input<typeof Request>
+        export type  Request = z.infer<typeof Request>
 
         export const Response = z.object({ folder: FolderD.Schema })
         export type  Response = z.infer<typeof Response>

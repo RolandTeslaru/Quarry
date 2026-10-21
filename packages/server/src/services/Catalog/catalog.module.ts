@@ -6,12 +6,11 @@ import { TransactionRepository } from './transaction/transaction.repository';
 import { OutboxRepository } from './outbox/outbox.repository';
 
 /**
- * Providers only. Controllers are registered by api.module, processors by the
- * worker modules — which is why the repositories the processors need are
- * exported here. Other services use CatalogService only (writes: catalog.transaction).
+ * Providers only; controllers are registered by api.module. Other services
+ * use CatalogService only (writes: catalog.transaction).
  */
 @Module({
     providers: [CatalogService, DatasetTransactions, DatasetRepository, TransactionRepository, OutboxRepository],
-    exports:   [CatalogService, TransactionRepository, OutboxRepository],
+    exports:   [CatalogService],
 })
 export class CatalogModule {}

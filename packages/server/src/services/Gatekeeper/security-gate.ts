@@ -10,8 +10,13 @@ type RidSecond<M> = M extends (principal: Principal, rid: infer R, ...rest: neve
  * Gates a service method shaped (principal, resourceRid, ...rest): asserts
  * `action` on the resource before the method runs. Service principals pass.
  *
- * The service-layer counterpart of @Transactional — never both on one method.
- * Compound checks (move, run sync) call `this.gatekeeper.assert` explicitly.
+ * Only for rules row-level security can't express — RLS already decides every
+ * plain read and write of a row. Use it when the method's effect isn't a row
+ * (a queued job, a probe, object storage), when its action is stricter than the
+ * row's policy (revealing a credential), when RLS would answer with a silent
+ * empty result, or when side effects come before the guarded row. Compound
+ * checks call `this.gatekeeper.assert` explicitly. Never on the same method as
+ * @Transactional.
  */
 export function SecurityGate(action: Gatekeeper.Action.Name) {
     return function <M extends (principal: Principal, rid: never, ...rest: never[]) => Promise<unknown>>(

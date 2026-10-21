@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
-import type { z } from 'zod';
 import { Gatekeeper, Library } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
@@ -24,7 +23,7 @@ export class GrantsController {
     async put(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', RidParam) rid: Library.Resource.Rid,
-        @Body(new ZodPipe(API.Grant.Put.Request)) body: z.output<typeof API.Grant.Put.Request>,
+        @Body(new ZodPipe(API.Grant.Put.Request)) body: API.Grant.Put.Request,
     ): Promise<API.Grant.Put.Response> {
         return { grant: await this.gatekeeper.grant(principal, rid, body.subject, body.role) };
     }
@@ -33,7 +32,7 @@ export class GrantsController {
     async revoke(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', RidParam) rid: Library.Resource.Rid,
-        @Body(new ZodPipe(API.Grant.Revoke.Request)) body: z.output<typeof API.Grant.Revoke.Request>,
+        @Body(new ZodPipe(API.Grant.Revoke.Request)) body: API.Grant.Revoke.Request,
     ): Promise<void> {
         await this.gatekeeper.revoke(principal, rid, body.subject);
     }

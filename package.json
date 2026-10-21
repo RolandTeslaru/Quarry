@@ -6,13 +6,13 @@
         "packages/*"
     ],
     "scripts": {
-        "dev": "concurrently -n api,sync,system -c cyan,magenta,yellow \"npm:dev:api\" \"npm:dev:sync\" \"npm:dev:system\"",
-        "dev:api": "npm run dev:api --workspace=packages/server",
-        "dev:sync": "npm run dev:sync --workspace=packages/server",
-        "dev:system": "npm run dev:system --workspace=packages/server",
+        "dev": "concurrently -n server,dc,system -c cyan,magenta,yellow \"npm:dev:server\" \"npm:dev:data-connection\" \"npm:dev:system\"",
+        "dev:server": "npm run dev:api --workspace=packages/server",
+        "dev:data-connection": "npm run dev --workspace=packages/data-connection-worker",
+        "dev:system": "npm run dev --workspace=packages/system-worker",
         "migrate": "npm run migrate --workspace=packages/server",
-        "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/server",
-        "build": "npm run build --workspaces --if-present",
+        "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/integrations --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker",
+        "build": "npm run build --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker",
         "infra": "docker compose up -d postgres redis gotrue minio minio-init"
     },
     "devDependencies": {

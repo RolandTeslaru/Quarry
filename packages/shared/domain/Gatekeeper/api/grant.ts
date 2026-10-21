@@ -15,7 +15,7 @@ export namespace Grant {
     /** Sets the subject's role on the resource, replacing any previous one. */
     export namespace Put {
         export const Request = z.object({ subject: GrantD.Subject, role: RoleD.Name })
-        export type  Request = z.input<typeof Request>
+        export type  Request = z.infer<typeof Request>
 
         export const Response = z.object({ grant: GrantD.Schema })
         export type  Response = z.infer<typeof Response>
@@ -23,7 +23,7 @@ export namespace Grant {
 
     export namespace Revoke {
         export const Request = z.object({ subject: GrantD.Subject })
-        export type  Request = z.input<typeof Request>
+        export type  Request = z.infer<typeof Request>
     }
 
     export async function list(api: AxiosInstance, rid: ResourceD.Rid): Promise<List.Response> {

@@ -36,7 +36,7 @@ class SqlMigrationProvider implements MigrationProvider {
  * its own history (`<schema>.kysely_migration`), so a schema can move to its
  * own database with its migrations.
  */
-export const SCHEMAS = ['foundations', 'identity', 'library', 'gatekeeper', 'catalog', 'data_connection'] as const;
+export const SCHEMAS = ['foundations', 'identity', 'library', 'gatekeeper', 'keychain', 'catalog', 'data_connection'] as const;
 
 // src/db (dev) → packages/server/migrations; dist/server/src/db (build) → dist/server/migrations.
 const migrationsRoot = () => path.resolve(__dirname, '../../migrations');
@@ -59,41 +59,5 @@ export async function migrateAll(db: Kysely<unknown>): Promise<void> {
 
         if (error)
             throw error instanceof Error ? error : new Error(String(error));
-    }
-}
-
-/** True when every migration file of every schema is recorded in that schema's kysely_migration table. */
-async function isMigrated(db: Kysely<unknown>): Promise<boolean> {
-    for (const schema of SCHEMAS) {
-        const expected = Object.keys(await new SqlMigrationProvider(path.join(migrationsRoot(), schema)).getMigrations());
-
-        try {
-            const { rows } = await sql<{ name: string }>`select name from ${sql.id(schema, 'kysely_migration')}`.execute(db);
-            const applied = new Set(rows.map((row) => row.name));
-
-            if (expected.some((name) => !applied.has(name)))
-                return false;
-        }
-        catch {
-            return false;                               // the schema or its tracking table doesn't exist yet
-        }
-    }
-
-    return true;
-}
-
-/**
- * Workers never migrate — the API does, on boot. A worker started alongside
- * it (docker-compose, a fresh deploy) waits here until it has, rather than
- * crashing on a missing table.
- */
-export async function waitForMigrations(db: Kysely<unknown>, timeoutMs = 120_000): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-
-    while (!(await isMigrated(db))) {
-        if (Date.now() > deadline)
-            throw new Error('Timed out waiting for database migrations — is the API running?');
-
-        await new Promise((resolve) => setTimeout(resolve, 1_000));
     }
 }

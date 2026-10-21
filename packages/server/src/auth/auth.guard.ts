@@ -5,13 +5,14 @@ import {
     type CanActivate,
     type ExecutionContext,
 } from '@nestjs/common';
+import { timingSafeEqual } from 'node:crypto';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { jwtVerify } from 'jose';
 import { Identity } from '@quarry/shared/domain';
 import { requireEnv } from '@/db/table';
 import { IdentityService } from '@/services/Identity/identity.service';
-import { PUBLIC } from './current-principal';
+import { INTERNAL, PUBLIC } from './current-principal';
 
 /**
  * Authentication: verify the GoTrue JWT locally (no network, no database),
@@ -36,6 +37,14 @@ export class AuthGuard implements CanActivate {
 
         if (scheme !== 'Bearer' || !token)
             throw new UnauthorizedException('No token');
+
+        // Worker endpoints: the service token only. A user's JWT never opens them, and the token opens nothing else.
+        if (this.reflector.getAllAndOverride<boolean>(INTERNAL, [context.getHandler(), context.getClass()])) {
+            if (!this.isServiceToken(token))
+                throw new UnauthorizedException('Invalid service token');
+
+            return true;
+        }
 
         let claims: { sub?: string; email?: unknown };
 
@@ -65,6 +74,13 @@ export class AuthGuard implements CanActivate {
         request.principal = { type: 'user', userRid: member.rid, workspaceRole: member.workspace_role };
 
         return true;
+    }
+
+    private isServiceToken(token: string): boolean {
+        const expected = Buffer.from(requireEnv('QUARRY_INTERNAL_TOKEN'));
+        const given = Buffer.from(token);
+
+        return given.length === expected.length && timingSafeEqual(given, expected);
     }
 
     private key(): Uint8Array {
