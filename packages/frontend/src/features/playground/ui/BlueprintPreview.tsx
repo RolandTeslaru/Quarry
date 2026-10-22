@@ -5,8 +5,17 @@ import { BlueprintColorSheet } from './BlueprintColorSheet'
 import { blueprintControls } from './blueprint-controls'
 import { blueprintOverlays } from './blueprint-overlays'
 import { blueprintContent } from './blueprint-content'
-import '@blueprintjs/select/lib/css/blueprint-select.css'
-import '@blueprintjs/datetime/lib/css/blueprint-datetime.css'
+import { Icons } from '@blueprintjs/icons'
+import { loadIconPaths } from '@quarry/standard-ui/icons'
+import blueprintStyles from './blueprint.css?inline'
+
+Icons.setLoaderOptions({
+    loader: async (name, grid) => {
+        const paths = await loadIconPaths(name, grid)
+
+        return [...paths]
+    },
+})
 
 const examples: Record<SampleId, ComponentType<PreviewExampleProps>> = {
     colors: BlueprintColorSheet,
@@ -21,5 +30,10 @@ interface Props {
 }
 
 export function BlueprintPreview({ theme, filter }: Props) {
-    return <Preview library='blueprint' theme={theme} filter={filter} examples={examples} />
+    return (
+        <>
+            <style>{blueprintStyles}</style>
+            <Preview library='blueprint' theme={theme} filter={filter} examples={examples} />
+        </>
+    )
 }

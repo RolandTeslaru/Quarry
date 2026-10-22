@@ -1,0 +1,18 @@
+@layer theme, base, blueprint, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import '@blueprintjs/core/lib/css/blueprint.css' layer(blueprint);
+@import '@blueprintjs/icons/lib/css/blueprint-icons.css' layer(blueprint);
+@import '@blueprintjs/select/lib/css/blueprint-select.css' layer(blueprint);
+@import '@blueprintjs/datetime/lib/css/blueprint-datetime.css' layer(blueprint);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@source './';
+
+body {
+    margin: 0;
+}
+
+* {
+    box-sizing: border-box;
+}

@@ -1,5 +1,6 @@
 import { useId } from 'react'
-import { FormGroup, HTMLSelect } from '@blueprintjs/core'
+import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Select } from '@quarry/standard-ui/foundations/select'
 import { FieldInput } from './SchemaFields/FieldInput'
 import { defaults, findDiscriminator, selectedVariant } from './SchemaFields/schema'
 import type { Schema, Values } from './SchemaFields/types'
@@ -37,26 +38,36 @@ export function SchemaFields({ schema, value, onChange }: Props) {
             const field = variant.properties?.[discriminator]
 
             return {
-                value: index,
+                value: String(index),
                 label: variant.title ?? field?.title ?? String(field?.const),
             }
         })
 
+        function selectVariant(value: string) {
+            const variant = variants?.[Number(value)]
+
+            if (variant)
+                onChange(defaults(variant))
+        }
+
         return (
             <>
-                <FormGroup label='Copy from' labelFor={id}>
-                    <HTMLSelect
-                        id={id}
-                        fill
-                        value={selected}
-                        options={options}
-                        onChange={event => {
-                            const variant = variants[Number(event.target.value)]
-
-                            onChange(defaults(variant))
-                        }}
-                    />
-                </FormGroup>
+                <Field.Root>
+                    <Field.Label htmlFor={id}>Copy from</Field.Label>
+                    <Select.Root
+                        value={String(selected)}
+                        onValueChange={selectVariant}
+                    >
+                        <Select.Trigger id={id} size='default'>
+                            <Select.Value />
+                        </Select.Trigger>
+                        <Select.Content className='z-[100]'>
+                            {options.map(option => (
+                                <Select.Item key={option.value} value={option.value}>{option.label}</Select.Item>
+                            ))}
+                        </Select.Content>
+                    </Select.Root>
+                </Field.Root>
 
                 <SchemaFields
                     schema={variants[selected]}

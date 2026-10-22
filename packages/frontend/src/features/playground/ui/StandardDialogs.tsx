@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { AlertDialog } from '@quarry/standard-ui/foundations/alertDialog'
@@ -6,7 +6,7 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Input } from '@quarry/standard-ui/foundations/input'
 import { Label } from '@quarry/standard-ui/foundations/label'
 
-const DIALOG_WIDTH = 'w-[min(420px,calc(100vw-32px))] p-4'
+const DIALOG_WIDTH = 'w-[min(420px,calc(100vw-32px))]'
 const SPLIT_WIDTH = 'w-[min(560px,calc(100vw-32px))]'
 
 interface DatasetDialogProps {
@@ -26,6 +26,7 @@ function openDatasetDialog(onCreated: (name: string) => void, depth = 0) {
 }
 
 function DatasetDialog({ dialogId, depth, onCreated }: DatasetDialogProps) {
+    const formId = useId()
     const [name, setName] = useState('Customer transactions')
 
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -39,32 +40,36 @@ function DatasetDialog({ dialogId, depth, onCreated }: DatasetDialogProps) {
     }
 
     return (
-        <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
+        <>
             <Dialog.Header>
                 <Dialog.Title>{depth === 0 ? 'Create a dataset' : `Stacked dialog ${depth + 1}`}</Dialog.Title>
                 <Dialog.Description>
                     DialogSDK keeps the previous dialog mounted while the next one opens.
                 </Dialog.Description>
             </Dialog.Header>
-            <div className='flex flex-col gap-2'>
-                <Label htmlFor={`dataset-name-${depth}`}>Dataset name</Label>
-                <Input
-                    id={`dataset-name-${depth}`}
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    required
-                />
-            </div>
-            <Button variant='outlined' onClick={openNextDialog}>
-                Open another dialog
-            </Button>
+            <Dialog.Body>
+                <form id={formId} onSubmit={handleSubmit} className='flex flex-col gap-3'>
+                    <div className='flex flex-col gap-2'>
+                        <Label htmlFor={`dataset-name-${depth}`}>Dataset name</Label>
+                        <Input
+                            id={`dataset-name-${depth}`}
+                            value={name}
+                            onChange={(event) => setName(event.target.value)}
+                            required
+                        />
+                    </div>
+                    <Button variant='outlined' onClick={openNextDialog}>
+                        Open another dialog
+                    </Button>
+                </form>
+            </Dialog.Body>
             <Dialog.Footer>
                 <Dialog.Cancel>Cancel</Dialog.Cancel>
-                <Dialog.Action type='submit' intent='primary' disabled={!name.trim()}>
+                <Dialog.Action type='submit' form={formId} intent='primary' disabled={!name.trim()}>
                     Create
                 </Dialog.Action>
             </Dialog.Footer>
-        </form>
+        </>
     )
 }
 

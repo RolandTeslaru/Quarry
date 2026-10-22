@@ -1,4 +1,4 @@
-import { Callout } from '@blueprintjs/core'
+import { Callout } from '@quarry/standard-ui/foundations/callout'
 import { errorMessage } from '@/SDKs/api'
 
 interface Props {

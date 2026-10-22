@@ -1,5 +1,8 @@
-import { createRootRouteWithContext, Link, Outlet, redirect } from '@tanstack/react-router'
-import { Button } from '@blueprintjs/core'
+import { useEffect } from 'react'
+import { createRootRouteWithContext, Link, Outlet, redirect, useRouterState } from '@tanstack/react-router'
+import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import applicationStyles from '@/styles.css?inline'
+import { Button } from '@quarry/standard-ui/foundations/button'
 import { AuthSDK } from '@/SDKs/AuthSDK/sdk'
 import { QuerySDK } from '@/SDKs/QuerySDK/sdk'
 import { AppStatus } from '@/components/AppStatus'
@@ -19,11 +22,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
             throw redirect({ to: '/auth' })
     },
 
-    component: () => (
-        <QuerySDK.Provider>
-            <Outlet />
-        </QuerySDK.Provider>
-    ),
+    component: RootLayout,
 
     errorComponent: ({ error, reset }) => (
         <AppStatus
@@ -40,3 +39,20 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         />
     ),
 })
+
+function RootLayout() {
+    const pathname = useRouterState({ select: state => state.location.pathname })
+    useEffect(() => () => DialogSDK.cleanup(), [pathname])
+
+    const isBlueprintPreview = pathname === '/playground/blueprint' || pathname === '/playground/blueprint/'
+
+    return (
+        <>
+            {!isBlueprintPreview && <style>{applicationStyles}</style>}
+            <QuerySDK.Provider>
+                <Outlet />
+                <DialogSDK.UIOverlay />
+            </QuerySDK.Provider>
+        </>
+    )
+}

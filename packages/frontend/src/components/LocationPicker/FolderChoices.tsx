@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Button, Spinner } from '@blueprintjs/core'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import type { Library } from '@quarry/shared/domain'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { ErrorNotice } from '../ErrorNotice'
@@ -41,7 +42,7 @@ export function FolderChoices({ rid, onChange }: Props) {
                 </span>
 
                 <Button
-                    size='small'
+                    size='sm'
                     variant='minimal'
                     icon='folder-open'
                     onClick={() => setIsBrowsing(current => !current)}
@@ -56,7 +57,7 @@ export function FolderChoices({ rid, onChange }: Props) {
                 <div className='flex flex-col items-start gap-1 mt-2'>
                     {canGoUp && (
                         <Button
-                            size='small'
+                            size='sm'
                             icon='arrow-up'
                             variant='minimal'
                             onClick={openParent}
@@ -66,13 +67,13 @@ export function FolderChoices({ rid, onChange }: Props) {
                     )}
 
                     {foldersRequest.isPending && (
-                        <Spinner size={16} />
+                        <Spinner className='size-4' role='status' aria-label='Loading' />
                     )}
 
                     {folders.map(folder => (
                         <Button
                             key={folder.rid}
-                            size='small'
+                            size='sm'
                             icon='folder-close'
                             variant='minimal'
                             onClick={() => onChange(folder.rid)}

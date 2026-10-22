@@ -1,5 +1,8 @@
-import { useState } from 'react'
-import { Button, HTMLTable, Spinner, Tag } from '@blueprintjs/core'
+import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Table } from '@quarry/standard-ui/foundations/table'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
+import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import type { Keychain } from '@quarry/shared/domain'
 import { KeychainSDK } from '../sdk'
 import { CredentialDialog } from './CredentialDialog'
@@ -10,9 +13,6 @@ import { PageHeader } from '@/components/PageHeader'
 import { dateTime } from '@/utils/format'
 
 export function KeychainPanel() {
-    const [isCreating, setIsCreating] = useState(false)
-    const [editing, setEditing] = useState<Keychain.Credential.Schema | null>(null)
-
     const [credentials, [credentialsRequest]] = KeychainSDK.useWith(
         state => state.credentials,
         query => [query.credentials],
@@ -23,7 +23,23 @@ export function KeychainPanel() {
         query => [query.templates],
     )
 
-    const selectedTemplate = templates.find(template => template.id === editing?.templateId)
+    function openCreateDialog() {
+        if (templates.length === 0)
+            return
+
+        DialogSDK.actions.push('new-credential', dialog => <CredentialDialog templates={templates} dialog={dialog} />)
+    }
+
+    function openEditor(credential: Keychain.Credential.Schema) {
+        const template = templates.find(template => template.id === credential.templateId)
+
+        if (!template)
+            return
+
+        DialogSDK.actions.push(`edit-credential-${credential.rid}`, dialog => (
+            <CredentialEditor credential={credential} template={template} dialog={dialog} />
+        ))
+    }
 
     return (
         <>
@@ -34,9 +50,9 @@ export function KeychainPanel() {
                 actions={(
                     <Button
                         intent='primary'
-                        icon='plus'
+                        icon='add'
                         disabled={templates.length === 0}
-                        onClick={() => setIsCreating(true)}
+                        onClick={openCreateDialog}
                     >
                         New credential
                     </Button>
@@ -45,7 +61,7 @@ export function KeychainPanel() {
 
             <ErrorNotice error={credentialsRequest.error ?? templatesRequest.error} />
 
-            {credentialsRequest.isPending && <Spinner size={24} />}
+            {credentialsRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
 
             {credentialsRequest.isSuccess && credentials.length === 0 && (
                 <Empty
@@ -57,50 +73,38 @@ export function KeychainPanel() {
 
             {credentials.length > 0 && (
                 <div className='table-panel'>
-                    <HTMLTable striped className='data-table'>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>System</th>
-                                <th>Updated</th>
-                                <th />
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <Table.Root className='data-table'>
+                        <Table.Header>
+                            <Table.Row>
+                                <Table.Head>Name</Table.Head>
+                                <Table.Head>System</Table.Head>
+                                <Table.Head>Updated</Table.Head>
+                                <Table.Head />
+                            </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
                             {credentials.map(credential => (
-                                <tr key={credential.rid}>
-                                    <td className='font-medium'>{credential.name}</td>
-                                    <td>
-                                        <Tag minimal>{credential.templateId}</Tag>
-                                    </td>
-                                    <td>{dateTime(credential.updatedAt)}</td>
-                                    <td className='text-right'>
+                                <Table.Row key={credential.rid}>
+                                    <Table.Cell className='font-medium'>{credential.name}</Table.Cell>
+                                    <Table.Cell>
+                                        <Badge variant='secondary'>{credential.templateId}</Badge>
+                                    </Table.Cell>
+                                    <Table.Cell>{dateTime(credential.updatedAt)}</Table.Cell>
+                                    <Table.Cell className='text-right'>
                                         <Button
-                                            size='small'
+                                            size='sm'
                                             icon='edit'
                                             disabled={!templates.some(template => template.id === credential.templateId)}
-                                            onClick={() => setEditing(credential)}
+                                            onClick={() => openEditor(credential)}
                                         >
                                             Edit values
                                         </Button>
-                                    </td>
-                                </tr>
+                                    </Table.Cell>
+                                </Table.Row>
                             ))}
-                        </tbody>
-                    </HTMLTable>
+                        </Table.Body>
+                    </Table.Root>
                 </div>
-            )}
-
-            {isCreating && (
-                <CredentialDialog templates={templates} onClose={() => setIsCreating(false)} />
-            )}
-
-            {editing && selectedTemplate && (
-                <CredentialEditor
-                    credential={editing}
-                    template={selectedTemplate}
-                    onClose={() => setEditing(null)}
-                />
             )}
         </>
     )

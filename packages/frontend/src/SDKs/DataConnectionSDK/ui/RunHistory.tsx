@@ -1,4 +1,8 @@
-import { Button, HTMLTable, Spinner, Tag } from '@blueprintjs/core'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Table } from '@quarry/standard-ui/foundations/table'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
+import { Icon } from '@quarry/standard-ui/icons'
+import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import type { DataConnection } from '@quarry/shared/domain'
 import { DataConnectionSDK } from '../sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -33,7 +37,7 @@ export function RunHistory({ sourceRid, sync }: Props) {
 
             <ErrorNotice error={runsRequest.error} />
 
-            {runsRequest.isPending && <Spinner size={24} />}
+            {runsRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
 
             {runsRequest.isSuccess && runs.length === 0 && (
                 <p className='text-slate-500 py-6'>No runs yet. Start this sync with Run now.</p>
@@ -41,28 +45,28 @@ export function RunHistory({ sourceRid, sync }: Props) {
 
             {runs.length > 0 && (
                 <div className='table-panel'>
-                    <HTMLTable striped className='data-table'>
-                        <thead>
-                            <tr>
-                                <th>Status</th>
-                                <th>Started</th>
-                                <th>Trigger</th>
-                                <th>Rows</th>
-                                <th>Finished</th>
-                                <th>Details</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <Table.Root className='data-table'>
+                        <Table.Header>
+                            <Table.Row>
+                                <Table.Head>Status</Table.Head>
+                                <Table.Head>Started</Table.Head>
+                                <Table.Head>Trigger</Table.Head>
+                                <Table.Head>Rows</Table.Head>
+                                <Table.Head>Finished</Table.Head>
+                                <Table.Head>Details</Table.Head>
+                            </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
                             {runs.map(run => (
-                                <tr key={run.rid}>
-                                    <td>
+                                <Table.Row key={run.rid}>
+                                    <Table.Cell>
                                         <RunStatus status={run.status} />
-                                    </td>
-                                    <td>{dateTime(run.startedAt)}</td>
-                                    <td>{run.trigger}</td>
-                                    <td>{number(run.rowCount)}</td>
-                                    <td>{dateTime(run.finishedAt)}</td>
-                                    <td>
+                                    </Table.Cell>
+                                    <Table.Cell>{dateTime(run.startedAt)}</Table.Cell>
+                                    <Table.Cell>{run.trigger}</Table.Cell>
+                                    <Table.Cell>{number(run.rowCount)}</Table.Cell>
+                                    <Table.Cell>{dateTime(run.finishedAt)}</Table.Cell>
+                                    <Table.Cell>
                                         <details>
                                             <summary>View details</summary>
                                             <dl className='run-details'>
@@ -77,23 +81,44 @@ export function RunHistory({ sourceRid, sync }: Props) {
                                                 <pre className='error-details'>{JSON.stringify(run.error, null, 2)}</pre>
                                             )}
                                         </details>
-                                    </td>
-                                </tr>
+                                    </Table.Cell>
+                                </Table.Row>
                             ))}
-                        </tbody>
-                    </HTMLTable>
+                        </Table.Body>
+                    </Table.Root>
                 </div>
             )}
         </section>
     )
 }
 
-function RunStatus({ status }: { status: DataConnection.SyncRun.Status }) {
-    if (status === 'succeeded')
-        return <Tag minimal intent='success' icon='tick'>Succeeded</Tag>
+interface RunStatusProps {
+    status: DataConnection.SyncRun.Status
+}
 
-    if (status === 'failed')
-        return <Tag minimal intent='danger' icon='error'>Failed</Tag>
+function RunStatus({ status }: RunStatusProps) {
+    if (status === 'succeeded') {
+        return (
+            <Badge variant='success'>
+                <Icon name='tick' />
+                Succeeded
+            </Badge>
+        )
+    }
 
-    return <Tag minimal intent='primary' icon='time'>Running</Tag>
+    if (status === 'failed') {
+        return (
+            <Badge variant='destructive'>
+                <Icon name='error' />
+                Failed
+            </Badge>
+        )
+    }
+
+    return (
+        <Badge variant='active'>
+            <Icon name='time' />
+            Running
+        </Badge>
+    )
 }

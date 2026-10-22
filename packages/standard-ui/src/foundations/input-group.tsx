@@ -21,7 +21,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<'div'>) {
         has-[[data-slot][aria-invalid=true]]:border-destructive
         dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40
         has-disabled:bg-input/60
-        shadow-sm shadow-black/10
+        inset-shadow-(--input-shadow) has-disabled:inset-shadow-none
         h-8 rounded-lg border transition-colors has-disabled:opacity-50
         has-[[data-slot=input-group-control]:focus-visible]:ring-[3px]
         has-[[data-slot][aria-invalid=true]]:ring-[3px]
@@ -133,7 +133,7 @@ function InputGroupInput({ className, ...props }: React.ComponentProps<typeof In
         <Input
             data-slot='input-group-control'
             className={cn(
-                'rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent flex-1',
+                'rounded-none border-0 bg-transparent shadow-none inset-shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent flex-1',
                 className,
             )}
             {...props}
@@ -146,7 +146,7 @@ function InputGroupTextarea({ className, ...props }: React.ComponentProps<'texta
         <Textarea
             data-slot='input-group-control'
             className={cn(
-                'rounded-none border-0 bg-transparent py-2 shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent flex-1 resize-none',
+                'rounded-none border-0 bg-transparent py-2 shadow-none inset-shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent flex-1 resize-none',
                 className,
             )}
             {...props}

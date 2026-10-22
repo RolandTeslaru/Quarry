@@ -8,7 +8,7 @@
     focus-visible:ring-[2px] aria-invalid:ring-[2px] file:text-foreground placeholder:text-muted-foreground
     w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent
     disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50
-    shadow-sm shadow-black/10;
+    inset-shadow-(--input-shadow) disabled:inset-shadow-none;
 }
 
 @utility surface {
@@ -75,6 +75,7 @@ code {
     --surface-elevated-sidebar: #ffffff;
     --material-opacity-content: 80%;
     --material-opacity-sidebar: 60%;
+    --dialog-opacity: 96%;
 
     --card: var(--surface);
     --card-foreground: theme(--color-stone-600);
@@ -96,13 +97,14 @@ code {
     --accent-foreground: theme(--color-neutral-700);
 
     --destructive: theme(--color-red-500);
-    --border: rgb(44 24 16 / 0.14);
+    --border: rgba(38, 38, 38, 0.281);
     --separator: rgb(190 188 186);
 
     --muted: oklch(95.2% 0 0);
     --muted-foreground: theme(--color-neutral-500);
     --input: theme(--color-white);
     --input-border: var(--border);
+    --input-shadow: 0 1px 1px rgb(0 0 0 / 0.3);
 
     --radius: 8px;
     --canvas-dot: #8f867f;
@@ -159,7 +161,8 @@ code {
     --separator: rgb(58 58 60);
 
     --input: rgba(29, 29, 29, 0.453);
-    --input-border: rgba(254, 254, 254, 0.24);
+    --input-border: rgba(254, 254, 254, 0.152);
+    --input-shadow: 0 -1px 1px rgb(255 255 255 / 0.3);
     --ring: color-mix(in oklch, theme(--color-sky-400) 55%, transparent);
     --canvas-dot: oklch(0.35 0.015 264);
     --placeholder-foreground: oklch(0.6 0.01 264);
@@ -317,6 +320,12 @@ code {
 @keyframes dialog-fade-out {
     to {
         opacity: 0;
+    }
+}
+
+@layer components {
+    :where([data-slot='dialog-content'], [data-slot='alert-dialog-content']) {
+        --material-opacity: var(--dialog-opacity);
     }
 }
 

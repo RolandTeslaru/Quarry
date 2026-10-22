@@ -1,6 +1,10 @@
+import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Button, Callout, HTMLTable, Spinner } from '@blueprintjs/core'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Callout } from '@quarry/standard-ui/foundations/callout'
+import { Table } from '@quarry/standard-ui/foundations/table'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import type { DataConnection } from '@quarry/shared/domain'
 import { DataConnectionSDK } from '../sdk'
 import { NewSyncDialog } from './NewSyncDialog'
@@ -15,7 +19,6 @@ interface Props {
 }
 
 export function SyncPanel({ source, definition }: Props) {
-    const [isCreating, setIsCreating] = useState(false)
     const [selectedRid, setSelectedRid] = useState<DataConnection.Sync.Rid | null>(null)
     const [queuedRid, setQueuedRid] = useState<DataConnection.Sync.Rid | null>(null)
 
@@ -36,18 +39,24 @@ export function SyncPanel({ source, definition }: Props) {
         setQueuedRid(sync.rid)
     })
 
+    function openCreateDialog() {
+        DialogSDK.actions.push(`new-sync-${source.rid}`, dialog => (
+            <NewSyncDialog source={source} definition={definition} dialog={dialog} />
+        ))
+    }
+
     return (
         <section>
             <div className='section-toolbar'>
                 <p className='text-slate-500'>Copy a table or query into a versioned dataset.</p>
-                <Button icon='plus' intent='primary' onClick={() => setIsCreating(true)}>
+                <Button icon='add' intent='primary' onClick={openCreateDialog}>
                     Create sync
                 </Button>
             </div>
 
             <ErrorNotice error={syncsRequest.error ?? task.error} />
 
-            {syncsRequest.isPending && <Spinner size={24} />}
+            {syncsRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
 
             {syncsRequest.isSuccess && syncs.length === 0 && (
                 <Empty
@@ -59,43 +68,43 @@ export function SyncPanel({ source, definition }: Props) {
 
             {syncs.length > 0 && (
                 <div className='table-panel'>
-                    <HTMLTable striped className='data-table'>
-                        <thead>
-                            <tr>
-                                <th>Sync</th>
-                                <th>Schedule</th>
-                                <th>Output</th>
-                                <th />
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <Table.Root className='data-table'>
+                        <Table.Header>
+                            <Table.Row>
+                                <Table.Head>Sync</Table.Head>
+                                <Table.Head>Schedule</Table.Head>
+                                <Table.Head>Output</Table.Head>
+                                <Table.Head />
+                            </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
                             {syncs.map(sync => (
-                                <tr key={sync.rid}>
-                                    <td>
+                                <Table.Row key={sync.rid}>
+                                    <Table.Cell>
                                         <Button variant='minimal' onClick={() => setSelectedRid(sync.rid)}>
                                             {sync.name}
                                         </Button>
-                                    </td>
-                                    <td className='font-mono'>{sync.schedule ?? 'Manual'}</td>
-                                    <td>
+                                    </Table.Cell>
+                                    <Table.Cell className='font-mono'>{sync.schedule ?? 'Manual'}</Table.Cell>
+                                    <Table.Cell>
                                         <Link to='/resources/$rid' params={{ rid: sync.outputDatasetRid }}>
                                             Open dataset
                                         </Link>
-                                    </td>
-                                    <td className='text-right'>
+                                    </Table.Cell>
+                                    <Table.Cell className='text-right'>
                                         <Button
-                                            size='small'
+                                            size='sm'
                                             icon='play'
                                             disabled={!sync.enabled || task.pending}
                                             onClick={() => void runSync(sync)}
                                         >
                                             Run now
                                         </Button>
-                                    </td>
-                                </tr>
+                                    </Table.Cell>
+                                </Table.Row>
                             ))}
-                        </tbody>
-                    </HTMLTable>
+                        </Table.Body>
+                    </Table.Root>
                 </div>
             )}
 
@@ -106,10 +115,6 @@ export function SyncPanel({ source, definition }: Props) {
             )}
 
             {selected && <RunHistory key={selected.rid} sourceRid={source.rid} sync={selected} />}
-
-            {isCreating && (
-                <NewSyncDialog source={source} definition={definition} onClose={() => setIsCreating(false)} />
-            )}
         </section>
     )
 }

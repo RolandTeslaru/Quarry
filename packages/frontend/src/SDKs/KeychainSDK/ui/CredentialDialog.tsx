@@ -1,17 +1,25 @@
-import { useState } from 'react'
-import { FormGroup, HTMLSelect, InputGroup } from '@blueprintjs/core'
+import { ErrorNotice } from '@/components/ErrorNotice'
+import { useTask } from '@/hooks/useTask'
+import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { useId, useState, type FormEvent } from 'react'
+import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Select } from '@quarry/standard-ui/foundations/select'
+import { Input } from '@quarry/standard-ui/foundations/input'
 import type { Keychain, Library } from '@quarry/shared/domain'
 import { KeychainSDK } from '../sdk'
-import { CreateDialog } from '@/components/CreateDialog'
+import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { LocationPicker } from '@/components/LocationPicker'
 import { SchemaFields, defaults, type Values } from '@/components/SchemaFields'
 
 interface Props {
     templates: Keychain.Credential.Template.Schema[]
-    onClose:   () => void
+    dialog:    DialogSDK.TemplateProps
 }
 
-export function CredentialDialog({ templates, onClose }: Props) {
+export function CredentialDialog({ templates, dialog }: Props) {
+    const formId = useId()
+    const task = useTask()
+
     const [templateId, setTemplateId] = useState(templates[0].id)
     const [name, setName] = useState('')
     const [parentRid, setParentRid] = useState<Library.Resource.Rid | null>(null)
@@ -42,43 +50,85 @@ export function CredentialDialog({ templates, onClose }: Props) {
         })
     }
 
+    function submit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault()
+
+        if (task.pending || !parentRid)
+            return
+
+        void task.run(async () => {
+            await create()
+
+            DialogSDK.actions.pop(dialog.entry.dialogId)
+        })
+    }
+
     return (
-        <CreateDialog
-            title='New credential'
-            onClose={onClose}
-            onSubmit={create}
-            disabled={!parentRid}
+        <DialogSDK.Template
+            {...dialog}
+            dismissible={!task.pending}
+            className='w-[min(520px,calc(100vw-32px))]'
         >
-            <FormGroup label='System' labelFor='credential-system'>
-                <HTMLSelect
-                    id='credential-system'
-                    fill
-                    value={templateId}
-                    options={templates.map(item => ({ value: item.id, label: item.displayName }))}
-                    onChange={event => selectTemplate(event.target.value)}
-                />
-            </FormGroup>
+            <Dialog.Header>
+                <Dialog.Title>New credential</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Description className='sr-only'>
+                Complete the fields below, then choose create.
+            </Dialog.Description>
+            <Dialog.Body>
+                <form id={formId} onSubmit={submit}>
+                    <Field.Set disabled={task.pending}>
+                        <Field.Root>
+                            <Field.Label htmlFor='credential-system'>System</Field.Label>
+                            <Select.Root value={templateId} onValueChange={selectTemplate}>
+                                <Select.Trigger id='credential-system' size='default'>
+                                    <Select.Value />
+                                </Select.Trigger>
+                                <Select.Content className='z-[100]'>
+                                    {templates.map(item => (
+                                        <Select.Item key={item.id} value={item.id}>{item.displayName}</Select.Item>
+                                    ))}
+                                </Select.Content>
+                            </Select.Root>
+                        </Field.Root>
 
-            <FormGroup label='Name' labelFor='credential-name'>
-                <InputGroup
-                    id='credential-name'
-                    autoFocus
-                    required
-                    value={name}
-                    onChange={event => setName(event.target.value)}
-                />
-            </FormGroup>
+                        <Field.Root>
+                            <Field.Label htmlFor='credential-name'>Name</Field.Label>
+                            <Input
+                                id='credential-name'
+                                autoFocus
+                                required
+                                value={name}
+                                onChange={event => setName(event.target.value)}
+                            />
+                        </Field.Root>
 
-            <LocationPicker value={parentRid} onChange={setParentRid} />
+                        <LocationPicker value={parentRid} onChange={setParentRid} />
 
-            <div className='form-divider'>CONNECTION DETAILS</div>
+                        <div className='form-divider'>CONNECTION DETAILS</div>
 
-            <SchemaFields
-                key={template.id}
-                schema={template.fieldsSchema}
-                value={values}
-                onChange={setValues}
-            />
-        </CreateDialog>
+                        <SchemaFields
+                            key={template.id}
+                            schema={template.fieldsSchema}
+                            value={values}
+                            onChange={setValues}
+                        />
+                    </Field.Set>
+                    <ErrorNotice error={task.error} />
+                </form>
+            </Dialog.Body>
+            <Dialog.Footer>
+                <Dialog.Cancel disabled={task.pending}>Cancel</Dialog.Cancel>
+                <Dialog.Action
+                    type='submit'
+                    form={formId}
+                    intent='primary'
+                    loading={task.pending}
+                    disabled={!parentRid}
+                >
+                    Create
+                </Dialog.Action>
+            </Dialog.Footer>
+        </DialogSDK.Template>
     )
 }

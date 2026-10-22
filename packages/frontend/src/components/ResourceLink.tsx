@@ -1,4 +1,4 @@
-import { Icon, type IconName } from '@blueprintjs/core'
+import { Icon, type IconName } from '@quarry/standard-ui/icons'
 import { Link } from '@tanstack/react-router'
 import type { Library } from '@quarry/shared/domain'
 
@@ -25,7 +25,7 @@ export function ResourceLink({ resource }: Props) {
             params={{ rid: resource.rid }}
             className='resource-link'
         >
-            <Icon icon={resourceIcon(resource.type)} />
+            <Icon name={resourceIcon(resource.type)} />
             <span>{resource.name}</span>
         </Link>
     )

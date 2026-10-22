@@ -1,5 +1,10 @@
 import { useState } from 'react'
-import { Button, Callout, Spinner, Tab, Tabs, Tag } from '@blueprintjs/core'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Callout } from '@quarry/standard-ui/foundations/callout'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
+import { Tabs } from '@quarry/standard-ui/foundations/tabs'
+import { Icon } from '@quarry/standard-ui/icons'
+import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import type { DataConnection } from '@quarry/shared/domain'
 import { DataConnectionSDK } from '../sdk'
 import { SourceTables } from './SourceTables'
@@ -36,17 +41,19 @@ export function SourcePanel({ rid }: Props) {
         setTestResult(result)
     })
 
+    function retry() {
+        void sourceRequest.refetch()
+        void definitionsRequest.refetch()
+    }
+
     if (sourceRequest.isPending || definitionsRequest.isPending)
-        return <Spinner size={24} />
+        return <Spinner className='size-6' role='status' aria-label='Loading' />
 
     if (sourceRequest.error || definitionsRequest.error) {
         return (
             <>
                 <ErrorNotice error={sourceRequest.error ?? definitionsRequest.error} />
-                <Button onClick={() => {
-                    void sourceRequest.refetch()
-                    void definitionsRequest.refetch()
-                }}>
+                <Button onClick={retry}>
                     Try again
                 </Button>
             </>
@@ -70,7 +77,10 @@ export function SourcePanel({ rid }: Props) {
             />
 
             <div className='resource-summary'>
-                <Tag minimal icon='database'>{definition.displayName}</Tag>
+                <Badge variant='secondary'>
+                    <Icon name='database' />
+                    {definition.displayName}
+                </Badge>
                 <span>{source.credentialRid ? 'Credential connected' : 'No credential required'}</span>
                 <code className='resource-rid'>{source.rid}</code>
             </div>
@@ -87,20 +97,22 @@ export function SourcePanel({ rid }: Props) {
                 </Callout>
             )}
 
-            <Tabs id='source-tabs' renderActiveTabPanelOnly defaultSelectedTabId='syncs'>
-                <Tab
-                    id='syncs'
-                    title='Syncs & runs'
-                    panel={<SyncPanel source={source} definition={definition} />}
-                />
+            <Tabs.Root defaultValue='syncs'>
+                <Tabs.List className='self-start' aria-label='Source sections'>
+                    <Tabs.Trigger value='syncs'>Syncs &amp; runs</Tabs.Trigger>
+                    {definition.capabilities.explore && (
+                        <Tabs.Trigger value='tables'>Explore tables</Tabs.Trigger>
+                    )}
+                </Tabs.List>
+                <Tabs.Content value='syncs'>
+                    <SyncPanel source={source} definition={definition} />
+                </Tabs.Content>
                 {definition.capabilities.explore && (
-                    <Tab
-                        id='tables'
-                        title='Explore tables'
-                        panel={<SourceTables source={source} definition={definition} />}
-                    />
+                    <Tabs.Content value='tables'>
+                        <SourceTables source={source} definition={definition} />
+                    </Tabs.Content>
                 )}
-            </Tabs>
+            </Tabs.Root>
         </>
     )
 }

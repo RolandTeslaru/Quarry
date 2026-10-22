@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { Spinner } from '@blueprintjs/core'
+import applicationStyles from '@/styles.css?inline'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 
 interface Props {
     title:    string
@@ -11,9 +12,10 @@ interface Props {
 export function AppStatus({ title, detail, loading = false, actions }: Props) {
     return (
         <main className='app-status'>
+            <style>{applicationStyles}</style>
             <div className='brand-mark'>Q</div>
 
-            {loading && <Spinner size={24} />}
+            {loading && <Spinner className='size-6' role='status' aria-label='Loading' />}
 
             <h1>{title}</h1>
 

@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { Button, HTMLTable, Spinner } from '@blueprintjs/core'
+import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Table } from '@quarry/standard-ui/foundations/table'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import type { DataConnection } from '@quarry/shared/domain'
 import { DataConnectionSDK } from '../sdk'
 import { NewSyncDialog } from './NewSyncDialog'
@@ -12,12 +14,16 @@ interface Props {
 }
 
 export function SourceTables({ source, definition }: Props) {
-    const [selectedTable, setSelectedTable] = useState<DataConnection.Source.Table | null>(null)
-
     const [tables, [tablesRequest]] = DataConnectionSDK.useWith(
         state => state.tables[source.rid] ?? [],
         query => [query.tables(source.rid)],
     )
+
+    function openSyncDialog(table: DataConnection.Source.Table) {
+        DialogSDK.actions.push(`new-sync-${source.rid}`, dialog => (
+            <NewSyncDialog source={source} definition={definition} table={table} dialog={dialog} />
+        ))
+    }
 
     return (
         <section>
@@ -34,7 +40,7 @@ export function SourceTables({ source, definition }: Props) {
 
             <ErrorNotice error={tablesRequest.error} />
 
-            {tablesRequest.isPending && <Spinner size={24} />}
+            {tablesRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
 
             {tablesRequest.isSuccess && tables.length === 0 && (
                 <Empty icon='database' title='No tables found' description='Check what the source login can access.' />
@@ -42,39 +48,31 @@ export function SourceTables({ source, definition }: Props) {
 
             {tables.length > 0 && (
                 <div className='table-panel'>
-                    <HTMLTable striped className='data-table'>
-                        <thead>
-                            <tr>
-                                <th>Schema</th>
-                                <th>Table</th>
-                                <th />
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <Table.Root className='data-table'>
+                        <Table.Header>
+                            <Table.Row>
+                                <Table.Head>Schema</Table.Head>
+                                <Table.Head>Table</Table.Head>
+                                <Table.Head />
+                            </Table.Row>
+                        </Table.Header>
+                        <Table.Body>
                             {tables.map(table => (
-                                <tr key={`${table.schema}.${table.name}`}>
-                                    <td>{table.schema}</td>
-                                    <td className='font-mono'>{table.name}</td>
-                                    <td className='text-right'>
-                                        <Button size='small' icon='plus' onClick={() => setSelectedTable(table)}>
+                                <Table.Row key={`${table.schema}.${table.name}`}>
+                                    <Table.Cell>{table.schema}</Table.Cell>
+                                    <Table.Cell className='font-mono'>{table.name}</Table.Cell>
+                                    <Table.Cell className='text-right'>
+                                        <Button size='sm' icon='add' onClick={() => openSyncDialog(table)}>
                                             Create sync
                                         </Button>
-                                    </td>
-                                </tr>
+                                    </Table.Cell>
+                                </Table.Row>
                             ))}
-                        </tbody>
-                    </HTMLTable>
+                        </Table.Body>
+                    </Table.Root>
                 </div>
             )}
 
-            {selectedTable && (
-                <NewSyncDialog
-                    source={source}
-                    definition={definition}
-                    table={selectedTable}
-                    onClose={() => setSelectedTable(null)}
-                />
-            )}
         </section>
     )
 }

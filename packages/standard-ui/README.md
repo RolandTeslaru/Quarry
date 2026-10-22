@@ -20,8 +20,8 @@ this package's source. Consumers using their own Tailwind entry can import
 register this package's `src/` directory with Tailwind themselves. React, React DOM,
 and Tailwind are peer dependencies.
 
-The playground imports the full stylesheet only in its standard-ui preview document;
-Blueprint retains its own stylesheet and theme. The existing radius, colors,
+The Quarry application and standard-ui preview use the full stylesheet;
+the Blueprint comparison retains its own stylesheet and theme. The existing radius, colors,
 selection states, popup animations, and dialog behavior are preserved.
 
 Run `npm run typecheck --workspace=packages/standard-ui` from the repository root.
@@ -80,3 +80,19 @@ The generated registry covers the pinned Blueprint version. After upgrading that
 dependency, run `npm run generate:icons --workspace=packages/standard-ui`, then
 run the package typecheck and frontend build. The registry imports individual path
 modules, so it does not eagerly import the entire SVG collection or icon fonts.
+
+## Callouts
+
+`Callout` displays inline status or error messages using standard-ui colors and
+Blueprint SVG icons. Its `intent` is `none`, `primary`, `success`, `warning`, or
+`danger`; it accepts an optional `title`, an icon name (or `false`), and children.
+Use `role='alert'` for actionable errors and `role='status'` for live results.
+
+## Standard dialogs
+
+Regular DialogSDK forms compose `Dialog.Header`, `Dialog.Body`, and `Dialog.Footer`.
+The standard `Dialog.Content` keeps them in normal flow, limits height to the
+viewport, and lets only the body scroll. Their spacing is defined in the shared
+foundations: a common 16px content inset and 16px between sections. The body spans the full width so its scrollbar stays at the edge;
+its inner padding leaves room for focus rings. Unstyled, split, and floating layouts
+remain separate compositions for surfaces that need them.

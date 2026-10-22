@@ -1,15 +1,22 @@
-import { useState } from 'react'
-import { Button, Card, FormGroup, Icon, InputGroup, Spinner } from '@blueprintjs/core'
+import { useTask } from '@/hooks/useTask'
+import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { SearchInput } from '@quarry/standard-ui/foundations/searchInput'
+import { useId, useState, type FormEvent } from 'react'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Card } from '@quarry/standard-ui/foundations/card'
+import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Icon } from '@quarry/standard-ui/icons'
+import { Input } from '@quarry/standard-ui/foundations/input'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Link } from '@tanstack/react-router'
 import { LibrarySDK } from '../sdk'
 import { AuthSDK } from '@/SDKs/AuthSDK/sdk'
-import { CreateDialog } from '@/components/CreateDialog'
+import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { PageHeader } from '@/components/PageHeader'
 import { Empty } from '@/components/Empty'
 
 export function ProjectsPanel() {
-    const [isCreating, setIsCreating] = useState(false)
     const [search, setSearch] = useState('')
 
     const user = AuthSDK.useStore(state => state.user)
@@ -22,6 +29,10 @@ export function ProjectsPanel() {
         project.name.toLowerCase().includes(search.toLowerCase()),
     )
 
+    function openCreateDialog() {
+        DialogSDK.actions.push('new-project', dialog => <NewProjectDialog dialog={dialog} />)
+    }
+
     return (
         <>
             <PageHeader
@@ -31,9 +42,9 @@ export function ProjectsPanel() {
                 actions={(
                     <Button
                         intent='primary'
-                        icon='plus'
+                        icon='add'
                         disabled={user?.workspaceRole !== 'admin'}
-                        onClick={() => setIsCreating(true)}
+                        onClick={openCreateDialog}
                     >
                         New project
                     </Button>
@@ -41,12 +52,10 @@ export function ProjectsPanel() {
             />
 
             <div className='section-toolbar'>
-                <InputGroup
-                    leftIcon='search'
+                <SearchInput
                     placeholder='Find a project…'
                     aria-label='Find a project'
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
+                    onSearch={setSearch}
                 />
                 <Button
                     icon='refresh'
@@ -59,7 +68,7 @@ export function ProjectsPanel() {
 
             <ErrorNotice error={projectsRequest.error} />
 
-            {projectsRequest.isPending && <Spinner size={24} />}
+            {projectsRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
 
             {projectsRequest.isSuccess && projects.length === 0 && (
                 <Empty
@@ -70,7 +79,7 @@ export function ProjectsPanel() {
                         <Button
                             intent='primary'
                             disabled={user?.workspaceRole !== 'admin'}
-                            onClick={() => setIsCreating(true)}
+                            onClick={openCreateDialog}
                         >
                             Create project
                         </Button>
@@ -81,17 +90,17 @@ export function ProjectsPanel() {
             <div className='project-grid'>
                 {filtered.map(project => (
                     <Link key={project.rid} to='/resources/$rid' params={{ rid: project.rid }}>
-                        <Card interactive className='project-card'>
+                        <Card.Root className='project-card'>
                             <div className='project-icon'>
-                                <Icon icon='folder-close' size={22} />
+                                <Icon name='folder-close' size={22} />
                             </div>
                             <h2>{project.name}</h2>
                             <p>{project.description || 'Sources, datasets, and everything that connects them.'}</p>
                             <div className='project-card-footer'>
                                 <span>PROJECT</span>
-                                <Icon icon='arrow-right' />
+                                <Icon name='arrow-right' />
                             </div>
-                        </Card>
+                        </Card.Root>
                     </Link>
                 ))}
             </div>
@@ -99,13 +108,18 @@ export function ProjectsPanel() {
             {projects.length > 0 && filtered.length === 0 && (
                 <p className='text-slate-500 py-8'>No projects match your search.</p>
             )}
-
-            {isCreating && <NewProjectDialog onClose={() => setIsCreating(false)} />}
         </>
     )
 }
 
-function NewProjectDialog({ onClose }: { onClose: () => void }) {
+interface NewProjectProps {
+    dialog: DialogSDK.TemplateProps
+}
+
+function NewProjectDialog({ dialog }: NewProjectProps) {
+    const formId = useId()
+    const task = useTask()
+
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
 
@@ -113,24 +127,67 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
         await LibrarySDK.actions.project.create({ name, description: description || null })
     }
 
+    function submit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault()
+
+        if (task.pending)
+            return
+
+        void task.run(async () => {
+            await create()
+
+            DialogSDK.actions.pop(dialog.entry.dialogId)
+        })
+    }
+
     return (
-        <CreateDialog title='New project' onClose={onClose} onSubmit={create}>
-            <FormGroup label='Name' labelFor='project-name'>
-                <InputGroup
-                    id='project-name'
-                    autoFocus
-                    required
-                    value={name}
-                    onChange={event => setName(event.target.value)}
-                />
-            </FormGroup>
-            <FormGroup label='Description' labelFor='project-description'>
-                <InputGroup
-                    id='project-description'
-                    value={description}
-                    onChange={event => setDescription(event.target.value)}
-                />
-            </FormGroup>
-        </CreateDialog>
+        <DialogSDK.Template
+            {...dialog}
+            dismissible={!task.pending}
+            className='w-[min(520px,calc(100vw-32px))]'
+        >
+            <Dialog.Header>
+                <Dialog.Title>New project</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Description className='sr-only'>
+                Complete the fields below, then choose create.
+            </Dialog.Description>
+            <Dialog.Body>
+                <form id={formId} onSubmit={submit}>
+                    <Field.Set disabled={task.pending}>
+                        <Field.Root>
+                            <Field.Label htmlFor='project-name'>Name</Field.Label>
+                            <Input
+                                id='project-name'
+                                autoFocus
+                                required
+                                value={name}
+                                onChange={event => setName(event.target.value)}
+                            />
+                        </Field.Root>
+                        <Field.Root>
+                            <Field.Label htmlFor='project-description'>Description</Field.Label>
+                            <Input
+                                id='project-description'
+                                value={description}
+                                onChange={event => setDescription(event.target.value)}
+                            />
+                        </Field.Root>
+                    </Field.Set>
+                    <ErrorNotice error={task.error} />
+                </form>
+            </Dialog.Body>
+            <Dialog.Footer>
+                <Dialog.Cancel disabled={task.pending}>Cancel</Dialog.Cancel>
+                <Dialog.Action
+                    type='submit'
+                    form={formId}
+                    intent='primary'
+                    loading={task.pending}
+                >
+                    Create
+                </Dialog.Action>
+            </Dialog.Footer>
+        </DialogSDK.Template>
     )
 }

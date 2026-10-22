@@ -2,7 +2,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 
 export const buttonVariants = cva(
     `relative inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap
-    rounded-md border text-sm font-medium outline-none select-none group/button
+    rounded-md text-sm font-medium outline-none select-none group/button
     transition-[color,background-color,border-color,opacity]
     focus-visible:border-(--button-focus) focus-visible:ring-[3px] focus-visible:ring-(--button-ring)
     aria-invalid:border-destructive aria-invalid:ring-[3px] aria-invalid:ring-destructive/20
@@ -26,16 +26,16 @@ export const buttonVariants = cva(
                     hover:bg-(--button-hover) aria-expanded:bg-(--button-hover) shadow-sm shadow-black/10`,
                 neon: `bg-(--button-neon-bg) text-(--button-neon-fg) border-transparent
                     hover:bg-(--button-neon-hover) aria-expanded:bg-(--button-neon-hover) shadow-none`,
-                outlined: `bg-transparent text-(--button-fg) border-(--button-outline-border)
+                outlined: `bg-transparent text-(--button-fg) border border-(--button-outline-border)
                     hover:bg-(--button-subtle) aria-expanded:bg-(--button-subtle) shadow-none`,
                 minimal: `bg-transparent text-(--button-fg) border-transparent
                     hover:bg-(--button-subtle) aria-expanded:bg-(--button-subtle) shadow-none`,
             },
             intent: {
                 none: `[--button-fg:var(--foreground)]
-                    [--button-bg:var(--input)]
-                    [--button-hover:color-mix(in_srgb,var(--input)_90%,var(--foreground))]
-                    [--button-border:var(--border)]
+                    [--button-bg:var(--surface)]
+                    [--button-hover:color-mix(in_srgb,var(--surface)_90%,var(--foreground))]
+                    [--button-border:var(--input-border)]
                     [--button-outline-border:var(--border)]
                     [--button-subtle:var(--muted)]
                     [--button-neon-bg:color-mix(in_srgb,var(--foreground)_8%,transparent)]
@@ -129,6 +129,13 @@ export const buttonVariants = cva(
                 'icon-lg': 'size-9 p-0 [&_svg:not([class*=size-])]:size-6',
             },
         },
+        compoundVariants: [
+            {
+                variant: 'solid',
+                intent: 'none',
+                class: 'border',
+            },
+        ],
         defaultVariants: {
             variant: 'solid',
             intent: 'none',

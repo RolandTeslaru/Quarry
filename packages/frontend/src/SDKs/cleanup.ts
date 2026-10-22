@@ -1,3 +1,4 @@
+import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { QuerySDK } from './QuerySDK/sdk'
 import { LibrarySDK } from './LibrarySDK/sdk'
 import { KeychainSDK } from './KeychainSDK/sdk'
@@ -15,6 +16,7 @@ const sessionSDKs = [
 export function cleanupSDKs(): void {
     cancelSessionRequests()
     QuerySDK.cleanup()
+    DialogSDK.cleanup()
 
     for (const sdk of sessionSDKs)
         sdk.cleanup()

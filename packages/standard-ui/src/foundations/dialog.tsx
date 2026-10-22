@@ -24,6 +24,7 @@ namespace DialogComponents {
         }
     >
     export type Header = FC<React.HTMLAttributes<HTMLDivElement>>
+    export type Body = FC<React.HTMLAttributes<HTMLDivElement>>
     export type Footer = FC<React.HTMLAttributes<HTMLDivElement>>
     export type Title = FC<ComponentProps<typeof DialogPrimitive.Title>>
     export type Description = FC<ComponentProps<typeof DialogPrimitive.Description>>
@@ -78,10 +79,12 @@ const Content: DialogComponents.Content = ({
         {/* Always mounted: the overlay carries the scroll lock that lets this dialog's content wheel-scroll. */}
         <Overlay className={darkenBackground ? undefined : 'bg-transparent dark:bg-transparent'} />
         <DialogPrimitive.Content
+            data-slot='dialog-content'
+            data-layout={unstyled ? 'custom' : 'standard'}
             // Nothing inside is auto-focused on open, so no control opens wearing a focus ring.
             onOpenAutoFocus={(e) => e.preventDefault()}
             className={classNames(
-                `${theme || ''} fixed top-[50%] left-[50%] z-50 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0
+                `${theme || ''} group/dialog-content fixed top-[50%] left-[50%] z-50 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0
          transition-[transform] duration-400 ease-in-out
          `,
                 // Unstyled animates transform only: keyframes touching opacity would blank descendant backdrop blurs.
@@ -100,7 +103,7 @@ const Content: DialogComponents.Content = ({
                data-[state=open]:slide-in-from-left-1/2
                data-[state=open]:slide-in-from-top-[48%]
                `,
-                          'surface-elevated rounded-2xl border shadow-2xl shadow-neutral-500/60 dark:shadow-black/60',
+                          'surface-elevated rounded-2xl border shadow-2xl shadow-neutral-500/60 dark:shadow-black/60 flex max-h-[calc(100dvh-32px)] flex-col',
                           blockTransparency && '[--material-opacity:100%] backdrop-blur-none!',
                       ),
                 className,
@@ -117,11 +120,33 @@ const Content: DialogComponents.Content = ({
 )
 
 const Header: DialogComponents.Header = ({ className, ...props }) => (
-    <div className={cn('flex flex-col space-y-1.5 gap-1 text-center sm:text-left', className)} {...props} />
+    <div
+        data-slot='dialog-header'
+        className={cn(
+            'flex shrink-0 flex-col gap-2 text-left group-data-[layout=standard]/dialog-content:px-4 group-data-[layout=standard]/dialog-content:pt-4',
+            className,
+        )}
+        {...props}
+    />
+)
+
+const Body: DialogComponents.Body = ({ className, ...props }) => (
+    <div
+        data-slot='dialog-body'
+        className={cn('min-h-0 overflow-y-auto p-4', className)}
+        {...props}
+    />
 )
 
 const Footer: DialogComponents.Footer = ({ className, ...rest }) => (
-    <div className={cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2', className)} {...rest} />
+    <div
+        data-slot='dialog-footer'
+        className={cn(
+            'flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end group-data-[layout=standard]/dialog-content:px-4 group-data-[layout=standard]/dialog-content:pb-4',
+            className,
+        )}
+        {...rest}
+    />
 )
 
 function Title({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
@@ -195,6 +220,7 @@ export const Dialog = {
     Overlay,
     Content,
     Header,
+    Body,
     Footer,
     Title,
     Description,

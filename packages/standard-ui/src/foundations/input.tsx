@@ -23,7 +23,7 @@ const inputVariantClasses: Record<InputVariant, string> = {
         focus-visible:ring-[2px] aria-invalid:ring-[2px] file:text-foreground placeholder:text-muted-foreground
         w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent
         disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50
-        shadow-sm shadow-black/10`,
+        inset-shadow-(--input-shadow) disabled:inset-shadow-none`,
     ghost: `bg-transparent border-transparent shadow-none
         focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[2px]
         border transition-colors

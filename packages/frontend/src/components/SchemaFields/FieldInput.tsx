@@ -1,5 +1,9 @@
 import { useId } from 'react'
-import { Checkbox, FormGroup, HTMLSelect, InputGroup, TextArea } from '@blueprintjs/core'
+import { Checkbox } from '@quarry/standard-ui/foundations/checkbox'
+import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Input } from '@quarry/standard-ui/foundations/input'
+import { Select } from '@quarry/standard-ui/foundations/select'
+import { Textarea } from '@quarry/standard-ui/foundations/textarea'
 import type { Schema } from './types'
 
 interface Props {
@@ -12,60 +16,80 @@ interface Props {
 
 export function FieldInput({ name, definition, required, value, onChange }: Props) {
     const id = useId()
+    const descriptionId = definition.description ? `${id}-description` : undefined
     const label = definition.title ?? name
 
     if (definition.type === 'boolean') {
         return (
-            <Checkbox
-                id={id}
-                label={label}
-                checked={Boolean(value ?? definition.default ?? false)}
-                onChange={event => onChange(event.currentTarget.checked)}
-            />
+            <Field.Root orientation='horizontal'>
+                <Checkbox
+                    id={id}
+                    checked={Boolean(value ?? definition.default ?? false)}
+                    onCheckedChange={checked => onChange(checked === true)}
+                    aria-describedby={descriptionId}
+                />
+                <Field.Content>
+                    <Field.Label htmlFor={id}>{label}</Field.Label>
+                    {definition.description && (
+                        <Field.Description id={descriptionId}>{definition.description}</Field.Description>
+                    )}
+                </Field.Content>
+            </Field.Root>
         )
     }
 
     return (
-        <FormGroup
-            label={label}
-            labelFor={id}
-            labelInfo={required ? '(required)' : undefined}
-            helperText={definition.description}
-        >
+        <Field.Root>
+            <Field.Label htmlFor={id}>
+                {label}
+                {required && <span className='text-muted-foreground font-normal'>(required)</span>}
+            </Field.Label>
             <FieldControl
                 id={id}
+                descriptionId={descriptionId}
                 name={name}
                 definition={definition}
                 required={required}
                 value={value}
                 onChange={onChange}
             />
-        </FormGroup>
+            {definition.description && (
+                <Field.Description id={descriptionId}>{definition.description}</Field.Description>
+            )}
+        </Field.Root>
     )
 }
 
 interface ControlProps extends Props {
     id: string
+    descriptionId?: string
 }
 
-function FieldControl({ id, name, definition, required, value, onChange }: ControlProps) {
+function FieldControl({ id, descriptionId, name, definition, required, value, onChange }: ControlProps) {
     if (definition.enum) {
         return (
-            <HTMLSelect
-                id={id}
-                fill
+            <Select.Root
                 value={String(value ?? definition.default ?? definition.enum[0])}
-                options={definition.enum.map(String)}
-                onChange={event => onChange(event.target.value)}
-            />
+                onValueChange={onChange}
+                required={required}
+            >
+                <Select.Trigger id={id} size='default' aria-describedby={descriptionId}>
+                    <Select.Value />
+                </Select.Trigger>
+                <Select.Content className='z-[100]'>
+                    {definition.enum.map(option => (
+                        <Select.Item key={String(option)} value={String(option)}>{String(option)}</Select.Item>
+                    ))}
+                </Select.Content>
+            </Select.Root>
         )
     }
 
     if (name === 'sql') {
         return (
-            <TextArea
+            <Textarea
                 id={id}
-                fill
+                aria-describedby={descriptionId}
                 rows={5}
                 className='font-mono'
                 required={required}
@@ -84,7 +108,7 @@ function FieldControl({ id, name, definition, required, value, onChange }: Contr
     else if (isNumber)
         inputType = 'number'
 
-    const handleChange = (text: string) => {
+    function handleChange(text: string) {
         if (text === '') {
             onChange(undefined)
 
@@ -95,13 +119,15 @@ function FieldControl({ id, name, definition, required, value, onChange }: Contr
     }
 
     return (
-        <InputGroup
+        <Input
             id={id}
             type={inputType}
+            aria-describedby={descriptionId}
             autoComplete={definition.secret ? 'new-password' : 'off'}
             required={required}
             minLength={definition.minLength}
             min={definition.minimum}
+            step={isNumber && definition.type === 'number' ? 'any' : undefined}
             value={String(value ?? definition.default ?? '')}
             onChange={event => handleChange(event.target.value)}
         />

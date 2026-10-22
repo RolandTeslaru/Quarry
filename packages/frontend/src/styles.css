@@ -1,48 +1,21 @@
-@layer theme, base, blueprint, components, utilities;
+@import '@quarry/standard-ui/index.css';
 
-@import 'tailwindcss/theme.css' layer(theme);
-@import '@blueprintjs/core/lib/css/blueprint.css' layer(blueprint);
-@import '@blueprintjs/icons/lib/css/blueprint-icons.css' layer(blueprint);
-@import 'tailwindcss/utilities.css' layer(utilities);
-
-@source not './features/playground';
-@source not '../../standard-ui/src';
+@source './';
 
 :root {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    color: #253344;
-    background: #f7f9fb;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
 }
 
-body {
-    margin: 0;
-}
-
-* {
-    box-sizing: border-box;
-}
-
-fieldset {
-    border: 0;
-    padding: 0;
-    margin: 0;
-    min-width: 0;
-}
-
-button, input, select, textarea {
-    font: inherit;
-}
-
-h1, h2, p {
-    margin-top: 0;
+@layer base {
+    fieldset {
+        min-width: 0;
+    }
 }
 
 @layer components {
-    a:where(:not(.bp6-menu-item)) {
-        color: #2562a6;
+    a:where(:not([data-slot])) {
+        color: var(--primary);
     }
 
     .workspace {
@@ -170,13 +143,13 @@ h1, h2, p {
 
     .workspace-topbar {
         height: 54px;
-        background: white;
-        border-bottom: 1px solid #e1e7ed;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
         padding: 0 32px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        color: #7a8898;
+        color: var(--muted-foreground);
         font-size: 12px;
     }
 
@@ -211,7 +184,7 @@ h1, h2, p {
 
     .page-header p {
         font-size: 13px;
-        color: #718092;
+        color: var(--muted-foreground);
         margin: 0;
         max-width: 650px;
     }
@@ -220,7 +193,7 @@ h1, h2, p {
         font-size: 10px;
         letter-spacing: 1.2px;
         font-weight: 600;
-        color: #748598;
+        color: var(--muted-foreground);
     }
 
     .section-toolbar {
@@ -236,7 +209,7 @@ h1, h2, p {
         font-size: 13px;
     }
 
-    .section-toolbar > .bp6-input-group {
+    .section-toolbar > [data-slot='search-input'] {
         width: 320px;
         max-width: 100%;
     }
@@ -253,20 +226,26 @@ h1, h2, p {
 
     .project-card {
         min-height: 220px;
-        border: 1px solid #dce3ea;
-        border-radius: 5px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
         box-shadow: 0 1px 2px #182c4210;
         padding: 24px;
+        gap: 0;
+        transition: box-shadow 150ms ease;
+    }
+
+    .project-card:hover {
+        box-shadow: 0 4px 12px #182c4218;
     }
 
     .project-card h2 {
-        color: #253344;
+        color: var(--foreground);
         font-size: 17px;
         margin: 20px 0 8px;
     }
 
     .project-card p {
-        color: #788698;
+        color: var(--muted-foreground);
         font-size: 12px;
         min-height: 34px;
     }
@@ -279,18 +258,18 @@ h1, h2, p {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-top: 1px solid #edf0f4;
+        border-top: 1px solid var(--border);
         padding-top: 16px;
         margin-top: 16px;
-        color: #8390a0;
+        color: var(--muted-foreground);
         font-size: 10px;
         letter-spacing: 0.8px;
     }
 
     .table-panel {
-        background: white;
-        border: 1px solid #dfe5ec;
-        border-radius: 5px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
         overflow: auto;
     }
 
@@ -301,9 +280,9 @@ h1, h2, p {
 
     .data-table th {
         font-weight: 500;
-        color: #6b7b8c;
+        color: var(--muted-foreground);
         font-size: 11px;
-        background: #fafbfd;
+        background: var(--muted);
     }
 
     .data-table td, .data-table th {
@@ -323,7 +302,7 @@ h1, h2, p {
         align-items: center;
         flex-wrap: wrap;
         gap: 10px;
-        color: #8b97a4;
+        color: var(--muted-foreground);
         font-size: 12px;
         margin-bottom: 28px;
     }
@@ -333,7 +312,7 @@ h1, h2, p {
         gap: 16px;
         align-items: center;
         font-size: 12px;
-        color: #7c8999;
+        color: var(--muted-foreground);
         padding-bottom: 24px;
     }
 
@@ -352,10 +331,10 @@ h1, h2, p {
     .dataset-metrics {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        background: white;
+        background: var(--surface);
         padding: 24px;
-        border: 1px solid #dfe5ec;
-        border-radius: 5px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
         margin: 24px 0;
         gap: 20px;
     }
@@ -366,30 +345,21 @@ h1, h2, p {
     }
 
     .form-divider {
-        border-top: 1px solid #e1e7ed;
+        border-top: 1px solid var(--border);
         padding-top: 18px;
-        margin: 20px 0 16px;
+        margin: 4px 0 0;
         font-size: 10px;
-        color: #748598;
+        color: var(--muted-foreground);
         letter-spacing: 0.8px;
     }
 
     .location-choice {
         padding: 8px 10px;
-        background: #f3f6f9;
+        background: var(--muted);
         border-radius: 3px;
         margin-top: 8px;
     }
 
-    .quarry-dialog {
-        width: 520px;
-        max-width: calc(100vw - 32px);
-    }
-
-    .quarry-dialog .bp6-dialog-body {
-        max-height: 70vh;
-        overflow-y: auto;
-    }
 
     .empty {
         min-height: 320px;
@@ -416,7 +386,7 @@ h1, h2, p {
 
     .app-status p {
         max-width: 450px;
-        color: #748598;
+        color: var(--muted-foreground);
     }
 
     .auth-page {
@@ -463,6 +433,12 @@ h1, h2, p {
         box-shadow: none;
         border: none;
         background: transparent;
+        --tw-ring-shadow: 0 0 #0000;
+        gap: 0;
+    }
+
+    .auth-card > p {
+        margin-bottom: 20px;
     }
 
     .auth-card h2 {
@@ -479,14 +455,14 @@ h1, h2, p {
 
     .run-details dd {
         margin: 3px 0 12px;
-        color: #738195;
+        color: var(--muted-foreground);
     }
 
     .error-details {
         white-space: pre-wrap;
         overflow-wrap: anywhere;
         max-width: 360px;
-        color: #ac3e43;
+        color: var(--destructive);
     }
 
     @media (max-width: 900px) {

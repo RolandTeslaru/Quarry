@@ -1,5 +1,9 @@
 import { useState, type FormEvent } from 'react'
-import { Button, Callout, Card, FormGroup, InputGroup } from '@blueprintjs/core'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Callout } from '@quarry/standard-ui/foundations/callout'
+import { Card } from '@quarry/standard-ui/foundations/card'
+import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Input } from '@quarry/standard-ui/foundations/input'
 import { AuthSDK } from '../sdk'
 import { useTask } from '@/hooks/useTask'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -50,7 +54,7 @@ export function AuthenticationPanel() {
                 <div className='auth-caption'>SELF-HOSTED DATA PLATFORM</div>
             </div>
 
-            <Card className='auth-card'>
+            <Card.Root className='auth-card bg-transparent shadow-none ring-0 gap-0 p-6'>
                 <div className='eyebrow'>QUARRY WORKSPACE</div>
                 <h2>{isSignup ? 'Create your account' : 'Welcome back'}</h2>
                 <p className='text-slate-500'>Sign in to explore your data and manage connections.</p>
@@ -75,9 +79,10 @@ export function AuthenticationPanel() {
                         </div>
                     </>
                 ) : (
-                    <form onSubmit={submit} className='mt-6'>
-                        <FormGroup label='Email' labelFor='auth-email'>
-                            <InputGroup
+                    <form onSubmit={submit} className='mt-6 flex flex-col gap-4'>
+                        <Field.Root>
+                            <Field.Label htmlFor='auth-email'>Email</Field.Label>
+                            <Input
                                 id='auth-email'
                                 type='email'
                                 autoComplete='email'
@@ -85,10 +90,11 @@ export function AuthenticationPanel() {
                                 value={email}
                                 onChange={event => setEmail(event.target.value)}
                             />
-                        </FormGroup>
+                        </Field.Root>
 
-                        <FormGroup label='Password' labelFor='auth-password'>
-                            <InputGroup
+                        <Field.Root>
+                            <Field.Label htmlFor='auth-password'>Password</Field.Label>
+                            <Input
                                 id='auth-password'
                                 type='password'
                                 autoComplete={isSignup ? 'new-password' : 'current-password'}
@@ -97,21 +103,20 @@ export function AuthenticationPanel() {
                                 value={password}
                                 onChange={event => setPassword(event.target.value)}
                             />
-                        </FormGroup>
+                        </Field.Root>
 
                         {confirmation && (
                             <Callout intent='success'>Check your email to confirm your account.</Callout>
                         )}
 
-                        <Button type='submit' intent='primary' fill loading={task.pending}>
+                        <Button type='submit' intent='primary' className='w-full' loading={task.pending}>
                             {isSignup ? 'Create account' : 'Sign in'}
                         </Button>
 
                         <Button
                             type='button'
                             variant='minimal'
-                            fill
-                            className='mt-3'
+                            className='w-full'
                             disabled={task.pending}
                             onClick={() => setIsSignup(current => !current)}
                         >
@@ -121,7 +126,7 @@ export function AuthenticationPanel() {
                 )}
 
                 <ErrorNotice error={task.error} />
-            </Card>
+            </Card.Root>
         </main>
     )
 }

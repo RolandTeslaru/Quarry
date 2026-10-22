@@ -8,7 +8,7 @@ Each half is a separate same-origin document at `/playground/standard` or `/play
 
 `packages/standard-ui/src/` was copied from the local PretzelGraph checkout on 2026-10-22, whose HEAD was `92cbd49882a999950eaabba4493dee1a6f048d01`. The snapshot includes the checkout's current file contents, including any local edits, rather than a published package. PretzelGraph itself is not modified and is not required to build Quarry.
 
-The snapshot includes its foundation components, global styles, Tailwind preset, and frontend `index.css`. The playground imports the workspace package as `@quarry/standard-ui`. Its `index.css` registers the package source with Tailwind; the React Flow stylesheet import is omitted because this page has no graph canvas. The original React Flow-specific CSS rules remain. Icons now use the standalone `@blueprintjs/icons` package through standard-ui's cached per-glyph loader, with no dependency on Blueprint Core in standard-ui. Frontend startup configures Blueprint's own icon loader to share that cache, avoiding loading an entire size collection for its native controls.
+The package includes its foundation components, global styles, Tailwind preset, and frontend `index.css`. The playground imports the workspace package as `@quarry/standard-ui`. Its `index.css` registers the package source with Tailwind; the React Flow stylesheet import is omitted because this page has no graph canvas. The original React Flow-specific CSS rules remain. Icons now use the standalone `@blueprintjs/icons` package through standard-ui's cached per-glyph loader, with no dependency on Blueprint Core in standard-ui. The Blueprint preview configures Blueprint's own icon loader to share that cache, avoiding loading an entire size collection for its native controls.
 
 The initial snapshot preserved component styling and motion. Quarry now uses an 8px base corner radius with a proportional 2–16px scale. Search inputs, switches, and slider tracks and thumbs retain their fully rounded shapes; other controls use the shared radius scale. Files are formatted for Quarry; narrow typing fixes remove unchecked casts in the alert buttons and form contexts, type slider pointer events, and narrow DOM elements. Application-specific `WindowStyling` and the internal `Example` layout helpers are excluded from the component comparison.
 
@@ -53,7 +53,7 @@ The Quarry copy separates appearance (`variant`) from color (`intent`). Defaults
 - Variants: `solid`, `neon`, `outlined`, `minimal`.
 - Core intents: `none`, `primary`, `success`, `warning`, `danger`.
 - Additional color intents: `accent`, `active`, `ai`, `message`.
-- Solid buttons with `intent='none'` use the same `input` background token as Select triggers.
+- Solid buttons with `intent='none'` use the raised `surface` background and an `input-border` outline for visibility.
 - Solid success, warning, and danger buttons use opaque fills and defined borders. Their previous tinted backgrounds and colored text are preserved by `variant='neon'`. Neon primary uses the soft sky-blue palette.
 - Solid primary buttons use an opaque sky-blue fill, white text, and a defined border, with a darker tint in dark mode. The `active` intent keeps its softer tint. Shared primary and focus colors also use sky blue.
 - `minimal` is a boolean shorthand for `variant='minimal'` and takes precedence when true.
@@ -73,3 +73,19 @@ The Quarry copy separates appearance (`variant`) from color (`intent`). Defaults
 Color and sizing rules live in `packages/standard-ui/src/foundations/button.styles.ts`; rendering, icon resolution, and event handling live in `button.tsx`. Dialog actions, calendar controls, and input-group buttons use the same API.
 
 The old combined variants have been migrated: `default` becomes `intent='primary'`, `outline` becomes `variant='outlined'`, `ghost` becomes `minimal`, and `destructive` becomes `intent='danger'`. Colored ghost variants become `minimal` plus the corresponding intent. The former neutral `secondary` appearance is covered by the default `none` intent. For a text link, compose an anchor with `asChild`, `minimal`, and optional underline classes.
+
+The workspace now uses standard-ui as well. The root route renders the processed
+application stylesheet for workspace, auth, and standard-ui preview routes. The
+Blueprint preview alone renders `ui/blueprint.css`, including its theme, Core,
+Select, and date styles. Both stylesheets are rendered as route-owned style elements
+so client-side navigation cannot leave the other library's global styles installed.
+DialogSDK's overlay is mounted once in the root route; the standard preview shares it.
+
+Text inputs, input groups, and textareas share `--input-shadow`: a 1px inset top
+shadow in light mode and a 1px inset bottom highlight in dark mode. The input-group
+container owns this shadow; its inner control has none. Solid buttons retain their
+small outer shadow, while neon and minimal variants have no shadow.
+
+Regular form dialogs use standard-ui's `Dialog.Header`, `Dialog.Body`, and
+`Dialog.Footer` directly. Their spacing and scrolling are defined in the shared
+foundation; the frontend has no separate CreateDialog wrapper or padding overrides.

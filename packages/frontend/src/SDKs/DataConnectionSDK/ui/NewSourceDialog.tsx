@@ -1,19 +1,25 @@
-import { useState } from 'react'
-import { Button, Dialog, DialogBody, FormGroup, HTMLSelect, InputGroup, Spinner } from '@blueprintjs/core'
+import { useTask } from '@/hooks/useTask'
+import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { useId, useState, type FormEvent } from 'react'
+import { Dialog } from '@quarry/standard-ui/foundations/dialog'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Select } from '@quarry/standard-ui/foundations/select'
+import { Input } from '@quarry/standard-ui/foundations/input'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { DataConnection, Keychain, type Library } from '@quarry/shared/domain'
 import { DataConnectionSDK } from '../sdk'
 import { KeychainSDK } from '@/SDKs/KeychainSDK/sdk'
-import { CreateDialog } from '@/components/CreateDialog'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { SchemaFields, defaults, type Values } from '@/components/SchemaFields'
 
 interface Props {
     parentRid: Library.Resource.Rid
-    onClose:   () => void
+    dialog:    DialogSDK.TemplateProps
 }
 
-export function NewSourceDialog({ parentRid, onClose }: Props) {
+export function NewSourceDialog({ parentRid, dialog }: Props) {
     const [definitionId, setDefinitionId] = useState('')
 
     const [definitions, [definitionsRequest]] = DataConnectionSDK.useWith(
@@ -30,25 +36,36 @@ export function NewSourceDialog({ parentRid, onClose }: Props) {
     const error = definitionsRequest.error ?? credentialsRequest.error
     const isPending = definitionsRequest.isPending || credentialsRequest.isPending
 
+    function retry() {
+        void definitionsRequest.refetch()
+        void credentialsRequest.refetch()
+    }
+
     if (isPending || error || !definition) {
         return (
-            <Dialog isOpen title='Connect a source' onClose={onClose}>
-                <DialogBody>
-                    {isPending && <Spinner size={24} />}
+            <DialogSDK.Template {...dialog} className='w-[min(520px,calc(100vw-32px))]'>
+                <Dialog.Header>
+                    <Dialog.Title>Connect a source</Dialog.Title>
+                </Dialog.Header>
+                <Dialog.Description className='sr-only'>
+                    Choose a system and configure its connection.
+                </Dialog.Description>
+                <Dialog.Body>
+                    {isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
                     <ErrorNotice error={error} />
 
                     {!isPending && !definition && <p>No source types are available.</p>}
 
                     {error && (
-                        <Button onClick={() => {
-                            void definitionsRequest.refetch()
-                            void credentialsRequest.refetch()
-                        }}>
+                        <Button onClick={retry}>
                             Try again
                         </Button>
                     )}
-                </DialogBody>
-            </Dialog>
+                </Dialog.Body>
+                <Dialog.Footer>
+                    <Dialog.Cancel>Cancel</Dialog.Cancel>
+                </Dialog.Footer>
+            </DialogSDK.Template>
         )
     }
 
@@ -59,7 +76,7 @@ export function NewSourceDialog({ parentRid, onClose }: Props) {
             definitions={definitions}
             credentials={credentials}
             parentRid={parentRid}
-            onClose={onClose}
+            dialog={dialog}
             onDefinitionChange={setDefinitionId}
         />
     )
@@ -77,9 +94,12 @@ function SourceForm({
     definitions,
     credentials,
     parentRid,
-    onClose,
+    dialog,
     onDefinitionChange,
 }: SourceFormProps) {
+    const formId = useId()
+    const task = useTask()
+
     const [name, setName] = useState('')
     const [credentialRid, setCredentialRid] = useState('')
     const [config, setConfig] = useState<Values>(() => defaults(definition.configSchema))
@@ -100,61 +120,105 @@ function SourceForm({
         await navigate({ to: '/resources/$rid', params: { rid: source.rid } })
     }
 
+    function submit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault()
+
+        if (task.pending || Boolean(definition.credentialTemplateId) && !credentialRid)
+            return
+
+        void task.run(async () => {
+            await create()
+
+            DialogSDK.actions.pop(dialog.entry.dialogId)
+        })
+    }
+
     return (
-        <CreateDialog
-            title='Connect a source'
-            submitLabel='Connect source'
-            onClose={onClose}
-            onSubmit={create}
-            disabled={Boolean(definition.credentialTemplateId) && !credentialRid}
+        <DialogSDK.Template
+            {...dialog}
+            dismissible={!task.pending}
+            className='w-[min(520px,calc(100vw-32px))]'
         >
-            <FormGroup label='System' labelFor='source-system'>
-                <HTMLSelect
-                    id='source-system'
-                    fill
-                    value={definition.id}
-                    options={definitions.map(item => ({ value: item.id, label: item.displayName }))}
-                    onChange={event => onDefinitionChange(event.target.value)}
-                />
-            </FormGroup>
+            <Dialog.Header>
+                <Dialog.Title>Connect a source</Dialog.Title>
+            </Dialog.Header>
+            <Dialog.Description className='sr-only'>
+                Complete the fields below, then choose connect source.
+            </Dialog.Description>
+            <Dialog.Body>
+                <form id={formId} onSubmit={submit}>
+                    <Field.Set disabled={task.pending}>
+                        <Field.Root>
+                            <Field.Label htmlFor='source-system'>System</Field.Label>
+                            <Select.Root value={definition.id} onValueChange={onDefinitionChange}>
+                                <Select.Trigger id='source-system' size='default'>
+                                    <Select.Value />
+                                </Select.Trigger>
+                                <Select.Content className='z-[100]'>
+                                    {definitions.map(item => (
+                                        <Select.Item key={item.id} value={item.id}>{item.displayName}</Select.Item>
+                                    ))}
+                                </Select.Content>
+                            </Select.Root>
+                        </Field.Root>
 
-            <FormGroup label='Name' labelFor='source-name'>
-                <InputGroup
-                    id='source-name'
-                    autoFocus
-                    required
-                    placeholder='Production database'
-                    value={name}
-                    onChange={event => setName(event.target.value)}
-                />
-            </FormGroup>
+                        <Field.Root>
+                            <Field.Label htmlFor='source-name'>Name</Field.Label>
+                            <Input
+                                id='source-name'
+                                autoFocus
+                                required
+                                placeholder='Production database'
+                                value={name}
+                                onChange={event => setName(event.target.value)}
+                            />
+                        </Field.Root>
 
-            {definition.credentialTemplateId && (
-                <FormGroup label='Credential' labelFor='source-credential'>
-                    <HTMLSelect
-                        id='source-credential'
-                        fill
-                        required
-                        value={credentialRid}
-                        onChange={event => setCredentialRid(event.target.value)}
-                    >
-                        <option value=''>Choose a credential…</option>
-                        {matchingCredentials.map(credential => (
-                            <option key={credential.rid} value={credential.rid}>
-                                {credential.name}
-                            </option>
-                        ))}
-                    </HTMLSelect>
+                        {definition.credentialTemplateId && (
+                            <Field.Root>
+                                <Field.Label htmlFor='source-credential'>Credential</Field.Label>
+                                <Select.Root value={credentialRid} onValueChange={setCredentialRid} required>
+                                    <Select.Trigger id='source-credential' size='default'>
+                                        <Select.Value placeholder='Choose a credential…' />
+                                    </Select.Trigger>
+                                    <Select.Content className='z-[100]'>
+                                        {matchingCredentials.map(credential => (
+                                            <Select.Item key={credential.rid} value={credential.rid}>
+                                                {credential.name}
+                                            </Select.Item>
+                                        ))}
+                                    </Select.Content>
+                                </Select.Root>
 
-                    {matchingCredentials.length === 0 && (
-                        <p className='text-xs mt-2'>
-                            Create a {definition.displayName} credential in <Link to='/keychain'>Keychain</Link> first.
-                        </p>
-                    )}
-                </FormGroup>
-            )}
+                                {matchingCredentials.length === 0 && (
+                                    <p className='text-xs mt-2'>
+                                        Create a {definition.displayName} credential in{' '}
+                                        <Link to='/keychain' onClick={() => DialogSDK.actions.pop(dialog.entry.dialogId)}>
+                                            Keychain
+                                        </Link>{' '}
+                                        first.
+                                    </p>
+                                )}
+                            </Field.Root>
+                        )}
 
-            <SchemaFields schema={definition.configSchema} value={config} onChange={setConfig} />
-        </CreateDialog>
+                        <SchemaFields schema={definition.configSchema} value={config} onChange={setConfig} />
+                    </Field.Set>
+                    <ErrorNotice error={task.error} />
+                </form>
+            </Dialog.Body>
+            <Dialog.Footer>
+                <Dialog.Cancel disabled={task.pending}>Cancel</Dialog.Cancel>
+                <Dialog.Action
+                    type='submit'
+                    form={formId}
+                    intent='primary'
+                    loading={task.pending}
+                    disabled={Boolean(definition.credentialTemplateId) && !credentialRid}
+                >
+                    Connect source
+                </Dialog.Action>
+            </Dialog.Footer>
+        </DialogSDK.Template>
     )
 }

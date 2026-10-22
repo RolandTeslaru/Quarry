@@ -1,5 +1,10 @@
-import { useState } from 'react'
-import { Button, FormGroup, HTMLTable, InputGroup, Spinner, Tag } from '@blueprintjs/core'
+import { useState, type FormEvent } from 'react'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Table } from '@quarry/standard-ui/foundations/table'
+import { Input } from '@quarry/standard-ui/foundations/input'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
+import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import type { Catalog } from '@quarry/shared/domain'
 import { CatalogSDK } from '../sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -37,13 +42,18 @@ export function DatasetPanel({ rid }: Props) {
             setSequence(nextSequence)
     }
 
+    function submitVersion(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault()
+        openVersion()
+    }
+
     const refresh = () => {
         void datasetRequest.refetch()
         void viewRequest.refetch()
     }
 
     if (datasetRequest.isPending)
-        return <Spinner size={24} />
+        return <Spinner className='size-6' role='status' aria-label='Loading' />
 
     if (datasetRequest.error)
         return <ErrorNotice error={datasetRequest.error} />
@@ -73,16 +83,14 @@ export function DatasetPanel({ rid }: Props) {
 
             <div className='section-toolbar'>
                 <div className='flex items-center gap-2'>
-                    <Tag minimal>main</Tag>
+                    <Badge variant='secondary'>main</Badge>
                     <span className='text-sm text-slate-500'>Viewing {sequence ? `version ${sequence}` : 'latest'}</span>
                 </div>
 
-                <form className='flex items-end gap-2' onSubmit={event => {
-                    event.preventDefault()
-                    openVersion()
-                }}>
-                    <FormGroup label='Version' labelFor='dataset-version' className='w-28 mb-0!'>
-                        <InputGroup
+                <form className='flex items-end gap-2' onSubmit={submitVersion}>
+                    <Field.Root className='w-28 mb-0!'>
+                        <Field.Label htmlFor='dataset-version'>Version</Field.Label>
+                        <Input
                             id='dataset-version'
                             type='number'
                             min={1}
@@ -92,37 +100,37 @@ export function DatasetPanel({ rid }: Props) {
                             value={sequenceInput}
                             onChange={event => setSequenceInput(event.target.value)}
                         />
-                    </FormGroup>
+                    </Field.Root>
                     <Button type='submit'>Open</Button>
                 </form>
             </div>
 
             <ErrorNotice error={viewRequest.error} />
 
-            {viewRequest.isPending && <Spinner size={24} />}
+            {viewRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
 
             {view && (
                 <>
                     <h2 className='section-title mb-3'>Schema</h2>
                     <div className='table-panel mb-8'>
-                        <HTMLTable striped className='data-table'>
-                            <thead>
-                                <tr>
-                                    <th>Column</th>
-                                    <th>Type</th>
-                                    <th>Nullable</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <Table.Root className='data-table'>
+                            <Table.Header>
+                                <Table.Row>
+                                    <Table.Head>Column</Table.Head>
+                                    <Table.Head>Type</Table.Head>
+                                    <Table.Head>Nullable</Table.Head>
+                                </Table.Row>
+                            </Table.Header>
+                            <Table.Body>
                                 {view.schema?.map(column => (
-                                    <tr key={column.name}>
-                                        <td className='font-mono'>{column.name}</td>
-                                        <td>{column.type}</td>
-                                        <td>{column.nullable ? 'Yes' : 'No'}</td>
-                                    </tr>
+                                    <Table.Row key={column.name}>
+                                        <Table.Cell className='font-mono'>{column.name}</Table.Cell>
+                                        <Table.Cell>{column.type}</Table.Cell>
+                                        <Table.Cell>{column.nullable ? 'Yes' : 'No'}</Table.Cell>
+                                    </Table.Row>
                                 ))}
-                            </tbody>
-                        </HTMLTable>
+                            </Table.Body>
+                        </Table.Root>
                         {!view.schema?.length && (
                             <p className='p-5 text-slate-500'>No schema yet. Run a sync to populate this dataset.</p>
                         )}
@@ -130,26 +138,28 @@ export function DatasetPanel({ rid }: Props) {
 
                     <h2 className='section-title mb-3'>Files</h2>
                     <div className='table-panel'>
-                        <HTMLTable striped className='data-table'>
-                            <thead>
-                                <tr>
-                                    <th>Path</th>
-                                    <th>Format</th>
-                                    <th>Bytes</th>
-                                    <th>Rows</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <Table.Root className='data-table'>
+                            <Table.Header>
+                                <Table.Row>
+                                    <Table.Head>Path</Table.Head>
+                                    <Table.Head>Format</Table.Head>
+                                    <Table.Head>Bytes</Table.Head>
+                                    <Table.Head>Rows</Table.Head>
+                                </Table.Row>
+                            </Table.Header>
+                            <Table.Body>
                                 {view.files.map(file => (
-                                    <tr key={file.logicalPath}>
-                                        <td className='font-mono break-all' title={file.key}>{file.logicalPath}</td>
-                                        <td>{file.format}</td>
-                                        <td>{number(file.bytes)}</td>
-                                        <td>{number(file.rowCount)}</td>
-                                    </tr>
+                                    <Table.Row key={file.logicalPath}>
+                                        <Table.Cell className='font-mono break-all' title={file.key}>
+                                            {file.logicalPath}
+                                        </Table.Cell>
+                                        <Table.Cell>{file.format}</Table.Cell>
+                                        <Table.Cell>{number(file.bytes)}</Table.Cell>
+                                        <Table.Cell>{number(file.rowCount)}</Table.Cell>
+                                    </Table.Row>
                                 ))}
-                            </tbody>
-                        </HTMLTable>
+                            </Table.Body>
+                        </Table.Root>
                         {view.files.length === 0 && <p className='p-5 text-slate-500'>This view has no files.</p>}
                     </div>
                 </>

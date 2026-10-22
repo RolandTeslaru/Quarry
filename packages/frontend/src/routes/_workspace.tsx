@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet } from '@tanstack/react-router'
-import { Button, Icon } from '@blueprintjs/core'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Icon } from '@quarry/standard-ui/icons'
 import { AuthSDK } from '@/SDKs/AuthSDK/sdk'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { useTask } from '@/hooks/useTask'
@@ -20,7 +21,7 @@ function WorkspaceLayout() {
 
     return (
         <div className='workspace'>
-            <aside className='sidebar'>
+            <aside className='sidebar dark'>
                 <Link to='/library' className='brand'>
                     <div className='brand-mark'>Q</div>
                     <span>Quarry</span>
@@ -31,15 +32,15 @@ function WorkspaceLayout() {
 
                 <nav className='sidebar-nav'>
                     <Link to='/library' activeProps={{ className: 'active' }}>
-                        <Icon icon='projects' />
+                        <Icon name='projects' />
                         Projects &amp; data
                     </Link>
                     <Link to='/keychain' activeProps={{ className: 'active' }}>
-                        <Icon icon='key' />
+                        <Icon name='key' />
                         Keychain
                     </Link>
                     <Link to='/playground'>
-                        <Icon icon='comparison' />
+                        <Icon name='comparison' />
                         UI playground
                     </Link>
                 </nav>
@@ -54,7 +55,7 @@ function WorkspaceLayout() {
                             params={{ rid: project.rid }}
                             activeProps={{ className: 'active' }}
                         >
-                            <Icon icon='folder-close' />
+                            <Icon name='folder-close' />
                             <span className='truncate'>{project.name}</span>
                         </Link>
                     ))}

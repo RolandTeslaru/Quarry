@@ -12,7 +12,6 @@ function Checkbox({ className, ...props }: React.ComponentProps<typeof CheckboxP
             data-slot='checkbox'
             className={cn(
                 `peer cursor-pointer border border-border bg-input
-                 shadow-md shadow-black/10
                 data-[state=checked]:bg-primary!
                 data-[state=checked]:text-white
                 data-[state=checked]:border-primary-accent

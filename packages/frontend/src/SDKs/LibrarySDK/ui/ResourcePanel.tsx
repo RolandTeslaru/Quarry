@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { Button, Spinner } from '@blueprintjs/core'
+import { Button } from '@quarry/standard-ui/foundations/button'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Catalog, DataConnection, Library } from '@quarry/shared/domain'
 import { LibrarySDK } from '../sdk'
 import { FolderPanel } from './FolderPanel'
@@ -21,7 +22,7 @@ export function ResourcePanel({ rid }: Props) {
     const resource = path.at(-1)
 
     if (pathRequest.isPending)
-        return <Spinner size={24} />
+        return <Spinner className='size-6' role='status' aria-label='Loading' />
 
     if (pathRequest.isError || !resource) {
         return (

@@ -1,10 +1,12 @@
-import { NonIdealState, type IconName, type NonIdealStateProps } from '@blueprintjs/core'
+import type { ReactNode } from 'react'
+import { NonIdealState } from '@quarry/standard-ui/foundations/nonIdealState'
+import type { IconName } from '@quarry/standard-ui/icons'
 
 interface Props {
     icon:        IconName
     title:       string
     description: string
-    action?:     NonIdealStateProps['action']
+    action?:     ReactNode
 }
 
 export function Empty({ icon, title, description, action }: Props) {

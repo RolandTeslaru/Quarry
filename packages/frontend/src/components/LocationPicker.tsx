@@ -1,4 +1,7 @@
-import { FormGroup, HTMLSelect, Spinner } from '@blueprintjs/core'
+import { useId } from 'react'
+import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Select } from '@quarry/standard-ui/foundations/select'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Library } from '@quarry/shared/domain'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { Link } from '@tanstack/react-router'
@@ -11,6 +14,8 @@ interface Props {
 }
 
 export function LocationPicker({ value, onChange }: Props) {
+    const descriptionId = useId()
+
     const [projects, [projectsRequest]] = LibrarySDK.useWith(
         LibrarySDK.selectors.projects,
         query => [query.projects],
@@ -26,31 +31,29 @@ export function LocationPicker({ value, onChange }: Props) {
     }
 
     return (
-        <FormGroup
-            label='Location'
-            helperText='Choose a project, then open a folder if needed.'
-        >
+        <Field.Root>
+            <Field.Title>Location</Field.Title>
+            <Field.Description id={descriptionId}>Choose a project, then open a folder if needed.</Field.Description>
             {projectsRequest.isPending && (
-                <Spinner size={16} />
+                <Spinner className='size-4' role='status' aria-label='Loading' />
             )}
 
-            <HTMLSelect
-                fill
-                aria-label='Project'
+            <Select.Root
                 disabled={projectsRequest.isPending}
                 value={selectedProject?.rid ?? ''}
-                onChange={event => selectProject(event.target.value)}
+                onValueChange={selectProject}
             >
-                <option value=''>
-                    {value ? 'Choose another project…' : 'Choose a project…'}
-                </option>
-
-                {projects.map(project => (
-                    <option key={project.rid} value={project.rid}>
-                        {project.name}
-                    </option>
-                ))}
-            </HTMLSelect>
+                <Select.Trigger size='default' aria-label='Project' aria-describedby={descriptionId}>
+                    <Select.Value placeholder={value ? 'Choose another project…' : 'Choose a project…'} />
+                </Select.Trigger>
+                <Select.Content className='z-[100]'>
+                    {projects.map(project => (
+                        <Select.Item key={project.rid} value={project.rid}>
+                            {project.name}
+                        </Select.Item>
+                    ))}
+                </Select.Content>
+            </Select.Root>
 
             <ErrorNotice error={projectsRequest.error} />
 
@@ -63,6 +66,6 @@ export function LocationPicker({ value, onChange }: Props) {
             {value && (
                 <FolderChoices rid={value} onChange={onChange} />
             )}
-        </FormGroup>
+        </Field.Root>
     )
 }
