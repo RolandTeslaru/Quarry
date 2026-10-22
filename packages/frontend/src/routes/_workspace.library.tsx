@@ -1,14 +1,23 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { ProjectsPanel } from '@/SDKs/LibrarySDK/ui/ProjectsPanel'
+import { LibraryExplorerApp, type LibraryTab } from '@/apps/library/LibraryExplorerApp'
+
+interface LibrarySearch {
+    /** A section other than Files; absent means Files. */
+    tab?: Exclude<LibraryTab, 'files'>
+}
 
 export const Route = createFileRoute('/_workspace/library')({
+    validateSearch: (search: Record<string, unknown>): LibrarySearch => {
+        if (search.tab === 'cloud' || search.tab === 'trash')
+            return { tab: search.tab }
+
+        return {}
+    },
     component: LibraryRoute,
 })
 
 function LibraryRoute() {
-    return (
-        <div className='max-w-[1560px] px-10 pt-8 pb-15 max-[900px]:p-6'>
-            <ProjectsPanel />
-        </div>
-    )
+    const { tab } = Route.useSearch()
+
+    return <LibraryExplorerApp cwd={null} tab={tab ?? 'files'} />
 }

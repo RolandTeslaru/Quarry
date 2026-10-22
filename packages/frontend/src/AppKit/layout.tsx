@@ -39,25 +39,30 @@ function LeftNavRoot({ className, ...props }: ComponentProps<'nav'>) {
 }
 
 interface LeftNavItemProps {
-    icon:     IconName
-    label:    string
-    active?:  boolean
-    onSelect: () => void
+    icon:      IconName
+    label:     string
+    active?:   boolean
+    disabled?: boolean
+    onSelect:  () => void
 }
 
 /** One tab in the left nav: an icon button, named in a tooltip. */
-function LeftNavItem({ icon, label, active = false, onSelect }: LeftNavItemProps) {
+function LeftNavItem({ icon, label, active = false, disabled = false, onSelect }: LeftNavItemProps) {
     return (
         <Tooltip.Root>
+            {/* The span triggers the tooltip: a disabled button gets no pointer events. */}
             <Tooltip.Trigger asChild>
-                <Button
-                    variant='minimal'
-                    icon={icon}
-                    aria-label={label}
-                    aria-pressed={active}
-                    className={cn('size-10 justify-center', active && 'bg-muted text-foreground')}
-                    onClick={onSelect}
-                />
+                <span className='inline-flex'>
+                    <Button
+                        variant='minimal'
+                        icon={icon}
+                        aria-label={label}
+                        aria-pressed={active}
+                        disabled={disabled}
+                        className={cn('size-10 justify-center', active && 'bg-muted text-foreground')}
+                        onClick={onSelect}
+                    />
+                </span>
             </Tooltip.Trigger>
             <Tooltip.Content side='right'>{label}</Tooltip.Content>
         </Tooltip.Root>
@@ -90,12 +95,12 @@ export function RightSidebar({ className, ...props }: ComponentProps<'aside'>) {
     )
 }
 
-/** The main view. Scrolls on its own; the header and sidebars stay put. */
+/** The main view, on the same surface as the header and sidebars. Scrolls on its own; they stay put. */
 function ContentRoot({ className, ...props }: ComponentProps<'main'>) {
     return (
         <main
             data-slot='app-content'
-            className={cn('flex min-h-0 min-w-0 flex-col overflow-auto bg-background [grid-area:content]', className)}
+            className={cn('surface flex min-h-0 min-w-0 flex-col overflow-auto [grid-area:content]', className)}
             {...props}
         />
     )

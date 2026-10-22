@@ -55,7 +55,7 @@ The shell's own sidebar (the workspace navigation) is not part of an app.
 
 **One shell measure: 56px** (Tailwind `14`) — the collapsed workspace sidebar's width and its top row's height, the left nav's width, the header's height and its icon square — so the corners line up across the shell and every app.
 
-**Rules for every app:** the header menubar is app-wide and constant (File, View, Help — actions on the resource as a whole); `LeftNav` switches only the left sidebar; actions for the current view go in `App.Content.Toolbar` or the panel's own header.
+**Rules for every app:** the header menubar is app-wide and constant (File, View, Help — actions on the resource as a whole); `LeftNav` switches what the app shows — the left sidebar's panel, or the app's sections (the Library Explorer's Files / Cloud / Trash); actions for the current view go in `App.Content.Toolbar` or the panel's own header.
 
 ### Bundling and versioning
 
@@ -78,7 +78,19 @@ Foundry's URLs have the same shape — the app first, then the resource's RID: `
 
 Every app has its own routes, as in Foundry (`/workspace/compass/view/<rid>`, `/workspace/data-integration/dataset/preview/<rid>/…`, …): there's no single route that renders any resource. Apps link by RID — the registry's `open(rid)` gives a type's route, and the target app loads what it needs itself. No app reads another app's state.
 
-**`/resources/$rid` is the Library app's route** — Compass's `view/<rid>`. A folder or project renders its contents. The selected item is a search param: **`/resources/<folderRid>?selected=<itemRid>`** shows the folder with that item selected and its details panel open (below). A non-folder RID at `/resources/<itemRid>` redirects there (`<parentRid>?selected=<itemRid>`), so a pasted or old RID link always lands somewhere meaningful. Listings link straight to the owning app's route for opening; selecting is a separate action.
+**`/resources/$rid` is the Library app's route** — Compass's `view/<rid>`. A folder or project renders its contents. The selected item is a search param: **`/resources/<folderRid>?selected=<itemRid>`** shows the folder with that item selected and its details panel open (below). A non-folder RID at `/resources/<itemRid>` redirects there (`<parentRid>?selected=<itemRid>`), so a pasted or old RID link always lands somewhere meaningful. Listings link straight to the owning app's route for opening; selecting is a separate action. _Built so far: `/library` and `/resources/<project or folder>` render the Library Explorer; any other RID redirects to the app that opens it (Keychain opens credentials). Selection and `?selected=` aren't built yet._
+
+**`LibraryExplorer`** (`SDKs/LibrarySDK/ui/LibraryExplorer/`, after PretzelGraph's `LibraryBrowser`) is the Library as composable parts — shared, so a picker can reuse them:
+
+```ts
+LibraryExplorer = {
+    Root,                                                  // context: cwd + setCwd (from the host), onItemClick, isItemDisabled, the two searches
+    Tree: Content + { Header, SearchInput },               // project/folder tree; children load on expand, the open folder's ancestors expand
+    View: Content + { Header, Breadcrumbs, SearchInput, CreateBtn, Skeleton },  // the open folder as cards grouped by type
+}
+```
+
+The Library Explorer app (`apps/library/LibraryExplorerApp.tsx`) is an AppKit app: the header holds the breadcrumbs, the search and "+ New"; the left nav switches its sections — **Files**, **Cloud** (disabled, not built) and **Trash** (a placeholder until there's an endpoint listing trashed resources) — kept in `/library?tab=`. On Files, the tree fills the left sidebar and the content shows the projects as cards (`ProjectCards.tsx`) at `/library`, or the open folder's items inside a project; the view's search sits in the header next to "+ New". `cwd` comes from the URL; choosing a non-container opens it in its app.
 
 **The dataset app** starts with a **Preview** tab (first rows, read with the dataset's schema). History (needs a transactions endpoint), schema, files, and later compare / health / builds follow.
 

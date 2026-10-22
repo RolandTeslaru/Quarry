@@ -12,5 +12,7 @@ export const keychainApp: App.Definition = {
     },
     to:           '/keychain',
     inNavigation: true,
-    opens:        {},
+    opens: {
+        credential: () => ({ to: '/keychain' }),
+    },
 }

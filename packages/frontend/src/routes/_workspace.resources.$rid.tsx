@@ -1,6 +1,7 @@
-import { createFileRoute, notFound } from '@tanstack/react-router'
-import { Library } from '@quarry/shared/domain'
-import { ResourcePanel } from '@/SDKs/LibrarySDK/ui/ResourcePanel'
+import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
+import { Foundations, Library } from '@quarry/shared/domain'
+import { LibraryExplorerApp } from '@/apps/library/LibraryExplorerApp'
+import { APPS } from '@/shell/apps'
 
 export const Route = createFileRoute('/_workspace/resources/$rid')({
     params: {
@@ -13,15 +14,28 @@ export const Route = createFileRoute('/_workspace/resources/$rid')({
             return { rid: parsed.data }
         },
     },
+    // The Library Explorer opens projects and folders; any other resource opens in its own app.
+    beforeLoad: ({ params }) => {
+        const type = Library.Resource.Type.safeParse(Foundations.Rid.parse(params.rid).type)
+
+        if (!type.success)
+            throw notFound()
+
+        if (Library.Resource.CONTAINERS.includes(type.data))
+            return
+
+        const open = APPS.find(app => app.opens[type.data])?.opens[type.data]
+
+        if (!open)
+            throw notFound()
+
+        throw redirect(open(params.rid))
+    },
     component: ResourceRoute,
 })
 
 function ResourceRoute() {
     const { rid } = Route.useParams()
 
-    return (
-        <div className='max-w-[1560px] px-10 pt-8 pb-15 max-[900px]:p-6'>
-            <ResourcePanel key={rid} rid={rid} />
-        </div>
-    )
+    return <LibraryExplorerApp cwd={rid} tab='files' />
 }
