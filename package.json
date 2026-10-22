@@ -6,14 +6,15 @@
         "packages/*"
     ],
     "scripts": {
-        "dev": "concurrently -n server,dc,system -c cyan,magenta,yellow \"npm:dev:server\" \"npm:dev:data-connection\" \"npm:dev:system\"",
+        "dev": "concurrently -n server,dc,system,web -c cyan,magenta,yellow,green \"npm:dev:server\" \"npm:dev:data-connection\" \"npm:dev:system\" \"npm:dev:frontend\"",
         "dev:server": "npm run dev:api --workspace=packages/server",
         "dev:data-connection": "npm run dev --workspace=packages/data-connection-worker",
         "dev:system": "npm run dev --workspace=packages/system-worker",
         "migrate": "npm run migrate --workspace=packages/server",
-        "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/integrations --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker",
-        "build": "npm run build --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker",
-        "infra": "docker compose up -d postgres redis gotrue minio minio-init"
+        "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/integrations --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/standard-ui --workspace=packages/frontend",
+        "build": "npm run build --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/frontend",
+        "infra": "docker compose up -d postgres redis gotrue minio minio-init",
+        "dev:frontend": "npm run dev --workspace=packages/frontend"
     },
     "devDependencies": {
         "@types/node": "^22.10.2",

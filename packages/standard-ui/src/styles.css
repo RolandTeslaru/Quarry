@@ -1,0 +1,544 @@
+@import '@fontsource-variable/geist';
+
+@utility input-default {
+    @apply bg-input border-input-border focus-visible:border-ring focus-visible:ring-ring/50
+    aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive
+    dark:aria-invalid:border-destructive/50 disabled:bg-input/50 dark:disabled:bg-input/80
+    border transition-colors file:h-6 file:text-sm file:font-medium
+    focus-visible:ring-[2px] aria-invalid:ring-[2px] file:text-foreground placeholder:text-muted-foreground
+    w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent
+    disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50
+    shadow-sm shadow-black/10;
+}
+
+@utility surface {
+    background-color: var(--surface);
+    border-color: var(--border);
+}
+
+@utility surface-elevated {
+    background-color: color-mix(
+        in srgb,
+        var(--surface-elevated) var(--material-opacity, var(--material-opacity-content)),
+        transparent
+    );
+    border-color: var(--border);
+    @apply backdrop-blur-lg;
+}
+
+@utility surface-elevated-sidebar {
+    background-color: color-mix(
+        in srgb,
+        var(--surface-elevated-sidebar) var(--material-opacity, var(--material-opacity-sidebar)),
+        transparent
+    );
+    border-color: var(--border);
+    @apply backdrop-blur-lg;
+}
+
+body {
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+*::-webkit-scrollbar {
+    width: 4px !important;
+    height: 4px !important;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: transparent !important;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--border) !important;
+    border-radius: 999px !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--placeholder-foreground) !important;
+}
+
+:root {
+    --node-accent-base: var(--card);
+    --background: theme(--color-gray-200);
+    --foreground: #2c1810;
+
+    --surface: #ffffff;
+    --surface-elevated: #ffffff;
+    --surface-elevated-sidebar: #ffffff;
+    --material-opacity-content: 80%;
+    --material-opacity-sidebar: 60%;
+
+    --card: var(--surface);
+    --card-float: #ffffff;
+    --card-foreground: theme(--color-stone-600);
+
+    --popover: theme(--color-white);
+    --popover-foreground: theme(--color-black);
+    --popover-border: var(--border);
+
+    --primary: theme(--color-sky-600);
+    --primary-foreground: theme(--color-white);
+    --primary-accent: theme(--color-sky-400);
+    --primary-hover: theme(--color-sky-700);
+    --ring: color-mix(in oklch, theme(--color-sky-400) 55%, transparent);
+
+    --secondary: var(--color-neutral-200);
+    --secondary-foreground: var(--color-neutral-700);
+
+    --accent: theme(--color-neutral-300);
+    --accent-foreground: theme(--color-neutral-700);
+
+    --active: color-mix(in oklch, theme(--color-sky-400) 20%, transparent);
+    --active-foreground: theme(--color-sky-700);
+
+    --destructive: theme(--color-red-500);
+    --destructive-foreground: theme(--color-white);
+    --border: rgb(44 24 16 / 0.14);
+    --separator: rgb(190 188 186);
+
+    --muted: oklch(95.2% 0 0);
+    --muted-foreground: theme(--color-neutral-500);
+    --input: theme(--color-white);
+    --input-border: var(--border);
+
+    --radius: 8px;
+
+    --canvas: #f2eeeb;
+    --canvas-dot: #8f867f;
+
+    /* Execution status colors */
+    --status-active: theme(--color-cyan-400);
+    --status-success: theme(--color-emerald-400);
+    --status-waiting: theme(--color-amber-400);
+
+    /* Success states */
+    --success-background: var(--color-green-100);
+    --success-foreground: var(--color-green-700);
+
+    /* Warning states */
+    --warning: oklch(0.75 0.15 85);
+    --warning-background: #fdf6e3;
+    --warning-foreground: var(--color-amber-700);
+    --warning-text: oklch(0.4 0.15 85);
+
+    /* Info states */
+    --info-background: #e5f0fa;
+    --info-foreground: oklch(0.35 0.18 240);
+
+    /* Error states */
+    --error-background: var(--color-red-100);
+    --error-foreground: var(--color-red-700);
+
+    /* Accent for orphaned / unhydrated nodes (missing node or blueprint) — reads as destructive.
+     Needs a red -foreground since accent consumers resolve icon color via var(--{accent}-foreground). */
+    --node-unknown: theme(--color-red-500);
+    --node-unknown-foreground: theme(--color-red-500);
+
+    --port-Message: theme(--color-blue-400);
+    --port-Message-foreground: theme(--color-blue-400);
+    --port-Message-accent: theme(--color-blue-200);
+    --port-Message-glow: theme(--color-blue-600);
+
+    --port-MessageList: theme(--color-indigo-400);
+    --port-MessageList-foreground: theme(--color-indigo-400);
+    --port-MessageList-accent: theme(--color-indigo-200);
+    --port-MessageList-glow: theme(--color-indigo-600);
+
+    --port-DataList: theme(--color-slate-400);
+    --port-DataList-foreground: theme(--color-slate-500);
+    --port-DataList-accent: theme(--color-slate-200);
+    --port-DataList-glow: theme(--color-slate-600);
+
+    --port-LanguageModel: theme(--color-fuchsia-400);
+    --port-LanguageModel-foreground: theme(--color-fuchsia-400);
+    --port-LanguageModel-accent: theme(--color-fuchsia-200);
+    --port-LanguageModel-glow: theme(--color-fuchsia-100);
+
+    --port-Tool: theme(--color-cyan-400);
+    --port-Tool-foreground: theme(--color-cyan-500);
+    --port-Tool-accent: theme(--color-cyan-200);
+    --port-Tool-glow: theme(--color-cyan-600);
+
+    --port-ToolList: theme(--color-teal-400);
+    --port-ToolList-foreground: theme(--color-teal-400);
+    --port-ToolList-accent: theme(--color-teal-200);
+    --port-ToolList-glow: theme(--color-teal-600);
+
+    --port-Skill: theme(--color-violet-400);
+    --port-Skill-foreground: theme(--color-violet-500);
+    --port-Skill-accent: theme(--color-violet-200);
+    --port-Skill-glow: theme(--color-violet-600);
+
+    --port-SkillList: theme(--color-purple-400);
+    --port-SkillList-foreground: theme(--color-purple-400);
+    --port-SkillList-accent: theme(--color-purple-200);
+    --port-SkillList-glow: theme(--color-purple-600);
+
+    --port-Embeddings: theme(--color-emerald-400);
+    --port-Embeddings-foreground: theme(--color-emerald-300);
+    --port-Embeddings-accent: theme(--color-emerald-200);
+    --port-Embeddings-glow: theme(--color-emerald-600);
+
+    --port-DataFrame: theme(--color-red-400);
+    --port-DataFrame-foreground: theme(--color-red-300);
+    --port-DataFrame-accent: theme(--color-red-200);
+    --port-DataFrame-glow: theme(--color-red-600);
+
+    --port-Text: theme(--color-slate-500);
+    --port-Text-foreground: theme(--color-slate-400);
+    --port-Text-accent: theme(--color-slate-200);
+    --port-Text-glow: theme(--color-slate-600);
+
+    --port-Document: theme(--color-lime-400);
+    --port-Document-foreground: theme(--color-lime-500);
+    --port-Document-accent: theme(--color-lime-200);
+    --port-Document-glow: theme(--color-lime-600);
+
+    --port-Data: theme(--color-slate-500);
+    --port-Data-foreground: theme(--color-slate-100);
+    --port-Data-accent: theme(--color-slate-400);
+    --port-Data-glow: theme(--color-slate-600);
+
+    --port-VectorStore: theme(--color-amber-400);
+    --port-VectorStore-foreground: theme(--color-yellow-400);
+    --port-VectorStore-accent: theme(--color-yellow-200);
+    --port-VectorStore-glow: theme(--color-amber-600);
+
+    --port-Retriever: theme(--color-yellow-400);
+    --port-Retriever-foreground: theme(--color-yellow-400);
+    --port-Retriever-accent: theme(--color-yellow-200);
+    --port-Retriever-glow: theme(--color-yellow-600);
+
+    --port-null: var(--secondary);
+    --port-null-foreground: theme(--color-neutral-100);
+    --port-null-glow: var(--secondary);
+
+    --port-Unresolved: theme(--color-gray-500);
+    --port-Unresolved-foreground: theme(--color-gray-500);
+    --port-Unresolved-accent: theme(--color-gray-300);
+    --port-Unresolved-glow: theme(--color-gray-600);
+
+    --port-UnresolvedList: theme(--color-zinc-500);
+    --port-UnresolvedList-foreground: theme(--color-zinc-500);
+    --port-UnresolvedList-accent: theme(--color-zinc-300);
+    --port-UnresolvedList-glow: theme(--color-zinc-600);
+
+    --utility: theme(--color-neutral-400);
+    --utility-foreground: theme(--color-neutral-700);
+
+    --group-routing: theme(--color-neutral-400);
+
+    --radius-xs: calc(var(--radius) * 0.25);
+    --radius-sm: calc(var(--radius) * 0.5);
+    --radius-md: calc(var(--radius) * 0.75);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.25);
+    --radius-2xl: calc(var(--radius) * 1.5);
+    --radius-3xl: calc(var(--radius) * 1.75);
+    --radius-4xl: calc(var(--radius) * 2);
+
+    --blending: hard-light;
+
+    /* Font families */
+    --font-sans: 'Geist Variable', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-chivo: 'Chivo', system-ui, sans-serif;
+}
+
+.dark {
+    --node-accent-base: var(--color-black);
+    --background: theme(--color-neutral-950);
+
+    --foreground: theme(--color-white);
+
+    --surface: rgb(40 40 42);
+    --surface-elevated: rgb(24 24 25);
+    --surface-elevated-sidebar: rgb(42 42 44);
+    --material-opacity-content: 85%;
+    --material-opacity-sidebar: 70%;
+
+    --card: var(--surface);
+    --card-float: rgb(30, 30, 30);
+
+    --port-Data-foreground: theme(--color-slate-500);
+    --port-DataList-foreground: theme(--color-slate-300);
+    --port-Text: theme(--color-slate-400);
+
+    --card-foreground: theme(--color-white);
+    --popover: rgb(43, 43, 44);
+    --popover-foreground: theme(--color-neutral-100);
+    --popover-border: rgb(71, 71, 71);
+
+    --primary: theme(--color-sky-700);
+    --primary-foreground: theme(--color-white);
+    --primary-accent: theme(--color-sky-600);
+    --primary-hover: theme(--color-sky-800);
+
+    --secondary: theme(--color-neutral-700);
+    --secondary-foreground: theme(--color-white);
+    --muted: theme(--color-neutral-800);
+    --muted-foreground: theme(--color-neutral-400);
+    --accent: theme(--color-neutral-700);
+    --accent-foreground: theme(--color-white);
+
+    --active: color-mix(in oklch, theme(--color-sky-700) 30%, transparent);
+    --active-foreground: theme(--color-sky-300);
+    --destructive: theme(--color-red-500);
+    --destructive-foreground: theme(--color-white);
+    --border: rgb(255 255 255 / 0.1);
+    --separator: rgb(58 58 60);
+
+    --input: rgb(35, 35, 35);
+    --input-border: rgb(54, 54, 54);
+    --ring: color-mix(in oklch, theme(--color-sky-400) 55%, transparent);
+
+    /* Success states */
+    --success-background: theme(--color-emerald-950);
+    --success-foreground: theme(--color-emerald-400);
+
+    /* Warning states */
+    --warning-background: theme(--color-amber-950);
+    --warning-foreground: theme(--color-amber-400);
+    --warning-text: theme(--color-amber-400);
+
+    /* Info states */
+    --info-background: theme(--color-blue-950);
+    --info-foreground: theme(--color-blue-400);
+
+    /* Error states */
+    --error-background: theme(--color-red-950);
+    --error-foreground: theme(--color-red-400);
+
+    /* Dark mode custom variables */
+    --canvas: oklch(0.18 0.01 264);
+    --canvas-dot: oklch(0.35 0.015 264);
+
+    --node-bg-mix: 20%;
+    --node-border-mix: 50%;
+
+    --utility: theme(--color-neutral-500);
+    --utility-foreground: theme(--color-neutral-200);
+
+    --group-routing: theme(--color-neutral-500);
+
+    --port-Tool-foreground: theme(--color-cyan-300);
+
+    /* Dark mode: glow uses the base port color (already vibrant on dark bg) */
+    --port-Message-glow: theme(--color-blue-300);
+    --port-MessageList-glow: theme(--color-indigo-300);
+    --port-DataList-glow: theme(--color-slate-300);
+    --port-LanguageModel-glow: theme(--color-fuchsia-300);
+    --port-Tool-glow: theme(--color-cyan-300);
+    --port-ToolList-glow: theme(--color-teal-300);
+    --port-Skill-glow: theme(--color-violet-300);
+    --port-SkillList-glow: theme(--color-purple-300);
+    --port-Embeddings-glow: theme(--color-emerald-300);
+    --port-DataFrame-glow: theme(--color-red-300);
+    --port-Text-glow: theme(--color-slate-300);
+    --port-Document-glow: theme(--color-lime-300);
+    --port-Data-glow: theme(--color-slate-300);
+    --port-VectorStore-glow: theme(--color-amber-300);
+    --port-Retriever-glow: theme(--color-yellow-300);
+    --port-null-glow: var(--secondary);
+    --port-Unresolved-glow: theme(--color-gray-300);
+    --port-UnresolvedList-glow: theme(--color-zinc-300);
+
+    --placeholder: oklch(0.4 0.01 264);
+    --placeholder-foreground: oklch(0.6 0.01 264);
+    --tooltip: oklch(0.2 0.02 264);
+    --tooltip-foreground: oklch(0.95 0.005 264);
+    --secondary-hover: oklch(0.3 0.02 264);
+
+    --blending: hard-light;
+}
+
+@theme inline {
+    --color-separator: var(--separator);
+    --font-sans: 'Geist Variable', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-chivo: 'Chivo', system-ui, sans-serif;
+}
+
+/* Where a node a run created flies in from. Picked per node so a burst does not arrive in
+   lockstep; the node-arrive keyframe reads these and falls back if no variant is set. */
+.arrive-from-1 {
+    --arrive-x: -180px;
+    --arrive-y: 200px;
+}
+.arrive-from-2 {
+    --arrive-x: 170px;
+    --arrive-y: 240px;
+}
+.arrive-from-3 {
+    --arrive-x: -140px;
+    --arrive-y: 270px;
+}
+.arrive-from-4 {
+    --arrive-x: 210px;
+    --arrive-y: 190px;
+}
+.arrive-from-5 {
+    --arrive-x: -230px;
+    --arrive-y: 230px;
+}
+.arrive-from-6 {
+    --arrive-x: 130px;
+    --arrive-y: 260px;
+}
+
+/* Braille pulse spinner */
+.braille-pulse {
+    font-family: var(--font-mono);
+    line-height: 1;
+}
+.braille-pulse::after {
+    display: block;
+    content: '\2800\2836\2800';
+    animation: braille-pulse 900ms linear infinite;
+}
+@keyframes braille-pulse {
+    0% {
+        content: '\2800\2836\2800';
+    }
+    20% {
+        content: '\2830\28FF\2806';
+    }
+    40% {
+        content: '\28BE\28C9\2877';
+    }
+    60% {
+        content: '\28CF\2800\28F9';
+    }
+    80% {
+        content: '\2841\2800\2888';
+    }
+}
+
+.floating-pointer {
+    width: var(--floating-pointer-width, 28px);
+    height: var(--floating-pointer-height, 10px);
+    overflow: visible;
+    pointer-events: none;
+}
+
+.floating-pointer-fill {
+    fill: var(--floating-pointer-background, var(--popover));
+}
+
+.floating-pointer-border {
+    fill: none;
+    stroke: var(--floating-pointer-border, var(--popover-border));
+    stroke-width: 1px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.standard-popup-motion[data-state='open'] {
+    animation:
+        standard-popup-scale-in 300ms cubic-bezier(0.54, 1.12, 0.38, 1.11) both,
+        standard-popup-fade-in 300ms linear both;
+}
+
+.standard-popup-motion[data-state='closed'] {
+    pointer-events: none;
+    animation:
+        standard-popup-scale-out 300ms cubic-bezier(0.54, 1.12, 0.38, 1.11) both,
+        standard-popup-fade-out 300ms linear both;
+}
+
+@keyframes standard-popup-scale-in {
+    from {
+        transform: scale(0.3);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+@keyframes standard-popup-scale-out {
+    from {
+        transform: scale(1);
+    }
+    to {
+        transform: scale(0.3);
+    }
+}
+
+/* Fade for 100ms, then hold so Radix keeps the surface mounted for the full 300ms. */
+@keyframes standard-popup-fade-in {
+    0% {
+        opacity: 0;
+        animation-timing-function: cubic-bezier(0.4, 1, 0.75, 0.9);
+    }
+    33.333333%, 100% {
+        opacity: 1;
+    }
+}
+
+@keyframes standard-popup-fade-out {
+    0% {
+        opacity: 1;
+        animation-timing-function: cubic-bezier(0.4, 1, 0.75, 0.9);
+    }
+    33.333333%, 100% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .standard-popup-motion[data-state] {
+        animation-duration: 1ms;
+    }
+}
+
+/* Dialog motion: the wrapper zooms without touching opacity, each surface fades itself in. */
+@keyframes dialog-zoom-in {
+    from {
+        transform: translate(-50%, -48%) scale(0.7);
+    }
+}
+@keyframes dialog-zoom-out {
+    to {
+        transform: translate(-50%, -48%) scale(0.7);
+    }
+}
+@keyframes dialog-fade-in {
+    from {
+        opacity: 0;
+    }
+}
+@keyframes dialog-fade-out {
+    to {
+        opacity: 0;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border outline-none;
+    }
+
+    /* Native search clear button — replaced by the component's own affordance. */
+    input[type='search']::-webkit-search-cancel-button,
+    input[type='search']::-webkit-search-decoration {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+        font-feature-settings:
+            'rlig' 1,
+            'calt' 1;
+        font-family: var(--font-sans);
+    }
+}

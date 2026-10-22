@@ -1,0 +1,24 @@
+.button-gallery {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.button-family h4 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: inherit;
+}
+
+.button-intents {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+}
+
+@media (max-width: 440px) {
+    .button-intents {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}

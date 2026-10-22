@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+@config "./tailwind-preset.ts";
+
+@import './styles.css';
+
+@source './';
+
+/* Force-emit the Tailwind color palette as --color-* vars on :root so node
+   iconColor="color-<name>" works. Runtime var() refs aren't seen by the scanner,
+   so without this only colors used elsewhere as utilities would resolve. */
+@source inline("text-{slate,gray,zinc,neutral,stone,red,orange,amber,yellow,lime,green,emerald,teal,cyan,sky,blue,indigo,violet,purple,fuchsia,pink,rose}-{200,300,400,500,600,700}");
+
+/* React Flow canvas chrome. */
+.react-flow__background pattern circle {
+    fill: var(--canvas-dot) !important;
+}
+
+.react-flow__selection {
+    background-color: color-mix(in srgb, var(--primary) 8%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    border-radius: 32px;
+}
+
+.react-flow__nodesselection-rect {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.react-flow__nodesselection-rect::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    background-color: color-mix(in srgb, var(--primary) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    border-radius: 32px;
+    pointer-events: none;
+}

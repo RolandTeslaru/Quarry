@@ -10,6 +10,8 @@ COPY packages/integrations/package.json packages/integrations/
 COPY packages/server/package.json packages/server/
 COPY packages/data-connection-worker/package.json packages/data-connection-worker/
 COPY packages/system-worker/package.json packages/system-worker/
+COPY packages/frontend/package.json packages/frontend/
+COPY packages/standard-ui/package.json packages/standard-ui/
 RUN npm ci
 
 COPY packages packages
