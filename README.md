@@ -38,6 +38,19 @@ for its structure, build commands, and deployment configuration.
 | `packages/standard-ui` | Shared React components, theme styles, icons, and DialogSDK |
 | `packages/frontend` | React/Vite app: Blueprint controls, Tailwind layout, typed SDK stores, and file-based routes |
 
+## Application logs
+
+The API and workers use `System.log` from `@quarry/shared/server/system`.
+Each process sets its name at startup; services use `System.log.withContext('ServiceName')`.
+The logger writes colored console output with a timestamp, level, process name, and service context.
+Calls accept optional metadata; a numeric `ms` field renders as a trailing duration.
+Keep credentials and request authorization headers out of log messages and metadata.
+
+Set `LOG_LEVEL` to `debug`, `info` (default), `warning`, or `error`.
+Set `LOG_TIMESTAMPS=false` when the collector adds timestamps, or `LOG_APP_NAME`
+to override the process name. These settings also pass through Docker Compose.
+Nest's framework messages retain its default logger and are separate from `LOG_LEVEL`.
+
 ## Docs
 
 - [Code-writing guidelines](AGENTS.md)

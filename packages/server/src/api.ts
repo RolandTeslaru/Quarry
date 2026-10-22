@@ -3,9 +3,14 @@ import './load-env';
 
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { System } from '@quarry/shared/server/system';
 import { ApiModule } from './api.module';
 import { db } from './db/pool';
 import { migrateAll } from './db/migrator';
+
+System.log.setAppName('Server');
+
+const log = System.log.withContext('Server');
 
 async function bootstrap(): Promise<void> {
     // The API owns migrations: workers start after it and never migrate.
@@ -24,10 +29,10 @@ async function bootstrap(): Promise<void> {
 
     await app.listen(port);
 
-    console.log(`Quarry API listening on http://localhost:${port}/api`);
+    log.info('API listening', { port });
 }
 
 bootstrap().catch((error: unknown) => {
-    console.error('API boot failed:', error);
+    log.error('API boot failed', { error });
     process.exit(1);
 });

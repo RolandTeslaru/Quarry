@@ -1,7 +1,7 @@
 import { InjectQueue, Processor } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { Catalog } from '@quarry/shared/domain';
+import { System } from '@quarry/shared/server/system';
 import { JobProcessor, server } from '../infra';
 
 const OUTBOX_BATCH = 100;
@@ -16,7 +16,7 @@ export class OutboxRelayProcessor extends JobProcessor<typeof Catalog.Queue.Outb
 
     protected readonly definition = Catalog.Queue.OutboxRelay.Definition;
 
-    private readonly logger = new Logger(OutboxRelayProcessor.name);
+    private readonly log = System.log.withContext('OutboxRelay');
 
     constructor(@InjectQueue(Catalog.Queue.DatasetUpdated.Definition.name) private readonly datasetUpdated: Queue) {
         super();
@@ -29,7 +29,7 @@ export class OutboxRelayProcessor extends JobProcessor<typeof Catalog.Queue.Outb
 
         for (const event of events) {
             if (event.event !== 'dataset.updated') {
-                this.logger.warn(`Unknown outbox event '${event.event}' (id ${event.id}) — skipped`);
+                this.log.warning(`Unknown outbox event '${event.event}' (id ${event.id}) — skipped`);
                 continue;
             }
 

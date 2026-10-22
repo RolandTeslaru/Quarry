@@ -1,5 +1,6 @@
-import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { Identity } from '@quarry/shared/domain';
+import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { IdentityDB } from './identity.db';
 import { UserRepository } from './user.repository';
@@ -8,7 +9,7 @@ import { GroupRepository } from './group.repository';
 @Injectable()
 export class IdentityService {
 
-    private readonly logger = new Logger(IdentityService.name);
+    private readonly log = System.log.withContext('Identity');
 
     constructor(
         private readonly userRepository:  UserRepository,
@@ -38,7 +39,7 @@ export class IdentityService {
         });
 
         if (admin)
-            this.logger.log(`Bootstrapped first workspace admin: ${email}`);
+            this.log.info(`Bootstrapped first workspace admin: ${email}`);
 
         return admin;
     }

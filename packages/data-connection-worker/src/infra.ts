@@ -9,9 +9,12 @@ import dotenv from 'dotenv';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { Catalog, DataConnection, type Foundations, type Keychain } from '@quarry/shared/domain';
 import { Encryption } from '@quarry/shared/server/encryption';
+import { System } from '@quarry/shared/server/system';
 import { findDefinition, SOURCE_DEFINITIONS, type SourceDefinition } from '@quarry/integrations/definitions';
 import { literal, toColumnType } from '@quarry/integrations/core/duckdb';
 import { SOURCE_RUNTIMES, type RuntimeContext, type SourceRuntime, type SyncResult, type SyncRunContext } from '@quarry/integrations/runtimes';
+
+const log = System.log.withContext('ServerConnection');
 
 // ── env ─────────────────────────────────────────────────────────────────
 // src/ → data-connection-worker/ → packages/ → repo root. In containers, env comes from the environment.
@@ -53,7 +56,7 @@ export async function waitForServer(): Promise<void> {
         }
         catch {
             if (attempt % 10 === 0)
-                console.log(`Waiting for the server at ${requireEnv('QUARRY_SERVER_URL')}…`);
+                log.info(`Waiting for the server at ${requireEnv('QUARRY_SERVER_URL')}…`);
 
             await new Promise((resolve) => setTimeout(resolve, 1_000));
         }

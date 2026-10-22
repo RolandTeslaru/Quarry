@@ -2,7 +2,12 @@
 import { waitForServer } from './infra';
 import { NestFactory } from '@nestjs/core';
 import { Encryption } from '@quarry/shared/server/encryption';
+import { System } from '@quarry/shared/server/system';
 import { WorkerModule } from './worker.module';
+
+System.log.setAppName('DataConnectionWorker');
+
+const log = System.log.withContext('Worker');
 
 async function bootstrap(): Promise<void> {
     // Credentials arrive encrypted; without the workspace key no run could start — fail now, not on the first job.
@@ -19,10 +24,10 @@ async function bootstrap(): Promise<void> {
 
     await app.listen(port);
 
-    console.log(`Quarry Data Connection worker running (health on :${port}/health)`);
+    log.info('Data Connection worker listening', { port });
 }
 
 bootstrap().catch((error: unknown) => {
-    console.error('Data Connection worker boot failed:', error);
+    log.error('Data Connection worker boot failed', { error });
     process.exit(1);
 });

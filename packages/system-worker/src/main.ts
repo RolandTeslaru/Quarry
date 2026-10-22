@@ -1,7 +1,12 @@
 // infra first: reflect-metadata and the env every other module reads.
 import { waitForServer } from './infra';
 import { NestFactory } from '@nestjs/core';
+import { System } from '@quarry/shared/server/system';
 import { WorkerModule } from './worker.module';
+
+System.log.setAppName('SystemWorker');
+
+const log = System.log.withContext('Worker');
 
 async function bootstrap(): Promise<void> {
     // Started alongside the server, it may come up first — every job needs the server's /internal API.
@@ -15,10 +20,10 @@ async function bootstrap(): Promise<void> {
 
     await app.listen(port);
 
-    console.log(`Quarry system worker running (health on :${port}/health)`);
+    log.info('System worker listening', { port });
 }
 
 bootstrap().catch((error: unknown) => {
-    console.error('System worker boot failed:', error);
+    log.error('System worker boot failed', { error });
     process.exit(1);
 });

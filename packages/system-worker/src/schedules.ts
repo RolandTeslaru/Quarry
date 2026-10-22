@@ -1,7 +1,8 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, type OnApplicationBootstrap } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { Catalog, DataConnection } from '@quarry/shared/domain';
+import { System } from '@quarry/shared/server/system';
 import { server } from './infra';
 
 /**
@@ -13,7 +14,7 @@ import { server } from './infra';
 @Injectable()
 export class Schedules implements OnApplicationBootstrap {
 
-    private readonly logger = new Logger(Schedules.name);
+    private readonly log = System.log.withContext('Schedules');
 
     constructor(
         @InjectQueue(Catalog.Queue.OutboxRelay.Definition.name)       private readonly outboxRelay: Queue,
@@ -55,6 +56,6 @@ export class Schedules implements OnApplicationBootstrap {
                 removed++;
             }
 
-        this.logger.log(`Reconciled ${syncs.length} sync schedules (${removed} stale removed)`);
+        this.log.info(`Reconciled ${syncs.length} sync schedules (${removed} stale removed)`);
     }
 }

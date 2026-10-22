@@ -1,6 +1,9 @@
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { Kysely, Migrator, sql, type Migration, type MigrationProvider } from 'kysely';
+import { System } from '@quarry/shared/server/system';
+
+const log = System.log.withContext('Migrate');
 
 /**
  * Kysely's FileMigrationProvider imports `.js`/`.ts` and ignores `.sql`. This
@@ -53,9 +56,15 @@ export async function migrateAll(db: Kysely<unknown>): Promise<void> {
 
         for (const result of results ?? [])
             if (result.status === 'Success')
-                console.log(`[${schema}] applied ${result.migrationName}`);
+                log.info('Applied migration', {
+                    schema,
+                    migration: result.migrationName,
+                });
             else if (result.status === 'Error')
-                console.error(`[${schema}] failed ${result.migrationName}`);
+                log.error('Migration failed', {
+                    schema,
+                    migration: result.migrationName,
+                });
 
         if (error)
             throw error instanceof Error ? error : new Error(String(error));

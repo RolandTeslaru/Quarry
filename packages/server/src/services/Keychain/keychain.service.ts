@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, type OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import { z } from 'zod';
 import { Keychain } from '@quarry/shared/domain';
 import { Encryption } from '@quarry/shared/server/encryption';
+import { System } from '@quarry/shared/server/system';
 import { CREDENTIAL_TEMPLATES, credentialToWire, findCredentialTemplate, type CredentialTemplate } from '@quarry/integrations/definitions';
 import { Principal } from '@/auth/principal';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
@@ -26,7 +27,7 @@ import { KeychainRepository, type StoredCredential } from './keychain.repository
 @Injectable()
 export class KeychainService implements OnModuleInit {
 
-    private readonly logger = new Logger(KeychainService.name);
+    private readonly log = System.log.withContext('Keychain');
 
     constructor(
         readonly gatekeeper:         GatekeeperService,
@@ -79,7 +80,7 @@ export class KeychainService implements OnModuleInit {
     async reveal(principal: Principal, rid: Keychain.Credential.Rid): Promise<Keychain.Credential.Values> {
         const { blob } = await this.require(principal, rid);
 
-        this.logger.log(`Credential ${rid} revealed by ${Principal.actorOf(principal) ?? 'the system'}`);
+        this.log.info(`Credential ${rid} revealed by ${Principal.actorOf(principal) ?? 'the system'}`);
 
         return Encryption.decrypt(blob);
     }

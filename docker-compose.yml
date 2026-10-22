@@ -125,6 +125,9 @@ services:
       QUARRY_ENCRYPTION_KEY: ${QUARRY_ENCRYPTION_KEY:?set QUARRY_ENCRYPTION_KEY (openssl rand -hex 32)}
       PORT: 4000
       CORS_ORIGIN: ${APP_URL:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_TIMESTAMPS: ${LOG_TIMESTAMPS:-true}
+      LOG_APP_NAME: ${LOG_APP_NAME:-}
     ports:
       - "${API_PORT:-4000}:4000"
 
@@ -144,6 +147,9 @@ services:
       retries: 3
     environment:
       WORKER_PORT: 4101
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_TIMESTAMPS: ${LOG_TIMESTAMPS:-true}
+      LOG_APP_NAME: ${LOG_APP_NAME:-}
       REDIS_URL: redis://redis:6379
       QUARRY_SERVER_URL: http://server:4000
       QUARRY_INTERNAL_TOKEN: ${QUARRY_INTERNAL_TOKEN:-dev-internal-token-change-me}
@@ -169,6 +175,9 @@ services:
       retries: 3
     environment:
       WORKER_PORT: 4102
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_TIMESTAMPS: ${LOG_TIMESTAMPS:-true}
+      LOG_APP_NAME: ${LOG_APP_NAME:-}
       REDIS_URL: redis://redis:6379
       QUARRY_SERVER_URL: http://server:4000
       QUARRY_INTERNAL_TOKEN: ${QUARRY_INTERNAL_TOKEN:-dev-internal-token-change-me}

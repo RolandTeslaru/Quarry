@@ -1,6 +1,6 @@
 import { Processor } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
 import { DataConnection } from '@quarry/shared/domain';
+import { System } from '@quarry/shared/server/system';
 import { describeParquet, DuckDb, JobProcessor, server, SourceRuntimes } from './infra';
 
 import Internal = DataConnection.API.Internal;
@@ -22,7 +22,7 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
 
     protected readonly definition = DataConnection.Queue.Sync.Definition;
 
-    private readonly logger = new Logger(SyncProcessor.name);
+    private readonly log = System.log.withContext('SyncProcessor');
 
     constructor(
         private readonly runtimes: SourceRuntimes,
@@ -38,7 +38,12 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
             return { syncRunRid: null, transactionRid: null, rowCount: 0, skipped: true };
 
         const heartbeat = setInterval(() => {
-            Internal.heartbeat(server(), run.runRid).catch((error: unknown) => this.logger.warn(`Heartbeat failed for run ${run.runRid}: ${String(error)}`));
+            Internal.heartbeat(server(), run.runRid).catch((error: unknown) => {
+                this.log.warning('Heartbeat failed', {
+                    runRid: run.runRid,
+                    error:  error instanceof Error ? error.message : String(error),
+                });
+            });
         }, HEARTBEAT_MS);
 
         try {
@@ -52,14 +57,25 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
                 rowCounts: written.rowCounts,
             });
 
-            this.logger.log(`Sync ${job.syncRid}: ${copied.rowCount} rows → ${run.datasetRid} (${completed.files} files)`);
+            this.log.info('Sync completed', {
+                syncRid:    job.syncRid,
+                runRid:     run.runRid,
+                datasetRid: run.datasetRid,
+                rowCount:   copied.rowCount,
+                files:      completed.files,
+            });
 
             return { syncRunRid: run.runRid, transactionRid: completed.transactionRid, rowCount: copied.rowCount, skipped: false };
         }
         catch (error) {
             const message = error instanceof Error ? error.message : String(error);
 
-            await Internal.failRun(server(), run.runRid, { message }).catch((failError: unknown) => this.logger.warn(`Could not fail run ${run.runRid}: ${String(failError)}`));
+            await Internal.failRun(server(), run.runRid, { message }).catch((failError: unknown) => {
+                this.log.warning('Could not fail run', {
+                    runRid: run.runRid,
+                    error:  failError instanceof Error ? failError.message : String(failError),
+                });
+            });
 
             throw error;
         }

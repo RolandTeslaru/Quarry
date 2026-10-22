@@ -4,10 +4,10 @@ import {
     ForbiddenException,
     HttpException,
     InternalServerErrorException,
-    Logger,
     NotFoundException,
 } from '@nestjs/common';
 import { NoResultError } from 'kysely';
+import { System } from '@quarry/shared/server/system';
 
 // Raw pg errors carry table names, constraint names and rejected values, so
 // none of them reach a client.
@@ -26,7 +26,7 @@ const BY_SQLSTATE: Record<string, () => HttpException> = {
 // schema is wrong (requests are validated before they get here) — logged as errors.
 const CLIENT_CAUSED = new Set(['23505', '23503', 'P0001', '42501']);
 
-const logger = new Logger('Database');
+const log = System.log.withContext('Database');
 
 /**
  * RLS hides the rows it refuses: an UPDATE or DELETE that touched nothing means
@@ -55,9 +55,9 @@ export function catchDatabaseErrors(fn: (...args: unknown[]) => unknown, operati
             const message = `${operation} failed: ${error instanceof Error ? error.message : String(error)}`;
 
             if (code && CLIENT_CAUSED.has(code))
-                logger.warn(message);
+                log.warning(message);
             else
-                logger.error(message, error instanceof Error ? error.stack : undefined);
+                log.error(message, { stack: error instanceof Error ? error.stack : undefined });
 
             if (mapped)
                 throw mapped();

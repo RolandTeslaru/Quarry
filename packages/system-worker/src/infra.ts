@@ -6,6 +6,9 @@ import axios, { type AxiosInstance } from 'axios';
 import type { ConnectionOptions, Job } from 'bullmq';
 import dotenv from 'dotenv';
 import type { Foundations } from '@quarry/shared/domain';
+import { System } from '@quarry/shared/server/system';
+
+const log = System.log.withContext('ServerConnection');
 
 // ── env ─────────────────────────────────────────────────────────────────
 // src/ → system-worker/ → packages/ → repo root. In containers, env comes from the environment.
@@ -47,7 +50,7 @@ export async function waitForServer(): Promise<void> {
         }
         catch {
             if (attempt % 10 === 0)
-                console.log(`Waiting for the server at ${requireEnv('QUARRY_SERVER_URL')}…`);
+                log.info(`Waiting for the server at ${requireEnv('QUARRY_SERVER_URL')}…`);
 
             await new Promise((resolve) => setTimeout(resolve, 1_000));
         }

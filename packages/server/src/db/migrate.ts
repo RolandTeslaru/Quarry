@@ -1,8 +1,13 @@
 // Must stay first: modules below read env at import time.
 import '../load-env';
 
+import { System } from '@quarry/shared/server/system';
 import { db, destroyPool } from './pool';
 import { migrateAll } from './migrator';
+
+System.log.setAppName('Migrate');
+
+const log = System.log.withContext('Migrate');
 
 async function main(): Promise<void> {
     await migrateAll(db());
@@ -10,6 +15,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-    console.error(error);
+    log.error('Migration failed', { error });
     process.exit(1);
 });
