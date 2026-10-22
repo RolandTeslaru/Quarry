@@ -1,12 +1,21 @@
-import * as React from 'react'
-import { type FC, type ComponentProps } from 'react'
+import type { FC, ComponentProps, HTMLAttributes } from 'react'
 import * as MenubarPrimitive from '@radix-ui/react-menubar'
-
 import { cn } from '../utils/cn'
-import classNames from 'classnames'
 import { Icon } from '../icons'
+import { FloatingPointer } from './floatingPointer'
+import {
+    menuContentClasses,
+    menuItemClasses,
+    menuCheckableItemClasses,
+    menuSubTriggerClasses,
+    menuSubContentClasses,
+    menuLabelClasses,
+    menuSeparatorClasses,
+    menuShortcutClasses,
+} from './menu.styles'
 
 namespace MenubarComponents {
+
     export type Root = FC<ComponentProps<typeof MenubarPrimitive.Root>>
     export type Menu = FC<ComponentProps<typeof MenubarPrimitive.Menu>>
     export type Group = FC<ComponentProps<typeof MenubarPrimitive.Group>>
@@ -16,135 +25,111 @@ namespace MenubarComponents {
     export type Trigger = FC<ComponentProps<typeof MenubarPrimitive.Trigger>>
     export type SubTrigger = FC<ComponentProps<typeof MenubarPrimitive.SubTrigger> & { inset?: boolean }>
     export type SubContent = FC<ComponentProps<typeof MenubarPrimitive.SubContent>>
-    export type Content = FC<ComponentProps<typeof MenubarPrimitive.Content>>
-    export type Item = FC<ComponentProps<typeof MenubarPrimitive.Item> & { inset?: boolean }>
+    export type Content = FC<ComponentProps<typeof MenubarPrimitive.Content> & { pointer?: boolean }>
+    export type Item = FC<ComponentProps<typeof MenubarPrimitive.Item> & {
+        inset?: boolean
+        variant?: 'default' | 'destructive'
+    }>
     export type CheckboxItem = FC<ComponentProps<typeof MenubarPrimitive.CheckboxItem>>
     export type RadioItem = FC<ComponentProps<typeof MenubarPrimitive.RadioItem>>
     export type Label = FC<ComponentProps<typeof MenubarPrimitive.Label> & { inset?: boolean }>
     export type Separator = FC<ComponentProps<typeof MenubarPrimitive.Separator>>
-    export type Shortcut = FC<React.HTMLAttributes<HTMLSpanElement>>
+    export type Shortcut = FC<HTMLAttributes<HTMLSpanElement>>
 }
 
-const Root: MenubarComponents.Root = ({ className, ...rest }) => (
+const Root: MenubarComponents.Root = ({ className, ...props }) => (
     <MenubarPrimitive.Root
-        className={cn('flex h-10 items-center space-x-1 rounded-md border border-none p-1 bg-none', className)}
-        {...rest}
+        data-slot='menubar'
+        className={cn('flex w-fit items-center gap-1', className)}
+        {...props}
     />
 )
 
-const Menu: MenubarComponents.Menu = (props) => <MenubarPrimitive.Menu {...props} />
+const Menu: MenubarComponents.Menu = props => <MenubarPrimitive.Menu {...props} />
 
-const Group: MenubarComponents.Group = (props) => <MenubarPrimitive.Group {...props} />
+const Group: MenubarComponents.Group = props => <MenubarPrimitive.Group data-slot='menubar-group' {...props} />
 
-const Portal: MenubarComponents.Portal = (props) => <MenubarPrimitive.Portal {...props} />
+const Portal: MenubarComponents.Portal = props => <MenubarPrimitive.Portal {...props} />
 
-const Sub: MenubarComponents.Sub = (props) => <MenubarPrimitive.Sub {...props} />
+const Sub: MenubarComponents.Sub = props => <MenubarPrimitive.Sub {...props} />
 
-const RadioGroup: MenubarComponents.RadioGroup = (props) => <MenubarPrimitive.RadioGroup {...props} />
+const RadioGroup: MenubarComponents.RadioGroup = props => (
+    <MenubarPrimitive.RadioGroup data-slot='menubar-radio-group' {...props} />
+)
 
-const Trigger: MenubarComponents.Trigger = ({ className, ...rest }) => (
+const Trigger: MenubarComponents.Trigger = ({ className, ...props }) => (
     <MenubarPrimitive.Trigger
-        className={classNames(
-            `flex cursor-default select-none items-center rounded-lg px-3 py-1 outline-hidden border-transparent border text-xs
-       antialiased font-bold text-label-primary
-      focus:bg-secondary focus:text-secondary-foreground
-      hover:bg-secondary
-
-      data-[state=open]:bg-secondary
-      data-[state=open]:text-secondary-foreground
-      `,
+        data-slot='menubar-trigger'
+        className={cn(
+            `flex h-7 cursor-pointer select-none items-center rounded-md border border-transparent
+            px-2 text-sm font-medium text-foreground outline-hidden
+            hover:bg-secondary hover:text-secondary-foreground
+            focus:bg-secondary focus:text-secondary-foreground
+            data-[state=open]:bg-secondary data-[state=open]:text-secondary-foreground
+            data-[disabled]:pointer-events-none data-[disabled]:opacity-50`,
             className,
         )}
-        {...rest}
+        {...props}
     />
-)
-
-const SubTrigger: MenubarComponents.SubTrigger = ({ className, inset, children, ...rest }) => (
-    <MenubarPrimitive.SubTrigger
-        className={classNames(
-            `flex cursor-default select-none items-center rounded-lg p-2 py-1.5 text-xs font-medium outline-hidden border border-transparent
-       text-label-primary
-       hover:bg-secondary hover:text-secondary-foreground
-       focus:bg-secondary focus:text-secondary-foreground
-       data-[state=open]:bg-secondary data-[state=open]:text-secondary-foreground `,
-            inset && 'pl-8',
-            className,
-        )}
-        {...rest}
-    >
-        {children}
-        <Icon name='chevron-right' className='ml-auto h-4 w-4' />
-    </MenubarPrimitive.SubTrigger>
-)
-
-const SubContent: MenubarComponents.SubContent = ({ className, ...rest }) => (
-    <MenubarPrimitive.Portal>
-        <MenubarPrimitive.SubContent
-            className={classNames(
-                `z-50 min-w-[12rem] backdrop-blur-sm  rounded-xl border p-1 shadow-md shadow-black/50
-       data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95
-       data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2
-       border-border-background bg-background text-label-primary`,
-                className,
-            )}
-            {...rest}
-        />
-    </MenubarPrimitive.Portal>
 )
 
 const Content: MenubarComponents.Content = ({
     className,
+    children,
     align = 'start',
-    alignOffset = -4,
-    sideOffset = 8,
+    alignOffset = 0,
+    sideOffset = 4,
+    arrowPadding = 10,
+    pointer = true,
     ...props
 }) => (
     <MenubarPrimitive.Portal>
         <MenubarPrimitive.Content
+            data-slot='menubar-content'
             align={align}
             alignOffset={alignOffset}
             sideOffset={sideOffset}
-            className={classNames(
-                ` bg-background border-border-background shadow-md shadow-black/50
-        z-50 min-w-[12rem] backdrop-blur-sm rounded-xl border p-1
-         data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95
-         data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2
-          text-neutral-50`,
+            arrowPadding={arrowPadding}
+            className={cn(
+                menuContentClasses,
+                `max-h-(--radix-menubar-content-available-height)
+                origin-(--radix-menubar-content-transform-origin)`,
                 className,
             )}
             {...props}
-        />
+        >
+            <div className='min-h-0 overflow-x-hidden overflow-y-auto'>
+                {children}
+            </div>
+            {pointer && (
+                <MenubarPrimitive.Arrow asChild>
+                    <FloatingPointer />
+                </MenubarPrimitive.Arrow>
+            )}
+        </MenubarPrimitive.Content>
     </MenubarPrimitive.Portal>
 )
 
-const Item: MenubarComponents.Item = ({ className, inset, ...props }) => (
+const Item: MenubarComponents.Item = ({ className, inset, variant = 'default', ...props }) => (
     <MenubarPrimitive.Item
-        className={classNames(
-            `relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-xs outline-hidden border border-transparent
-      data-disabled:pointer-events-none data-disabled:opacity-50 text-label-primary font-medium
-      focus:bg-secondary focus:text-secondary-foreground `,
-            inset && 'pl-8',
-            className,
-        )}
+        data-slot='menubar-item'
+        data-inset={inset}
+        data-variant={variant}
+        className={cn(menuItemClasses, 'group/menubar-item', className)}
         {...props}
     />
 )
 
 const CheckboxItem: MenubarComponents.CheckboxItem = ({ className, children, checked, ...props }) => (
     <MenubarPrimitive.CheckboxItem
-        className={cn(
-            `relative flex cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden
-            not-data-[state=checked]:focus:bg-secondary not-data-[state=checked]:focus:text-secondary-foreground
-            data-[state=checked]:bg-primary/15 data-[state=checked]:text-foreground
-            data-disabled:pointer-events-none data-disabled:opacity-50`,
-            className,
-        )}
+        data-slot='menubar-checkbox-item'
+        className={cn(menuCheckableItemClasses, className)}
         checked={checked}
         {...props}
     >
-        <span className='absolute left-2 flex h-3.5 w-3.5 items-center justify-center'>
+        <span className='pointer-events-none absolute left-2 flex size-3.5 items-center justify-center'>
             <MenubarPrimitive.ItemIndicator>
-                <Icon name='tick' className='h-4 w-4' />
+                <Icon name='tick' className='size-4 text-current!' />
             </MenubarPrimitive.ItemIndicator>
         </span>
         {children}
@@ -153,34 +138,64 @@ const CheckboxItem: MenubarComponents.CheckboxItem = ({ className, children, che
 
 const RadioItem: MenubarComponents.RadioItem = ({ className, children, ...props }) => (
     <MenubarPrimitive.RadioItem
-        className={cn(
-            `relative flex cursor-default select-none items-center rounded-xs py-1.5 pl-8 pr-2 text-sm outline-hidden
-            not-data-[state=checked]:focus:bg-secondary not-data-[state=checked]:focus:text-secondary-foreground
-            data-[state=checked]:bg-primary/15 data-[state=checked]:text-foreground
-            data-disabled:pointer-events-none data-disabled:opacity-50`,
-            className,
-        )}
+        data-slot='menubar-radio-item'
+        className={cn(menuCheckableItemClasses, className)}
         {...props}
     >
-        <span className='absolute left-2 flex h-3.5 w-3.5 items-center justify-center'>
+        <span className='pointer-events-none absolute left-2 flex size-3.5 items-center justify-center'>
             <MenubarPrimitive.ItemIndicator>
-                <Icon name='full-circle' className='h-2 w-2 fill-current' />
+                <Icon name='full-circle' className='size-2 text-current! fill-current' />
             </MenubarPrimitive.ItemIndicator>
         </span>
         {children}
     </MenubarPrimitive.RadioItem>
 )
 
-const Label: MenubarComponents.Label = ({ className, inset, ...rest }) => (
-    <MenubarPrimitive.Label className={cn('px-2 py-1.5 text-sm font-semibold', inset && 'pl-8', className)} {...rest} />
+const Label: MenubarComponents.Label = ({ className, inset, ...props }) => (
+    <MenubarPrimitive.Label
+        data-slot='menubar-label'
+        data-inset={inset}
+        className={cn(menuLabelClasses, className)}
+        {...props}
+    />
 )
 
-const Separator: MenubarComponents.Separator = ({ className, ...rest }) => (
-    <MenubarPrimitive.Separator className={cn('-mx-1 my-1 h-px bg-neutral-400/25', className)} {...rest} />
+const Separator: MenubarComponents.Separator = ({ className, ...props }) => (
+    <MenubarPrimitive.Separator
+        data-slot='menubar-separator'
+        className={cn(menuSeparatorClasses, className)}
+        {...props}
+    />
 )
 
-const Shortcut: MenubarComponents.Shortcut = ({ className, ...rest }) => (
-    <span className={cn('ml-auto text-xs tracking-widest text-neutral-400', className)} {...rest} />
+const Shortcut: MenubarComponents.Shortcut = ({ className, ...props }) => (
+    <span data-slot='menubar-shortcut' className={cn(menuShortcutClasses, className)} {...props} />
+)
+
+const SubTrigger: MenubarComponents.SubTrigger = ({ className, inset, children, ...props }) => (
+    <MenubarPrimitive.SubTrigger
+        data-slot='menubar-sub-trigger'
+        data-inset={inset}
+        className={cn(menuSubTriggerClasses, className)}
+        {...props}
+    >
+        {children}
+        <Icon name='chevron-right' className='ml-auto size-4' />
+    </MenubarPrimitive.SubTrigger>
+)
+
+const SubContent: MenubarComponents.SubContent = ({ className, ...props }) => (
+    <MenubarPrimitive.Portal>
+        <MenubarPrimitive.SubContent
+            data-slot='menubar-sub-content'
+            className={cn(
+                menuSubContentClasses,
+                'origin-(--radix-menubar-content-transform-origin)',
+                className,
+            )}
+            {...props}
+        />
+    </MenubarPrimitive.Portal>
 )
 
 export const Menubar = {

@@ -30,6 +30,13 @@ export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
             staleTime: DEFINITIONS_STALE_TIME,
         },
 
+        /** Every source the user can see — Data Connection's home; cache only. */
+        sources: {
+            queryKey: ['data-connection', 'sources'] as const,
+            queryFn: () => this.actions.source.list(),
+            staleTime: 0,
+        },
+
         source: (rid: DataConnection.Source.Rid) => ({
             queryKey: ['data-connection', 'source', rid] as const,
             queryFn: () => this.actions.source.get(rid),

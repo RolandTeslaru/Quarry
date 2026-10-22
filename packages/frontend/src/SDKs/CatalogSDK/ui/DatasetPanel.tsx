@@ -130,7 +130,7 @@ export function DatasetPanel({ rid }: Props) {
                     {!sequence && (
                         <>
                             <h2 className='section-title mb-3'>Preview</h2>
-                            <div className='mb-8'>
+                            <div className='mb-8 h-[480px]'>
                                 <DatasetPreview rid={rid} />
                             </div>
                         </>

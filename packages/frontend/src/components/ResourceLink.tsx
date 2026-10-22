@@ -1,6 +1,7 @@
 import { Icon, type IconName } from '@quarry/standard-ui/icons'
 import { Link } from '@tanstack/react-router'
 import type { Library } from '@quarry/shared/domain'
+import { resourceRoute } from '@/shell/apps'
 
 const RESOURCE_ICONS: Record<Library.Resource.Type, IconName> = {
     project: 'projects',
@@ -21,8 +22,7 @@ interface Props {
 export function ResourceLink({ resource }: Props) {
     return (
         <Link
-            to='/resources/$rid'
-            params={{ rid: resource.rid }}
+            {...resourceRoute(resource.type, resource.rid)}
             className='resource-link'
         >
             <Icon name={resourceIcon(resource.type)} />

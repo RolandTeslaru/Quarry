@@ -5,6 +5,16 @@ import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
 import { cn } from '../utils/cn'
 import { Icon } from '../icons'
 import { FloatingPointer } from './floatingPointer'
+import {
+    menuContentClasses,
+    menuItemClasses,
+    menuCheckableItemClasses,
+    menuSubTriggerClasses,
+    menuSubContentClasses,
+    menuLabelClasses,
+    menuSeparatorClasses,
+    menuShortcutClasses,
+} from './menu.styles'
 
 namespace DropdownMenu {
     export type Root = React.ComponentProps<typeof DropdownMenuPrimitive.Root>
@@ -61,11 +71,9 @@ function Content({
                 sideOffset={sideOffset}
                 arrowPadding={arrowPadding}
                 className={cn(
-                    `standard-popup-motion bg-popover/90 text-popover-foreground
-                    z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem]
-                    origin-(--radix-dropdown-menu-content-transform-origin) flex flex-col
-                    rounded-lg border border-popover-border p-1 shadow-xl backdrop-blur-md
-                    dark:shadow-black/30 light:shadow-neutral-950/30`,
+                    menuContentClasses,
+                    `max-h-(--radix-dropdown-menu-content-available-height)
+                    origin-(--radix-dropdown-menu-content-transform-origin)`,
                     className,
                 )}
                 {...rest}
@@ -93,29 +101,7 @@ function Item({ className, inset, variant = 'default', ...rest }: DropdownMenu.I
             data-slot='dropdown-menu-item'
             data-inset={inset}
             data-variant={variant}
-            className={cn(
-                ` focus:bg-secondary
-
-          cursor-pointer
-          border border-transparent
-          focus:text-secondary-foreground
-          data-[variant=destructive]:text-destructive
-
-          data-[variant=destructive]:focus:text-destructive
-          data-[variant=destructive]:*:[svg]:text-destructive
-          not-data-[variant=destructive]:focus:**:text-secondary-foreground
-          gap-1.5 rounded-sm px-1.5 py-1 text-sm
-          [&_svg:not([class*='size-'])]:size-4 group/dropdown-menu-item
-          relative flex items-center outline-hidden select-none
-          data-[disabled]:pointer-events-none
-          data-[disabled]:opacity-50
-          data-[inset]:pl-8
-          [&_svg]:pointer-events-none
-          [&_svg]:shrink-0
-          [&_svg]:text-accent-foreground/80
-        `,
-                className,
-            )}
+            className={cn(menuItemClasses, 'group/dropdown-menu-item', className)}
             {...rest}
         />
     )
@@ -144,20 +130,7 @@ function CheckboxItem({ className, children, checked, ...rest }: DropdownMenu.Ch
     return (
         <DropdownMenuPrimitive.CheckboxItem
             data-slot='dropdown-menu-checkbox-item'
-            className={cn(
-                `not-data-[state=checked]:focus:bg-secondary border border-transparent
-        not-data-[state=checked]:focus:text-secondary-foreground
-        data-[state=checked]:bg-primary/15 data-[state=checked]:text-foreground
-        data-[state=checked]:**:text-foreground
-        relative flex cursor-default items-center gap-2 rounded-sm
-        py-1 pr-2 pl-8 text-sm outline-hidden select-none
-        data-[disabled]:pointer-events-none data-[disabled]:opacity-50
-        [&_svg]:pointer-events-none [&_svg]:shrink-0
-        [&_svg:not([class*='size-'])]:size-4
-        [&_svg]:text-accent-foreground/50
-        `,
-                className,
-            )}
+            className={cn(menuCheckableItemClasses, className)}
             checked={checked}
             {...rest}
         >
@@ -179,21 +152,7 @@ function RadioItem({ className, children, ...rest }: DropdownMenu.RadioItem) {
     return (
         <DropdownMenuPrimitive.RadioItem
             data-slot='dropdown-menu-radio-item'
-            className={cn(
-                `not-data-[state=checked]:focus:bg-secondary border border-transparent
-        not-data-[state=checked]:focus:text-secondary-foreground
-        data-[state=checked]:bg-primary/15 data-[state=checked]:text-foreground
-        data-[state=checked]:**:text-foreground
-        relative flex cursor-default items-center gap-2 rounded-sm
-        py-1 pr-2 pl-8 text-sm outline-hidden select-none
-        data-[disabled]:pointer-events-none data-[disabled]:opacity-50
-        [&_svg]:pointer-events-none
-        [&_svg]:shrink-0
-        [&_svg:not([class*='size-'])]:size-4
-        [&_svg]:text-accent-foreground/50
-        `,
-                className,
-            )}
+            className={cn(menuCheckableItemClasses, className)}
             {...rest}
         >
             <span className='pointer-events-none absolute left-2 flex size-3.5 items-center justify-center'>
@@ -211,7 +170,7 @@ function Label({ className, inset, ...rest }: DropdownMenu.Label) {
         <DropdownMenuPrimitive.Label
             data-slot='dropdown-menu-label'
             data-inset={inset}
-            className={cn('text-muted-foreground px-1.5 py-1 text-xs font-medium data-[inset]:pl-8', className)}
+            className={cn(menuLabelClasses, className)}
             {...rest}
         />
     )
@@ -221,7 +180,7 @@ function Separator({ className, ...rest }: DropdownMenu.Separator) {
     return (
         <DropdownMenuPrimitive.Separator
             data-slot='dropdown-menu-separator'
-            className={cn('bg-border w-[calc(100%-0.5rem)] mx-auto my-1 h-px', className)}
+            className={cn(menuSeparatorClasses, className)}
             {...rest}
         />
     )
@@ -231,7 +190,7 @@ function Shortcut({ className, ...rest }: DropdownMenu.Shortcut) {
     return (
         <span
             data-slot='dropdown-menu-shortcut'
-            className={cn('text-muted-foreground ml-auto text-xs tracking-widest', className)}
+            className={cn(menuShortcutClasses, className)}
             {...rest}
         />
     )
@@ -246,25 +205,7 @@ function SubTrigger({ className, inset, children, ...rest }: DropdownMenu.SubTri
         <DropdownMenuPrimitive.SubTrigger
             data-slot='dropdown-menu-sub-trigger'
             data-inset={inset}
-            className={cn(
-                `focus:bg-secondary focus:text-secondary-foreground
-        border border-transparent
-
-        data-[state=open]:bg-secondary
-
-        data-[state=open]:text-secondary-foreground
-        not-data-[variant=destructive]:focus:**:text-secondary-foreground
-        gap-1.5 rounded-md px-1.5 py-1 text-sm
-        [&_svg:not([class*='size-'])]:size-4
-        flex cursor-default items-center outline-hidden select-none
-        data-[inset]:pl-8
-        [&_svg]:pointer-events-none
-        [&_svg]:shrink-0
-        [&_svg]:text-accent-foreground/50
-
-        `,
-                className,
-            )}
+            className={cn(menuSubTriggerClasses, className)}
             {...rest}
         >
             {children}
@@ -279,14 +220,8 @@ function SubContent({ className, ...rest }: DropdownMenu.SubContent) {
             <DropdownMenuPrimitive.SubContent
                 data-slot='dropdown-menu-sub-content'
                 className={cn(
-                    `bg-popover/80 text-popover-foreground z-50 min-w-[8rem]
-                    data-[state=open]:animate-in data-[state=closed]:animate-out
-                    data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
-                    data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95
-                    data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2
-                    data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2
-                    origin-(--radix-dropdown-menu-content-transform-origin) backdrop-blur-md
-                    overflow-hidden rounded-lg border border-popover-border p-1 shadow-lg`,
+                    menuSubContentClasses,
+                    'origin-(--radix-dropdown-menu-content-transform-origin)',
                     className,
                 )}
                 {...rest}

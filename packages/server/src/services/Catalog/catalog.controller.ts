@@ -16,6 +16,11 @@ export class CatalogController {
 
     constructor(private readonly catalog: CatalogService) {}
 
+    @Get()
+    async list(@CurrentPrincipal() principal: Principal.User): Promise<API.Dataset.List.Response> {
+        return { datasets: await this.catalog.list(principal) };
+    }
+
     @Post()
     async create(
         @CurrentPrincipal() principal: Principal.User,

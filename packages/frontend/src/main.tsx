@@ -23,7 +23,7 @@ declare module '@tanstack/react-router' {
 
 AuthSDK.init()
 
-function App() {
+function QuarryApp() {
     const auth = AuthSDK.useStore(state => state)
 
     useEffect(() => {
@@ -79,7 +79,7 @@ if (!rootElement)
 if (!rootElement.innerHTML) {
     createRoot(rootElement).render(
         <StrictMode>
-            <App />
+            <QuarryApp />
         </StrictMode>,
     )
 }

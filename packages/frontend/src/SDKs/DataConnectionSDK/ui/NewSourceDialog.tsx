@@ -12,6 +12,7 @@ import { DataConnection, Keychain, type Library } from '@quarry/shared/domain'
 import { DataConnectionSDK } from '../sdk'
 import { KeychainSDK } from '@/SDKs/KeychainSDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
+import { resourceRoute } from '@/shell/apps'
 import { SchemaFields, defaults, type Values } from '@/components/SchemaFields'
 
 interface Props {
@@ -117,7 +118,7 @@ function SourceForm({
             config,
         })
 
-        await navigate({ to: '/resources/$rid', params: { rid: source.rid } })
+        await navigate(resourceRoute('source', source.rid))
     }
 
     function submit(event: FormEvent<HTMLFormElement>) {

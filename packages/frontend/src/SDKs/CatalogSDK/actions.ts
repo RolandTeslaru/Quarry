@@ -5,6 +5,7 @@ import type { CatalogSDKImpl } from './sdk'
 
 export type _CatalogSDKActions = {
     dataset: {
+        list: () => Promise<Catalog.API.Dataset.List.Response>
         get: (rid: Catalog.Dataset.Rid) => Promise<Catalog.API.Dataset.Get.Response>
         view: (
             rid: Catalog.Dataset.Rid,
@@ -28,6 +29,9 @@ export function _createCatalogActions_(sdk: CatalogSDKImpl): _CatalogSDKActions 
 
     return {
         dataset: {
+            list: () =>
+                Catalog.API.Dataset.list(api),
+
             get: async rid => {
                 const data = await Catalog.API.Dataset.get(api, rid)
 

@@ -197,6 +197,7 @@ A worker that dies mid-run leaves a `running` run and an open transaction, which
 
 | Route | Service | Gate |
 |---|---|---|
+| `GET /sources` | `source.list` — every live source the caller can see, across projects | `discover` (RLS) |
 | `GET /sources/definitions` | `listDefinitions` | any member |
 | `POST /sources` `{ parentRid, name, definitionId, config }` | `createSource` — 400 on an unknown type or invalid config | `write` on the parent folder |
 | `GET /sources/:rid` | `getSource` | `discover` |

@@ -103,6 +103,11 @@ export namespace DataConnectionService {
             return this.require(principal, rid);
         }
 
+        /** Sources the principal can discover (RLS). */
+        async list(principal: Principal): Promise<DataConnection.Source.Schema[]> {
+            return this.repository.source.list(principal);
+        }
+
         /** Read on the source and on its credential — gated: a probe writes no row RLS could refuse. */
         @SecurityGate('read')
         async test(principal: Principal, rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Test.Response> {

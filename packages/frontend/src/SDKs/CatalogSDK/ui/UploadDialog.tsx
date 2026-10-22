@@ -9,6 +9,7 @@ import { useNavigate } from '@tanstack/react-router'
 import type { Catalog, Library } from '@quarry/shared/domain'
 import { CatalogSDK } from '../sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
+import { resourceRoute } from '@/shell/apps'
 
 type Mode = Catalog.API.Dataset.Upload.Fields['mode']
 
@@ -53,7 +54,7 @@ export function UploadDialog({ target, dialog }: Props) {
 
         const { dataset } = await CatalogSDK.actions.dataset.createFromFile(target.parentRid, selected)
 
-        await navigate({ to: '/resources/$rid', params: { rid: dataset.rid } })
+        await navigate(resourceRoute('dataset', dataset.rid))
     }
 
     function submit(event: FormEvent<HTMLFormElement>) {

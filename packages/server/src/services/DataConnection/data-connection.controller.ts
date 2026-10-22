@@ -23,6 +23,11 @@ export class DataConnectionController {
         return { source: await this.dataConnection.source.create(principal, body) };
     }
 
+    @Get()
+    async list(@CurrentPrincipal() principal: Principal.User): Promise<API.Source.List.Response> {
+        return { sources: await this.dataConnection.source.list(principal) };
+    }
+
     /** The source types this deployment supports, with their config forms. Declared before :rid so "definitions" isn't read as a RID. */
     @Get('definitions')
     definitions(): API.Source.ListDefinitions.Response {

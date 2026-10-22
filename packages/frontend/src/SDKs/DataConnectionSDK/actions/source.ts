@@ -5,6 +5,7 @@ import type { DataConnectionSDKImpl } from '../sdk'
 
 export type SourceActions = {
     definitions: () => Promise<DataConnection.API.Source.ListDefinitions.Response>
+    list:        () => Promise<DataConnection.API.Source.List.Response>
     get:         (rid: DataConnection.Source.Rid) => Promise<DataConnection.API.Source.Get.Response>
     create:      (request: DataConnection.API.Source.Create.Request) => Promise<DataConnection.Source.Schema>
     test:        (rid: DataConnection.Source.Rid) => Promise<DataConnection.API.Source.Test.Response>
@@ -22,6 +23,9 @@ export function createSourceActions(sdk: DataConnectionSDKImpl): SourceActions {
 
             return data
         },
+
+        list: () =>
+            DataConnection.API.Source.list(api),
 
         get: async rid => {
             const data = await DataConnection.API.Source.get(api, rid)

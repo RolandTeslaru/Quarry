@@ -83,6 +83,7 @@ Each source's columns are mapped onto these; unmappable types become `string` (w
 | Route | Service | Gate |
 |---|---|---|
 | `POST /datasets` `{ parentRid, name, description }` | `createDataset` | `write` on the parent folder |
+| `GET /datasets` | `list` — every live dataset the caller can see, across projects | `discover` (RLS) |
 | `GET /datasets/:rid` | `get` | `discover` |
 | `GET /datasets/:rid/view?sequence=` | `view` | `read` |
 | `POST /datasets/upload` (multipart: `parentRid`, `name?`, `description?`, `file`) | `files.createFromFile` | `write` on the parent folder |

@@ -242,7 +242,7 @@ services/Library/
 ├── library.statements.ts     insertResource / liveResources(trx, …) — Library's SQL run inside other code's transactions
 ├── ensure-resource.ts          @EnsureResource('<type>') — the only cross-schema write path: a subtype's create method writes its library row first, same transaction (see §5)
 ├── library.service.ts        projects, folders, move, trash; @SecurityGate on each
-└── library.controller.ts     /api/resources/:rid, /api/projects, /api/folders/:rid/children
+└── library.controller.ts     /api/projects, /api/folders, /api/resources/:rid (+ /path, /children, /name, /move, /trash)
 ```
 
 | Tables | `library.resource_type` · `library.resource` · `library.resource_ancestor` (+ triggers) |

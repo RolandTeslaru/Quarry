@@ -8,10 +8,7 @@ export type _LibrarySDKActions = {
         create: (request: Library.API.Project.Create.Request) => Promise<Library.Project.Schema>
     }
     folder: {
-        create: (
-            parentRid: Library.Resource.Rid,
-            request: Library.API.Folder.Create.Request,
-        ) => Promise<Library.Folder.Schema>
+        create: (request: Library.API.Folder.Create.Request) => Promise<Library.Folder.Schema>
     }
     resource: {
         children: (rid: Library.Resource.Rid) => Promise<Library.API.Resource.Children.Response>
@@ -47,10 +44,10 @@ export function _createLibraryActions_(sdk: LibrarySDKImpl): _LibrarySDKActions 
         },
 
         folder: {
-            create: async (parentRid, request) => {
-                const { folder } = await Library.API.Folder.create(api, parentRid, request)
+            create: async request => {
+                const { folder } = await Library.API.Folder.create(api, request)
 
-                await sdk.invalidate(sdk.query.children(parentRid))
+                await sdk.invalidate(sdk.query.children(request.parentRid))
 
                 return folder
             },

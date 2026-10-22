@@ -42,13 +42,12 @@ export class LibraryController {
         return { children: await this.library.children(principal, rid) };
     }
 
-    @Post('resources/:rid/folders')
+    @Post('folders')
     async createFolder(
         @CurrentPrincipal() principal: Principal.User,
-        @Param('rid', RidParam) rid: Library.Resource.Rid,
         @Body(new ZodPipe(API.Folder.Create.Request)) body: API.Folder.Create.Request,
     ): Promise<API.Folder.Create.Response> {
-        return { folder: await this.library.createFolder(principal, rid, body) };
+        return { folder: await this.library.createFolder(principal, body) };
     }
 
     @Patch('resources/:rid/name')

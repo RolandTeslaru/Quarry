@@ -27,6 +27,12 @@ export namespace Source {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Every live source the caller can discover, across projects — Data Connection's home. */
+    export namespace List {
+        export const Response = z.object({ sources: SourceD.Schema.array() })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export namespace Get {
         export const Response = z.object({ source: SourceD.Schema })
         export type  Response = z.infer<typeof Response>
@@ -51,6 +57,11 @@ export namespace Source {
     export async function listDefinitions(api: AxiosInstance): Promise<ListDefinitions.Response> {
         const { data } = await api.get("/api/sources/definitions")
         return ListDefinitions.Response.parse(data)
+    }
+
+    export async function list(api: AxiosInstance): Promise<List.Response> {
+        const { data } = await api.get("/api/sources")
+        return List.Response.parse(data)
     }
 
     export async function get(api: AxiosInstance, rid: SourceD.Rid): Promise<Get.Response> {

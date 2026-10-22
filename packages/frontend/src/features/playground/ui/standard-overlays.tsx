@@ -3,6 +3,7 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Input } from '@quarry/standard-ui/foundations/input'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import { Breadcrumb } from '@quarry/standard-ui/foundations/breadcrumb'
+import { Icon } from '@quarry/standard-ui/icons'
 import { Menubar } from '@quarry/standard-ui/foundations/menubar'
 import { DropdownMenu } from '@quarry/standard-ui/foundations/dropdownMenu'
 import { ContextMenu } from '@quarry/standard-ui/foundations/contextMenu'
@@ -57,25 +58,62 @@ function BreadcrumbExample() {
 }
 
 function MenubarExample() {
+    const [selection, setSelection] = useState('Choose an action')
+    const [showArchived, setShowArchived] = useState(true)
+    const [density, setDensity] = useState('comfortable')
+
     return (
-        <Menubar.Root>
-            <Menubar.Menu>
-                <Menubar.Trigger>File</Menubar.Trigger>
-                <Menubar.Content>
-                    <Menubar.Item>New dataset</Menubar.Item>
-                    <Menubar.Item>Import data</Menubar.Item>
-                    <Menubar.Separator />
-                    <Menubar.Item disabled>Export selection</Menubar.Item>
-                </Menubar.Content>
-            </Menubar.Menu>
-            <Menubar.Menu>
-                <Menubar.Trigger>Edit</Menubar.Trigger>
-                <Menubar.Content>
-                    <Menubar.Item>Undo</Menubar.Item>
-                    <Menubar.Item>Redo</Menubar.Item>
-                </Menubar.Content>
-            </Menubar.Menu>
-        </Menubar.Root>
+        <div className='demo-stack'>
+            <Menubar.Root>
+                <Menubar.Menu>
+                    <Menubar.Trigger>File</Menubar.Trigger>
+                    <Menubar.Content>
+                        <Menubar.Label>Dataset</Menubar.Label>
+                        <Menubar.Item onSelect={() => setSelection('New dataset selected')}>
+                            <Icon name='add' />
+                            New dataset
+                            <Menubar.Shortcut>⌘N</Menubar.Shortcut>
+                        </Menubar.Item>
+                        <Menubar.Item onSelect={() => setSelection('Import selected')}>Import data</Menubar.Item>
+                        <Menubar.Sub>
+                            <Menubar.SubTrigger>Export</Menubar.SubTrigger>
+                            <Menubar.SubContent>
+                                <Menubar.Item onSelect={() => setSelection('CSV selected')}>CSV</Menubar.Item>
+                                <Menubar.Item onSelect={() => setSelection('Parquet selected')}>Parquet</Menubar.Item>
+                            </Menubar.SubContent>
+                        </Menubar.Sub>
+                        <Menubar.Item disabled>Export selection</Menubar.Item>
+                        <Menubar.Separator />
+                        <Menubar.Item variant='destructive' onSelect={() => setSelection('Delete selected')}>
+                            <Icon name='trash' />
+                            Delete dataset
+                        </Menubar.Item>
+                    </Menubar.Content>
+                </Menubar.Menu>
+                <Menubar.Menu>
+                    <Menubar.Trigger>Edit</Menubar.Trigger>
+                    <Menubar.Content>
+                        <Menubar.Item onSelect={() => setSelection('Undo selected')}>Undo</Menubar.Item>
+                        <Menubar.Item onSelect={() => setSelection('Redo selected')}>Redo</Menubar.Item>
+                    </Menubar.Content>
+                </Menubar.Menu>
+                <Menubar.Menu>
+                    <Menubar.Trigger>View</Menubar.Trigger>
+                    <Menubar.Content>
+                        <Menubar.CheckboxItem checked={showArchived} onCheckedChange={setShowArchived}>
+                            Show archived
+                        </Menubar.CheckboxItem>
+                        <Menubar.Separator />
+                        <Menubar.Label>Density</Menubar.Label>
+                        <Menubar.RadioGroup value={density} onValueChange={setDensity}>
+                            <Menubar.RadioItem value='comfortable'>Comfortable</Menubar.RadioItem>
+                            <Menubar.RadioItem value='compact'>Compact</Menubar.RadioItem>
+                        </Menubar.RadioGroup>
+                    </Menubar.Content>
+                </Menubar.Menu>
+            </Menubar.Root>
+            <p className='demo-note' aria-live='polite'>{selection}</p>
+        </div>
     )
 }
 

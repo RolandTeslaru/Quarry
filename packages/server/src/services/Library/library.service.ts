@@ -34,13 +34,13 @@ export class LibraryService {
         return LibraryDB.Resource.toProject(row);
     }
 
-    async createFolder(principal: Principal, parentRid: Library.Resource.Rid, request: Library.API.Folder.Create.Request): Promise<Library.Folder.Schema> {
+    async createFolder(principal: Principal, request: Library.API.Folder.Create.Request): Promise<Library.Folder.Schema> {
         const row = await this.repository.createContainer(principal, {
             rid:         Library.Folder.createRid(),
             type:        'folder',
             name:        request.name,
             description: request.description,
-            parentRid,
+            parentRid:   request.parentRid,
         });
 
         return LibraryDB.Resource.toFolder(row);

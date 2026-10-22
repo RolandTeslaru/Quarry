@@ -38,6 +38,11 @@ export class CatalogService {
         });
     }
 
+    /** Datasets the principal can discover (RLS). */
+    async list(principal: Principal): Promise<Catalog.Dataset.Schema[]> {
+        return this.datasetRepository.list(principal);
+    }
+
     async get(principal: Principal, rid: Catalog.Dataset.Rid): Promise<Catalog.Dataset.Schema> {
         const dataset = await this.datasetRepository.get(principal, rid);
 

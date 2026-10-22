@@ -3,7 +3,7 @@ import { Catalog, Library } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { EnsureResource } from '@/services/Library/ensure-resource';
-import { trashResource } from '@/services/Library/library.statements';
+import { isLive, trashResource } from '@/services/Library/library.statements';
 import { CatalogDB } from './catalog.db';
 
 @Injectable()
@@ -58,5 +58,22 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
         const { last_sequence, ...resource } = row;
 
         return CatalogDB.Dataset.toDomain({ rid, type: 'dataset' }, resource, last_sequence);
+    }
+
+    /** Every live dataset the user can discover (RLS), across projects. */
+    @Transactional()
+    async list(principal: Principal): Promise<Catalog.Dataset.Schema[]> {
+        const rows = await this.trx
+            .selectFrom('catalog.dataset as d')
+            .innerJoin('library.resource as r', 'r.rid', 'd.rid')
+            .innerJoin('catalog.branch as b', (join) => join.onRef('b.dataset_rid', '=', 'd.rid').on('b.name', '=', 'main'))
+            .selectAll('r')
+            .select(['d.rid as dataset_rid', 'b.last_sequence'])
+            .where(isLive('r.rid'))
+            .orderBy('r.name')
+            .execute();
+
+        return rows.map(({ dataset_rid, last_sequence, ...resource }) =>
+            CatalogDB.Dataset.toDomain({ rid: dataset_rid, type: 'dataset' }, resource, last_sequence));
     }
 }

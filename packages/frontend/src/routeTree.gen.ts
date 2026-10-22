@@ -14,10 +14,16 @@ import { Route as WorkspaceRouteImport } from './routes/_workspace'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as WorkspaceKeychainRouteImport } from './routes/_workspace.keychain'
+import { Route as WorkspaceLayoutDemoRouteImport } from './routes/_workspace.layout-demo'
 import { Route as WorkspaceLibraryRouteImport } from './routes/_workspace.library'
+import { Route as WorkspaceMinimalDemoRouteImport } from './routes/_workspace.minimal-demo'
 import { Route as PlaygroundBlueprintRouteImport } from './routes/playground_.blueprint'
 import { Route as PlaygroundStandardRouteImport } from './routes/playground_.standard'
+import { Route as WorkspaceDataConnectionIndexRouteImport } from './routes/_workspace.data-connection.index'
+import { Route as WorkspaceDatasetsIndexRouteImport } from './routes/_workspace.datasets.index'
+import { Route as WorkspaceDatasetsRidRouteImport } from './routes/_workspace.datasets.$rid'
 import { Route as WorkspaceResourcesRidRouteImport } from './routes/_workspace.resources.$rid'
+import { Route as WorkspaceDataConnectionSourcesRidRouteImport } from './routes/_workspace.data-connection.sources.$rid'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -43,9 +49,19 @@ const WorkspaceKeychainRoute = WorkspaceKeychainRouteImport.update({
   path: '/keychain',
   getParentRoute: () => WorkspaceRoute,
 } as any)
+const WorkspaceLayoutDemoRoute = WorkspaceLayoutDemoRouteImport.update({
+  id: '/layout-demo',
+  path: '/layout-demo',
+  getParentRoute: () => WorkspaceRoute,
+} as any)
 const WorkspaceLibraryRoute = WorkspaceLibraryRouteImport.update({
   id: '/library',
   path: '/library',
+  getParentRoute: () => WorkspaceRoute,
+} as any)
+const WorkspaceMinimalDemoRoute = WorkspaceMinimalDemoRouteImport.update({
+  id: '/minimal-demo',
+  path: '/minimal-demo',
   getParentRoute: () => WorkspaceRoute,
 } as any)
 const PlaygroundBlueprintRoute = PlaygroundBlueprintRouteImport.update({
@@ -58,31 +74,65 @@ const PlaygroundStandardRoute = PlaygroundStandardRouteImport.update({
   path: '/playground/standard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WorkspaceDataConnectionIndexRoute =
+  WorkspaceDataConnectionIndexRouteImport.update({
+    id: '/data-connection/',
+    path: '/data-connection/',
+    getParentRoute: () => WorkspaceRoute,
+  } as any)
+const WorkspaceDatasetsIndexRoute = WorkspaceDatasetsIndexRouteImport.update({
+  id: '/datasets/',
+  path: '/datasets/',
+  getParentRoute: () => WorkspaceRoute,
+} as any)
+const WorkspaceDatasetsRidRoute = WorkspaceDatasetsRidRouteImport.update({
+  id: '/datasets/$rid',
+  path: '/datasets/$rid',
+  getParentRoute: () => WorkspaceRoute,
+} as any)
 const WorkspaceResourcesRidRoute = WorkspaceResourcesRidRouteImport.update({
   id: '/resources/$rid',
   path: '/resources/$rid',
   getParentRoute: () => WorkspaceRoute,
 } as any)
+const WorkspaceDataConnectionSourcesRidRoute =
+  WorkspaceDataConnectionSourcesRidRouteImport.update({
+    id: '/data-connection/sources/$rid',
+    path: '/data-connection/sources/$rid',
+    getParentRoute: () => WorkspaceRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/playground': typeof PlaygroundRoute
   '/keychain': typeof WorkspaceKeychainRoute
+  '/layout-demo': typeof WorkspaceLayoutDemoRoute
   '/library': typeof WorkspaceLibraryRoute
+  '/minimal-demo': typeof WorkspaceMinimalDemoRoute
   '/playground/blueprint': typeof PlaygroundBlueprintRoute
   '/playground/standard': typeof PlaygroundStandardRoute
+  '/datasets/$rid': typeof WorkspaceDatasetsRidRoute
   '/resources/$rid': typeof WorkspaceResourcesRidRoute
+  '/data-connection/': typeof WorkspaceDataConnectionIndexRoute
+  '/datasets/': typeof WorkspaceDatasetsIndexRoute
+  '/data-connection/sources/$rid': typeof WorkspaceDataConnectionSourcesRidRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/playground': typeof PlaygroundRoute
   '/keychain': typeof WorkspaceKeychainRoute
+  '/layout-demo': typeof WorkspaceLayoutDemoRoute
   '/library': typeof WorkspaceLibraryRoute
+  '/minimal-demo': typeof WorkspaceMinimalDemoRoute
   '/playground/blueprint': typeof PlaygroundBlueprintRoute
   '/playground/standard': typeof PlaygroundStandardRoute
+  '/datasets/$rid': typeof WorkspaceDatasetsRidRoute
   '/resources/$rid': typeof WorkspaceResourcesRidRoute
+  '/data-connection': typeof WorkspaceDataConnectionIndexRoute
+  '/datasets': typeof WorkspaceDatasetsIndexRoute
+  '/data-connection/sources/$rid': typeof WorkspaceDataConnectionSourcesRidRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -91,10 +141,16 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/playground': typeof PlaygroundRoute
   '/_workspace/keychain': typeof WorkspaceKeychainRoute
+  '/_workspace/layout-demo': typeof WorkspaceLayoutDemoRoute
   '/_workspace/library': typeof WorkspaceLibraryRoute
+  '/_workspace/minimal-demo': typeof WorkspaceMinimalDemoRoute
   '/playground_/blueprint': typeof PlaygroundBlueprintRoute
   '/playground_/standard': typeof PlaygroundStandardRoute
+  '/_workspace/datasets/$rid': typeof WorkspaceDatasetsRidRoute
   '/_workspace/resources/$rid': typeof WorkspaceResourcesRidRoute
+  '/_workspace/data-connection/': typeof WorkspaceDataConnectionIndexRoute
+  '/_workspace/datasets/': typeof WorkspaceDatasetsIndexRoute
+  '/_workspace/data-connection/sources/$rid': typeof WorkspaceDataConnectionSourcesRidRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -103,20 +159,32 @@ export interface FileRouteTypes {
     | '/auth'
     | '/playground'
     | '/keychain'
+    | '/layout-demo'
     | '/library'
+    | '/minimal-demo'
     | '/playground/blueprint'
     | '/playground/standard'
+    | '/datasets/$rid'
     | '/resources/$rid'
+    | '/data-connection/'
+    | '/datasets/'
+    | '/data-connection/sources/$rid'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/playground'
     | '/keychain'
+    | '/layout-demo'
     | '/library'
+    | '/minimal-demo'
     | '/playground/blueprint'
     | '/playground/standard'
+    | '/datasets/$rid'
     | '/resources/$rid'
+    | '/data-connection'
+    | '/datasets'
+    | '/data-connection/sources/$rid'
   id:
     | '__root__'
     | '/'
@@ -124,10 +192,16 @@ export interface FileRouteTypes {
     | '/auth'
     | '/playground'
     | '/_workspace/keychain'
+    | '/_workspace/layout-demo'
     | '/_workspace/library'
+    | '/_workspace/minimal-demo'
     | '/playground_/blueprint'
     | '/playground_/standard'
+    | '/_workspace/datasets/$rid'
     | '/_workspace/resources/$rid'
+    | '/_workspace/data-connection/'
+    | '/_workspace/datasets/'
+    | '/_workspace/data-connection/sources/$rid'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -176,11 +250,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceKeychainRouteImport
       parentRoute: typeof WorkspaceRoute
     }
+    '/_workspace/layout-demo': {
+      id: '/_workspace/layout-demo'
+      path: '/layout-demo'
+      fullPath: '/layout-demo'
+      preLoaderRoute: typeof WorkspaceLayoutDemoRouteImport
+      parentRoute: typeof WorkspaceRoute
+    }
     '/_workspace/library': {
       id: '/_workspace/library'
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof WorkspaceLibraryRouteImport
+      parentRoute: typeof WorkspaceRoute
+    }
+    '/_workspace/minimal-demo': {
+      id: '/_workspace/minimal-demo'
+      path: '/minimal-demo'
+      fullPath: '/minimal-demo'
+      preLoaderRoute: typeof WorkspaceMinimalDemoRouteImport
       parentRoute: typeof WorkspaceRoute
     }
     '/playground_/blueprint': {
@@ -197,6 +285,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundStandardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_workspace/data-connection/': {
+      id: '/_workspace/data-connection/'
+      path: '/data-connection'
+      fullPath: '/data-connection/'
+      preLoaderRoute: typeof WorkspaceDataConnectionIndexRouteImport
+      parentRoute: typeof WorkspaceRoute
+    }
+    '/_workspace/datasets/': {
+      id: '/_workspace/datasets/'
+      path: '/datasets'
+      fullPath: '/datasets/'
+      preLoaderRoute: typeof WorkspaceDatasetsIndexRouteImport
+      parentRoute: typeof WorkspaceRoute
+    }
+    '/_workspace/datasets/$rid': {
+      id: '/_workspace/datasets/$rid'
+      path: '/datasets/$rid'
+      fullPath: '/datasets/$rid'
+      preLoaderRoute: typeof WorkspaceDatasetsRidRouteImport
+      parentRoute: typeof WorkspaceRoute
+    }
     '/_workspace/resources/$rid': {
       id: '/_workspace/resources/$rid'
       path: '/resources/$rid'
@@ -204,19 +313,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceResourcesRidRouteImport
       parentRoute: typeof WorkspaceRoute
     }
+    '/_workspace/data-connection/sources/$rid': {
+      id: '/_workspace/data-connection/sources/$rid'
+      path: '/data-connection/sources/$rid'
+      fullPath: '/data-connection/sources/$rid'
+      preLoaderRoute: typeof WorkspaceDataConnectionSourcesRidRouteImport
+      parentRoute: typeof WorkspaceRoute
+    }
   }
 }
 
 interface WorkspaceRouteChildren {
   WorkspaceKeychainRoute: typeof WorkspaceKeychainRoute
+  WorkspaceLayoutDemoRoute: typeof WorkspaceLayoutDemoRoute
   WorkspaceLibraryRoute: typeof WorkspaceLibraryRoute
+  WorkspaceMinimalDemoRoute: typeof WorkspaceMinimalDemoRoute
+  WorkspaceDatasetsRidRoute: typeof WorkspaceDatasetsRidRoute
   WorkspaceResourcesRidRoute: typeof WorkspaceResourcesRidRoute
+  WorkspaceDataConnectionIndexRoute: typeof WorkspaceDataConnectionIndexRoute
+  WorkspaceDatasetsIndexRoute: typeof WorkspaceDatasetsIndexRoute
+  WorkspaceDataConnectionSourcesRidRoute: typeof WorkspaceDataConnectionSourcesRidRoute
 }
 
 const WorkspaceRouteChildren: WorkspaceRouteChildren = {
   WorkspaceKeychainRoute: WorkspaceKeychainRoute,
+  WorkspaceLayoutDemoRoute: WorkspaceLayoutDemoRoute,
   WorkspaceLibraryRoute: WorkspaceLibraryRoute,
+  WorkspaceMinimalDemoRoute: WorkspaceMinimalDemoRoute,
+  WorkspaceDatasetsRidRoute: WorkspaceDatasetsRidRoute,
   WorkspaceResourcesRidRoute: WorkspaceResourcesRidRoute,
+  WorkspaceDataConnectionIndexRoute: WorkspaceDataConnectionIndexRoute,
+  WorkspaceDatasetsIndexRoute: WorkspaceDatasetsIndexRoute,
+  WorkspaceDataConnectionSourcesRidRoute:
+    WorkspaceDataConnectionSourcesRidRoute,
 }
 
 const WorkspaceRouteWithChildren = WorkspaceRoute._addFileChildren(

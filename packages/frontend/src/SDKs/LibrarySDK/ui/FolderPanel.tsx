@@ -165,7 +165,7 @@ function NewFolderDialog({ parentRid, dialog }: NewFolderProps) {
             return
 
         void task.run(async () => {
-            await LibrarySDK.actions.folder.create(parentRid, { name, description: null })
+            await LibrarySDK.actions.folder.create({ parentRid, name, description: null })
 
             DialogSDK.actions.pop(dialog.entry.dialogId)
         })

@@ -19,6 +19,12 @@ export namespace Dataset {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Every live dataset the caller can discover, across projects — the dataset app's home. */
+    export namespace List {
+        export const Response = z.object({ datasets: DatasetD.Schema.array() })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export namespace Get {
         export const Response = z.object({ dataset: DatasetD.Schema })
         export type  Response = z.infer<typeof Response>
@@ -76,6 +82,11 @@ export namespace Dataset {
         export type  Request  = z.infer<typeof Request>
         export const Response = z.object({ sequence: z.number().int() })
         export type  Response = z.infer<typeof Response>
+    }
+
+    export async function list(api: AxiosInstance): Promise<List.Response> {
+        const { data } = await api.get("/api/datasets")
+        return List.Response.parse(data)
     }
 
     export async function create(api: AxiosInstance, req: Create.Request): Promise<Create.Response> {

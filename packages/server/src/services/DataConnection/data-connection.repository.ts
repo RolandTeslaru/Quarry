@@ -9,6 +9,7 @@ import { json, type Table } from '@/db/table';
 import type { IdentityDB } from '@/services/Identity/identity.db';
 import { LibraryDB } from '@/services/Library/library.db';
 import { EnsureResource } from '@/services/Library/ensure-resource';
+import { isLive } from '@/services/Library/library.statements';
 
 /** The `data_connection` schema: sources, syncs, sync runs. */
 export namespace DataConnectionDB {
@@ -166,6 +167,22 @@ export namespace DataConnectionRepository {
             const { definition_id, config, credential_rid, ...resource } = row;
 
             return DataConnectionDB.Source.toDomain({ rid, type: 'source', definition_id, config, credential_rid }, resource);
+        }
+
+        /** Every live source the user can discover (RLS), across projects. */
+        @Transactional()
+        async list(principal: Principal): Promise<DataConnection.Source.Schema[]> {
+            const rows = await this.trx
+                .selectFrom('data_connection.source as s')
+                .innerJoin('library.resource as r', 'r.rid', 's.rid')
+                .selectAll('r')
+                .select(['s.rid as source_rid', 's.definition_id', 's.config', 's.credential_rid'])
+                .where(isLive('r.rid'))
+                .orderBy('r.name')
+                .execute();
+
+            return rows.map(({ source_rid, definition_id, config, credential_rid, ...resource }) =>
+                DataConnectionDB.Source.toDomain({ rid: source_rid, type: 'source', definition_id, config, credential_rid }, resource));
         }
     }
 

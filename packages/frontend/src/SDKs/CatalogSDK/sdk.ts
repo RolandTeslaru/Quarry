@@ -20,8 +20,15 @@ export class CatalogSDKImpl extends BaseSDK<CatalogSDK.State> {
 
     public readonly actions: CatalogSDK.Actions = _createCatalogActions_(this)
 
-    // Views and previews are read-only results for one screen: they live in the query cache only.
+    // Lists, views and previews are read-only results for one screen: they live in the query cache only.
     public override readonly query = {
+        /** Every dataset the user can see — the dataset app's home. */
+        datasets: {
+            queryKey: ['catalog', 'datasets'] as const,
+            queryFn: () => this.actions.dataset.list(),
+            staleTime: 0,
+        },
+
         dataset: (rid: Catalog.Dataset.Rid) => ({
             queryKey: ['catalog', 'dataset', rid] as const,
             queryFn: () => this.actions.dataset.get(rid),

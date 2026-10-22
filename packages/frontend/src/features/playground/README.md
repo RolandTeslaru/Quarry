@@ -89,3 +89,8 @@ small outer shadow, while neon and minimal variants have no shadow.
 Regular form dialogs use standard-ui's `Dialog.Header`, `Dialog.Body`, and
 `Dialog.Footer` directly. Their spacing and scrolling are defined in the shared
 foundation; the frontend has no separate CreateDialog wrapper or padding overrides.
+
+Menubar and DropdownMenu share `menu.styles.ts` for popup surfaces, items, selection,
+labels, separators, shortcuts, and submenus. Menubar roots use the same FloatingPointer
+and popup motion; nested menus keep the smaller fade/slide animation. Menubar Content
+accepts `pointer={false}` and Item accepts `variant='destructive'`, matching DropdownMenu.
