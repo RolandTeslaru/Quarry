@@ -1,7 +1,6 @@
 import { Catalog, type Library } from '@quarry/shared/domain'
 import { api } from '../api'
 import { LibrarySDK } from '../LibrarySDK/sdk'
-import { viewKey } from './selectors'
 import type { CatalogSDKImpl } from './sdk'
 
 export type _CatalogSDKActions = {
@@ -39,25 +38,11 @@ export function _createCatalogActions_(sdk: CatalogSDKImpl): _CatalogSDKActions 
                 return data
             },
 
-            view: async (rid, sequence) => {
-                const data = await Catalog.API.Dataset.getView(api, rid, { sequence })
+            view: (rid, sequence) =>
+                Catalog.API.Dataset.getView(api, rid, { sequence }),
 
-                setState(state => {
-                    state.views[viewKey(rid, sequence)] = data.view
-                })
-
-                return data
-            },
-
-            preview: async rid => {
-                const data = await Catalog.API.Dataset.preview(api, rid)
-
-                setState(state => {
-                    state.previews[rid] = data
-                })
-
-                return data
-            },
+            preview: rid =>
+                Catalog.API.Dataset.preview(api, rid),
 
             createFromFile: async (parentRid, file) => {
                 const data = await Catalog.API.Dataset.createFromFile(api, { parentRid }, file, file.name)

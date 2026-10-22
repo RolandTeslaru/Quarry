@@ -11,10 +11,12 @@ interface Props {
 
 /** The latest view's first rows, read with the dataset's schema. */
 export function DatasetPreview({ rid }: Props) {
-    const [preview, [previewRequest]] = CatalogSDK.useWith(
-        state => state.previews[rid],
+    const [, [previewRequest]] = CatalogSDK.useWith(
+        () => null,
         query => [query.preview(rid)],
     )
+
+    const preview = previewRequest.data
 
     if (previewRequest.isPending && !preview)
         return <Spinner className='size-6' role='status' aria-label='Loading preview' />

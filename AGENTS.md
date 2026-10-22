@@ -147,6 +147,14 @@ return (
   a query TanStack Query already manages.
 - Keep shared domain data in the SDK store; TanStack Query manages request
   lifecycle, freshness, caching, retries, and prefetching.
+- Store or cache only, per PretzelGraph: put an entity in the SDK store when it is
+  shared by RID, read by several screens or SDKs, changed locally (by actions or
+  other SDKs' events), or derived from by selectors (PretzelGraph: library metas,
+  gateway connections, vault credentials). Leave read-only results that belong to
+  one screen and its parameters in the query cache only: the action returns the
+  response without `setState`, the selector is `() => null`, and the component
+  reads `request.data` (PretzelGraph: publication history, resource-loader
+  options; Quarry: dataset views and previews). Don't keep the same data in both.
 - Use `fetch` when subsequent logic needs populated store state. Use `prefetch`
   for nonblocking preparation. Do not replace an awaited route dependency with
   fire-and-forget loading.

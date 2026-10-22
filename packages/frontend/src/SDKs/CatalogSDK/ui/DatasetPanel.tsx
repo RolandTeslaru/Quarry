@@ -27,10 +27,12 @@ export function DatasetPanel({ rid }: Props) {
         query => [query.dataset(rid)],
     )
 
-    const [view, [viewRequest]] = CatalogSDK.useWith(
-        state => CatalogSDK.selectors.view(state, rid, sequence),
+    const [, [viewRequest]] = CatalogSDK.useWith(
+        () => null,
         query => [query.view(rid, sequence)],
     )
+
+    const view = viewRequest.data?.view
 
     const openVersion = () => {
         if (!sequenceInput) {
