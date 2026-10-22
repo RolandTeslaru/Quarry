@@ -6,13 +6,14 @@ import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { DatasetRepository } from './dataset.repository';
 import { OutboxRepository } from './outbox/outbox.repository';
+import { DatasetFiles } from './files/dataset-files';
 import { DatasetTransactions } from './transaction/dataset-transactions';
 import { TransactionRepository } from './transaction/transaction.repository';
 
 /**
  * Catalog's one entry point for other services: datasets here, their write
  * protocol under `transaction` (catalog.transaction.open / registerChanges /
- * commit / abort).
+ * commit / abort), uploads, previews and schema edits under `files`.
  */
 @Injectable()
 export class CatalogService {
@@ -20,10 +21,11 @@ export class CatalogService {
     constructor(
         readonly gatekeeper:                    GatekeeperService,
         readonly transaction:                   DatasetTransactions,
+        readonly files:                         DatasetFiles,
         private readonly datasetRepository:     DatasetRepository,
         private readonly transactionRepository: TransactionRepository,
         private readonly outboxRepository:      OutboxRepository,
-        private readonly files:                 FileStorage,
+        private readonly storage:               FileStorage,
     ) {}
 
     /** Creating = writing into the parent folder — RLS's call on the insert. */
@@ -83,7 +85,7 @@ export class CatalogService {
         let filesDeleted = 0;
 
         for (const transaction of sweep)
-            filesDeleted += await this.files.deletePrefix(this.transaction.storagePrefix(transaction.dataset_rid, transaction.rid));
+            filesDeleted += await this.storage.deletePrefix(this.transaction.storagePrefix(transaction.dataset_rid, transaction.rid));
 
         return { aborted: aborted.length, filesDeleted };
     }

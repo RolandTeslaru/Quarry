@@ -19,7 +19,7 @@ export namespace File {
         bytes: z.number().int().nonnegative(),
     })
 
-    /** Columnar, typed, compressed — every tabular dataset's files. */
+    /** Columnar, typed, compressed — what syncs write. */
     export namespace Parquet {
         export const Schema = Base.extend({
             format:   z.literal("parquet"),
@@ -28,13 +28,31 @@ export namespace File {
         export type Schema = z.infer<typeof Schema>
     }
 
-    export const Schema = z.discriminatedUnion("format", [Parquet.Schema])
+    /**
+     * Delimited text, stored exactly as uploaded. How to parse it (delimiter,
+     * header, column types) is the dataset's schema, not the file's — Foundry's model.
+     */
+    export namespace Csv {
+        export const Schema = Base.extend({
+            format:   z.literal("csv"),
+            rowCount: z.null(),                                     // unknown without reading it all
+        })
+        export type Schema = z.infer<typeof Schema>
+    }
+
+    export const Schema = z.discriminatedUnion("format", [Parquet.Schema, Csv.Schema])
     export type  Schema = z.infer<typeof Schema>
 
-    export const Format = z.enum(["parquet"])
+    export const Format = z.enum(["parquet", "csv"])
     export type  Format = z.infer<typeof Format>
 
     /** The format a key's extension says it is, or null if it's not one we know. */
-    export const formatOf = (key: Key): Format | null =>
-        key.endsWith(".parquet") ? "parquet" : null
+    export const formatOf = (key: Key): Format | null => {
+        const lower = key.toLowerCase()
+
+        if (lower.endsWith(".parquet")) return "parquet"
+        if (lower.endsWith(".csv"))     return "csv"
+
+        return null
+    }
 }

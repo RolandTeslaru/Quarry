@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Transform, type Readable } from 'node:stream';
+import { Injectable, PayloadTooLargeException } from '@nestjs/common';
 import { DeleteObjectsCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import { requireEnv } from '@/db/table';
 
 /** What a bucket listing knows about an object — its key and size, not its format's metadata. */
@@ -10,7 +12,7 @@ export interface StoredObject {
 
 /**
  * The bucket behind `Storage.File`s: write-once objects by key, over the S3 API —
- * MinIO locally, any S3-compatible store in production. Listing and deleting go
+ * SeaweedFS locally, any S3-compatible store in production. Listing and deleting go
  * through here; DuckDB reads and writes the bytes directly (`url`, `settings`).
  */
 @Injectable()
@@ -39,6 +41,31 @@ export class FileStorage {
     /** `s3://bucket/key` — how DuckDB addresses a file. */
     url(key: string): string {
         return `s3://${this.bucket}/${key}`;
+    }
+
+    /**
+     * Streams `body` to `key` — multipart, never held in memory — and returns
+     * its size. QUARRY_UPLOAD_MAX_BYTES, if set, caps it (413); unset, there's no cap.
+     */
+    async upload(key: string, body: Readable, contentType: string): Promise<StoredObject> {
+        const max = process.env.QUARRY_UPLOAD_MAX_BYTES ? Number(process.env.QUARRY_UPLOAD_MAX_BYTES) : Infinity;
+        let bytes = 0;
+
+        const counted = body.pipe(new Transform({
+            transform(chunk: Buffer, _encoding, done) {
+                bytes += chunk.length;
+                done(bytes > max ? new PayloadTooLargeException(`Files are limited to ${max} bytes`) : null, chunk);
+            },
+        }));
+
+        body.on('error', (error) => counted.destroy(error));
+
+        await new Upload({
+            client: this.s3(),
+            params: { Bucket: this.bucket, Key: key, Body: counted, ContentType: contentType },
+        }).done();
+
+        return { key, bytes };
     }
 
     async list(prefix: string): Promise<StoredObject[]> {
@@ -85,7 +112,7 @@ export class FileStorage {
             endpoint:       `${useSsl ? 'https' : 'http'}://${endpoint}`,
             region,
             credentials:    { accessKeyId: accessKey, secretAccessKey: secretKey },
-            forcePathStyle: true,                     // MinIO
+            forcePathStyle: true,                     // bucket in the path, not the hostname — what self-hosted S3 stores expect
         }));
     }
 }

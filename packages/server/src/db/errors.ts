@@ -21,6 +21,11 @@ const BY_SQLSTATE: Record<string, () => HttpException> = {
     '42501': () => new ForbiddenException('Not allowed'),            // a row-level security policy refused the write
 };
 
+// What a request can cause on its own (a duplicate name, a RID that doesn't exist, a
+// trigger's or RLS's refusal) — logged as warnings. Anything else means our SQL or
+// schema is wrong (requests are validated before they get here) — logged as errors.
+const CLIENT_CAUSED = new Set(['23505', '23503', 'P0001', '42501']);
+
 const logger = new Logger('Database');
 
 /**
@@ -47,7 +52,12 @@ export function catchDatabaseErrors(fn: (...args: unknown[]) => unknown, operati
             const code = (error as { code?: string } | null)?.code;
             const mapped = code ? BY_SQLSTATE[code] : undefined;
 
-            logger.warn(`${operation} failed: ${error instanceof Error ? error.message : String(error)}`);
+            const message = `${operation} failed: ${error instanceof Error ? error.message : String(error)}`;
+
+            if (code && CLIENT_CAUSED.has(code))
+                logger.warn(message);
+            else
+                logger.error(message, error instanceof Error ? error.stack : undefined);
 
             if (mapped)
                 throw mapped();

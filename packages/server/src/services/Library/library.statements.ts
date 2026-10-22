@@ -36,6 +36,18 @@ export async function insertResource(
         .executeTakeFirstOrThrow();
 }
 
+/** Trashes a resource in the caller's transaction — for an owning service undoing a create it couldn't finish. */
+export async function trashResource(trx: Transaction<any>, rid: Library.Resource.Rid, trashedBy: Identity.User.Rid | null): Promise<void> {
+    const library = trx as unknown as Transaction<LibraryDB.Tables>;
+
+    await library
+        .updateTable('library.resource')
+        .set({ trashed_at: new Date(), trashed_by: trashedBy })
+        .where('rid', '=', rid)
+        .where('trashed_at', 'is', null)
+        .execute();
+}
+
 /**
  * Which of these RIDs are live — they exist, aren't trashed, and no ancestor
  * is. One query for any number, in the caller's transaction. Asks

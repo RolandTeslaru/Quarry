@@ -10,7 +10,7 @@ import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { Catalog, DataConnection, type Foundations, type Keychain } from '@quarry/shared/domain';
 import { Encryption } from '@quarry/shared/server/encryption';
 import { findDefinition, SOURCE_DEFINITIONS, type SourceDefinition } from '@quarry/integrations/definitions';
-import { literal } from '@quarry/integrations/core/duckdb';
+import { literal, toColumnType } from '@quarry/integrations/core/duckdb';
 import { SOURCE_RUNTIMES, type RuntimeContext, type SourceRuntime, type SyncResult, type SyncRunContext } from '@quarry/integrations/runtimes';
 
 // ── env ─────────────────────────────────────────────────────────────────
@@ -248,23 +248,6 @@ export class SourceRuntimes {
 
 // ── Parquet ─────────────────────────────────────────────────────────────
 
-/** DuckDB's view of a column type → the dataset type system. Unknown types become string, never dropped. */
-function toColumnType(duckType: string): Catalog.ColumnSchema.Type {
-    const type = duckType.toUpperCase();
-    const decimal = /^DECIMAL\((\d+),\s*(\d+)\)$/.exec(type);
-
-    if (decimal)                                                                    return `decimal(${decimal[1]},${decimal[2]})`;
-    if (['TINYINT', 'SMALLINT', 'INTEGER', 'UTINYINT', 'USMALLINT'].includes(type)) return 'integer';
-    if (['BIGINT', 'UINTEGER', 'HUGEINT'].includes(type))                          return 'long';
-    if (['FLOAT', 'DOUBLE', 'REAL'].includes(type))                                return 'double';
-    if (type === 'BOOLEAN')                                                         return 'boolean';
-    if (type === 'DATE')                                                            return 'date';
-    if (type.startsWith('TIMESTAMP'))                                               return 'timestamp';
-    if (type === 'BLOB')                                                            return 'binary';
-
-    return 'string';                               // VARCHAR, UUID, JSON, enums, arrays… (nested types deferred)
-}
-
 /**
  * What the copy wrote under `destination` (`s3://bucket/<prefix>/`): rows per
  * object key, from the Parquet footers, and the column schema — read from the
@@ -282,12 +265,12 @@ export async function describeParquet(duckdb: DuckDb, destination: string): Prom
             return { rowCounts, schema: null };
 
         const described = await connection.runAndReadAll(`DESCRIBE SELECT * FROM read_parquet(${glob})`);
-        const schema = described.getRowObjectsJS().map((row) => ({
+        const columns = described.getRowObjectsJS().map((row) => ({
             name:     String(row.column_name),
             type:     toColumnType(String(row.column_type)),
             nullable: String(row.null) !== 'NO',
         }));
 
-        return { rowCounts, schema };
+        return { rowCounts, schema: { columns, reader: { format: 'parquet' as const } } };
     });
 }

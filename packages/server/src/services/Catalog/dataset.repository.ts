@@ -3,6 +3,7 @@ import { Catalog, Library } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { EnsureResource } from '@/services/Library/ensure-resource';
+import { trashResource } from '@/services/Library/library.statements';
 import { CatalogDB } from './catalog.db';
 
 @Injectable()
@@ -31,6 +32,12 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
         return CatalogDB.Dataset.toDomain(dataset, this.resource, 0);
     }
 
+
+    /** Undoes a create that couldn't be finished (an upload that failed) — the library row goes to the trash. */
+    @Transactional()
+    async trash(principal: Principal, rid: Catalog.Dataset.Rid): Promise<void> {
+        await trashResource(this.trx, rid, Principal.actorOf(principal));
+    }
 
     /** Live datasets only — trashed resources read as absent. */
     @Transactional()

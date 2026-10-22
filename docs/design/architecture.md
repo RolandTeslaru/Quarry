@@ -19,7 +19,7 @@ flowchart LR
 
     pg[("Postgres<br/>one DB, schema per service")]
     redis[("Redis<br/>BullMQ")]
-    s3[("MinIO / S3<br/>Parquet files")]
+    s3[("S3 (SeaweedFS locally)<br/>Parquet files")]
     gotrue["GoTrue<br/>auth, own database"]
     sources[("Source systems<br/>customer DBs, SAP, …")]
 
@@ -44,7 +44,7 @@ flowchart LR
 | `postgres` | — | | All service schemas + GoTrue's `auth` |
 | `redis` | — | | BullMQ only; disposable (rebuilt from Postgres on boot) |
 | `gotrue` | — | | Authentication, JWTs |
-| `minio` | — | | S3-compatible object storage for dataset files |
+| `seaweedfs` | — | | S3-compatible object storage for dataset files (`seaweedfs-init` creates the bucket) |
 
 One image runs all three; docker compose picks each one's command. Each package's build contains only what it imports — a worker's `dist` has `shared` (+ `integrations` for the Data Connection worker) and itself, never server code.
 
@@ -68,7 +68,7 @@ Connection tests and table exploration also run in the Data Connection worker: t
 Quarry/
 ├── package.json                  npm workspaces: packages/*
 ├── Dockerfile                    one image for server + both workers (Debian — DuckDB needs glibc)
-├── docker-compose.yml            postgres · redis · gotrue · minio; server + workers under profile `app`
+├── docker-compose.yml            postgres · redis · gotrue · seaweedfs; server + workers under profile `app`
 ├── docker/postgres/init/         creates GoTrue's own database
 ├── .env.example
 ├── docs/

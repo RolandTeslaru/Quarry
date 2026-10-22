@@ -1,7 +1,9 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { Catalog } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
+import { readUpload } from '@/http/multipart';
 import { ZodPipe } from '@/http/zod.pipe';
 import { CatalogService } from './catalog.service';
 
@@ -20,6 +22,43 @@ export class CatalogController {
         @Body(new ZodPipe(API.Dataset.Create.Request)) body: API.Dataset.Create.Request,
     ): Promise<API.Dataset.Create.Response> {
         return { dataset: await this.catalog.createDataset(principal, body) };
+    }
+
+    /** A new dataset from a CSV or Parquet file (multipart). Declared before :rid so "upload" isn't read as a RID. */
+    @Post('upload')
+    async createFromFile(@CurrentPrincipal() principal: Principal.User, @Req() request: Request): Promise<API.Dataset.Upload.Response> {
+        const { fields, file } = await readUpload(request, API.Dataset.Upload.NewFields);
+
+        return this.catalog.files.createFromFile(principal, fields, file);
+    }
+
+    @Post(':rid/upload')
+    async upload(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Req() request: Request,
+    ): Promise<API.Dataset.Upload.Response> {
+        const { fields, file } = await readUpload(request, API.Dataset.Upload.Fields);
+
+        return this.catalog.files.upload(principal, rid, fields.mode, file);
+    }
+
+    @Get(':rid/preview')
+    preview(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Query(new ZodPipe(API.Dataset.Preview.Query)) query: API.Dataset.Preview.Query,
+    ): Promise<API.Dataset.Preview.Response> {
+        return this.catalog.files.preview(principal, rid, query.limit);
+    }
+
+    @Put(':rid/schema')
+    async setSchema(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Body(new ZodPipe(API.Dataset.SetSchema.Request)) body: API.Dataset.SetSchema.Request,
+    ): Promise<API.Dataset.SetSchema.Response> {
+        return { sequence: await this.catalog.files.setSchema(principal, rid, body.schema) };
     }
 
     @Get(':rid')

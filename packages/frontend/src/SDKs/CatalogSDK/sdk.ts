@@ -12,6 +12,7 @@ export class CatalogSDKImpl extends BaseSDK<CatalogSDK.State> {
         immer<CatalogSDK.State>(() => ({
             datasets: {},
             views: {},
+            previews: {},
         })),
         shallow,
     )
@@ -32,12 +33,24 @@ export class CatalogSDKImpl extends BaseSDK<CatalogSDK.State> {
             queryFn: () => this.actions.dataset.view(rid, sequence),
             staleTime: 0,
         }),
+
+        /** Every version's view of a dataset — the key prefix to invalidate after a write. */
+        views: (rid: Catalog.Dataset.Rid) => ({
+            queryKey: ['catalog', 'view', rid] as const,
+        }),
+
+        preview: (rid: Catalog.Dataset.Rid) => ({
+            queryKey: ['catalog', 'preview', rid] as const,
+            queryFn: () => this.actions.dataset.preview(rid),
+            staleTime: 0,
+        }),
     }
 
     public override cleanup(): void {
         this.setState({
             datasets: {},
             views: {},
+            previews: {},
         })
     }
 }
@@ -49,6 +62,7 @@ export namespace CatalogSDK {
     export type State = {
         datasets: Record<Catalog.Dataset.Rid, Catalog.Dataset.Schema>
         views:    Record<string, Catalog.Dataset.View.Schema>
+        previews: Record<Catalog.Dataset.Rid, Catalog.API.Dataset.Preview.Response>
     }
 
     export type Actions   = _CatalogSDKActions

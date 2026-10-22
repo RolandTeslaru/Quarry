@@ -7,7 +7,7 @@ A self-hosted data platform: connect source systems, land their data as versione
 ```bash
 cp .env.example .env            # set QUARRY_BOOTSTRAP_ADMIN_EMAIL, and QUARRY_ENCRYPTION_KEY (openssl rand -hex 32)
 npm install
-npm run infra                   # postgres · redis · gotrue · minio (docker compose)
+npm run infra                   # postgres · redis · gotrue · seaweedfs (docker compose)
 npm run dev                     # api + both workers + frontend at http://localhost:5173
 ```
 

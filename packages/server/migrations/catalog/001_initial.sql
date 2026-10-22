@@ -33,7 +33,7 @@ CREATE TABLE catalog.transaction (
     type          text NOT NULL CHECK (type IN ('snapshot', 'append', 'update', 'delete')),
     status        text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'committed', 'aborted')),
     sequence      bigint,                                     -- set on commit: 1, 2, 3… per branch
-    schema        jsonb,                                      -- column list of the resulting view; NULL = unchanged
+    schema        jsonb,                                      -- the resulting view's { columns, reader } (Catalog.ColumnSchema.Schema); NULL = unchanged
     provenance    jsonb NOT NULL DEFAULT '{}',                -- e.g. { "syncRunRid": "…" }
 
     started_by    identity.user_rid REFERENCES identity.user(rid),          -- NULL = service principal
@@ -57,10 +57,10 @@ CREATE TABLE catalog.transaction_change (
     transaction_rid catalog.transaction_rid NOT NULL REFERENCES catalog.transaction(rid) ON DELETE CASCADE,
     logical_path    text NOT NULL,                            -- the file's name within the dataset
     op              text NOT NULL CHECK (op IN ('add', 'remove')),
-    format          text CHECK (format IN ('parquet')),
+    format          text CHECK (format IN ('parquet', 'csv')),
     key             text,                                     -- object storage key, write-once
     bytes           bigint,
-    row_count       bigint,                                   -- parquet only
+    row_count       bigint,                                   -- from a parquet footer; NULL for csv (not counted on upload)
     PRIMARY KEY (transaction_rid, logical_path),
     CHECK ((op = 'add')    = (format IS NOT NULL AND key IS NOT NULL AND bytes IS NOT NULL)),
     CHECK ((op = 'remove') = (format IS NULL AND key IS NULL AND bytes IS NULL AND row_count IS NULL))

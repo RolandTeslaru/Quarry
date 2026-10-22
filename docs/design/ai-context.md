@@ -55,7 +55,7 @@ points to. Written 2026-10-18.
 | Auth | GoTrue (own `gotrue` database) for authentication; API verifies JWTs locally with jose. First verified login matching `QUARRY_BOOTSTRAP_ADMIN_EMAIL` becomes admin. |
 | Authorization | Own **Gatekeeper**: app-level ReBAC checked in services, **plus Postgres RLS as the base layer** (user/delegate transactions `SET LOCAL ROLE quarry_user`; policies call `gatekeeper.can(rid, 'read')`, on the fly; database.md §8). Roles discoverer < viewer < editor < owner; actions discover / read / write / manage. Inheritance via closure table `library.resource_ancestor` (trigger-maintained). Groups supported. Check-then-write race accepted. |
 | Library | Compass equivalent. Authoritative for identity, name and tree location of every resource. Subtype tables (dataset, source, credential) share its primary key. `library.resource_type.show_in_explorer` hides credentials from the explorer. Trash = soft delete (`trashed_at`); "live" = not trashed and no trashed ancestor. |
-| Data | Datasets = Parquet in S3-compatible storage (MinIO locally) + Postgres catalog of transactions/files/branches. DuckDB (`@duckdb/node-api` 1.4.5-r.1) is the sync engine. |
+| Data | Datasets = Parquet in S3-compatible storage (SeaweedFS locally — MinIO stopped publishing community images in 2025) + Postgres catalog of transactions/files/branches. DuckDB (`@duckdb/node-api` 1.4.5-r.1) is the sync engine. |
 | Jobs | BullMQ 5 + ioredis; Postgres is the source of truth. Outbox → BullMQ with idempotent jobIds. |
 | Credentials | **Keychain** (PretzelGraph's Vault, renamed): `Keychain.Credential` = a project-scoped library resource holding one AES-256-GCM blob (workspace key `QUARRY_ENCRYPTION_KEY`, code in `@quarry/shared/server/encryption.ts`); `Keychain.Credential.Template` declared in code on the source definition (`integrations/<System>/credential.ts`), never at runtime. Holds the whole login (host, port, user, password…). read = use, write = change values + reveal. Server hands it to the worker encrypted; the worker decrypts. See keychain.md. |
 | Stack | NestJS (server + both workers; workers use @nestjs/bullmq and serve only GET /health), Kysely 0.28, zod 4, npm workspaces, TypeScript 5.9. |
@@ -151,7 +151,7 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
 ~/Desktop/Quarry
 ├── docs/design/        architecture.md · database.md (DDL source) · gatekeeper.md · catalog.md · data-connection.md · jobs.md · ai-context.md (this)
 ├── docs/research/      palantir-foundry-ontology.md
-├── docker-compose.yml  postgres, redis, gotrue, minio (+ init)
+├── docker-compose.yml  postgres, redis, gotrue, seaweedfs (+ init: creates the bucket)
 ├── packages/shared/domain/   Foundations · Storage · Identity · Library · Gatekeeper · Catalog · DataConnection
 ├── packages/integrations/   Postgres/ (definition.ts · runtime.ts) · core/ · definitions.ts (API) · runtimes.ts (Data Connection worker)
 ├── packages/data-connection-worker/src/    main.ts · worker.module.ts · processors.ts · infra.ts — NestJS, no DB, /health :4101
@@ -189,7 +189,7 @@ Against a throwaway Postgres (port 55432) + redis-server (56379), no Docker:
 - `@EnsureResource` atomicity (throwing body leaves no library row),
   wrong-decorator-order error, `this.resource` misuse error.
 
-**Not verified:** the S3 write path of a sync (no MinIO was available).
+**Not verified:** a full sync run writing to S3 end to end (DuckDB → SeaweedFS Parquet write/read was verified on its own, 2026-10-22).
 
 ---
 
@@ -231,7 +231,7 @@ Against a throwaway Postgres (port 55432) + redis-server (56379), no Docker:
 ## 7. Open follow-ups (roughly in priority order)
 
 1. Commit the current state (user's call) — nothing is committed.
-2. Verify the S3 write path with MinIO (`npm run infra`).
+2. Verify a full sync run's S3 write path against SeaweedFS (`npm run infra`).
 3. `UnrecoverableError` for permission/not-found failures in job processors.
 4. Restore and purge flows (first real users of `@AllowTrashed()`); a purge
    counterpart to `@EnsureResource`.

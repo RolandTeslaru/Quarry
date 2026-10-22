@@ -20,7 +20,32 @@ export namespace ColumnSchema {
     })
     export type Column = z.infer<typeof Column>
 
-    /** Ordered column list of a dataset view. Stored as catalog.transaction.schema. */
-    export const Schema = Column.array()
+    /**
+     * How to read a view's files. Parquet describes itself; CSV needs the
+     * parsing options Foundry keeps in its schema too. Every file in a view has
+     * the reader's format.
+     */
+    export namespace Reader {
+        export const Parquet = z.object({ format: z.literal("parquet") })
+        export type  Parquet = z.infer<typeof Parquet>
+
+        export const Csv = z.object({
+            format:    z.literal("csv"),
+            delimiter: z.string().min(1).max(4),
+            quote:     z.string().max(1),           // "" = none
+            escape:    z.string().max(1),
+            header:    z.boolean(),                  // first row holds the column names
+        })
+        export type  Csv = z.infer<typeof Csv>
+
+        export const Schema = z.discriminatedUnion("format", [Parquet, Csv])
+        export type  Schema = z.infer<typeof Schema>
+    }
+
+    /** A dataset view's schema: its columns, in order, and how to read its files. Stored as catalog.transaction.schema. */
+    export const Schema = z.object({
+        columns: Column.array(),
+        reader:  Reader.Schema,
+    })
     export type  Schema = z.infer<typeof Schema>
 }

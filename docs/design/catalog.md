@@ -23,8 +23,8 @@ A **dataset** is a logical, versioned table: a set of immutable files plus a sch
 | **Dataset** | The resource: name, folder, grants, trash | `library.resource` + `catalog.dataset` (shared RID) |
 | **Branch** | A line of history; `main` only for now | `catalog.branch` (`last_sequence`) |
 | **Transaction** | One change to the file set; has a RID, isn't a resource | `catalog.transaction` |
-| **Files** | `Storage.File`s — Parquet now, other formats later | Object storage; a transaction's changes list them (`catalog.transaction_change`) |
-| **Schema** | Ordered column list, attached to a transaction | `catalog.transaction.schema` |
+| **Files** | `Storage.File`s — Parquet (syncs, uploads) and CSV (uploads, stored as uploaded) | Object storage; a transaction's changes list them (`catalog.transaction_change`) |
+| **Schema** | Ordered column list plus a **reader** (how to parse the files), attached to a transaction | `catalog.transaction.schema` |
 | **View** | The file set at one sequence, computed from transactions | Derived, never stored |
 
 A dataset is a library resource (`ri.catalog.main.dataset.…`): it lives in a folder, inherits grants, can be trashed. A transaction (`ri.catalog.main.transaction.…`) is only addressable — access to it is access to its dataset.
@@ -57,6 +57,8 @@ Small, explicit, independent of any source's native types (`Catalog.ColumnSchema
 
 `string · integer (i32) · long (i64) · double · decimal(p,s) · boolean · date · timestamp (UTC) · binary` — nested `array / struct / map` deferred.
 
+A schema is `{ columns, reader }`. The reader is `{ format: 'parquet' }` (the files describe themselves) or `{ format: 'csv', delimiter, quote, escape, header }` — Foundry's model, where a CSV stays a CSV and the schema says how to read it. Every file in a view has the reader's format; CSV columns are cast to the schema's types when read.
+
 Each source's columns are mapped onto these; unmappable types become `string` (with a warning), never a silent drop. Postgres mapping: [data-connection.md §3](data-connection.md#3-source-definitions-and-runtimes).
 
 ---
@@ -69,8 +71,10 @@ Each source's columns are mapped onto these; unmappable types become `string` (w
 |---|---|---|
 | Deals with | the dataset as a resource | changing its contents |
 | Methods | `createDataset`, `get`, `view` | `open`, `registerChanges`, `commit`, `abort`, `storagePrefix` |
-| Called by | the API (users), other services | writers — today the sync runner and sync reaper |
+| Called by | the API (users), other services | writers — the sync runner, the sync reaper, and `catalog.files` |
 | Spans | one request | a job: open, minutes of uploading, commit |
+
+`catalog.files` (`DatasetFiles`, `files/dataset-files.ts`) is the writer and reader for files that come through the API: uploads, previews and schema edits. It uses `catalog.transaction` like any other writer, plus an in-process DuckDB (`files/duckdb.ts`) for what it must know about a file's contents.
 
 `catalog.transaction` is a `DatasetTransactions` instance (`transaction/dataset-transactions.ts`) — a class only so its methods can carry `@SecurityGate`; it's provided inside Catalog and not exported. Both halves use `DatasetRepository` / `TransactionRepository`. Creating a dataset is `DatasetRepository.create` under `@EnsureResource('dataset')` — the library row, the dataset row and branch `main` in one transaction.
 
@@ -81,8 +85,25 @@ Each source's columns are mapped onto these; unmappable types become `string` (w
 | `POST /datasets` `{ parentRid, name, description }` | `createDataset` | `write` on the parent folder |
 | `GET /datasets/:rid` | `get` | `discover` |
 | `GET /datasets/:rid/view?sequence=` | `view` | `read` |
+| `POST /datasets/upload` (multipart: `parentRid`, `name?`, `description?`, `file`) | `files.createFromFile` | `write` on the parent folder |
+| `POST /datasets/:rid/upload` (multipart: `mode` = `snapshot` \| `append`, `file`) | `files.upload` | `write` on the dataset |
+| `GET /datasets/:rid/preview?limit=` (1–1000, default 100) | `files.preview` | `read` |
+| `PUT /datasets/:rid/schema` `{ schema }` | `files.setSchema` | `write` on the dataset |
 
-There's no HTTP route for transactions: writes come from server-side writers, not browsers.
+There's no HTTP route for transactions themselves: the upload routes open and commit one on the caller's behalf.
+
+### Uploads
+
+A `.csv` or `.parquet` file, **stored as uploaded** (Foundry's model — a CSV isn't converted):
+
+1. Open a transaction (`snapshot` or `append`) — the write check happens here, before anything else.
+2. Stream the request body to S3 under the transaction's prefix (`FileStorage.upload`, multipart, never buffered). No size cap unless `QUARRY_UPLOAD_MAX_BYTES` is set (413).
+3. Infer the schema with DuckDB: `sniff_csv` for a CSV's dialect and columns; the footer for Parquet's columns and row count. Zero-byte files are rejected.
+4. Register the file and commit. A snapshot (or the first file) brings its inferred schema; an append keeps the dataset's and must match it — same format, same column names in order, same CSV delimiter and header — else 400. A logical path already in the view is 409.
+
+Any failure aborts the transaction (storage GC removes the bytes); a failed `createFromFile` also trashes the dataset it just created. Fields must come before the file in the multipart body.
+
+**Preview** reads the latest view's first rows with its schema (`read_parquet` / `read_csv` with the reader's options and the schema's types). **Schema edits** commit an `update` transaction with no file changes, after checking that the files read with the new schema and that the reader's format matches the files.
 
 ---
 
@@ -143,7 +164,7 @@ Writers act as the principal they were given: a sync run as a **delegate** of th
 
 Reading an old sequence is the same algorithm stopped earlier — time travel for free, until retention removes the files.
 
-The result (`Catalog.Dataset.View.Schema`) lists **files** — their keys, not their data. Readers (DuckDB previews later, transforms) fetch the Parquet themselves. A preview/query endpoint that reads the files doesn't exist yet.
+The result (`Catalog.Dataset.View.Schema`) lists **files** — their keys, not their data. Readers (the preview endpoint, transforms later) fetch the files themselves.
 
 ---
 
@@ -163,7 +184,7 @@ S3-compatible object storage, through `FileStorage` (`infra/file-storage.ts`) �
 
 | Environment | Backend |
 |---|---|
-| Local dev | MinIO (docker compose) |
+| Local dev | SeaweedFS's S3 gateway (docker compose, host port 9000) |
 | Cloud | AWS S3 / Cloudflare R2 / GCS (S3 interop) / Azure Blob |
 
 ```
@@ -172,6 +193,7 @@ s3://{S3_BUCKET}/
     {transactionRid}/             catalog.transaction.storagePrefix
       data_0.parquet              written by the writer (sync: DuckDB COPY … PER_THREAD_OUTPUT)
       data_1.parquet
+      sales.csv                   or an uploaded file, under its own name
 ```
 
 Nothing readable depends on listing the bucket — the catalog's file list is the truth. Target ~128 MB per Parquet part, Snappy or Zstd.
@@ -200,7 +222,8 @@ The outbox exists so an event is published **iff** the commit happened: the row 
 - **Trash purge** — a separate thing: permanently deleting a whole trashed resource (library row, dataset rows, every file) once `trashed_at` is older than one global setting. Starts in Library (`library.purge`, [jobs.md](jobs.md)), which asks each owning service to purge its part.
 - **Orphaned files** — files uploaded under a prefix with no transaction row (writer crashed before `open` returned) aren't swept.
 - **Schema checks** — no validation before commit; schema changes aren't detected or warned about.
-- **Branches beyond `main`**, previews / reads of file contents, unstructured datasets (the model allows files without a schema; no tooling).
+- **Branches beyond `main`**, queries beyond the preview, unstructured datasets (the model allows files without a schema; no tooling), Excel and other upload formats, pre-signed direct uploads, a schema editor in the frontend (the API exists).
+- **CSV row counts** — not counted on upload, so a CSV view's row count is unknown.
 - **Outbox via `LISTEN`** — commits `pg_notify('catalog_outbox')`, but the relay polls every 5 s and doesn't listen.
 
 ---

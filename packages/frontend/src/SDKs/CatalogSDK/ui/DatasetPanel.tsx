@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
 import { Table } from '@quarry/standard-ui/foundations/table'
@@ -7,6 +8,8 @@ import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import type { Catalog } from '@quarry/shared/domain'
 import { CatalogSDK } from '../sdk'
+import { DatasetPreview } from './DatasetPreview'
+import { UploadDialog } from './UploadDialog'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { PageHeader } from '@/components/PageHeader'
 import { number } from '@/utils/format'
@@ -52,6 +55,12 @@ export function DatasetPanel({ rid }: Props) {
         void viewRequest.refetch()
     }
 
+    function openUploadDialog() {
+        DialogSDK.actions.push(`upload-${rid}`, dialog => (
+            <UploadDialog target={{ kind: 'dataset', datasetRid: rid }} dialog={dialog} />
+        ))
+    }
+
     if (datasetRequest.isPending)
         return <Spinner className='size-6' role='status' aria-label='Loading' />
 
@@ -68,9 +77,14 @@ export function DatasetPanel({ rid }: Props) {
                 title={dataset.name}
                 description={dataset.description ?? 'An immutable file collection with a versioned history.'}
                 actions={(
-                    <Button icon='refresh' loading={viewRequest.isFetching} onClick={refresh}>
-                        Refresh
-                    </Button>
+                    <>
+                        <Button icon='refresh' loading={viewRequest.isFetching} onClick={refresh}>
+                            Refresh
+                        </Button>
+                        <Button intent='primary' icon='upload' onClick={openUploadDialog}>
+                            Upload file
+                        </Button>
+                    </>
                 )}
             />
 
@@ -78,7 +92,7 @@ export function DatasetPanel({ rid }: Props) {
                 <Metric label='LATEST VERSION' value={number(dataset.lastSequence)} />
                 <Metric label='ROWS IN VIEW' value={number(view?.rowCount)} />
                 <Metric label='FILES' value={number(view?.files.length)} />
-                <Metric label='COLUMNS' value={number(view?.schema?.length)} />
+                <Metric label='COLUMNS' value={number(view?.schema?.columns.length)} />
             </div>
 
             <div className='section-toolbar'>
@@ -111,7 +125,17 @@ export function DatasetPanel({ rid }: Props) {
 
             {view && (
                 <>
+                    {!sequence && (
+                        <>
+                            <h2 className='section-title mb-3'>Preview</h2>
+                            <div className='mb-8'>
+                                <DatasetPreview rid={rid} />
+                            </div>
+                        </>
+                    )}
+
                     <h2 className='section-title mb-3'>Schema</h2>
+                    {view.schema && <ReaderSummary reader={view.schema.reader} />}
                     <div className='table-panel mb-8'>
                         <Table.Root className='data-table'>
                             <Table.Header>
@@ -122,7 +146,7 @@ export function DatasetPanel({ rid }: Props) {
                                 </Table.Row>
                             </Table.Header>
                             <Table.Body>
-                                {view.schema?.map(column => (
+                                {view.schema?.columns.map(column => (
                                     <Table.Row key={column.name}>
                                         <Table.Cell className='font-mono'>{column.name}</Table.Cell>
                                         <Table.Cell>{column.type}</Table.Cell>
@@ -131,8 +155,8 @@ export function DatasetPanel({ rid }: Props) {
                                 ))}
                             </Table.Body>
                         </Table.Root>
-                        {!view.schema?.length && (
-                            <p className='p-5 text-slate-500'>No schema yet. Run a sync to populate this dataset.</p>
+                        {!view.schema?.columns.length && (
+                            <p className='p-5 text-slate-500'>No schema yet. Upload a file or run a sync to populate this dataset.</p>
                         )}
                     </div>
 
@@ -166,6 +190,36 @@ export function DatasetPanel({ rid }: Props) {
             )}
         </>
     )
+}
+
+interface ReaderSummaryProps {
+    reader: Catalog.ColumnSchema.Reader.Schema
+}
+
+/** How the view's files are read: Parquet describes itself; CSV shows its parsing options. */
+function ReaderSummary({ reader }: ReaderSummaryProps) {
+    if (reader.format === 'parquet')
+        return <p className='text-sm text-slate-500 mb-3'>Parquet files.</p>
+
+    return (
+        <p className='text-sm text-slate-500 mb-3'>
+            CSV files · delimiter <code>{printable(reader.delimiter)}</code>
+            {' · '}quote <code>{printable(reader.quote)}</code>
+            {' · '}escape <code>{printable(reader.escape)}</code>
+            {' · '}{reader.header ? 'header row' : 'no header row'}
+        </p>
+    )
+}
+
+/** A parsing character as readable text: tab and "none" spelled out. */
+function printable(character: string): string {
+    if (character === '')
+        return 'none'
+
+    if (character === '\t')
+        return 'tab'
+
+    return character
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

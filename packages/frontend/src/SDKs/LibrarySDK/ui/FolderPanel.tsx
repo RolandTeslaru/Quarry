@@ -11,6 +11,7 @@ import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import type { Library } from '@quarry/shared/domain'
 import { LibrarySDK } from '../sdk'
 import { NewSourceDialog } from '@/SDKs/DataConnectionSDK/ui/NewSourceDialog'
+import { UploadDialog } from '@/SDKs/CatalogSDK/ui/UploadDialog'
 import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { Empty } from '@/components/Empty'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -40,6 +41,12 @@ export function FolderPanel({ resource }: Props) {
         ))
     }
 
+    function openUploadDialog() {
+        DialogSDK.actions.push(`upload-${resource.rid}`, dialog => (
+            <UploadDialog target={{ kind: 'new', parentRid: resource.rid }} dialog={dialog} />
+        ))
+    }
+
     function openSourceDialog() {
         DialogSDK.actions.push(`new-source-${resource.rid}`, dialog => (
             <NewSourceDialog parentRid={resource.rid} dialog={dialog} />
@@ -56,6 +63,9 @@ export function FolderPanel({ resource }: Props) {
                     <>
                         <Button icon='folder-new' onClick={openFolderDialog}>
                             New folder
+                        </Button>
+                        <Button icon='upload' onClick={openUploadDialog}>
+                            Upload file
                         </Button>
                         <Button intent='primary' icon='add' onClick={openSourceDialog}>
                             Connect source
@@ -87,11 +97,16 @@ export function FolderPanel({ resource }: Props) {
                 <Empty
                     icon='database'
                     title='Bring your first source into Quarry'
-                    description='Connect a database, choose what to sync, and create a versioned dataset.'
+                    description='Connect a database, choose what to sync, and create a versioned dataset, or upload a CSV or Parquet file.'
                     action={(
-                        <Button intent='primary' onClick={openSourceDialog}>
-                            Connect source
-                        </Button>
+                        <div className='flex gap-2'>
+                            <Button intent='primary' onClick={openSourceDialog}>
+                                Connect source
+                            </Button>
+                            <Button icon='upload' onClick={openUploadDialog}>
+                                Upload file
+                            </Button>
+                        </div>
                     )}
                 />
             )}
