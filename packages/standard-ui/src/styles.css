@@ -67,8 +67,7 @@ code {
 }
 
 :root {
-    --node-accent-base: var(--card);
-    --background: theme(--color-gray-200);
+    --background: theme(--color-gray-100);
     --foreground: #2c1810;
 
     --surface: #ffffff;
@@ -78,7 +77,6 @@ code {
     --material-opacity-sidebar: 60%;
 
     --card: var(--surface);
-    --card-float: #ffffff;
     --card-foreground: theme(--color-stone-600);
 
     --popover: theme(--color-white);
@@ -87,7 +85,7 @@ code {
 
     --primary: theme(--color-sky-600);
     --primary-foreground: theme(--color-white);
-    --primary-accent: theme(--color-sky-400);
+    --primary-accent: theme(--color-sky-500);
     --primary-hover: theme(--color-sky-700);
     --ring: color-mix(in oklch, theme(--color-sky-400) 55%, transparent);
 
@@ -97,11 +95,7 @@ code {
     --accent: theme(--color-neutral-300);
     --accent-foreground: theme(--color-neutral-700);
 
-    --active: color-mix(in oklch, theme(--color-sky-400) 20%, transparent);
-    --active-foreground: theme(--color-sky-700);
-
     --destructive: theme(--color-red-500);
-    --destructive-foreground: theme(--color-white);
     --border: rgb(44 24 16 / 0.14);
     --separator: rgb(190 188 186);
 
@@ -111,131 +105,13 @@ code {
     --input-border: var(--border);
 
     --radius: 8px;
-
-    --canvas: #f2eeeb;
     --canvas-dot: #8f867f;
-
-    /* Execution status colors */
-    --status-active: theme(--color-cyan-400);
-    --status-success: theme(--color-emerald-400);
-    --status-waiting: theme(--color-amber-400);
-
-    /* Success states */
-    --success-background: var(--color-green-100);
-    --success-foreground: var(--color-green-700);
-
-    /* Warning states */
-    --warning: oklch(0.75 0.15 85);
-    --warning-background: #fdf6e3;
-    --warning-foreground: var(--color-amber-700);
-    --warning-text: oklch(0.4 0.15 85);
-
-    /* Info states */
-    --info-background: #e5f0fa;
-    --info-foreground: oklch(0.35 0.18 240);
-
-    /* Error states */
-    --error-background: var(--color-red-100);
-    --error-foreground: var(--color-red-700);
-
-    /* Accent for orphaned / unhydrated nodes (missing node or blueprint) — reads as destructive.
-     Needs a red -foreground since accent consumers resolve icon color via var(--{accent}-foreground). */
-    --node-unknown: theme(--color-red-500);
-    --node-unknown-foreground: theme(--color-red-500);
 
     --port-Message: theme(--color-blue-400);
     --port-Message-foreground: theme(--color-blue-400);
-    --port-Message-accent: theme(--color-blue-200);
-    --port-Message-glow: theme(--color-blue-600);
-
-    --port-MessageList: theme(--color-indigo-400);
-    --port-MessageList-foreground: theme(--color-indigo-400);
-    --port-MessageList-accent: theme(--color-indigo-200);
-    --port-MessageList-glow: theme(--color-indigo-600);
-
-    --port-DataList: theme(--color-slate-400);
-    --port-DataList-foreground: theme(--color-slate-500);
-    --port-DataList-accent: theme(--color-slate-200);
-    --port-DataList-glow: theme(--color-slate-600);
 
     --port-LanguageModel: theme(--color-fuchsia-400);
     --port-LanguageModel-foreground: theme(--color-fuchsia-400);
-    --port-LanguageModel-accent: theme(--color-fuchsia-200);
-    --port-LanguageModel-glow: theme(--color-fuchsia-100);
-
-    --port-Tool: theme(--color-cyan-400);
-    --port-Tool-foreground: theme(--color-cyan-500);
-    --port-Tool-accent: theme(--color-cyan-200);
-    --port-Tool-glow: theme(--color-cyan-600);
-
-    --port-ToolList: theme(--color-teal-400);
-    --port-ToolList-foreground: theme(--color-teal-400);
-    --port-ToolList-accent: theme(--color-teal-200);
-    --port-ToolList-glow: theme(--color-teal-600);
-
-    --port-Skill: theme(--color-violet-400);
-    --port-Skill-foreground: theme(--color-violet-500);
-    --port-Skill-accent: theme(--color-violet-200);
-    --port-Skill-glow: theme(--color-violet-600);
-
-    --port-SkillList: theme(--color-purple-400);
-    --port-SkillList-foreground: theme(--color-purple-400);
-    --port-SkillList-accent: theme(--color-purple-200);
-    --port-SkillList-glow: theme(--color-purple-600);
-
-    --port-Embeddings: theme(--color-emerald-400);
-    --port-Embeddings-foreground: theme(--color-emerald-300);
-    --port-Embeddings-accent: theme(--color-emerald-200);
-    --port-Embeddings-glow: theme(--color-emerald-600);
-
-    --port-DataFrame: theme(--color-red-400);
-    --port-DataFrame-foreground: theme(--color-red-300);
-    --port-DataFrame-accent: theme(--color-red-200);
-    --port-DataFrame-glow: theme(--color-red-600);
-
-    --port-Text: theme(--color-slate-500);
-    --port-Text-foreground: theme(--color-slate-400);
-    --port-Text-accent: theme(--color-slate-200);
-    --port-Text-glow: theme(--color-slate-600);
-
-    --port-Document: theme(--color-lime-400);
-    --port-Document-foreground: theme(--color-lime-500);
-    --port-Document-accent: theme(--color-lime-200);
-    --port-Document-glow: theme(--color-lime-600);
-
-    --port-Data: theme(--color-slate-500);
-    --port-Data-foreground: theme(--color-slate-100);
-    --port-Data-accent: theme(--color-slate-400);
-    --port-Data-glow: theme(--color-slate-600);
-
-    --port-VectorStore: theme(--color-amber-400);
-    --port-VectorStore-foreground: theme(--color-yellow-400);
-    --port-VectorStore-accent: theme(--color-yellow-200);
-    --port-VectorStore-glow: theme(--color-amber-600);
-
-    --port-Retriever: theme(--color-yellow-400);
-    --port-Retriever-foreground: theme(--color-yellow-400);
-    --port-Retriever-accent: theme(--color-yellow-200);
-    --port-Retriever-glow: theme(--color-yellow-600);
-
-    --port-null: var(--secondary);
-    --port-null-foreground: theme(--color-neutral-100);
-    --port-null-glow: var(--secondary);
-
-    --port-Unresolved: theme(--color-gray-500);
-    --port-Unresolved-foreground: theme(--color-gray-500);
-    --port-Unresolved-accent: theme(--color-gray-300);
-    --port-Unresolved-glow: theme(--color-gray-600);
-
-    --port-UnresolvedList: theme(--color-zinc-500);
-    --port-UnresolvedList-foreground: theme(--color-zinc-500);
-    --port-UnresolvedList-accent: theme(--color-zinc-300);
-    --port-UnresolvedList-glow: theme(--color-zinc-600);
-
-    --utility: theme(--color-neutral-400);
-    --utility-foreground: theme(--color-neutral-700);
-
-    --group-routing: theme(--color-neutral-400);
 
     --radius-xs: calc(var(--radius) * 0.25);
     --radius-sm: calc(var(--radius) * 0.5);
@@ -243,38 +119,27 @@ code {
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) * 1.25);
     --radius-2xl: calc(var(--radius) * 1.5);
-    --radius-3xl: calc(var(--radius) * 1.75);
-    --radius-4xl: calc(var(--radius) * 2);
-
-    --blending: hard-light;
 
     /* Font families */
     --font-sans: 'Geist Variable', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    --font-chivo: 'Chivo', system-ui, sans-serif;
 }
 
 .dark {
-    --node-accent-base: var(--color-black);
-    --background: theme(--color-neutral-950);
+    --background: #1c2127;
 
     --foreground: theme(--color-white);
 
-    --surface: rgb(40 40 42);
+    --surface: #2f343c;
     --surface-elevated: rgb(24 24 25);
     --surface-elevated-sidebar: rgb(42 42 44);
     --material-opacity-content: 85%;
     --material-opacity-sidebar: 70%;
 
     --card: var(--surface);
-    --card-float: rgb(30, 30, 30);
-
-    --port-Data-foreground: theme(--color-slate-500);
-    --port-DataList-foreground: theme(--color-slate-300);
-    --port-Text: theme(--color-slate-400);
 
     --card-foreground: theme(--color-white);
-    --popover: rgb(43, 43, 44);
+    --popover: #2f343c;
     --popover-foreground: theme(--color-neutral-100);
     --popover-border: rgb(71, 71, 71);
 
@@ -283,116 +148,27 @@ code {
     --primary-accent: theme(--color-sky-600);
     --primary-hover: theme(--color-sky-800);
 
-    --secondary: theme(--color-neutral-700);
+    --secondary: color-mix(in oklch, theme(--color-neutral-500) 30%, transparent);
     --secondary-foreground: theme(--color-white);
     --muted: theme(--color-neutral-800);
     --muted-foreground: theme(--color-neutral-400);
     --accent: theme(--color-neutral-700);
     --accent-foreground: theme(--color-white);
-
-    --active: color-mix(in oklch, theme(--color-sky-700) 30%, transparent);
-    --active-foreground: theme(--color-sky-300);
     --destructive: theme(--color-red-500);
-    --destructive-foreground: theme(--color-white);
-    --border: rgb(255 255 255 / 0.1);
+    --border: rgba(255, 255, 255, 0.112);
     --separator: rgb(58 58 60);
 
-    --input: rgb(35, 35, 35);
-    --input-border: rgb(54, 54, 54);
+    --input: rgba(29, 29, 29, 0.453);
+    --input-border: rgba(254, 254, 254, 0.24);
     --ring: color-mix(in oklch, theme(--color-sky-400) 55%, transparent);
-
-    /* Success states */
-    --success-background: theme(--color-emerald-950);
-    --success-foreground: theme(--color-emerald-400);
-
-    /* Warning states */
-    --warning-background: theme(--color-amber-950);
-    --warning-foreground: theme(--color-amber-400);
-    --warning-text: theme(--color-amber-400);
-
-    /* Info states */
-    --info-background: theme(--color-blue-950);
-    --info-foreground: theme(--color-blue-400);
-
-    /* Error states */
-    --error-background: theme(--color-red-950);
-    --error-foreground: theme(--color-red-400);
-
-    /* Dark mode custom variables */
-    --canvas: oklch(0.18 0.01 264);
     --canvas-dot: oklch(0.35 0.015 264);
-
-    --node-bg-mix: 20%;
-    --node-border-mix: 50%;
-
-    --utility: theme(--color-neutral-500);
-    --utility-foreground: theme(--color-neutral-200);
-
-    --group-routing: theme(--color-neutral-500);
-
-    --port-Tool-foreground: theme(--color-cyan-300);
-
-    /* Dark mode: glow uses the base port color (already vibrant on dark bg) */
-    --port-Message-glow: theme(--color-blue-300);
-    --port-MessageList-glow: theme(--color-indigo-300);
-    --port-DataList-glow: theme(--color-slate-300);
-    --port-LanguageModel-glow: theme(--color-fuchsia-300);
-    --port-Tool-glow: theme(--color-cyan-300);
-    --port-ToolList-glow: theme(--color-teal-300);
-    --port-Skill-glow: theme(--color-violet-300);
-    --port-SkillList-glow: theme(--color-purple-300);
-    --port-Embeddings-glow: theme(--color-emerald-300);
-    --port-DataFrame-glow: theme(--color-red-300);
-    --port-Text-glow: theme(--color-slate-300);
-    --port-Document-glow: theme(--color-lime-300);
-    --port-Data-glow: theme(--color-slate-300);
-    --port-VectorStore-glow: theme(--color-amber-300);
-    --port-Retriever-glow: theme(--color-yellow-300);
-    --port-null-glow: var(--secondary);
-    --port-Unresolved-glow: theme(--color-gray-300);
-    --port-UnresolvedList-glow: theme(--color-zinc-300);
-
-    --placeholder: oklch(0.4 0.01 264);
     --placeholder-foreground: oklch(0.6 0.01 264);
-    --tooltip: oklch(0.2 0.02 264);
-    --tooltip-foreground: oklch(0.95 0.005 264);
-    --secondary-hover: oklch(0.3 0.02 264);
-
-    --blending: hard-light;
 }
 
 @theme inline {
     --color-separator: var(--separator);
     --font-sans: 'Geist Variable', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    --font-chivo: 'Chivo', system-ui, sans-serif;
-}
-
-/* Where a node a run created flies in from. Picked per node so a burst does not arrive in
-   lockstep; the node-arrive keyframe reads these and falls back if no variant is set. */
-.arrive-from-1 {
-    --arrive-x: -180px;
-    --arrive-y: 200px;
-}
-.arrive-from-2 {
-    --arrive-x: 170px;
-    --arrive-y: 240px;
-}
-.arrive-from-3 {
-    --arrive-x: -140px;
-    --arrive-y: 270px;
-}
-.arrive-from-4 {
-    --arrive-x: 210px;
-    --arrive-y: 190px;
-}
-.arrive-from-5 {
-    --arrive-x: -230px;
-    --arrive-y: 230px;
-}
-.arrive-from-6 {
-    --arrive-x: 130px;
-    --arrive-y: 260px;
 }
 
 /* Braille pulse spinner */

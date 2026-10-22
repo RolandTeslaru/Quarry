@@ -148,32 +148,15 @@ const preset: Config = {
                 'sonar-sweep': 'spin-slow calc(var(--sonar-duration, 4) * 1s) linear infinite',
             },
             colors: {
-                error: {
-                    DEFAULT: 'var(--error)',
-                    background: 'var(--error-background)',
-                    foreground: 'var(--error-foreground)',
-                },
-                'info-background': 'var(--info-background)',
-                'info-foreground': 'var(--info-foreground)',
-                warning: {
-                    DEFAULT: 'var(--warning)',
-                    foreground: 'var(--warning-foreground)',
-                    text: 'var(--warning-text)',
-                },
-                'success-background': 'var(--success-background)',
-                'success-foreground': 'var(--success-foreground)',
                 canvas: {
-                    DEFAULT: 'var(--canvas)',
                     dot: 'var(--canvas-dot)',
                 },
-                selected: 'var(--selected)',
                 border: 'var(--border)',
                 input: 'var(--input)',
                 'input-border': 'var(--input-border)',
                 ring: 'var(--ring)',
                 background: 'var(--background)',
                 foreground: 'var(--foreground)',
-                placeholder: 'var(--placeholder)',
                 'placeholder-foreground': 'var(--placeholder-foreground)',
                 primary: {
                     DEFAULT: 'var(--primary)',
@@ -184,15 +167,9 @@ const preset: Config = {
                 secondary: {
                     DEFAULT: 'var(--secondary)',
                     foreground: 'var(--secondary-foreground)',
-                    hover: 'var(--secondary-hover)',
                 },
                 destructive: {
                     DEFAULT: 'var(--destructive)',
-                    foreground: 'var(--destructive-foreground)',
-                },
-                active: {
-                    DEFAULT: 'var(--active)',
-                    foreground: 'var(--active-foreground)',
                 },
                 muted: {
                     DEFAULT: 'var(--muted)',
@@ -209,12 +186,7 @@ const preset: Config = {
                 'popover-border': 'var(--popover-border)',
                 card: {
                     DEFAULT: 'var(--card)',
-                    float: 'var(--card-float)',
                     foreground: 'var(--card-foreground)',
-                },
-                tooltip: {
-                    DEFAULT: 'var(--tooltip)',
-                    foreground: 'var(--tooltip-foreground)',
                 },
             },
             borderRadius: {
@@ -224,8 +196,6 @@ const preset: Config = {
                 lg: 'var(--radius-lg)',
                 xl: 'var(--radius-xl)',
                 '2xl': 'var(--radius-2xl)',
-                '3xl': 'var(--radius-3xl)',
-                '4xl': 'var(--radius-4xl)',
             },
             borderWidth: {
                 1.75: '1.75px',
@@ -234,7 +204,6 @@ const preset: Config = {
             fontFamily: {
                 sans: ['var(--font-sans)', ...defaultTheme.fontFamily.sans],
                 mono: ['var(--font-mono)', ...defaultTheme.fontFamily.mono],
-                chivo: ['var(--font-chivo)', ...defaultTheme.fontFamily.sans],
             },
             boxShadow: {
                 selected: '0px 0px 8px 2px var(--tw-shadow-color)',

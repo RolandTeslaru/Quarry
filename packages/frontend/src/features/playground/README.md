@@ -1,6 +1,6 @@
 # UI playground
 
-Open `/playground` for 45 aligned comparisons of PretzelGraph standard-ui and Blueprint. No sign-in or API data is required. Search filters both columns; the appearance switch changes both themes; synchronized scrolling can be disabled.
+Open `/playground` for 46 aligned comparisons of PretzelGraph standard-ui and Blueprint. No sign-in or API data is required. Search filters both columns; the appearance switch changes both themes; synchronized scrolling can be disabled.
 
 Each half is a separate same-origin document at `/playground/standard` or `/playground/blueprint`. This keeps PretzelGraph's Tailwind preflight, theme variables, and portal styles separate from Blueprint. The parent receives measured row heights so corresponding examples stay aligned as controls expand or fonts load. Dialogs remain inside their respective halves.
 
@@ -27,6 +27,8 @@ Standard-ui Select, Popover, and the DropdownMenu root share Blueprint's popup m
 The Select comparison includes a flat Select and a four-level cascading dataset picker with shared options, a selected path, and a disabled leaf. Cascading selection is composed from standard-ui DropdownMenu and Blueprint PopoverNext/MenuItem; it does not extend either flat Select API.
 
 Select, DropdownMenu, Popover items, ContextMenu, Menubar, and CommandBar use neutral `secondary` backgrounds for hover and keyboard focus. Selected Select options and checked menu radio/checkbox items use a 15% `primary` background with `foreground` text and icons, including during hover or keyboard focus. Item borders stay transparent; warning and destructive items retain their semantic text colors.
+
+The color sheet at the top of both columns displays live surface, text, border, interaction, and button intent swatches. Values resolve to sRGB hex with opacity shown separately and update with the shared appearance setting. Standard colors use the current Quarry package theme; Blueprint colors use its CSS variables and rendered Card, InputGroup, and Button backgrounds. Search for `color` to isolate the sheets.
 
 ## Floating pointer
 

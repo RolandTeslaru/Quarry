@@ -9,14 +9,14 @@ import { cn } from '../utils/cn'
 import { cva } from 'class-variance-authority'
 
 const listVars = cva(
-    `group/list rounded-lg inline-flex h-auto items-center justify-center border text-muted-foreground relative
-    shadow-sm shadow-black/10
+    `group/list rounded-lg inline-flex h-auto items-center justify-center text-muted-foreground relative
+   
   `,
     {
         variants: {
             variant: {
-                primary: 'bg-input/30 border-border text-foreground',
-                accent: 'bg-accent/30 border-border text-foreground',
+                primary: 'bg-input/30 text-foreground',
+                accent: 'bg-accent/30 text-foreground',
                 sidebar:
                     'flex flex-col items-stretch justify-start w-full border-0 bg-transparent shadow-none rounded-none text-foreground',
             },

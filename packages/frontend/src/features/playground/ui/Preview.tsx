@@ -3,11 +3,15 @@ import { matchingSamples, type Library, type SampleId, type Theme } from '../cat
 import { readPreviewMessage, type RowHeights } from '../preview-messages'
 import './preview.css'
 
+export interface PreviewExampleProps {
+    theme: Theme
+}
+
 interface Props {
     library: Library
     theme: Theme
     filter: string
-    examples: Record<SampleId, ComponentType>
+    examples: Record<SampleId, ComponentType<PreviewExampleProps>>
 }
 
 export function Preview({ library, theme, filter, examples }: Props) {
@@ -147,7 +151,7 @@ export function Preview({ library, theme, filter, examples }: Props) {
                             <span className='preview-group'>{sample.group}</span>
                         </header>
                         <div className='preview-example'>
-                            <Example />
+                            <Example theme={theme} />
                         </div>
                     </section>
                 )

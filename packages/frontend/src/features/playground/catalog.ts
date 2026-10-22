@@ -1,4 +1,12 @@
 export const samples = [
+    {
+        id: 'colors',
+        title: 'Color sheet',
+        standard: 'Theme colors · surfaces · secondary · intents',
+        blueprint: 'Theme colors · surfaces · palette · intents',
+        group: 'Styles',
+        height: 1200,
+    },
     { id: 'buttons', title: 'Buttons', standard: 'Button', blueprint: 'Button', group: 'Controls', height: 240 },
     {
         id: 'button-group',
