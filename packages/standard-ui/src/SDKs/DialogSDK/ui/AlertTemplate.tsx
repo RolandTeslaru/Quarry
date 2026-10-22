@@ -1,7 +1,7 @@
 import { DialogSDK } from '../sdk'
 import { cn } from '../../../utils/cn'
 import { AlertDialog } from '../../../foundations/alertDialog'
-import { AlertTriangle } from '../../../icons/system'
+import { Icon } from '../../../icons'
 import { useAnimationDelay, DIALOG_STACK_Z_INDEX } from './motion'
 
 export const AlertTemplate: DialogSDK.AlertTemplate = ({
@@ -53,8 +53,8 @@ export const AlertTemplate: DialogSDK.AlertTemplate = ({
                 {type === 'danger' && (
                     <div className='relative pl-9 pr-5 pt-9 mb-auto'>
                         <div className='relative'>
-                            <AlertTriangle size={60} className={'text-destructive!'} />
-                            <AlertTriangle
+                            <Icon name='warning-sign' size={60} className={'text-destructive!'} />
+                            <Icon name='warning-sign'
                                 size={60}
                                 className={`animate-ping absolute top-0 left-0 !text-destructive`}
                             />
@@ -64,8 +64,8 @@ export const AlertTemplate: DialogSDK.AlertTemplate = ({
                 {type === 'warning' && (
                     <div className='relative pl-9 pr-5 pt-9 mb-auto'>
                         <div className='relative'>
-                            <AlertTriangle size={60} className={'!text-yellow-400'} />
-                            <AlertTriangle
+                            <Icon name='warning-sign' size={60} className={'!text-yellow-400'} />
+                            <Icon name='warning-sign'
                                 size={60}
                                 className={`animate-ping absolute top-0 left-0 !text-yellow-400`}
                             />

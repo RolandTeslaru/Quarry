@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useDebouncedCallback } from 'use-debounce'
 
 import { cn } from '../utils/cn'
-import { SystemIcons } from '../icons'
+import { Icon } from '../icons'
 import { Input } from './input'
 
 type SearchInputProps = Omit<React.ComponentProps<typeof Input>, 'onChange' | 'value'> & {
@@ -45,7 +45,7 @@ function SearchInput({
                 onChange={handleChange}
                 {...props}
             />
-            <SystemIcons.Search className='absolute top-1/2 right-2 size-4 -translate-y-1/2 opacity-50 pointer-events-none' />
+            <Icon name='search' className='absolute top-1/2 right-2 size-4 -translate-y-1/2 opacity-50 pointer-events-none' />
         </div>
     )
 }

@@ -5,7 +5,6 @@ import { AlertDialog } from '@quarry/standard-ui/foundations/alertDialog'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Input } from '@quarry/standard-ui/foundations/input'
 import { Label } from '@quarry/standard-ui/foundations/label'
-import { SystemIcons } from '@quarry/standard-ui/icons'
 
 const DIALOG_WIDTH = 'w-[min(420px,calc(100vw-32px))] p-4'
 const SPLIT_WIDTH = 'w-[min(560px,calc(100vw-32px))]'
@@ -83,7 +82,7 @@ function openSplitDialog() {
             sidebarClassName='min-w-40! w-40 px-4'
             sidebarRenderer={() => (
                 <DialogSDK.SplitTemplate.Header>
-                    <DialogSDK.SplitTemplate.Icon icon={SystemIcons.Database} />
+                    <DialogSDK.SplitTemplate.Icon icon='database' />
                     <DialogSDK.SplitTemplate.Title>Dataset</DialogSDK.SplitTemplate.Title>
                     <DialogSDK.SplitTemplate.Description>Production / Analytics</DialogSDK.SplitTemplate.Description>
                 </DialogSDK.SplitTemplate.Header>
@@ -112,24 +111,24 @@ function openTabsDialog() {
             sidebarClassName='min-w-40! w-40'
             contentClassName='h-[min(440px,calc(100dvh-80px))]!'
             defaultValue='general'
-            header={{ icon: SystemIcons.Settings, title: 'Settings' }}
+            header={{ icon: 'cog', title: 'Settings' }}
             items={[
                 {
                     id: 'general',
                     label: 'General',
-                    icon: SystemIcons.Settings,
+                    icon: 'cog',
                     panel: <p className='text-sm'>Manage the dataset name and description.</p>,
                 },
                 {
                     id: 'credentials',
                     label: 'Credentials',
-                    icon: SystemIcons.Key,
+                    icon: 'key',
                     panel: <p className='text-sm'>Choose the credential used by this source.</p>,
                 },
                 {
                     id: 'history',
                     label: 'History',
-                    icon: SystemIcons.History,
+                    icon: 'history',
                     panel: <p className='text-sm'>Last sync completed successfully.</p>,
                 },
             ]}

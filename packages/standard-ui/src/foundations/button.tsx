@@ -1,13 +1,13 @@
 import type { ComponentProps, MouseEvent, ReactElement } from 'react'
 import { Slot, Slottable } from '@radix-ui/react-slot'
-import { SystemIcons } from '../icons'
+import { Icon, type IconName } from '../icons'
 import { cn } from '../utils/cn'
 import { Spinner } from './spinner'
 import { buttonVariants, type ButtonIntent, type ButtonSize, type ButtonVariant } from './button.styles'
 
 export { buttonVariants, type ButtonIntent, type ButtonSize, type ButtonVariant } from './button.styles'
 
-export type ButtonIcon = keyof typeof SystemIcons | ReactElement | false | null
+export type ButtonIcon = IconName | ReactElement | false | null
 
 export interface ButtonProps {
     variant?: ButtonVariant
@@ -35,9 +35,7 @@ function ButtonIcon({ icon, placement }: IconProps) {
     let element = icon
 
     if (typeof icon === 'string') {
-        const Icon = SystemIcons[icon]
-
-        element = <Icon />
+        element = <Icon name={icon} />
     }
 
     return (

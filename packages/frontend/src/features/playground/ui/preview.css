@@ -93,6 +93,10 @@ body[data-library='blueprint'].bp6-dark {
     opacity: 0.45;
 }
 
+.non-ideal-state-example > :first-child {
+    min-height: 256px;
+}
+
 .demo-stack {
     display: flex;
     flex-direction: column;

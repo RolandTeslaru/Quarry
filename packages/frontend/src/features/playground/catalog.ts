@@ -232,7 +232,7 @@ export const samples = [
     {
         id: 'empty',
         title: 'Empty states',
-        standard: 'Empty',
+        standard: 'NonIdealState · Empty',
         blueprint: 'NonIdealState',
         group: 'Feedback',
         height: 350,

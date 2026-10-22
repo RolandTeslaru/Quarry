@@ -5,7 +5,7 @@ import * as SheetPrimitive from '@radix-ui/react-dialog'
 
 import { cn } from '../utils/cn'
 import { Button } from './button'
-import { SystemIcons } from '../icons'
+import { Icon } from '../icons'
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
     return <SheetPrimitive.Root data-slot='sheet' {...props} />
@@ -62,7 +62,7 @@ function SheetContent({
                 {showCloseButton && (
                     <SheetPrimitive.Close data-slot='sheet-close' asChild>
                         <Button variant='minimal' className='absolute top-3 right-3' size='icon-sm'>
-                            <SystemIcons.X />
+                            <Icon name='cross' />
                             <span className='sr-only'>Close</span>
                         </Button>
                     </SheetPrimitive.Close>

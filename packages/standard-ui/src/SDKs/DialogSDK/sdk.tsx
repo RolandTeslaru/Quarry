@@ -2,6 +2,7 @@ import React, { memo } from 'react'
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { enableMapSet } from 'immer'
+import type { IconName } from '../../icons'
 import { createDialogSDKActions, type DialogSDKActions } from './actions'
 import { dialogSelectors, type DialogSDKSelectors } from './selectors'
 import { Template, UnstyledTemplate, SplitTemplate, TripleSplitTemplate } from './ui/templates'
@@ -99,6 +100,8 @@ export namespace DialogSDK {
     export type Selectors = DialogSDKSelectors
     export type Actions = DialogSDKActions
 
+    export type Icon = IconName | React.FC<React.SVGProps<SVGSVGElement>>
+
     export type SurfaceStyle = React.CSSProperties & { '--material-opacity'?: string }
 
     export type UILayer = React.FC
@@ -161,7 +164,7 @@ export namespace DialogSDK {
         }
         export type Header = React.FC<{ children: React.ReactNode }>
         export type Icon = React.FC<{
-            icon: React.FC<React.SVGProps<SVGSVGElement>>
+            icon: DialogSDK.Icon
             size?: 'default' | 'lg'
         }>
         export type Title = React.FC<{ children: React.ReactNode }>
@@ -179,12 +182,10 @@ export namespace DialogSDK {
 
     export namespace TabsTemplate {
 
-        export type IconComponent = React.FC<React.SVGProps<SVGSVGElement>>
-
         export interface Item {
             id: string
             label: string
-            icon: IconComponent
+            icon: DialogSDK.Icon
 
             tone?: 'default' | 'destructive'
             panel: React.ReactNode
@@ -207,7 +208,7 @@ export namespace DialogSDK {
 
             sidebarBottomRenderer?: () => React.ReactNode
             header?: {
-                icon: TabsTemplate.IconComponent
+                icon: DialogSDK.Icon
                 title: string
             }
         }

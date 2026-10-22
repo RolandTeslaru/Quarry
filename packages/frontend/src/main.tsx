@@ -2,6 +2,8 @@ import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { Button } from '@blueprintjs/core'
+import { Icons } from '@blueprintjs/icons'
+import { loadIconPaths } from '@quarry/standard-ui/icons'
 import { AuthSDK } from '@/SDKs/AuthSDK/sdk'
 import { AppStatus } from '@/components/AppStatus'
 import { routeTree } from './routeTree.gen'
@@ -21,6 +23,14 @@ declare module '@tanstack/react-router' {
         router: typeof router
     }
 }
+
+Icons.setLoaderOptions({
+    loader: async (name, grid) => {
+        const paths = await loadIconPaths(name, grid)
+
+        return [...paths]
+    },
+})
 
 AuthSDK.init()
 

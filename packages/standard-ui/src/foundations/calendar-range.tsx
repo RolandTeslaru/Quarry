@@ -3,7 +3,7 @@
 import { useId, useMemo, useState } from 'react'
 import type { DateRange } from 'react-day-picker'
 
-import { SystemIcons } from '../icons'
+import { Icon } from '../icons'
 import { cn } from '../utils/cn'
 import { Button } from './button'
 import { Calendar } from './calendar'
@@ -138,7 +138,7 @@ function CalendarRange({
                     <span className={cn('truncate', !selectedValue?.from && 'text-muted-foreground')}>
                         {formatRange(selectedValue, placeholder)}
                     </span>
-                    <SystemIcons.Calendar
+                    <Icon name='calendar'
                         aria-hidden='true'
                         className='text-muted-foreground/80 group-hover/pick-date:text-foreground shrink-0 transition-colors'
                     />

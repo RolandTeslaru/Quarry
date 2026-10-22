@@ -8,7 +8,7 @@ export const Root: React.FC<ListProps> = ({ children, className, ...rest }) => {
         <ul
             className={classNames(
                 className,
-                'bg-tertiary-opaque border border-border-background rounded-xl overflow-hidden shadow-md shadow-black/20',
+                'bg-tertiary-opaque  overflow-hidden ',
             )}
             {...rest}
         >
@@ -24,7 +24,7 @@ export const Item: React.FC<ListItemProps> = ({ children, className, ...rest }) 
         <li
             className={classNames(
                 className,
-                'text-white px-2 py-[6px] flex flex-row justify-between even:bg-secondary',
+                'text-white px-2 py-[6px] flex flex-row justify-between even:bg-secondary/30 hover:bg-secondary/50 ',
             )}
             {...rest}
         >

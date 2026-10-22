@@ -14,7 +14,8 @@ import { Avatar, AvatarFallback, AvatarGroup } from '@quarry/standard-ui/foundat
 import { Text, BooleanText } from '@quarry/standard-ui/foundations/Text'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Skeleton } from '@quarry/standard-ui/foundations/skeleton'
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyContent } from '@quarry/standard-ui/foundations/empty'
+import { NonIdealState } from '@quarry/standard-ui/foundations/nonIdealState'
+import { Checkbox } from '@quarry/standard-ui/foundations/checkbox'
 import { DateInput } from '@quarry/standard-ui/foundations/DateInput'
 import { Calendar } from '@quarry/standard-ui/foundations/calendar'
 import { CalendarRange } from '@quarry/standard-ui/foundations/calendar-range'
@@ -161,23 +162,28 @@ function DragExample() {
 
 function EmptyExample() {
     const [created, setCreated] = useState(false)
+    const [muted, setMuted] = useState(true)
 
     return (
-        <Empty>
-            <EmptyHeader>
-                <EmptyTitle>{created ? 'Dataset created' : 'No datasets yet'}</EmptyTitle>
-                <EmptyDescription>
-                    {created
-                        ? 'Your preview dataset is ready.'
-                        : 'Connect a source to bring your first dataset into this project.'}
-                </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-                <Button intent='primary' onClick={() => setCreated(!created)}>
-                    {created ? 'Reset preview' : 'Connect a source'}
-                </Button>
-            </EmptyContent>
-        </Empty>
+        <div className='non-ideal-state-example'>
+            <NonIdealState
+                icon={created ? 'tick-circle' : 'database'}
+                iconMuted={muted}
+                title={created ? 'Dataset created' : 'No datasets yet'}
+                description={created
+                    ? 'Your preview dataset is ready.'
+                    : 'Connect a source to bring your first dataset into this project.'}
+                action={(
+                    <Button intent='primary' onClick={() => setCreated(!created)}>
+                        {created ? 'Reset preview' : 'Connect a source'}
+                    </Button>
+                )}
+            />
+            <label className='demo-line'>
+                <Checkbox checked={muted} onCheckedChange={checked => setMuted(checked === true)} />
+                Muted icon
+            </label>
+        </div>
     )
 }
 

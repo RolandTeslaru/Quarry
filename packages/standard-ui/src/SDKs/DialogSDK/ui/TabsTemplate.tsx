@@ -4,6 +4,7 @@ import { Dialog } from '../../../foundations/dialog'
 import { Tabs } from '../../../foundations/tabs'
 import { ScrollArea } from '../../../foundations/scrollArea'
 import { cn } from '../../../utils/cn'
+import { DialogIcon } from './DialogIcon'
 import { useAnimationDelay, SPLIT_SHELL, DIALOG_STACK_Z_INDEX } from './motion'
 
 export const TabsTemplate: DialogSDK.TabsTemplate = ({
@@ -65,7 +66,7 @@ export const TabsTemplate: DialogSDK.TabsTemplate = ({
                     >
                         {header && (
                             <div className='inline-flex items-center px-1'>
-                                <header.icon className='size-4 m-2' />
+                                <DialogIcon icon={header.icon} className='size-4 m-2' />
                                 <p className='font-semibold w-35 text-sm text-ellipsis text-nowrap overflow-hidden'>
                                     {header.title}
                                 </p>
@@ -82,7 +83,7 @@ export const TabsTemplate: DialogSDK.TabsTemplate = ({
                                             'text-destructive data-[state=active]:bg-destructive/10',
                                     )}
                                 >
-                                    <item.icon className='size-4' />
+                                    <DialogIcon icon={item.icon} className='size-4' />
                                     {item.label}
                                 </Tabs.Trigger>
                             ))}

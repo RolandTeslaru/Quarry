@@ -8,7 +8,7 @@ Each half is a separate same-origin document at `/playground/standard` or `/play
 
 `packages/standard-ui/src/` was copied from the local PretzelGraph checkout on 2026-10-22, whose HEAD was `92cbd49882a999950eaabba4493dee1a6f048d01`. The snapshot includes the checkout's current file contents, including any local edits, rather than a published package. PretzelGraph itself is not modified and is not required to build Quarry.
 
-The snapshot includes its foundation components, system icons, global styles, Tailwind preset, and frontend `index.css`. The playground imports the workspace package as `@quarry/standard-ui`. Its `index.css` registers the package source with Tailwind; the React Flow stylesheet import is omitted because this page has no graph canvas. The original React Flow-specific CSS rules remain. The local icons barrel exposes only the system icons these components use.
+The snapshot includes its foundation components, global styles, Tailwind preset, and frontend `index.css`. The playground imports the workspace package as `@quarry/standard-ui`. Its `index.css` registers the package source with Tailwind; the React Flow stylesheet import is omitted because this page has no graph canvas. The original React Flow-specific CSS rules remain. Icons now use the standalone `@blueprintjs/icons` package through standard-ui's cached per-glyph loader, with no dependency on Blueprint Core in standard-ui. Frontend startup configures Blueprint's own icon loader to share that cache, avoiding loading an entire size collection for its native controls.
 
 The initial snapshot preserved component styling and motion. Quarry now uses an 8px base corner radius with a proportional 2–16px scale. Search inputs, switches, and slider tracks and thumbs retain their fully rounded shapes; other controls use the shared radius scale. Files are formatted for Quarry; narrow typing fixes remove unchecked casts in the alert buttons and form contexts, type slider pointer events, and narrow DOM elements. Application-specific `WindowStyling` and the internal `Example` layout helpers are excluded from the component comparison.
 
@@ -57,17 +57,17 @@ The Quarry copy separates appearance (`variant`) from color (`intent`). Defaults
 - Solid success, warning, and danger buttons use opaque fills and defined borders. Their previous tinted backgrounds and colored text are preserved by `variant='neon'`. Neon primary uses the soft sky-blue palette.
 - Solid primary buttons use an opaque sky-blue fill, white text, and a defined border, with a darker tint in dark mode. The `active` intent keeps its softer tint. Shared primary and focus colors also use sky blue.
 - `minimal` is a boolean shorthand for `variant='minimal'` and takes precedence when true.
-- `icon` and `endIcon` accept typed `SystemIcons` names, such as `Plus` or `ArrowRight`, or React elements. Icon-only buttons need an accessible label.
+- `icon` and `endIcon` accept typed Blueprint names, such as `add` or `arrow-right`, or React elements. Icon-only buttons need an accessible label.
 - `active` controls the selected appearance and `aria-pressed`; it is independent of the sky-colored `active` intent.
 - Loading disables native buttons and marks composed elements disabled and busy. Composed elements also block click handling while disabled or loading.
 
 ```tsx
 <Button>Cancel</Button>
-<Button intent='primary' icon='Plus'>Create dataset</Button>
+<Button intent='primary' icon='add'>Create dataset</Button>
 <Button variant='neon' intent='success'>Connected</Button>
 <Button variant='outlined' intent='danger'>Delete</Button>
-<Button minimal endIcon='ArrowRight'>Continue</Button>
-<Button icon={<SystemIcons.Settings />} aria-label='Settings' />
+<Button minimal endIcon='arrow-right'>Continue</Button>
+<Button icon={<Icon name='cog' />} aria-label='Settings' />
 ```
 
 Color and sizing rules live in `packages/standard-ui/src/foundations/button.styles.ts`; rendering, icon resolution, and event handling live in `button.tsx`. Dialog actions, calendar controls, and input-group buttons use the same API.

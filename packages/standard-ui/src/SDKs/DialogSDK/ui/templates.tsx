@@ -2,14 +2,19 @@ import React from 'react'
 import { DialogSDK } from '../sdk'
 import { Dialog } from '../../../foundations/dialog'
 import { cn } from '../../../utils/cn'
+import { DialogIcon } from './DialogIcon'
 import { useAnimationDelay, SPLIT_SHELL, DIALOG_STACK_Z_INDEX } from './motion'
 
 const SplitHeader: DialogSDK.SplitTemplate.Header = ({ children }) => (
     <div className='grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2'>{children}</div>
 )
 
-const SplitIcon: DialogSDK.SplitTemplate.Icon = ({ icon: Icon, size = 'default' }) => (
-    <Icon className={cn('shrink-0', size === 'lg' ? 'size-10' : 'size-6')} />
+const SplitIcon: DialogSDK.SplitTemplate.Icon = ({ icon, size = 'default' }) => (
+    <DialogIcon
+        icon={icon}
+        size={size === 'lg' ? 40 : 24}
+        className={cn('shrink-0', size === 'lg' ? 'size-10' : 'size-6')}
+    />
 )
 
 const SplitTitle: DialogSDK.SplitTemplate.Title = ({ children }) => (

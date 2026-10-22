@@ -3,7 +3,7 @@
 import * as React from 'react'
 import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu'
 import { cn } from '../utils/cn'
-import { SystemIcons } from '../icons'
+import { Icon } from '../icons'
 import { FloatingPointer } from './floatingPointer'
 
 namespace DropdownMenu {
@@ -163,7 +163,7 @@ function CheckboxItem({ className, children, checked, ...rest }: DropdownMenu.Ch
         >
             <span className='pointer-events-none absolute left-2 flex size-3.5 items-center justify-center'>
                 <DropdownMenuPrimitive.ItemIndicator>
-                    <SystemIcons.Check className='size-4 text-current!' />
+                    <Icon name='tick' className='size-4 text-current!' />
                 </DropdownMenuPrimitive.ItemIndicator>
             </span>
             {children}
@@ -198,7 +198,7 @@ function RadioItem({ className, children, ...rest }: DropdownMenu.RadioItem) {
         >
             <span className='pointer-events-none absolute left-2 flex size-3.5 items-center justify-center'>
                 <DropdownMenuPrimitive.ItemIndicator>
-                    <SystemIcons.Circle className='size-2 text-current! fill-current' />
+                    <Icon name='full-circle' className='size-2 text-current! fill-current' />
                 </DropdownMenuPrimitive.ItemIndicator>
             </span>
             {children}
@@ -268,7 +268,7 @@ function SubTrigger({ className, inset, children, ...rest }: DropdownMenu.SubTri
             {...rest}
         >
             {children}
-            <SystemIcons.ChevronRight className='ml-auto size-4' />
+            <Icon name='chevron-right' className='ml-auto size-4' />
         </DropdownMenuPrimitive.SubTrigger>
     )
 }

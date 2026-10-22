@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button, type ButtonIntent, type ButtonVariant } from '@quarry/standard-ui/foundations/button'
-import { SystemIcons } from '@quarry/standard-ui/icons'
+import { Icon } from '@quarry/standard-ui/icons'
 import './button-gallery.css'
 
 interface VariantExample {
@@ -83,13 +83,13 @@ export function StandardButtons() {
             <section className='button-family' aria-label='Button icons'>
                 <h4>Icons</h4>
                 <div className='demo-line'>
-                    <Button icon='RefreshCcw' intent='primary' onClick={() => setAction('Sync selected')}>
+                    <Button icon='refresh' intent='primary' onClick={() => setAction('Sync selected')}>
                         Sync dataset
                     </Button>
-                    <Button endIcon='ArrowRight' onClick={() => setAction('Continue selected')}>
+                    <Button endIcon='arrow-right' onClick={() => setAction('Continue selected')}>
                         Continue
                     </Button>
-                    <Button icon='Settings' aria-label='Settings' onClick={() => setAction('Settings selected')} />
+                    <Button icon='cog' aria-label='Settings' onClick={() => setAction('Settings selected')} />
                 </div>
             </section>
 
@@ -107,13 +107,13 @@ export function StandardButtons() {
             <section className='button-family' aria-label='Minimal shorthand and custom icons'>
                 <h4>Minimal shorthand &amp; custom icons</h4>
                 <div className='demo-line'>
-                    <Button minimal intent='danger' icon='Trash' onClick={() => setAction('Delete selected')}>
+                    <Button minimal intent='danger' icon='trash' onClick={() => setAction('Delete selected')}>
                         Delete
                     </Button>
-                    <Button icon={<SystemIcons.Plus />} intent='primary' onClick={() => setAction('Create selected')}>
+                    <Button icon={<Icon name='add' />} intent='primary' onClick={() => setAction('Create selected')}>
                         Create
                     </Button>
-                    <Button icon='Database' endIcon='ChevronDown' onClick={() => setAction('Datasets selected')}>
+                    <Button icon='database' endIcon='chevron-down' onClick={() => setAction('Datasets selected')}>
                         Datasets
                     </Button>
                 </div>
@@ -125,7 +125,7 @@ export function StandardButtons() {
                     <Button minimal onClick={() => setLoading(!loading)}>
                         {loading ? 'Stop loading' : 'Start loading'}
                     </Button>
-                    <Button asChild icon='ArrowRight' loading={loading}>
+                    <Button asChild icon='arrow-right' loading={loading}>
                         <a href='#buttons' onClick={() => setAction('Link selected')}>
                             Composed link
                         </a>

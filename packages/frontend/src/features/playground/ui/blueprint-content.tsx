@@ -3,6 +3,7 @@ import enUS from 'date-fns/locale/en-US'
 import {
     Button,
     Card,
+    Checkbox,
     Classes,
     Collapse,
     Divider,
@@ -130,22 +131,29 @@ function ScrollExample() {
 
 function EmptyExample() {
     const [created, setCreated] = useState(false)
+    const [muted, setMuted] = useState(true)
 
     return (
-        <NonIdealState
-            icon={created ? 'tick-circle' : 'database'}
-            title={created ? 'Dataset created' : 'No datasets yet'}
-            description={
-                created
+        <div className='non-ideal-state-example'>
+            <NonIdealState
+                icon={created ? 'tick-circle' : 'database'}
+                iconMuted={muted}
+                title={created ? 'Dataset created' : 'No datasets yet'}
+                description={created
                     ? 'Your preview dataset is ready.'
-                    : 'Connect a source to bring your first dataset into this project.'
-            }
-            action={
-                <Button intent='primary' onClick={() => setCreated(!created)}>
-                    {created ? 'Reset preview' : 'Connect a source'}
-                </Button>
-            }
-        />
+                    : 'Connect a source to bring your first dataset into this project.'}
+                action={(
+                    <Button intent='primary' onClick={() => setCreated(!created)}>
+                        {created ? 'Reset preview' : 'Connect a source'}
+                    </Button>
+                )}
+            />
+            <Checkbox
+                checked={muted}
+                label='Muted icon'
+                onChange={() => setMuted(!muted)}
+            />
+        </div>
     )
 }
 

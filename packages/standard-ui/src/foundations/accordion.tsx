@@ -3,7 +3,7 @@
 import * as React from 'react'
 import * as AccordionPrimitive from '@radix-ui/react-accordion'
 import { cn } from '../utils/cn'
-import { SystemIcons } from '../icons'
+import { Icon } from '../icons'
 
 function Root({ ...props }: React.ComponentProps<typeof AccordionPrimitive.Root>) {
     return <AccordionPrimitive.Root data-slot='accordion' {...props} />
@@ -31,7 +31,7 @@ function Trigger({ className, children, ...props }: React.ComponentProps<typeof 
                 {...props}
             >
                 {children}
-                <SystemIcons.ChevronDown className='text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200' />
+                <Icon name='chevron-down' className='text-muted-foreground pointer-events-none size-4 shrink-0 translate-y-0.5 transition-transform duration-200' />
             </AccordionPrimitive.Trigger>
         </AccordionPrimitive.Header>
     )

@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react'
 
-import { SystemIcons } from '../icons'
+import { Icon } from '../icons'
 import { cn } from '../utils/cn'
 import { Button } from './button'
 import { Calendar } from './calendar'
@@ -73,7 +73,7 @@ function CalendarDateTimeRange({
                     <span className={cn('truncate', !selectedValue.date && 'text-muted-foreground')}>
                         {selectedValue.date ? dateFormatter.format(selectedValue.date) : placeholder}
                     </span>
-                    <SystemIcons.Calendar
+                    <Icon name='calendar'
                         aria-hidden='true'
                         className='text-muted-foreground/80 group-hover/pick-date:text-foreground shrink-0 transition-colors'
                     />
@@ -103,7 +103,7 @@ function CalendarDateTimeRange({
                                 value={selectedValue.startTime}
                             />
                             <InputGroupAddon>
-                                <SystemIcons.Clock />
+                                <Icon name='time' />
                             </InputGroupAddon>
                         </InputGroup>
                     </Field.Root>
@@ -120,7 +120,7 @@ function CalendarDateTimeRange({
                                 value={selectedValue.endTime}
                             />
                             <InputGroupAddon>
-                                <SystemIcons.Clock />
+                                <Icon name='time' />
                             </InputGroupAddon>
                         </InputGroup>
                     </Field.Root>

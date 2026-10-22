@@ -59,7 +59,7 @@ export function StandardNestedSelect() {
         <div className='demo-stack'>
             <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
-                    <Button className='w-fit' endIcon='ChevronDown' aria-label='Choose nested dataset'>
+                    <Button className='w-fit' endIcon='chevron-down' aria-label='Choose nested dataset'>
                         {selection?.label ?? 'Choose a dataset'}
                     </Button>
                 </DropdownMenu.Trigger>

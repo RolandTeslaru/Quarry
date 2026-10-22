@@ -4,7 +4,7 @@ import * as SelectPrimitive from '@radix-ui/react-select'
 
 import { cn } from '../utils/cn'
 import { createContext, useContext, type ComponentProps, type FC, type ReactNode } from 'react'
-import { SystemIcons } from '../icons'
+import { Icon } from '../icons'
 import { FloatingPointer } from './floatingPointer'
 
 type SelectSize = 'default' | 'sm' | 'xs'
@@ -79,7 +79,7 @@ const Trigger: SelectComponents.Trigger = ({ className, children, size = 'sm', v
         >
             {children}
             <SelectPrimitive.Icon asChild>
-                <SystemIcons.ChevronDown className='size-4 opacity-50' />
+                <Icon name='chevron-down' className='size-4 opacity-50' />
             </SelectPrimitive.Icon>
         </SelectPrimitive.Trigger>
     )
@@ -90,7 +90,7 @@ const ScrollUpButton: SelectComponents.ScrollUpButton = ({ className, ...rest })
         className={cn('flex cursor-default items-center justify-center py-1', className)}
         {...rest}
     >
-        <SystemIcons.ChevronUp className='h-4 w-4' />
+        <Icon name='chevron-up' className='h-4 w-4' />
     </SelectPrimitive.ScrollUpButton>
 )
 
@@ -99,7 +99,7 @@ const ScrollDownButton: SelectComponents.ScrollDownButton = ({ className, ...res
         className={cn('flex cursor-default items-center justify-center py-1', className)}
         {...rest}
     >
-        <SystemIcons.ChevronDown className='h-4 w-4' />
+        <Icon name='chevron-down' className='h-4 w-4' />
     </SelectPrimitive.ScrollDownButton>
 )
 
@@ -204,7 +204,7 @@ const Item: SelectComponents.Item = ({ className, children, size, description, .
                 )}
             >
                 <SelectPrimitive.ItemIndicator>
-                    <SystemIcons.Check className={resolvedSize === 'xs' ? 'size-3' : 'size-4'} />
+                    <Icon name='tick' className={resolvedSize === 'xs' ? 'size-3' : 'size-4'} />
                 </SelectPrimitive.ItemIndicator>
             </span>
 

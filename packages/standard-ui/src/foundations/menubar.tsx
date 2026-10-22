@@ -4,7 +4,7 @@ import * as MenubarPrimitive from '@radix-ui/react-menubar'
 
 import { cn } from '../utils/cn'
 import classNames from 'classnames'
-import { SystemIcons } from '../icons'
+import { Icon } from '../icons'
 
 namespace MenubarComponents {
     export type Root = FC<ComponentProps<typeof MenubarPrimitive.Root>>
@@ -73,7 +73,7 @@ const SubTrigger: MenubarComponents.SubTrigger = ({ className, inset, children, 
         {...rest}
     >
         {children}
-        <SystemIcons.ChevronRight className='ml-auto h-4 w-4' />
+        <Icon name='chevron-right' className='ml-auto h-4 w-4' />
     </MenubarPrimitive.SubTrigger>
 )
 
@@ -144,7 +144,7 @@ const CheckboxItem: MenubarComponents.CheckboxItem = ({ className, children, che
     >
         <span className='absolute left-2 flex h-3.5 w-3.5 items-center justify-center'>
             <MenubarPrimitive.ItemIndicator>
-                <SystemIcons.Check className='h-4 w-4' />
+                <Icon name='tick' className='h-4 w-4' />
             </MenubarPrimitive.ItemIndicator>
         </span>
         {children}
@@ -164,7 +164,7 @@ const RadioItem: MenubarComponents.RadioItem = ({ className, children, ...props 
     >
         <span className='absolute left-2 flex h-3.5 w-3.5 items-center justify-center'>
             <MenubarPrimitive.ItemIndicator>
-                <SystemIcons.Circle className='h-2 w-2 fill-current' />
+                <Icon name='full-circle' className='h-2 w-2 fill-current' />
             </MenubarPrimitive.ItemIndicator>
         </span>
         {children}
