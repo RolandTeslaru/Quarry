@@ -13,7 +13,7 @@ export function SourceApp({ rid }: Props) {
     return (
         <App.Root>
             <App.Header>
-                <App.Header.Icon icon={dataConnectionApp.icon} />
+                <App.Header.Icon glyph={dataConnectionApp.glyph} />
                 <App.Header.Rows>
                     <ResourceBreadcrumbs rid={rid} />
                 </App.Header.Rows>

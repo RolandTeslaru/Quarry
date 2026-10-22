@@ -20,7 +20,7 @@ export function DatasetsHome() {
     return (
         <App.Root>
             <App.Header>
-                <App.Header.Icon icon={datasetsApp.icon} />
+                <App.Header.Icon glyph={datasetsApp.glyph} />
                 <App.Header.Rows>
                     <App.Header.Title>Datasets</App.Header.Title>
                 </App.Header.Rows>

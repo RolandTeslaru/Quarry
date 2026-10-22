@@ -1,3 +1,4 @@
+import { Glyph, type GlyphDefinition } from './glyph/Glyph'
 import { Header } from './header'
 import { Content, LeftNav, LeftSidebar, RightSidebar, Root } from './layout'
 import type { Definition as DefinitionD } from './definition'
@@ -10,8 +11,10 @@ export const App = {
     LeftSidebar,
     RightSidebar,
     Content,
+    Glyph,
 }
 
 export namespace App {
     export type Definition = DefinitionD
+    export type Glyph = GlyphDefinition
 }

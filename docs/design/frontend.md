@@ -26,7 +26,7 @@ flowchart TB
 | Part | What it is |
 |---|---|
 | **Shell** | Always loaded: left navigation, auth, routing, the dialog stack, the shared SDKs, the resource-type registry. Never reloads when you switch apps. |
-| **App** | One job, one route subtree: Library, Data Connection, Datasets, Keychain. Owns its UI and its own SDK. Described by `App.Definition` (§1a). React's root component in `main.tsx` is `QuarryApp`, so `App` only ever means a workspace app. |
+| **App** | One job, one route subtree: Library, Data Connection, Datasets, Keychain. Owns its UI and its own SDK, or uses a shared one (the Keychain app works on the shared KeychainSDK). Described by `App.Definition` (§1a). React's root component in `main.tsx` is `QuarryApp`, so `App` only ever means a workspace app. |
 
 Foundry's equivalent: the workspace sidebar stays while apps change; Compass (Library) holds files, and opening a resource opens the app that owns it (a dataset opens in Dataset Preview, not in Compass). How Foundry bundles its apps isn't documented.
 
@@ -40,7 +40,7 @@ Every app is built from one namespace, **`App`**, exported from **`src/AppKit/`*
 | `App.LeftNav` | icon strip choosing what the left sidebar shows (vertical tabs); `App.LeftNav.Item` is one tab (icon button, tooltip, `active`) |
 | `App.LeftSidebar` | the panel `LeftNav` selects |
 | `App.Header` | the top band |
-| `App.Header.Icon` | the app's icon (from its definition) in a square at the header's left, directly above the left nav |
+| `App.Header.Icon` | the app's glyph (from its definition) in a square at the header's left, directly above the left nav |
 | `App.Header.Rows` | the header's two stacked rows |
 | `App.Header.Breadcrumbs` | location; the last item is the title |
 | `App.Header.Title` | the resource or page name |
@@ -48,7 +48,8 @@ Every app is built from one namespace, **`App`**, exported from **`src/AppKit/`*
 | `App.Header.Actions` | right side: undo/redo, save/publish, share, sidebar toggles |
 | `App.Content` | the main view; `App.Content.Toolbar` for a toolbar on top of it |
 | `App.RightSidebar` | properties / details of the selection, toggled from the header |
-| `App.Definition` | the model of an app: `id`, `label`, `icon`, `to` (its home route, `/<app>` — every app has one), `inNavigation`, and `opens` — for each resource type it opens, the route it opens at (`rid => ToOptions`, type-checked against the route tree) |
+| `App.Glyph` | an app's coloured mark on a tinted tile, one of two kinds: a Blueprint icon drawn whole in a base colour with chosen parts (the sub-paths of its path) painted over in other colours — `{ icon, tile, base, parts }`; or a shaded standard-ui illustration mixed from one colour — `{ illustration, color, tile }` (the Library's yellow folder, from PretzelGraph) |
+| `App.Definition` | the model of an app: `id`, `label`, `glyph`, `to` (its home route, `/<app>` — every app has one), `inNavigation`, and `opens` — for each resource type it opens, the route it opens at (`rid => ToOptions`, type-checked against the route tree) |
 
 The shell's own sidebar (the workspace navigation) is not part of an app.
 
@@ -66,7 +67,7 @@ The shell's own sidebar (the workspace navigation) is not part of an app.
 
 - **Each app exports its own definition** from `src/apps/<name>/definition.ts`; the file imports no app code (types only), so registering an app never loads it.
 - **`src/shell/apps.ts`** imports those definitions into `APPS`. It tells the shell what exists: the workspace sidebar draws its links from it (`inNavigation` and an entry route `to`), and `resourceRoute(type, rid)` finds where a resource opens — the app whose `opens` has the RID's type, else the Library's `/resources/$rid`. `ResourceLink`, `ResourceBreadcrumbs` and the create dialogs use it. _Built: Library, Keychain, Datasets (`/datasets/$rid`), Data Connection (`/data-connection/sources/$rid`, a scaffold around the existing source panel)._
-- **App launcher** (`shell/AppLauncher.tsx`): the sidebar's first item, "Applications", opens a grid of every registered app (Foundry's Applications portal); each tile opens the app's home. The sidebar below it lists the apps with `inNavigation`. _Built._
+- **Launchpad** (`shell/Launchpad.tsx`): the sidebar's first item, "Launchpad", opens a grid of every registered app (Foundry's Applications portal); each tile opens the app's home. The sidebar below it lists the apps with `inNavigation`. _Built._
 - **Every app has a home route**, `/<app>`: Datasets (`/datasets`, every dataset you can see — `GET /api/datasets`), Data Connection (`/data-connection`, every source — `GET /api/sources`), Library (`/library`), Keychain (`/keychain`). Resource routes hang below it (`/datasets/$rid`).
 - **The router mounts apps.** Each app is a route subtree under `_workspace`; the router plugin's `autoCodeSplitting` puts every route's component in its own chunk, so an app's code loads on first visit; `WorkspaceLayout` renders the sidebar and `<Outlet />`. The layout never inspects the URL itself — that would be a second routing system and lose typed params, `beforeLoad` and per-route splitting.
 - **RID → URL** is `resourceRoute` (the RID's type is in the RID); **URL → app** is the router.
@@ -103,8 +104,8 @@ Selection is Library-app state: the primary item is in the URL (`?selected=`, so
 
 | | SDKs | Owned by |
 |---|---|---|
-| **Shared** | Auth, Query, Dialog, Library | the shell — one instance for the whole workspace |
-| **Local** | DataConnection, Catalog (dataset app), Keychain | their app |
+| **Shared** | Auth, Query, Dialog, Library, Keychain | the shell — one instance for the whole workspace |
+| **Local** | DataConnection, Catalog (dataset app) | their app |
 
 Because everything is one build, a shared SDK is one module instance: one store, one query cache. A resource picker opened from any app makes one request and every app reads the cached result.
 

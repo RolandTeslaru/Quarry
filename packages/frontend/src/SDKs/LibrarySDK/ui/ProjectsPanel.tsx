@@ -37,7 +37,7 @@ export function ProjectsPanel() {
         <>
             <PageHeader
                 eyebrow='YOUR WORKSPACE'
-                title='Projects & data'
+                title='Library Explorer'
                 description='A shared home for your sources, datasets, and the work you build around them.'
                 actions={(
                     <Button

@@ -4,7 +4,12 @@ import type { App } from '@/AppKit'
 export const keychainApp: App.Definition = {
     id:           'keychain',
     label:        'Keychain',
-    icon:         'key',
+    glyph: {
+        icon:  'key',
+        tile:  'bg-emerald-500/15',
+        base:  'fill-emerald-600',
+        parts: { 1: 'fill-emerald-200' },                    // the bow's hole
+    },
     to:           '/keychain',
     inNavigation: true,
     opens:        {},

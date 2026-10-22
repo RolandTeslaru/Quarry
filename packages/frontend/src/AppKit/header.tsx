@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react'
 import { Breadcrumb } from '@quarry/standard-ui/foundations/breadcrumb'
 import { Menubar as MenubarPrimitive } from '@quarry/standard-ui/foundations/menubar'
-import { Icon as IconGlyph, type IconName } from '@quarry/standard-ui/icons'
+import { Glyph, type GlyphDefinition } from './glyph/Glyph'
 import { cn } from '@quarry/standard-ui/utils/cn'
 
 /** The top band, 56px: the app's icon square, rows (breadcrumbs, menubar), actions on the right. */
@@ -16,14 +16,20 @@ function HeaderRoot({ className, ...props }: ComponentProps<'header'>) {
 }
 
 interface IconProps {
-    icon: IconName
+    glyph: GlyphDefinition
 }
 
-/** The app's icon in a square at the header's left — the same width as the left nav below it. */
-function Icon({ icon }: IconProps) {
+/**
+ * The app's corner square at the header's left — the same width as the left nav
+ * below it. The square is the glyph's tile, filled with the app's accent tint.
+ */
+function Icon({ glyph }: IconProps) {
     return (
-        <div data-slot='app-header-icon' className='grid w-14 shrink-0 place-items-center self-stretch border-r border-border'>
-            <IconGlyph name={icon} className='size-5' />
+        <div
+            data-slot='app-header-icon'
+            className={cn('grid w-14 shrink-0 place-items-center self-stretch border-r border-border', glyph.tile)}
+        >
+            <Glyph glyph={glyph} size={22} bare />
         </div>
     )
 }

@@ -49,7 +49,7 @@ export function DatasetApp({ rid }: Props) {
     return (
         <App.Root>
             <App.Header>
-                <App.Header.Icon icon={datasetsApp.icon} />
+                <App.Header.Icon glyph={datasetsApp.glyph} />
                 <App.Header.Rows>
                     <ResourceBreadcrumbs rid={rid} />
                     <App.Header.Menubar>
@@ -83,7 +83,7 @@ export function DatasetApp({ rid }: Props) {
                 <ViewTabs />
 
                 <div className='flex items-start gap-2 px-4 py-3'>
-                    <Icon name={datasetsApp.icon} className='mt-0.5 shrink-0' />
+                    <App.Glyph glyph={datasetsApp.glyph} size={20} className='mt-px' />
                     <h2 className='text-sm font-semibold break-all'>{dataset?.name ?? ''}</h2>
                 </div>
 

@@ -27,7 +27,7 @@ export function LayoutDemoApp() {
     return (
         <App.Root>
             <App.Header>
-                <App.Header.Icon icon={layoutDemoApp.icon} />
+                <App.Header.Icon glyph={layoutDemoApp.glyph} />
                 <App.Header.Rows>
                     <App.Header.Breadcrumbs>
                         <Breadcrumb.Item>Test apps</Breadcrumb.Item>

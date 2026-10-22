@@ -24,7 +24,7 @@ export function DataConnectionHome() {
     return (
         <App.Root>
             <App.Header>
-                <App.Header.Icon icon={dataConnectionApp.icon} />
+                <App.Header.Icon glyph={dataConnectionApp.glyph} />
                 <App.Header.Rows>
                     <App.Header.Title>Data Connection</App.Header.Title>
                 </App.Header.Rows>

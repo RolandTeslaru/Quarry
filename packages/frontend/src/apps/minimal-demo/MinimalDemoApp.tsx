@@ -6,7 +6,7 @@ export function MinimalDemoApp() {
     return (
         <App.Root>
             <App.Header>
-                <App.Header.Icon icon={minimalDemoApp.icon} />
+                <App.Header.Icon glyph={minimalDemoApp.glyph} />
                 <App.Header.Rows>
                     <App.Header.Title>Minimal demo</App.Header.Title>
                 </App.Header.Rows>

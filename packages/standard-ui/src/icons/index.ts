@@ -1,3 +1,5 @@
 export { Icon, LazyIcon } from './Icon'
 export { isIconName, loadIconPaths } from './iconLoader'
+export { useIconPaths } from './useIconPaths'
+export { FolderIllustration, type FolderIllustrationProps } from './illustrations/folder'
 export type { IconName, IconProps } from './types'

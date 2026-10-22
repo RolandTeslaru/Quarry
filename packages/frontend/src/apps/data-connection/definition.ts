@@ -4,7 +4,16 @@ import type { App } from '@/AppKit'
 export const dataConnectionApp: App.Definition = {
     id:           'data-connection',
     label:        'Data Connection',
-    icon:         'data-connection',
+    glyph: {
+        icon:  'data-connection',
+        tile:  'bg-amber-500/15',
+        base:  'fill-amber-500',
+        parts: {
+            1: 'fill-orange-600',                            // the badge
+            2: 'fill-amber-50',                              // its bolt
+            4: 'fill-amber-300',                             // the database's top
+        },
+    },
     to:           '/data-connection',
     inNavigation: false,
     opens: {
