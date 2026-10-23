@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import busboy from 'busboy';
 import type { Request } from 'express';
 import type { z } from 'zod';
-import type { IncomingFile } from '@/services/Catalog/files/dataset-files';
+import type { IncomingFile } from '@/services/Catalog/storage/catalog-storage.service';
 
 /**
  * Reads a multipart upload without buffering it: the text fields (validated

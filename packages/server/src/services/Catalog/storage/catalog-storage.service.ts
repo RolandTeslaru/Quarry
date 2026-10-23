@@ -27,7 +27,7 @@ export interface IncomingFile {
  * Files in, rows out — Foundry's model: an uploaded CSV or Parquet file is
  * stored exactly as it came, in one transaction, and the dataset's schema says
  * how to read it (for CSV, its columns and dialect, inferred by DuckDB and
- * editable). Reached as `catalog.files`.
+ * editable). Reached as `catalog.storage`.
  *
  *   upload       file → transaction (snapshot or append) → inferred schema → commit
  *   preview      the latest view's first rows, read with its schema
@@ -36,7 +36,7 @@ export interface IncomingFile {
  * Writes are RLS's (write on the dataset); preview is gated — it reads storage.
  */
 @Injectable()
-export class DatasetFiles {
+export class CatalogStorage {
 
     constructor(
         readonly gatekeeper:                    GatekeeperService,
@@ -114,7 +114,7 @@ export class DatasetFiles {
         }
         catch (error) {
             file.stream.resume();                           // drain what's left, or the request never ends
-            await this.transactions.abort(Principal.SELF('catalog.files.upload'), datasetRid, transaction.rid).catch(() => undefined);
+            await this.transactions.abort(Principal.SELF('catalog.storage.upload'), datasetRid, transaction.rid).catch(() => undefined);
             throw error;
         }
     }
@@ -160,7 +160,7 @@ export class DatasetFiles {
             return await this.transactions.commit(principal, datasetRid, transaction.rid, schema);
         }
         catch (error) {
-            await this.transactions.abort(Principal.SELF('catalog.files.setSchema'), datasetRid, transaction.rid).catch(() => undefined);
+            await this.transactions.abort(Principal.SELF('catalog.storage.setSchema'), datasetRid, transaction.rid).catch(() => undefined);
             throw error;
         }
     }

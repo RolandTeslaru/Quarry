@@ -8,14 +8,14 @@ import { Audit } from '@/services/Audit/audit.decorator';
 import { AuditService } from '@/services/Audit/audit.service';
 import { DatasetRepository } from './dataset.repository';
 import { OutboxRepository } from './outbox/outbox.repository';
-import { DatasetFiles } from './files/dataset-files';
+import { CatalogStorage } from './storage/catalog-storage.service';
 import { DatasetTransactions } from './transaction/dataset-transactions';
 import { TransactionRepository } from './transaction/transaction.repository';
 
 /**
  * Catalog's one entry point for other services: datasets here, their write
  * protocol under `transaction` (catalog.transaction.open / registerChanges /
- * commit / abort), uploads, previews and schema edits under `files`.
+ * commit / abort), uploads, previews and schema edits under `storage` (CatalogStorage).
  */
 @Injectable()
 export class CatalogService {
@@ -24,11 +24,11 @@ export class CatalogService {
         readonly gatekeeper:                    GatekeeperService,
         readonly audit:                         AuditService,
         readonly transaction:                   DatasetTransactions,
-        readonly files:                         DatasetFiles,
+        readonly storage:                       CatalogStorage,
         private readonly datasetRepository:     DatasetRepository,
         private readonly transactionRepository: TransactionRepository,
         private readonly outboxRepository:      OutboxRepository,
-        private readonly storage:               FileStorage,
+        private readonly files:                 FileStorage,
     ) {}
 
     /** Creating = writing into the parent folder — RLS's call on the insert. */
@@ -112,7 +112,7 @@ export class CatalogService {
         let filesDeleted = 0;
 
         for (const transaction of sweep)
-            filesDeleted += await this.storage.deletePrefix(this.transaction.storagePrefix(transaction.dataset_rid, transaction.rid));
+            filesDeleted += await this.files.deletePrefix(this.transaction.storagePrefix(transaction.dataset_rid, transaction.rid));
 
         return { aborted: aborted.length, filesDeleted };
     }

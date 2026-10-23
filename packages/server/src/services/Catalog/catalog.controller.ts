@@ -34,7 +34,7 @@ export class CatalogController {
     async createFromFile(@CurrentPrincipal() principal: Principal.User, @Req() request: Request): Promise<API.Dataset.Upload.Response> {
         const { fields, file } = await readUpload(request, API.Dataset.Upload.NewFields);
 
-        return this.catalog.files.createFromFile(principal, fields, file);
+        return this.catalog.storage.createFromFile(principal, fields, file);
     }
 
     @Post(':rid/upload')
@@ -45,7 +45,7 @@ export class CatalogController {
     ): Promise<API.Dataset.Upload.Response> {
         const { fields, file } = await readUpload(request, API.Dataset.Upload.Fields);
 
-        return this.catalog.files.upload(principal, rid, fields.mode, file);
+        return this.catalog.storage.upload(principal, rid, fields.mode, file);
     }
 
     @Get(':rid/preview')
@@ -54,7 +54,7 @@ export class CatalogController {
         @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
         @Query(new ZodPipe(API.Dataset.Preview.Query)) query: API.Dataset.Preview.Query,
     ): Promise<API.Dataset.Preview.Response> {
-        return this.catalog.files.preview(principal, rid, query.limit);
+        return this.catalog.storage.preview(principal, rid, query.limit);
     }
 
     @Put(':rid/schema')
@@ -63,7 +63,7 @@ export class CatalogController {
         @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
         @Body(new ZodPipe(API.Dataset.SetSchema.Request)) body: API.Dataset.SetSchema.Request,
     ): Promise<API.Dataset.SetSchema.Response> {
-        return { sequence: await this.catalog.files.setSchema(principal, rid, body.schema) };
+        return { sequence: await this.catalog.storage.setSchema(principal, rid, body.schema) };
     }
 
     @Get(':rid')

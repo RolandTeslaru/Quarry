@@ -71,10 +71,10 @@ Each source's columns are mapped onto these; unmappable types become `string` (w
 |---|---|---|
 | Deals with | the dataset as a resource | changing its contents |
 | Methods | `createDataset`, `get`, `view` | `open`, `registerChanges`, `commit`, `abort`, `storagePrefix` |
-| Called by | the API (users), other services | writers — the sync runner, the sync reaper, and `catalog.files` |
+| Called by | the API (users), other services | writers — the sync runner, the sync reaper, and `catalog.storage` |
 | Spans | one request | a job: open, minutes of uploading, commit |
 
-`catalog.files` (`DatasetFiles`, `files/dataset-files.ts`) is the writer and reader for files that come through the API: uploads, previews and schema edits. It uses `catalog.transaction` like any other writer, plus an in-process DuckDB (`files/duckdb.ts`) for what it must know about a file's contents.
+`catalog.storage` (`CatalogStorage`, `storage/catalog-storage.service.ts`) is the writer and reader for files that come through the API: uploads, previews and schema edits. It uses `catalog.transaction` like any other writer, plus an in-process DuckDB (`files/duckdb.ts`) for what it must know about a file's contents.
 
 `catalog.transaction` is a `DatasetTransactions` instance (`transaction/dataset-transactions.ts`) — a class only so its methods can carry `@SecurityGate`; it's provided inside Catalog and not exported. Both halves use `DatasetRepository` / `TransactionRepository`. Creating a dataset is `DatasetRepository.create` under `@EnsureResource('dataset')` — the library row, the dataset row and branch `main` in one transaction.
 
