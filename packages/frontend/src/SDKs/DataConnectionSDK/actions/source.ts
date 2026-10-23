@@ -80,12 +80,21 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
     }
 
     public async explore(rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Explore.Response> {
-        const data = await DataConnection.API.Source.explore(api, rid)
+        try {
+            const data = await DataConnection.API.Source.explore(api, rid)
 
-        this.sdk.setState(state => {
-            state.tables[rid] = data.tables
-        })
+            this.sdk.setState(state => {
+                state.tables[rid] = data.tables
+            })
 
-        return data
+            return data
+        }
+        catch (error) {
+            this.log.error('explore failed', describeError(error))
+            // A query: it reruns (window focus) — one toast per source, replaced, not stacked.
+            NotificationSDK.toast.error("Couldn't load the source's tables", { id: `explore-${rid}`, description: errorMessage(error) })
+
+            throw error
+        }
     }
 }

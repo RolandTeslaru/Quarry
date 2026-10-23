@@ -8,6 +8,7 @@ import { System } from '@quarry/shared/server/system';
 import { ApiModule } from './api.module';
 import { db } from './db/pool';
 import { migrateAll } from './db/migrator';
+import { requestLog } from './http/request-log';
 
 System.log.setAppName('Server');
 
@@ -19,6 +20,7 @@ async function bootstrap(): Promise<void> {
 
     const app = await NestFactory.create<NestExpressApplication>(ApiModule);
 
+    app.use(requestLog);
     app.setGlobalPrefix('api');
     app.useWebSocketAdapter(new WsAdapter(app));            // /socket — plain WebSockets (ws), as in PretzelGraph
     app.enableCors({

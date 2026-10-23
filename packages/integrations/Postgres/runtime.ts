@@ -10,6 +10,17 @@ const libpq = (value: string | number | boolean) =>
     `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
 /**
+ * DuckDB quotes the whole connection string in its errors ("Unable to connect
+ * to Postgres at …"), password included — and the error travels on to the
+ * test result, the toast and the logs. Mask it before it leaves.
+ */
+const redact = (message: string, password: string) => {
+    const masked = message.replace(/password='(?:[^'\\]|\\.)*'/g, "password='***'");
+
+    return password ? masked.split(password).join('***') : masked;
+};
+
+/**
  * Postgres through DuckDB's postgres extension: open() attaches the database
  * read-only under a unique alias on a connection of its own; sync() COPYs a
  * table or a query's result straight to Parquet in the bucket, so rows never pass through Node.
@@ -35,7 +46,15 @@ export class PostgresRuntime extends SourceRuntime<typeof Definition> {
         ].filter(Boolean).join(' ');
 
         this.connection = await this.ctx.duckdb.connect();
-        await this.connection.run(`ATTACH ${literal(dsn)} AS ${identifier(this.alias)} (TYPE postgres, READ_ONLY)`);
+
+        try {
+            await this.connection.run(`ATTACH ${literal(dsn)} AS ${identifier(this.alias)} (TYPE postgres, READ_ONLY)`);
+        }
+        catch (error) {
+            // A new error, not a wrapped one: the original's message (and any cause) holds the password.
+            throw new Error(redact(error instanceof Error ? error.message : String(error), password));
+        }
+
         this.attached = true;
     }
 

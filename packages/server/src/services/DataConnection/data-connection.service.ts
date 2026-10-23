@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, forwardRef, Inject, Injectable,
 import { z } from 'zod';
 import { DataConnection, Identity, Keychain, Storage } from '@quarry/shared/domain';
 import { findDefinition, SOURCE_DEFINITIONS, toWire } from '@quarry/integrations/definitions';
+import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { FileStorage } from '@/infra/file-storage';
 import { QueueManager } from '@/infra/queue';
@@ -44,6 +45,8 @@ export namespace DataConnectionService {
 
     @Injectable()
     export class Sources {
+
+        private readonly log = System.log.withContext('DataConnection');
 
         constructor(
             readonly gatekeeper:           GatekeeperService,
@@ -118,8 +121,12 @@ export namespace DataConnectionService {
             const queueDefinition = DataConnection.Queue.SourceProbe.Definition;
 
             const result = await this.queueManager.request(queueDefinition, { op: 'test', source, credential }, PROBE_TIMEOUT_MS);
+            const tested = result.op === 'test' ? { ok: result.ok, error: result.error } : { ok: false, error: 'Unexpected probe result' };
 
-            return result.op === 'test' ? { ok: result.ok, error: result.error } : { ok: false, error: 'Unexpected probe result' };
+            if (!tested.ok)
+                this.log.warning('Connection test failed', { sourceRid: rid, error: tested.error });
+
+            return tested;
         }
 
         /** Read on the source and on its credential — gated, like test. */

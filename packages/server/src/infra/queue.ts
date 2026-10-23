@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException, type OnModuleDestroy } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, ServiceUnavailableException, type OnModuleDestroy } from '@nestjs/common';
 import { Queue, QueueEvents, type Job, type JobsOptions, type RepeatOptions } from 'bullmq';
 import { Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
@@ -37,6 +37,23 @@ export class QueueTimeoutError extends ServiceUnavailableException {
 }
 
 /**
+ * A request/reply job ran and failed: the worker's own reason, as a 424 (Failed
+ * Dependency) — what the server depended on failed, not the server. Without
+ * it Nest answers a bare 500 and the reason is lost. (Not 502: the frontend
+ * retries those.)
+ */
+export class QueueJobError extends HttpException {
+
+    constructor(
+        readonly queue: Foundations.Queue.Name,
+        readonly jobId: string | undefined,
+        reason:         string,
+    ) {
+        super(reason.trim(), HttpStatus.FAILED_DEPENDENCY);
+    }
+}
+
+/**
  * The only way the server enqueues. Payloads are validated on the way in; the
  * workers (their own packages) validate them again when they consume.
  */
@@ -54,7 +71,7 @@ export class QueueManager implements OnModuleDestroy {
      * Request/reply: enqueue, wait for the processor's result, validate it. No
      * answer in time → logged, then a QueueTimeoutError; a job left waiting (no
      * worker picked it up) is removed, so it doesn't run later for nobody. A
-     * failed job's error comes back as is.
+     * failed job → a QueueJobError with the worker's reason.
      */
     async request<Q extends Definition>(definition: Q, data: InputOf<Q>, timeoutMs: number): Promise<ResultOf<Q>> {
         const job = await this.add(definition, data);
@@ -70,12 +87,12 @@ export class QueueManager implements OnModuleDestroy {
         return definition.result.parse(result) as ResultOf<Q>;
     }
 
-    /** After a failed wait: a QueueTimeoutError if the job never finished (asked of BullMQ, not read from the message), else the job's own error. */
+    /** After a failed wait: a QueueTimeoutError if the job never finished (asked of BullMQ, not read from the message), else a QueueJobError with its reason. */
     private async timeoutOr(job: Job, queue: Foundations.Queue.Name, timeoutMs: number, error: unknown): Promise<unknown> {
         const state = await job.getState();
 
         if (state !== 'waiting' && state !== 'prioritized' && state !== 'delayed' && state !== 'active')
-            return error;
+            return new QueueJobError(queue, job.id, error instanceof Error ? error.message : String(error));
 
         const waiting = state !== 'active';
 

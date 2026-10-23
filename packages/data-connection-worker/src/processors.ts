@@ -96,6 +96,8 @@ export class SourceProbeProcessor extends JobProcessor<typeof DataConnection.Que
 
     protected readonly definition = DataConnection.Queue.SourceProbe.Definition;
 
+    private readonly log = System.log.withContext('SourceProbe');
+
     constructor(private readonly runtimes: SourceRuntimes) {
         super();
     }
@@ -106,10 +108,17 @@ export class SourceProbeProcessor extends JobProcessor<typeof DataConnection.Que
                 try {
                     await this.runtimes.with(job.source, job.credential, async () => undefined);          // open → close: opening is the test
 
+                    this.log.info('Connection test passed', { sourceRid: job.source.rid });
+
                     return { op: 'test', ok: true, error: null };
                 }
                 catch (error) {
-                    return { op: 'test', ok: false, error: error instanceof Error ? error.message : String(error) };
+                    const message = error instanceof Error ? error.message : String(error);
+
+                    // A failed test is an answer, not a job failure — so it's logged here.
+                    this.log.warning('Connection test failed', { sourceRid: job.source.rid, error: message });
+
+                    return { op: 'test', ok: false, error: message };
                 }
 
             case 'explore':
