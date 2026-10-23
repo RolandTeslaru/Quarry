@@ -3,7 +3,7 @@ import { Foundations, Library } from '@quarry/shared/domain'
 import { LibraryExplorerApp } from '@/apps/library/LibraryExplorerApp'
 import { APPS } from '@/shell/apps'
 
-export const Route = createFileRoute('/_workspace/resources/$rid')({
+export const Route = createFileRoute('/_workspace/library/$rid')({
     params: {
         parse: params => {
             const parsed = Library.Resource.Rid.safeParse(params.rid)

@@ -7,7 +7,10 @@ import { BaseSDK } from '../core/BaseSDK'
 import { cleanupSDKs } from '../cleanup'
 import { authClient } from './client'
 import { _createAuthActions_, type _AuthSDKActions } from './actions'
+import { observeAuth, type AuthObserver, type ObserveOptions as ObserveOptions_ } from './observe'
+import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 
+@SDK('Auth')
 export class AuthSDKImpl extends BaseSDK<AuthSDK.State> {
 
     public readonly useStore: BaseSDK.Store<AuthSDK.State> = createWithEqualityFn(
@@ -40,6 +43,11 @@ export class AuthSDKImpl extends BaseSDK<AuthSDK.State> {
         this.runtime.unsubscribe = unsubscribe
 
         return unsubscribe
+    }
+
+    /** Named callbacks for AuthSDK's transitions (`session.onStart`, `session.onEnd`); returns its own removal. */
+    public observe(observer: AuthSDK.Observer, options?: AuthSDK.ObserveOptions): () => void {
+        return observeAuth(this, observer, options)
     }
 
     private handleSessionChange(session: Session | null): void {
@@ -91,7 +99,7 @@ export class AuthSDKImpl extends BaseSDK<AuthSDK.State> {
     }
 }
 
-export const AuthSDK = new AuthSDKImpl()
+export const AuthSDK = SDK.get<AuthSDKImpl>('Auth')
 
 export namespace AuthSDK {
 
@@ -105,4 +113,7 @@ export namespace AuthSDK {
     }
 
     export type Actions = _AuthSDKActions
+
+    export type Observer       = AuthObserver
+    export type ObserveOptions = ObserveOptions_
 }

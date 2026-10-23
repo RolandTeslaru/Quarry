@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { previewSearch } from '@/features/playground/catalog'
 import { StandardPreview } from '@/features/playground/ui/StandardPreview'
 
-export const Route = createFileRoute('/playground_/standard')({
+export const Route = createFileRoute('/playground/standard')({
     validateSearch: previewSearch,
     component: StandardPage,
 })

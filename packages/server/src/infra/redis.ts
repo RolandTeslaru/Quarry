@@ -27,6 +27,14 @@ export function redisConnection(): ConnectionOptions {
     return options();
 }
 
+/**
+ * A connection of its own for Redis pub/sub: once subscribed, a client can't
+ * run other commands, so subscribers never share. The caller closes it.
+ */
+export function redisSubscriber(): Redis {
+    return new Redis(options());
+}
+
 let shared: Redis | undefined;
 
 /**

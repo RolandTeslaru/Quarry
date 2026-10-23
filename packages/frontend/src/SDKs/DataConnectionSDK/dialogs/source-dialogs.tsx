@@ -1,5 +1,6 @@
 import { useTask } from '@/hooks/useTask'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { useId, useState, type FormEvent } from 'react'
 import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { Button } from '@quarry/standard-ui/foundations/button'
@@ -20,7 +21,14 @@ interface Props {
     dialog:    DialogSDK.TemplateProps
 }
 
-export function NewSourceDialog({ parentRid, dialog }: Props) {
+/** A new source in this folder; opens it in Data Connection when it's created. */
+export function openCreateSourceDialog(args: { parentRid: Library.Resource.Rid }) {
+    DialogSDK.actions.push(`create-source-${args.parentRid}`, dialog => (
+        <NewSourceDialog parentRid={args.parentRid} dialog={dialog} />
+    ))
+}
+
+function NewSourceDialog({ parentRid, dialog }: Props) {
     const [definitionId, setDefinitionId] = useState('')
 
     const [definitions, [definitionsRequest]] = DataConnectionSDK.useWith(
@@ -99,7 +107,7 @@ function SourceForm({
     onDefinitionChange,
 }: SourceFormProps) {
     const formId = useId()
-    const task = useTask()
+    const [task, withTask] = useTask()
 
     const [name, setName] = useState('')
     const [credentialRid, setCredentialRid] = useState('')
@@ -118,21 +126,21 @@ function SourceForm({
             config,
         })
 
+        NotificationSDK.toast.success(`Created source ${source.name}`)
+
         await navigate(resourceRoute('source', source.rid))
     }
 
-    function submit(event: FormEvent<HTMLFormElement>) {
+    const submit = withTask(async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
-        if (task.pending || Boolean(definition.credentialTemplateId) && !credentialRid)
+        if (Boolean(definition.credentialTemplateId) && !credentialRid)
             return
 
-        void task.run(async () => {
-            await create()
+        await create()
 
-            DialogSDK.actions.pop(dialog.entry.dialogId)
-        })
-    }
+        DialogSDK.actions.pop(dialog.entry.dialogId)
+    })
 
     return (
         <DialogSDK.Template

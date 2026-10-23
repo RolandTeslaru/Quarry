@@ -1,5 +1,6 @@
 import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { useId, useState, type FormEvent } from 'react'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import type { Keychain } from '@quarry/shared/domain'
@@ -15,15 +16,22 @@ interface Props {
     dialog:     DialogSDK.TemplateProps
 }
 
-export function CredentialEditor({ credential, template, dialog }: Props) {
+/** Edit a credential's values (revealed on request), with its template's form. */
+export function openEditCredentialValuesDialog(args: Omit<Props, 'dialog'>) {
+    DialogSDK.actions.push(`edit-credential-${args.credential.rid}`, dialog => (
+        <CredentialEditor {...args} dialog={dialog} />
+    ))
+}
+
+function CredentialEditor({ credential, template, dialog }: Props) {
     const formId = useId()
-    const saveTask = useTask()
+    const [saveTask, withSaveTask] = useTask()
 
     const [values, setValues] = useState<Values | null>(null)
 
-    const task = useTask()
+    const [task, withTask] = useTask()
 
-    const reveal = () => task.run(async () => {
+    const reveal = withTask(async () => {
         const result = await KeychainSDK.actions.credential.reveal(credential.rid)
 
         setValues(result.values)
@@ -36,18 +44,18 @@ export function CredentialEditor({ credential, template, dialog }: Props) {
         await KeychainSDK.actions.credential.update(credential.rid, values)
     }
 
-    function submit(event: FormEvent<HTMLFormElement>) {
+    const submit = withSaveTask(async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
-        if (saveTask.pending || !values)
+        if (!values)
             return
 
-        void saveTask.run(async () => {
-            await save()
+        await save()
 
-            DialogSDK.actions.pop(dialog.entry.dialogId)
-        })
-    }
+        NotificationSDK.toast.success(`Updated ${credential.name}`)
+
+        DialogSDK.actions.pop(dialog.entry.dialogId)
+    })
 
     return (
         <DialogSDK.Template
@@ -69,7 +77,7 @@ export function CredentialEditor({ credential, template, dialog }: Props) {
                         ) : (
                             <>
                                 <p>Load this credential’s values to edit them. This requires write access and is logged.</p>
-                                <Button icon='unlock' loading={task.pending} onClick={() => void reveal()}>
+                                <Button icon='unlock' loading={task.pending} onClick={reveal}>
                                     Load values
                                 </Button>
                             </>

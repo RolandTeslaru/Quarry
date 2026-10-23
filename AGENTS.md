@@ -118,6 +118,10 @@ return (
 ## 6. Follow the existing frontend state pattern
 
 - Wrap feature state in typed SDK classes backed by Zustand and Immer.
+- Register every SDK in the SDK container (`@quarry/standard-ui/SDKs/SDKManager`, tsyringe, after
+  PretzelGraph): `@SDK('Name')` on the class, `export const XSDK = SDK.get<XSDKImpl>('Name')`. An SDK that
+  needs another resolves it with `SDK.get<OtherSDKImpl>('Other')` and a type-only import, rather than
+  importing its instance (which can close an import cycle) or wiring it from the other SDK's actions.
 - Use the established shallow-equality store pattern for selectors returning
   arrays or objects. Do not create unstable subscriptions that repeatedly render.
 - SDK classes assemble the store, action factories, selectors, and query
@@ -126,6 +130,17 @@ return (
   invalidate relevant queries when necessary, and return the result.
 - Group related actions by domain responsibility, such as `source`, `sync`, and
   `run`, as in PretzelGraph's entity-oriented action factories.
+- Each action group is a class extending `ActionGroup` (`SDKs/core/actions.ts`). The SDK's actions are a class
+  too — `XActions extends ActionGroup` in `actions/index.ts`, holding the groups as fields
+  (`readonly source = new SourceActions(this.sdk)`) — and the SDK has `actions = new XActions(this)`.
+  Callers keep `XSDK.actions.source.create(...)`.
+  Each group names its log once, like a server service
+  (`protected readonly log = log.withContext('DataConnection.Actions.Sync')`). A write action handles its own
+  failure, as PretzelGraph's do: `try { … } catch (error) { this.log.error('create failed', describeError(error));
+  NotificationSDK.toast.error("Couldn't create source", { description: errorMessage(error) }); throw error }`.
+  Log `describeError(error)`, never the raw error (it carries the session token and request body). Rethrow,
+  so the caller can still react (keep its dialog open). Reads (query functions) don't notify — their screen
+  shows the failed load. Don't also show a notified failure inline.
 - Do not add reducers just for symmetry. Direct Immer updates in actions are
   sufficient while state is shallow. Introduce reducers when nested state or
   genuinely shared transitions make them useful.
@@ -179,6 +194,8 @@ if (projectsRequest.isError)
 - Use TanStack Router's file-based routes when wiring the frontend. Do not invent
   a parallel navigation system or use component state as a substitute for routes.
 - Let the router plugin generate the route tree; never hand-edit generated output.
+- An app's routes live in its own folder, `src/apps/<app>/routes/`, mounted at `/<app>` by
+  `src/routes.config.ts`; `src/routes/` holds only the shell's routes (root, workspace layout, auth, playground).
 - Pass typed auth state through router context. Put access checks in route
   `beforeLoad` hooks, with public paths explicitly identified.
 - Initialize auth before protected route loaders run. Keep bootstrap/loading UI
@@ -201,6 +218,11 @@ if (projectsRequest.isError)
   established Quarry components before adding wrappers around the library.
 - Follow the existing dialog ownership and composition pattern. Do not introduce
   another dialog framework or manager when one already exists.
+- Dialogs belong to their SDK, as in PretzelGraph: `SDKs/<X>SDK/dialogs/<entity>-dialogs.tsx` exports
+  `open<Verb><Entity>Dialog(args)`, which pushes the dialog (`DialogSDK.actions.push`); the dialog's
+  component stays private to that file. `dialogs/index.ts` collects them in `_create<X>Dialogs_()`, and the SDK
+  exposes `public readonly dialogs`. Screens call `XSDK.dialogs.openCreateFolder({ … })` — never push dialogs
+  themselves, and never keep dialog components in `ui/`.
 - Keep form validation, submission, pending state, success, and failure paths easy
   to identify. Do not hide them in dense callbacks or nested expressions.
 - Keep credential values local to the form or operation that needs them. Do not

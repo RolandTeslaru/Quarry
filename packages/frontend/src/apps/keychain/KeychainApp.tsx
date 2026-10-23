@@ -1,4 +1,3 @@
-import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
@@ -6,8 +5,6 @@ import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import type { Keychain } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
 import { KeychainSDK } from '@/SDKs/KeychainSDK/sdk'
-import { CredentialDialog } from '@/SDKs/KeychainSDK/ui/CredentialDialog'
-import { CredentialEditor } from '@/SDKs/KeychainSDK/ui/CredentialEditor'
 import { Empty } from '@/components/Empty'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { dateTime, number } from '@/utils/format'
@@ -25,22 +22,13 @@ export function KeychainApp() {
         query => [query.templates],
     )
 
-    function openCreateDialog() {
-        if (templates.length === 0)
-            return
-
-        DialogSDK.actions.push('new-credential', dialog => <CredentialDialog templates={templates} dialog={dialog} />)
-    }
-
     function openEditor(credential: Keychain.Credential.Schema) {
         const template = templates.find(item => item.id === credential.templateId)
 
         if (!template)
             return
 
-        DialogSDK.actions.push(`edit-credential-${credential.rid}`, dialog => (
-            <CredentialEditor credential={credential} template={template} dialog={dialog} />
-        ))
+        KeychainSDK.dialogs.openEditCredentialValues({ credential, template })
     }
 
     return (
@@ -66,7 +54,7 @@ export function KeychainApp() {
                         intent='primary'
                         icon='add'
                         disabled={templates.length === 0}
-                        onClick={openCreateDialog}
+                        onClick={() => KeychainSDK.dialogs.openCreateCredential({ templates })}
                     >
                         New credential
                     </Button>

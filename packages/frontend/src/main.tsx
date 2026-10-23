@@ -1,8 +1,11 @@
+// Must stay first: tsyringe (the SDK container) reads decorator metadata as SDK classes load.
+import 'reflect-metadata'
 import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { AuthSDK } from '@/SDKs/AuthSDK/sdk'
+import { RealtimeSDK } from '@/SDKs/RealtimeSDK/sdk'
 import { AppStatus } from '@/components/AppStatus'
 import { routeTree } from './routeTree.gen'
 import { isPlaygroundPath } from '@/routing/public-paths'
@@ -22,6 +25,7 @@ declare module '@tanstack/react-router' {
 }
 
 AuthSDK.init()
+RealtimeSDK.init()
 
 function QuarryApp() {
     const auth = AuthSDK.useStore(state => state)

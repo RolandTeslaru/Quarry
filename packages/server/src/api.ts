@@ -3,6 +3,7 @@ import './load-env';
 
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { WsAdapter } from '@nestjs/platform-ws';
 import { System } from '@quarry/shared/server/system';
 import { ApiModule } from './api.module';
 import { db } from './db/pool';
@@ -19,6 +20,7 @@ async function bootstrap(): Promise<void> {
     const app = await NestFactory.create<NestExpressApplication>(ApiModule);
 
     app.setGlobalPrefix('api');
+    app.useWebSocketAdapter(new WsAdapter(app));            // /socket — plain WebSockets (ws), as in PretzelGraph
     app.enableCors({
         origin:      (process.env.CORS_ORIGIN ?? 'http://localhost:5173').split(',').map((origin) => origin.trim()),
         credentials: true,

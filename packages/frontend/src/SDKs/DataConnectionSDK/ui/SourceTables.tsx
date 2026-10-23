@@ -1,10 +1,8 @@
-import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import type { DataConnection } from '@quarry/shared/domain'
 import { DataConnectionSDK } from '../sdk'
-import { NewSyncDialog } from './NewSyncDialog'
 import { Empty } from '@/components/Empty'
 import { ErrorNotice } from '@/components/ErrorNotice'
 
@@ -18,12 +16,6 @@ export function SourceTables({ source, definition }: Props) {
         state => state.tables[source.rid] ?? [],
         query => [query.tables(source.rid)],
     )
-
-    function openSyncDialog(table: DataConnection.Source.Table) {
-        DialogSDK.actions.push(`new-sync-${source.rid}`, dialog => (
-            <NewSyncDialog source={source} definition={definition} table={table} dialog={dialog} />
-        ))
-    }
 
     return (
         <section>
@@ -62,7 +54,7 @@ export function SourceTables({ source, definition }: Props) {
                                     <Table.Cell>{table.schema}</Table.Cell>
                                     <Table.Cell className='font-mono'>{table.name}</Table.Cell>
                                     <Table.Cell className='text-right'>
-                                        <Button size='sm' icon='add' onClick={() => openSyncDialog(table)}>
+                                        <Button size='sm' icon='add' onClick={() => DataConnectionSDK.dialogs.openCreateSync({ source, definition, table })}>
                                             Create sync
                                         </Button>
                                     </Table.Cell>

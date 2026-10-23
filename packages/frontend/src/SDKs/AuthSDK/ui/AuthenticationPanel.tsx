@@ -17,25 +17,23 @@ export function AuthenticationPanel() {
     const hasSession = AuthSDK.useStore(state => state.hasSession)
     const accessError = AuthSDK.useStore(state => state.error)
 
-    const task = useTask()
+    const [task, withTask] = useTask()
 
-    const submit = (event: FormEvent<HTMLFormElement>) => {
+    const submit = withTask(async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
-        void task.run(async () => {
-            setConfirmation(false)
+        setConfirmation(false)
 
-            if (isSignup) {
-                const hasSession = await AuthSDK.actions.signup({ email, password })
+        if (isSignup) {
+            const hasSession = await AuthSDK.actions.signup({ email, password })
 
-                setConfirmation(!hasSession)
+            setConfirmation(!hasSession)
 
-                return
-            }
+            return
+        }
 
-            await AuthSDK.actions.login({ email, password })
-        })
-    }
+        await AuthSDK.actions.login({ email, password })
+    })
 
     return (
         <main className='auth-page'>
@@ -73,7 +71,7 @@ export function AuthenticationPanel() {
                             <Button onClick={() => void AuthSDK.actions.syncUser()}>
                                 Check access again
                             </Button>
-                            <Button onClick={() => void task.run(AuthSDK.actions.logout)}>
+                            <Button onClick={withTask(AuthSDK.actions.logout)}>
                                 Sign out
                             </Button>
                         </div>

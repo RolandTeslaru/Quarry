@@ -186,7 +186,7 @@ function ProjectList() {
                 {projects.map(project => (
                     <Link
                         key={project.rid}
-                        to='/resources/$rid'
+                        to='/library/$rid'
                         params={{ rid: project.rid }}
                         className={NAV_LINK}
                         activeProps={{ className: 'bg-muted font-medium' }}
@@ -250,7 +250,7 @@ function ThemeSelect() {
 
 function SidebarFooter() {
     const user = AuthSDK.useStore(state => state.user)
-    const task = useTask()
+    const [task, withTask] = useTask()
 
     return (
         <>
@@ -271,7 +271,7 @@ function SidebarFooter() {
                     aria-label='Sign out'
                     loading={task.pending}
                     className={cn(COLLAPSIBLE, 'shrink-0 text-muted-foreground')}
-                    onClick={() => void task.run(AuthSDK.actions.logout)}
+                    onClick={withTask(AuthSDK.actions.logout)}
                 />
             </div>
 

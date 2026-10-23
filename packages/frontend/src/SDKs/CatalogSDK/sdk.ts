@@ -4,11 +4,14 @@ import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { BaseSDK } from '../core/BaseSDK'
 import { _createCatalogActions_, type _CatalogSDKActions } from './actions'
+import { _createCatalogDialogs_, type _CatalogSDKDialogs } from './dialogs'
+import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 
 /** A committed version never changes; only the latest view moves. */
 const PAST_VIEW_STALE_TIME = Infinity
 const LATEST_VIEW_STALE_TIME = 0
 
+@SDK('Catalog')
 export class CatalogSDKImpl extends BaseSDK<CatalogSDK.State> {
 
     public readonly useStore: BaseSDK.Store<CatalogSDK.State> = createWithEqualityFn(
@@ -19,6 +22,8 @@ export class CatalogSDKImpl extends BaseSDK<CatalogSDK.State> {
     )
 
     public readonly actions: CatalogSDK.Actions = _createCatalogActions_(this)
+
+    public readonly dialogs: CatalogSDK.Dialogs = _createCatalogDialogs_()
 
     // Lists, views and previews are read-only results for one screen: they live in the query cache only.
     public override readonly query = {
@@ -60,7 +65,7 @@ export class CatalogSDKImpl extends BaseSDK<CatalogSDK.State> {
     }
 }
 
-export const CatalogSDK = new CatalogSDKImpl()
+export const CatalogSDK = SDK.get<CatalogSDKImpl>('Catalog')
 
 export namespace CatalogSDK {
 
@@ -69,4 +74,5 @@ export namespace CatalogSDK {
     }
 
     export type Actions = _CatalogSDKActions
+    export type Dialogs = _CatalogSDKDialogs
 }

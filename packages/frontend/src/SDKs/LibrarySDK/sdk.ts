@@ -4,8 +4,11 @@ import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { BaseSDK } from '../core/BaseSDK'
 import { _createLibraryActions_, type _LibrarySDKActions } from './actions'
+import { _createLibraryDialogs_, type _LibrarySDKDialogs } from './dialogs'
 import { _librarySelectors_, type _LibrarySDKSelectors } from './selectors'
+import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 
+@SDK('Library')
 export class LibrarySDKImpl extends BaseSDK<LibrarySDK.State> {
 
     public readonly useStore: BaseSDK.Store<LibrarySDK.State> = createWithEqualityFn(
@@ -19,6 +22,8 @@ export class LibrarySDKImpl extends BaseSDK<LibrarySDK.State> {
     )
 
     public readonly actions: LibrarySDK.Actions = _createLibraryActions_(this)
+
+    public readonly dialogs: LibrarySDK.Dialogs = _createLibraryDialogs_()
 
     public readonly selectors: LibrarySDK.Selectors = _librarySelectors_
 
@@ -49,7 +54,7 @@ export class LibrarySDKImpl extends BaseSDK<LibrarySDK.State> {
     }
 }
 
-export const LibrarySDK = new LibrarySDKImpl()
+export const LibrarySDK = SDK.get<LibrarySDKImpl>('Library')
 
 export namespace LibrarySDK {
 
@@ -61,5 +66,6 @@ export namespace LibrarySDK {
     }
 
     export type Actions   = _LibrarySDKActions
+    export type Dialogs = _LibrarySDKDialogs
     export type Selectors = _LibrarySDKSelectors
 }

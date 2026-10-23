@@ -1,18 +1,18 @@
+import { ActionGroup } from '@/SDKs/core/actions'
+import { log } from '@/SDKs/core/log'
 import type { DataConnectionSDKImpl } from '../sdk'
-import { createSourceActions, type SourceActions } from './source'
-import { createSyncActions, type SyncActions } from './sync'
-import { createRunActions, type RunActions } from './run'
+import { SourceActions } from './source'
+import { SyncActions } from './sync'
+import { RunActions } from './run'
 
-export type _DataConnectionSDKActions = {
-    source: SourceActions
-    sync:   SyncActions
-    run:    RunActions
-}
+/** `DataConnectionSDK.actions`: its groups, by what they act on. */
+export class DataConnectionActions extends ActionGroup<DataConnectionSDKImpl> {
 
-export function _createDataConnectionActions_(sdk: DataConnectionSDKImpl): _DataConnectionSDKActions {
-    return {
-        source: createSourceActions(sdk),
-        sync: createSyncActions(sdk),
-        run: createRunActions(sdk),
-    }
+    protected readonly log = log.withContext('DataConnection.Actions')
+
+    readonly source = new SourceActions(this.sdk)
+
+    readonly sync = new SyncActions(this.sdk)
+
+    readonly run = new RunActions(this.sdk)
 }

@@ -8,9 +8,11 @@ import { dialogSelectors, type DialogSDKSelectors } from './selectors'
 import { Template, UnstyledTemplate, SplitTemplate, TripleSplitTemplate } from './ui/templates'
 import { AlertTemplate } from './ui/AlertTemplate'
 import { TabsTemplate } from './ui/TabsTemplate'
+import { SDK } from '../SDKManager'
 
 enableMapSet()
 
+@SDK('Dialog')
 export class DialogSDKImpl {
 
     public readonly EXIT_ANIMATION_MS = 400
@@ -89,7 +91,7 @@ export class DialogSDKImpl {
     }
 }
 
-export const DialogSDK = new DialogSDKImpl()
+export const DialogSDK = SDK.get<DialogSDKImpl>('Dialog')
 
 export namespace DialogSDK {
 

@@ -31,7 +31,7 @@ export function LibraryExplorerApp({ cwd, tab }: Props) {
             return
         }
 
-        void navigate({ to: '/resources/$rid', params: { rid: next } })
+        void navigate({ to: '/library/$rid', params: { rid: next } })
     }
 
     function openItem(resource: Library.Resource.Base) {

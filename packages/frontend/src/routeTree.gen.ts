@@ -9,158 +9,156 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as WorkspaceRouteImport } from './routes/_workspace'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as PlaygroundRouteImport } from './routes/playground'
-import { Route as WorkspaceKeychainRouteImport } from './routes/_workspace.keychain'
-import { Route as WorkspaceLayoutDemoRouteImport } from './routes/_workspace.layout-demo'
-import { Route as WorkspaceLibraryRouteImport } from './routes/_workspace.library'
-import { Route as WorkspaceMinimalDemoRouteImport } from './routes/_workspace.minimal-demo'
-import { Route as WorkspacePipelineBuilderRouteImport } from './routes/_workspace.pipeline-builder'
-import { Route as PlaygroundBlueprintRouteImport } from './routes/playground_.blueprint'
-import { Route as PlaygroundStandardRouteImport } from './routes/playground_.standard'
-import { Route as WorkspaceDataConnectionIndexRouteImport } from './routes/_workspace.data-connection.index'
-import { Route as WorkspaceDatasetsIndexRouteImport } from './routes/_workspace.datasets.index'
-import { Route as WorkspaceDatasetsRidRouteImport } from './routes/_workspace.datasets.$rid'
-import { Route as WorkspaceResourcesRidRouteImport } from './routes/_workspace.resources.$rid'
-import { Route as WorkspaceDataConnectionSourcesRidRouteImport } from './routes/_workspace.data-connection.sources.$rid'
+import { Route as indexRouteImport } from './routes/index'
+import { Route as workspaceRouteImport } from './routes/_workspace'
+import { Route as authRouteImport } from './routes/auth'
+import { Route as playgroundRouteImport } from './routes/playground'
+import { Route as playground_DotblueprintRouteImport } from './routes/playground_.blueprint'
+import { Route as playground_DotstandardRouteImport } from './routes/playground_.standard'
+import { Route as DataConnectionIndexRouteImport } from './apps/data-connection/routes/index'
+import { Route as DatasetsIndexRouteImport } from './apps/datasets/routes/index'
+import { Route as DatasetsRidRouteImport } from './apps/datasets/routes/$rid'
+import { Route as KeychainIndexRouteImport } from './apps/keychain/routes/index'
+import { Route as LayoutDemoIndexRouteImport } from './apps/layout-demo/routes/index'
+import { Route as LibraryIndexRouteImport } from './apps/library/routes/index'
+import { Route as LibraryRidRouteImport } from './apps/library/routes/$rid'
+import { Route as MinimalDemoIndexRouteImport } from './apps/minimal-demo/routes/index'
+import { Route as PipelineBuilderIndexRouteImport } from './apps/pipeline-builder/routes/index'
+import { Route as DataConnectionSourcesDotridRouteImport } from './apps/data-connection/routes/sources.$rid'
 
-const IndexRoute = IndexRouteImport.update({
+const indexRoute = indexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkspaceRoute = WorkspaceRouteImport.update({
+const workspaceRoute = workspaceRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
+const authRoute = authRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlaygroundRoute = PlaygroundRouteImport.update({
+const playgroundRoute = playgroundRouteImport.update({
   id: '/playground',
   path: '/playground',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkspaceKeychainRoute = WorkspaceKeychainRouteImport.update({
-  id: '/keychain',
-  path: '/keychain',
-  getParentRoute: () => WorkspaceRoute,
-} as any)
-const WorkspaceLayoutDemoRoute = WorkspaceLayoutDemoRouteImport.update({
-  id: '/layout-demo',
-  path: '/layout-demo',
-  getParentRoute: () => WorkspaceRoute,
-} as any)
-const WorkspaceLibraryRoute = WorkspaceLibraryRouteImport.update({
-  id: '/library',
-  path: '/library',
-  getParentRoute: () => WorkspaceRoute,
-} as any)
-const WorkspaceMinimalDemoRoute = WorkspaceMinimalDemoRouteImport.update({
-  id: '/minimal-demo',
-  path: '/minimal-demo',
-  getParentRoute: () => WorkspaceRoute,
-} as any)
-const WorkspacePipelineBuilderRoute =
-  WorkspacePipelineBuilderRouteImport.update({
-    id: '/pipeline-builder',
-    path: '/pipeline-builder',
-    getParentRoute: () => WorkspaceRoute,
-  } as any)
-const PlaygroundBlueprintRoute = PlaygroundBlueprintRouteImport.update({
-  id: '/playground_/blueprint',
+const playground_DotblueprintRoute = playground_DotblueprintRouteImport.update({
+  id: '/playground/blueprint',
   path: '/playground/blueprint',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlaygroundStandardRoute = PlaygroundStandardRouteImport.update({
-  id: '/playground_/standard',
+const playground_DotstandardRoute = playground_DotstandardRouteImport.update({
+  id: '/playground/standard',
   path: '/playground/standard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkspaceDataConnectionIndexRoute =
-  WorkspaceDataConnectionIndexRouteImport.update({
-    id: '/data-connection/',
-    path: '/data-connection/',
-    getParentRoute: () => WorkspaceRoute,
-  } as any)
-const WorkspaceDatasetsIndexRoute = WorkspaceDatasetsIndexRouteImport.update({
+const DataConnectionIndexRoute = DataConnectionIndexRouteImport.update({
+  id: '/data-connection/',
+  path: '/data-connection/',
+  getParentRoute: () => workspaceRoute,
+} as any)
+const DatasetsIndexRoute = DatasetsIndexRouteImport.update({
   id: '/datasets/',
   path: '/datasets/',
-  getParentRoute: () => WorkspaceRoute,
+  getParentRoute: () => workspaceRoute,
 } as any)
-const WorkspaceDatasetsRidRoute = WorkspaceDatasetsRidRouteImport.update({
+const DatasetsRidRoute = DatasetsRidRouteImport.update({
   id: '/datasets/$rid',
   path: '/datasets/$rid',
-  getParentRoute: () => WorkspaceRoute,
+  getParentRoute: () => workspaceRoute,
 } as any)
-const WorkspaceResourcesRidRoute = WorkspaceResourcesRidRouteImport.update({
-  id: '/resources/$rid',
-  path: '/resources/$rid',
-  getParentRoute: () => WorkspaceRoute,
+const KeychainIndexRoute = KeychainIndexRouteImport.update({
+  id: '/keychain/',
+  path: '/keychain/',
+  getParentRoute: () => workspaceRoute,
 } as any)
-const WorkspaceDataConnectionSourcesRidRoute =
-  WorkspaceDataConnectionSourcesRidRouteImport.update({
+const LayoutDemoIndexRoute = LayoutDemoIndexRouteImport.update({
+  id: '/layout-demo/',
+  path: '/layout-demo/',
+  getParentRoute: () => workspaceRoute,
+} as any)
+const LibraryIndexRoute = LibraryIndexRouteImport.update({
+  id: '/library/',
+  path: '/library/',
+  getParentRoute: () => workspaceRoute,
+} as any)
+const LibraryRidRoute = LibraryRidRouteImport.update({
+  id: '/library/$rid',
+  path: '/library/$rid',
+  getParentRoute: () => workspaceRoute,
+} as any)
+const MinimalDemoIndexRoute = MinimalDemoIndexRouteImport.update({
+  id: '/minimal-demo/',
+  path: '/minimal-demo/',
+  getParentRoute: () => workspaceRoute,
+} as any)
+const PipelineBuilderIndexRoute = PipelineBuilderIndexRouteImport.update({
+  id: '/pipeline-builder/',
+  path: '/pipeline-builder/',
+  getParentRoute: () => workspaceRoute,
+} as any)
+const DataConnectionSourcesDotridRoute =
+  DataConnectionSourcesDotridRouteImport.update({
     id: '/data-connection/sources/$rid',
     path: '/data-connection/sources/$rid',
-    getParentRoute: () => WorkspaceRoute,
+    getParentRoute: () => workspaceRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
-  '/playground': typeof PlaygroundRoute
-  '/keychain': typeof WorkspaceKeychainRoute
-  '/layout-demo': typeof WorkspaceLayoutDemoRoute
-  '/library': typeof WorkspaceLibraryRoute
-  '/minimal-demo': typeof WorkspaceMinimalDemoRoute
-  '/pipeline-builder': typeof WorkspacePipelineBuilderRoute
-  '/playground/blueprint': typeof PlaygroundBlueprintRoute
-  '/playground/standard': typeof PlaygroundStandardRoute
-  '/datasets/$rid': typeof WorkspaceDatasetsRidRoute
-  '/resources/$rid': typeof WorkspaceResourcesRidRoute
-  '/data-connection/': typeof WorkspaceDataConnectionIndexRoute
-  '/datasets/': typeof WorkspaceDatasetsIndexRoute
-  '/data-connection/sources/$rid': typeof WorkspaceDataConnectionSourcesRidRoute
+  '/': typeof indexRoute
+  '/auth': typeof authRoute
+  '/playground': typeof playgroundRoute
+  '/playground/blueprint': typeof playground_DotblueprintRoute
+  '/playground/standard': typeof playground_DotstandardRoute
+  '/datasets/$rid': typeof DatasetsRidRoute
+  '/library/$rid': typeof LibraryRidRoute
+  '/data-connection/': typeof DataConnectionIndexRoute
+  '/datasets/': typeof DatasetsIndexRoute
+  '/keychain/': typeof KeychainIndexRoute
+  '/layout-demo/': typeof LayoutDemoIndexRoute
+  '/library/': typeof LibraryIndexRoute
+  '/minimal-demo/': typeof MinimalDemoIndexRoute
+  '/pipeline-builder/': typeof PipelineBuilderIndexRoute
+  '/data-connection/sources/$rid': typeof DataConnectionSourcesDotridRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
-  '/playground': typeof PlaygroundRoute
-  '/keychain': typeof WorkspaceKeychainRoute
-  '/layout-demo': typeof WorkspaceLayoutDemoRoute
-  '/library': typeof WorkspaceLibraryRoute
-  '/minimal-demo': typeof WorkspaceMinimalDemoRoute
-  '/pipeline-builder': typeof WorkspacePipelineBuilderRoute
-  '/playground/blueprint': typeof PlaygroundBlueprintRoute
-  '/playground/standard': typeof PlaygroundStandardRoute
-  '/datasets/$rid': typeof WorkspaceDatasetsRidRoute
-  '/resources/$rid': typeof WorkspaceResourcesRidRoute
-  '/data-connection': typeof WorkspaceDataConnectionIndexRoute
-  '/datasets': typeof WorkspaceDatasetsIndexRoute
-  '/data-connection/sources/$rid': typeof WorkspaceDataConnectionSourcesRidRoute
+  '/': typeof indexRoute
+  '/auth': typeof authRoute
+  '/playground': typeof playgroundRoute
+  '/playground/blueprint': typeof playground_DotblueprintRoute
+  '/playground/standard': typeof playground_DotstandardRoute
+  '/datasets/$rid': typeof DatasetsRidRoute
+  '/library/$rid': typeof LibraryRidRoute
+  '/data-connection': typeof DataConnectionIndexRoute
+  '/datasets': typeof DatasetsIndexRoute
+  '/keychain': typeof KeychainIndexRoute
+  '/layout-demo': typeof LayoutDemoIndexRoute
+  '/library': typeof LibraryIndexRoute
+  '/minimal-demo': typeof MinimalDemoIndexRoute
+  '/pipeline-builder': typeof PipelineBuilderIndexRoute
+  '/data-connection/sources/$rid': typeof DataConnectionSourcesDotridRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/_workspace': typeof WorkspaceRouteWithChildren
-  '/auth': typeof AuthRoute
-  '/playground': typeof PlaygroundRoute
-  '/_workspace/keychain': typeof WorkspaceKeychainRoute
-  '/_workspace/layout-demo': typeof WorkspaceLayoutDemoRoute
-  '/_workspace/library': typeof WorkspaceLibraryRoute
-  '/_workspace/minimal-demo': typeof WorkspaceMinimalDemoRoute
-  '/_workspace/pipeline-builder': typeof WorkspacePipelineBuilderRoute
-  '/playground_/blueprint': typeof PlaygroundBlueprintRoute
-  '/playground_/standard': typeof PlaygroundStandardRoute
-  '/_workspace/datasets/$rid': typeof WorkspaceDatasetsRidRoute
-  '/_workspace/resources/$rid': typeof WorkspaceResourcesRidRoute
-  '/_workspace/data-connection/': typeof WorkspaceDataConnectionIndexRoute
-  '/_workspace/datasets/': typeof WorkspaceDatasetsIndexRoute
-  '/_workspace/data-connection/sources/$rid': typeof WorkspaceDataConnectionSourcesRidRoute
+  '/': typeof indexRoute
+  '/_workspace': typeof workspaceRouteWithChildren
+  '/auth': typeof authRoute
+  '/playground': typeof playgroundRoute
+  '/playground/blueprint': typeof playground_DotblueprintRoute
+  '/playground/standard': typeof playground_DotstandardRoute
+  '/_workspace/datasets/$rid': typeof DatasetsRidRoute
+  '/_workspace/library/$rid': typeof LibraryRidRoute
+  '/_workspace/data-connection/': typeof DataConnectionIndexRoute
+  '/_workspace/datasets/': typeof DatasetsIndexRoute
+  '/_workspace/keychain/': typeof KeychainIndexRoute
+  '/_workspace/layout-demo/': typeof LayoutDemoIndexRoute
+  '/_workspace/library/': typeof LibraryIndexRoute
+  '/_workspace/minimal-demo/': typeof MinimalDemoIndexRoute
+  '/_workspace/pipeline-builder/': typeof PipelineBuilderIndexRoute
+  '/_workspace/data-connection/sources/$rid': typeof DataConnectionSourcesDotridRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -168,34 +166,34 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/playground'
-    | '/keychain'
-    | '/layout-demo'
-    | '/library'
-    | '/minimal-demo'
-    | '/pipeline-builder'
     | '/playground/blueprint'
     | '/playground/standard'
     | '/datasets/$rid'
-    | '/resources/$rid'
+    | '/library/$rid'
     | '/data-connection/'
     | '/datasets/'
+    | '/keychain/'
+    | '/layout-demo/'
+    | '/library/'
+    | '/minimal-demo/'
+    | '/pipeline-builder/'
     | '/data-connection/sources/$rid'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/playground'
+    | '/playground/blueprint'
+    | '/playground/standard'
+    | '/datasets/$rid'
+    | '/library/$rid'
+    | '/data-connection'
+    | '/datasets'
     | '/keychain'
     | '/layout-demo'
     | '/library'
     | '/minimal-demo'
     | '/pipeline-builder'
-    | '/playground/blueprint'
-    | '/playground/standard'
-    | '/datasets/$rid'
-    | '/resources/$rid'
-    | '/data-connection'
-    | '/datasets'
     | '/data-connection/sources/$rid'
   id:
     | '__root__'
@@ -203,27 +201,27 @@ export interface FileRouteTypes {
     | '/_workspace'
     | '/auth'
     | '/playground'
-    | '/_workspace/keychain'
-    | '/_workspace/layout-demo'
-    | '/_workspace/library'
-    | '/_workspace/minimal-demo'
-    | '/_workspace/pipeline-builder'
-    | '/playground_/blueprint'
-    | '/playground_/standard'
+    | '/playground/blueprint'
+    | '/playground/standard'
     | '/_workspace/datasets/$rid'
-    | '/_workspace/resources/$rid'
+    | '/_workspace/library/$rid'
     | '/_workspace/data-connection/'
     | '/_workspace/datasets/'
+    | '/_workspace/keychain/'
+    | '/_workspace/layout-demo/'
+    | '/_workspace/library/'
+    | '/_workspace/minimal-demo/'
+    | '/_workspace/pipeline-builder/'
     | '/_workspace/data-connection/sources/$rid'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  WorkspaceRoute: typeof WorkspaceRouteWithChildren
-  AuthRoute: typeof AuthRoute
-  PlaygroundRoute: typeof PlaygroundRoute
-  PlaygroundBlueprintRoute: typeof PlaygroundBlueprintRoute
-  PlaygroundStandardRoute: typeof PlaygroundStandardRoute
+  indexRoute: typeof indexRoute
+  workspaceRoute: typeof workspaceRouteWithChildren
+  authRoute: typeof authRoute
+  playgroundRoute: typeof playgroundRoute
+  playground_DotblueprintRoute: typeof playground_DotblueprintRoute
+  playground_DotstandardRoute: typeof playground_DotstandardRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,155 +230,154 @@ declare module '@tanstack/react-router' {
       id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof indexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_workspace': {
       id: '/_workspace'
       path: ''
       fullPath: '/'
-      preLoaderRoute: typeof WorkspaceRouteImport
+      preLoaderRoute: typeof workspaceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
       id: '/auth'
       path: '/auth'
       fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+      preLoaderRoute: typeof authRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/playground': {
       id: '/playground'
       path: '/playground'
       fullPath: '/playground'
-      preLoaderRoute: typeof PlaygroundRouteImport
+      preLoaderRoute: typeof playgroundRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_workspace/keychain': {
-      id: '/_workspace/keychain'
-      path: '/keychain'
-      fullPath: '/keychain'
-      preLoaderRoute: typeof WorkspaceKeychainRouteImport
-      parentRoute: typeof WorkspaceRoute
-    }
-    '/_workspace/layout-demo': {
-      id: '/_workspace/layout-demo'
-      path: '/layout-demo'
-      fullPath: '/layout-demo'
-      preLoaderRoute: typeof WorkspaceLayoutDemoRouteImport
-      parentRoute: typeof WorkspaceRoute
-    }
-    '/_workspace/library': {
-      id: '/_workspace/library'
-      path: '/library'
-      fullPath: '/library'
-      preLoaderRoute: typeof WorkspaceLibraryRouteImport
-      parentRoute: typeof WorkspaceRoute
-    }
-    '/_workspace/minimal-demo': {
-      id: '/_workspace/minimal-demo'
-      path: '/minimal-demo'
-      fullPath: '/minimal-demo'
-      preLoaderRoute: typeof WorkspaceMinimalDemoRouteImport
-      parentRoute: typeof WorkspaceRoute
-    }
-    '/_workspace/pipeline-builder': {
-      id: '/_workspace/pipeline-builder'
-      path: '/pipeline-builder'
-      fullPath: '/pipeline-builder'
-      preLoaderRoute: typeof WorkspacePipelineBuilderRouteImport
-      parentRoute: typeof WorkspaceRoute
-    }
-    '/playground_/blueprint': {
-      id: '/playground_/blueprint'
+    '/playground/blueprint': {
+      id: '/playground/blueprint'
       path: '/playground/blueprint'
       fullPath: '/playground/blueprint'
-      preLoaderRoute: typeof PlaygroundBlueprintRouteImport
+      preLoaderRoute: typeof playground_DotblueprintRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/playground_/standard': {
-      id: '/playground_/standard'
+    '/playground/standard': {
+      id: '/playground/standard'
       path: '/playground/standard'
       fullPath: '/playground/standard'
-      preLoaderRoute: typeof PlaygroundStandardRouteImport
+      preLoaderRoute: typeof playground_DotstandardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_workspace/data-connection/': {
       id: '/_workspace/data-connection/'
       path: '/data-connection'
       fullPath: '/data-connection/'
-      preLoaderRoute: typeof WorkspaceDataConnectionIndexRouteImport
-      parentRoute: typeof WorkspaceRoute
+      preLoaderRoute: typeof DataConnectionIndexRouteImport
+      parentRoute: typeof workspaceRoute
     }
     '/_workspace/datasets/': {
       id: '/_workspace/datasets/'
       path: '/datasets'
       fullPath: '/datasets/'
-      preLoaderRoute: typeof WorkspaceDatasetsIndexRouteImport
-      parentRoute: typeof WorkspaceRoute
+      preLoaderRoute: typeof DatasetsIndexRouteImport
+      parentRoute: typeof workspaceRoute
     }
     '/_workspace/datasets/$rid': {
       id: '/_workspace/datasets/$rid'
       path: '/datasets/$rid'
       fullPath: '/datasets/$rid'
-      preLoaderRoute: typeof WorkspaceDatasetsRidRouteImport
-      parentRoute: typeof WorkspaceRoute
+      preLoaderRoute: typeof DatasetsRidRouteImport
+      parentRoute: typeof workspaceRoute
     }
-    '/_workspace/resources/$rid': {
-      id: '/_workspace/resources/$rid'
-      path: '/resources/$rid'
-      fullPath: '/resources/$rid'
-      preLoaderRoute: typeof WorkspaceResourcesRidRouteImport
-      parentRoute: typeof WorkspaceRoute
+    '/_workspace/keychain/': {
+      id: '/_workspace/keychain/'
+      path: '/keychain'
+      fullPath: '/keychain/'
+      preLoaderRoute: typeof KeychainIndexRouteImport
+      parentRoute: typeof workspaceRoute
+    }
+    '/_workspace/layout-demo/': {
+      id: '/_workspace/layout-demo/'
+      path: '/layout-demo'
+      fullPath: '/layout-demo/'
+      preLoaderRoute: typeof LayoutDemoIndexRouteImport
+      parentRoute: typeof workspaceRoute
+    }
+    '/_workspace/library/': {
+      id: '/_workspace/library/'
+      path: '/library'
+      fullPath: '/library/'
+      preLoaderRoute: typeof LibraryIndexRouteImport
+      parentRoute: typeof workspaceRoute
+    }
+    '/_workspace/library/$rid': {
+      id: '/_workspace/library/$rid'
+      path: '/library/$rid'
+      fullPath: '/library/$rid'
+      preLoaderRoute: typeof LibraryRidRouteImport
+      parentRoute: typeof workspaceRoute
+    }
+    '/_workspace/minimal-demo/': {
+      id: '/_workspace/minimal-demo/'
+      path: '/minimal-demo'
+      fullPath: '/minimal-demo/'
+      preLoaderRoute: typeof MinimalDemoIndexRouteImport
+      parentRoute: typeof workspaceRoute
+    }
+    '/_workspace/pipeline-builder/': {
+      id: '/_workspace/pipeline-builder/'
+      path: '/pipeline-builder'
+      fullPath: '/pipeline-builder/'
+      preLoaderRoute: typeof PipelineBuilderIndexRouteImport
+      parentRoute: typeof workspaceRoute
     }
     '/_workspace/data-connection/sources/$rid': {
       id: '/_workspace/data-connection/sources/$rid'
       path: '/data-connection/sources/$rid'
       fullPath: '/data-connection/sources/$rid'
-      preLoaderRoute: typeof WorkspaceDataConnectionSourcesRidRouteImport
-      parentRoute: typeof WorkspaceRoute
+      preLoaderRoute: typeof DataConnectionSourcesDotridRouteImport
+      parentRoute: typeof workspaceRoute
     }
   }
 }
 
-interface WorkspaceRouteChildren {
-  WorkspaceKeychainRoute: typeof WorkspaceKeychainRoute
-  WorkspaceLayoutDemoRoute: typeof WorkspaceLayoutDemoRoute
-  WorkspaceLibraryRoute: typeof WorkspaceLibraryRoute
-  WorkspaceMinimalDemoRoute: typeof WorkspaceMinimalDemoRoute
-  WorkspacePipelineBuilderRoute: typeof WorkspacePipelineBuilderRoute
-  WorkspaceDatasetsRidRoute: typeof WorkspaceDatasetsRidRoute
-  WorkspaceResourcesRidRoute: typeof WorkspaceResourcesRidRoute
-  WorkspaceDataConnectionIndexRoute: typeof WorkspaceDataConnectionIndexRoute
-  WorkspaceDatasetsIndexRoute: typeof WorkspaceDatasetsIndexRoute
-  WorkspaceDataConnectionSourcesRidRoute: typeof WorkspaceDataConnectionSourcesRidRoute
+interface workspaceRouteChildren {
+  DatasetsRidRoute: typeof DatasetsRidRoute
+  LibraryRidRoute: typeof LibraryRidRoute
+  DataConnectionIndexRoute: typeof DataConnectionIndexRoute
+  DatasetsIndexRoute: typeof DatasetsIndexRoute
+  KeychainIndexRoute: typeof KeychainIndexRoute
+  LayoutDemoIndexRoute: typeof LayoutDemoIndexRoute
+  LibraryIndexRoute: typeof LibraryIndexRoute
+  MinimalDemoIndexRoute: typeof MinimalDemoIndexRoute
+  PipelineBuilderIndexRoute: typeof PipelineBuilderIndexRoute
+  DataConnectionSourcesDotridRoute: typeof DataConnectionSourcesDotridRoute
 }
 
-const WorkspaceRouteChildren: WorkspaceRouteChildren = {
-  WorkspaceKeychainRoute: WorkspaceKeychainRoute,
-  WorkspaceLayoutDemoRoute: WorkspaceLayoutDemoRoute,
-  WorkspaceLibraryRoute: WorkspaceLibraryRoute,
-  WorkspaceMinimalDemoRoute: WorkspaceMinimalDemoRoute,
-  WorkspacePipelineBuilderRoute: WorkspacePipelineBuilderRoute,
-  WorkspaceDatasetsRidRoute: WorkspaceDatasetsRidRoute,
-  WorkspaceResourcesRidRoute: WorkspaceResourcesRidRoute,
-  WorkspaceDataConnectionIndexRoute: WorkspaceDataConnectionIndexRoute,
-  WorkspaceDatasetsIndexRoute: WorkspaceDatasetsIndexRoute,
-  WorkspaceDataConnectionSourcesRidRoute:
-    WorkspaceDataConnectionSourcesRidRoute,
+const workspaceRouteChildren: workspaceRouteChildren = {
+  DatasetsRidRoute: DatasetsRidRoute,
+  LibraryRidRoute: LibraryRidRoute,
+  DataConnectionIndexRoute: DataConnectionIndexRoute,
+  DatasetsIndexRoute: DatasetsIndexRoute,
+  KeychainIndexRoute: KeychainIndexRoute,
+  LayoutDemoIndexRoute: LayoutDemoIndexRoute,
+  LibraryIndexRoute: LibraryIndexRoute,
+  MinimalDemoIndexRoute: MinimalDemoIndexRoute,
+  PipelineBuilderIndexRoute: PipelineBuilderIndexRoute,
+  DataConnectionSourcesDotridRoute: DataConnectionSourcesDotridRoute,
 }
 
-const WorkspaceRouteWithChildren = WorkspaceRoute._addFileChildren(
-  WorkspaceRouteChildren,
+const workspaceRouteWithChildren = workspaceRoute._addFileChildren(
+  workspaceRouteChildren,
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  WorkspaceRoute: WorkspaceRouteWithChildren,
-  AuthRoute: AuthRoute,
-  PlaygroundRoute: PlaygroundRoute,
-  PlaygroundBlueprintRoute: PlaygroundBlueprintRoute,
-  PlaygroundStandardRoute: PlaygroundStandardRoute,
+  indexRoute: indexRoute,
+  workspaceRoute: workspaceRouteWithChildren,
+  authRoute: authRoute,
+  playgroundRoute: playgroundRoute,
+  playground_DotblueprintRoute: playground_DotblueprintRoute,
+  playground_DotstandardRoute: playground_DotstandardRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

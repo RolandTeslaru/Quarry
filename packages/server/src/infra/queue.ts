@@ -1,6 +1,7 @@
-import { Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException, type OnModuleDestroy } from '@nestjs/common';
 import { Queue, QueueEvents, type Job, type JobsOptions, type RepeatOptions } from 'bullmq';
 import { Foundations } from '@quarry/shared/domain';
+import { System } from '@quarry/shared/server/system';
 import { QUEUE_PREFIX, closeSharedRedis, redisConnection, sharedRedis } from './redis';
 
 /**
@@ -10,6 +11,30 @@ import { QUEUE_PREFIX, closeSharedRedis, redisConnection, sharedRedis } from './
 type Definition = Foundations.Queue.Definition;
 type InputOf<Q extends Definition>  = Foundations.Queue.InputOf<Q>;
 type ResultOf<Q extends Definition> = Foundations.Queue.ResultOf<Q>;
+
+const log = System.log.withContext('Queue');
+
+/**
+ * A request/reply job got no answer in time. A 503 if nobody catches it — the
+ * message says why; a service that wants to handle it differently catches it
+ * (`instanceof QueueTimeoutError`).
+ */
+export class QueueTimeoutError extends ServiceUnavailableException {
+
+    constructor(
+        readonly queue:     Foundations.Queue.Name,
+        readonly jobId:     string | undefined,
+        /** `waiting`: no worker picked it up. `active`: a worker took it but didn't finish. */
+        readonly state:     'waiting' | 'active',
+        readonly timeoutMs: number,
+    ) {
+        const seconds = Math.round(timeoutMs / 1000);
+
+        super(state === 'waiting'
+            ? `No worker picked up ${queue} within ${seconds} s — is its worker running?`
+            : `The ${queue} worker didn't finish within ${seconds} s`);
+    }
+}
 
 /**
  * The only way the server enqueues. Payloads are validated on the way in; the
@@ -25,12 +50,46 @@ export class QueueManager implements OnModuleDestroy {
         return this.ensure(definition).add(definition.name, definition.job.parse(data), options);
     }
 
-    /** Request/reply: enqueue, wait for the processor's result, validate it. */
+    /**
+     * Request/reply: enqueue, wait for the processor's result, validate it. No
+     * answer in time → logged, then a QueueTimeoutError; a job left waiting (no
+     * worker picked it up) is removed, so it doesn't run later for nobody. A
+     * failed job's error comes back as is.
+     */
     async request<Q extends Definition>(definition: Q, data: InputOf<Q>, timeoutMs: number): Promise<ResultOf<Q>> {
         const job = await this.add(definition, data);
-        const result: unknown = await job.waitUntilFinished(this.ensureEvents(definition), timeoutMs);
+        let result: unknown;
+
+        try {
+            result = await job.waitUntilFinished(this.ensureEvents(definition), timeoutMs);
+        }
+        catch (error) {
+            throw await this.timeoutOr(job, definition.name, timeoutMs, error);
+        }
 
         return definition.result.parse(result) as ResultOf<Q>;
+    }
+
+    /** After a failed wait: a QueueTimeoutError if the job never finished (asked of BullMQ, not read from the message), else the job's own error. */
+    private async timeoutOr(job: Job, queue: Foundations.Queue.Name, timeoutMs: number, error: unknown): Promise<unknown> {
+        const state = await job.getState();
+
+        if (state !== 'waiting' && state !== 'prioritized' && state !== 'delayed' && state !== 'active')
+            return error;
+
+        const waiting = state !== 'active';
+
+        if (waiting)
+            await job.remove().catch(() => undefined);                          // a worker may have taken it this instant
+
+        log.error(waiting ? 'No worker picked up a request' : 'A worker did not finish a request in time', {
+            queue,
+            jobId: job.id,
+            state,
+            timeoutMs,
+        });
+
+        return new QueueTimeoutError(queue, job.id, waiting ? 'waiting' : 'active', timeoutMs);
     }
 
     /** Cron or interval schedule that enqueues `data` — idempotent per scheduler id. */

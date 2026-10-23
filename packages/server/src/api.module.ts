@@ -1,6 +1,7 @@
 import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from '@/auth/auth.guard';
+import { TokenVerifier } from '@/auth/token-verifier';
 import { HealthController } from '@/http/health.controller';
 import { InfraModule } from '@/infra/infra.module';
 import { IdentityModule } from '@/services/Identity/identity.module';
@@ -19,6 +20,7 @@ import { CatalogInternalController } from '@/services/Catalog/catalog.internal.c
 import { DataConnectionModule } from '@/services/DataConnection/data-connection.module';
 import { DataConnectionController } from '@/services/DataConnection/data-connection.controller';
 import { DataConnectionInternalController } from '@/services/DataConnection/data-connection.internal.controller';
+import { RealtimeModule } from '@/services/Realtime/realtime.module';
 
 /**
  * The server: every service's module + all controllers, including the
@@ -28,6 +30,7 @@ import { DataConnectionInternalController } from '@/services/DataConnection/data
 @Module({
     imports: [
         InfraModule,
+        RealtimeModule,
         IdentityModule,
         LibraryModule,
         GatekeeperModule,
@@ -49,6 +52,7 @@ import { DataConnectionInternalController } from '@/services/DataConnection/data
         DataConnectionInternalController,
     ],
     providers: [
+        TokenVerifier,
         { provide: APP_GUARD, useClass: AuthGuard },
     ],
 })

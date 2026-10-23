@@ -1,6 +1,7 @@
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { useTask } from '@/hooks/useTask'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { useId, useState, type FormEvent } from 'react'
 import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
 import { Select } from '@quarry/standard-ui/foundations/select'
@@ -16,9 +17,16 @@ interface Props {
     dialog:    DialogSDK.TemplateProps
 }
 
-export function CredentialDialog({ templates, dialog }: Props) {
+/** A new credential, of one of these templates. */
+export function openCreateCredentialDialog(args: { templates: Keychain.Credential.Template.Schema[] }) {
+    DialogSDK.actions.push('create-credential', dialog => (
+        <CredentialDialog templates={args.templates} dialog={dialog} />
+    ))
+}
+
+function CredentialDialog({ templates, dialog }: Props) {
     const formId = useId()
-    const task = useTask()
+    const [task, withTask] = useTask()
 
     const [templateId, setTemplateId] = useState(templates[0].id)
     const [name, setName] = useState('')
@@ -50,18 +58,18 @@ export function CredentialDialog({ templates, dialog }: Props) {
         })
     }
 
-    function submit(event: FormEvent<HTMLFormElement>) {
+    const submit = withTask(async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
-        if (task.pending || !parentRid)
+        if (!parentRid)
             return
 
-        void task.run(async () => {
-            await create()
+        await create()
 
-            DialogSDK.actions.pop(dialog.entry.dialogId)
-        })
-    }
+        NotificationSDK.toast.success(`Saved credential ${name}`)
+
+        DialogSDK.actions.pop(dialog.entry.dialogId)
+    })
 
     return (
         <DialogSDK.Template

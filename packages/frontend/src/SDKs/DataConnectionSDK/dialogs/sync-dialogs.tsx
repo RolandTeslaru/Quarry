@@ -17,9 +17,16 @@ interface Props {
     dialog:     DialogSDK.TemplateProps
 }
 
-export function NewSyncDialog({ source, definition, table, dialog }: Props) {
+/** A new sync on this source — prefilled for a table when one is given. */
+export function openCreateSyncDialog(args: Omit<Props, 'dialog'>) {
+    DialogSDK.actions.push(`create-sync-${args.source.rid}`, dialog => (
+        <NewSyncDialog {...args} dialog={dialog} />
+    ))
+}
+
+function NewSyncDialog({ source, definition, table, dialog }: Props) {
     const formId = useId()
-    const task = useTask()
+    const [task, withTask] = useTask()
 
     const [name, setName] = useState(table?.name ?? '')
     const [datasetName, setDatasetName] = useState(table?.name ?? '')
@@ -51,18 +58,16 @@ export function NewSyncDialog({ source, definition, table, dialog }: Props) {
         await DataConnectionSDK.actions.sync.create(source.rid, request)
     }
 
-    function submit(event: FormEvent<HTMLFormElement>) {
+    const submit = withTask(async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
-        if (task.pending || !parentRid)
+        if (!parentRid)
             return
 
-        void task.run(async () => {
-            await create()
+        await create()
 
-            DialogSDK.actions.pop(dialog.entry.dialogId)
-        })
-    }
+        DialogSDK.actions.pop(dialog.entry.dialogId)
+    })
 
     return (
         <DialogSDK.Template

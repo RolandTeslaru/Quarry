@@ -12,7 +12,7 @@ export const libraryApp: App.Definition = {
     to:           '/library',
     inNavigation: true,
     opens: {
-        project: rid => ({ to: '/resources/$rid', params: { rid } }),
-        folder:  rid => ({ to: '/resources/$rid', params: { rid } }),
+        project: rid => ({ to: '/library/$rid', params: { rid } }),
+        folder:  rid => ({ to: '/library/$rid', params: { rid } }),
     },
 }

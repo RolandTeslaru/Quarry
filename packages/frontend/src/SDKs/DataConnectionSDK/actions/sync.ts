@@ -1,46 +1,56 @@
 import { DataConnection } from '@quarry/shared/domain'
-import { api } from '@/SDKs/api'
+import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
+import { api, describeError, errorMessage } from '@/SDKs/api'
+import { ActionGroup } from '@/SDKs/core/actions'
+import { log } from '@/SDKs/core/log'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import type { DataConnectionSDKImpl } from '../sdk'
 
-export type SyncActions = {
-    list: (sourceRid: DataConnection.Source.Rid) => Promise<DataConnection.API.Sync.List.Response>
-    create: (
-        sourceRid: DataConnection.Source.Rid,
-        request: DataConnection.API.Sync.Create.Request,
-    ) => Promise<DataConnection.Sync.Schema>
-    run: (sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid) => Promise<void>
-}
+/** `DataConnectionSDK.actions.sync` */
+export class SyncActions extends ActionGroup<DataConnectionSDKImpl> {
 
-export function createSyncActions(sdk: DataConnectionSDKImpl): SyncActions {
-    const setState = sdk.useStore.setState
+    protected readonly log = log.withContext('DataConnection.Actions.Sync')
 
-    return {
-        list: async sourceRid => {
-            const data = await DataConnection.API.Sync.list(api, sourceRid)
+    async list(sourceRid: DataConnection.Source.Rid): Promise<DataConnection.API.Sync.List.Response> {
+        const data = await DataConnection.API.Sync.list(api, sourceRid)
 
-            setState(state => {
-                state.syncs[sourceRid] = data.syncs
-            })
+        this.sdk.setState(state => {
+            state.syncs[sourceRid] = data.syncs
+        })
 
-            return data
-        },
+        return data
+    }
 
-        create: async (sourceRid, request) => {
+    async create(sourceRid: DataConnection.Source.Rid, request: DataConnection.API.Sync.Create.Request): Promise<DataConnection.Sync.Schema> {
+        try {
             const { sync } = await DataConnection.API.Sync.create(api, sourceRid, request)
 
             await Promise.all([
-                sdk.invalidate(sdk.query.syncs(sourceRid)),
+                this.sdk.invalidate(this.sdk.query.syncs(sourceRid)),
                 LibrarySDK.invalidate(LibrarySDK.query.children(request.output.parentRid)),
-            ])
+            ]) 
 
             return sync
-        },
+        }
+        catch (error) {
+            this.log.error('create failed', describeError(error))
+            NotificationSDK.toast.error("Couldn't create the sync", { description: errorMessage(error) })
 
-        run: async (sourceRid, syncRid) => {
+            throw error
+        }
+    }
+
+    async run(sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid): Promise<void> {
+        try {
             await DataConnection.API.Sync.run(api, sourceRid, syncRid)
 
-            await sdk.invalidate(sdk.query.runs(sourceRid, syncRid))
-        },
+            await this.sdk.invalidate(this.sdk.query.runs(sourceRid, syncRid))
+        }
+        catch (error) {
+            this.log.error('run failed', describeError(error))
+            NotificationSDK.toast.error("Couldn't start the sync", { description: errorMessage(error) })
+
+            throw error
+        }
     }
 }

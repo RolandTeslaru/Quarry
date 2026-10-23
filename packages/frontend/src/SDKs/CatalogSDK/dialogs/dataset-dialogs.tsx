@@ -1,5 +1,6 @@
 import { useTask } from '@/hooks/useTask'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { useId, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
@@ -14,7 +15,7 @@ import { resourceRoute } from '@/shell/apps'
 type Mode = Catalog.API.Dataset.Upload.Fields['mode']
 
 /** Where the file goes: a new dataset in a folder, or a new version of an existing dataset. */
-export type UploadTarget =
+type UploadTarget =
     | { kind: 'new'; parentRid: Library.Resource.Rid }
     | { kind: 'dataset'; datasetRid: Catalog.Dataset.Rid }
 
@@ -25,11 +26,25 @@ interface Props {
 
 const ACCEPTED_FILES = '.csv,.parquet'
 
-export function UploadDialog({ target, dialog }: Props) {
+/** A new dataset from a CSV or Parquet file, in this folder; opens it when it's created. */
+export function openCreateDatasetFromFileDialog(args: { parentRid: Library.Resource.Rid }) {
+    DialogSDK.actions.push(`create-dataset-${args.parentRid}`, dialog => (
+        <UploadDialog target={{ kind: 'new', parentRid: args.parentRid }} dialog={dialog} />
+    ))
+}
+
+/** A new version of this dataset from a file: snapshot (replace) or append. */
+export function openUploadToDatasetDialog(args: { datasetRid: Catalog.Dataset.Rid }) {
+    DialogSDK.actions.push(`upload-${args.datasetRid}`, dialog => (
+        <UploadDialog target={{ kind: 'dataset', datasetRid: args.datasetRid }} dialog={dialog} />
+    ))
+}
+
+function UploadDialog({ target, dialog }: Props) {
     const formId = useId()
     const fileInputId = useId()
     const modeId = useId()
-    const task = useTask()
+    const [task, withTask] = useTask()
     const navigate = useNavigate()
 
     const [file, setFile] = useState<File | null>(null)
@@ -47,28 +62,32 @@ export function UploadDialog({ target, dialog }: Props) {
 
     const upload = async (selected: File) => {
         if (target.kind === 'dataset') {
-            await CatalogSDK.actions.dataset.upload(target.datasetRid, mode, selected)
+            const { dataset } = await CatalogSDK.actions.dataset.upload(target.datasetRid, mode, selected)
+
+            NotificationSDK.toast.success(`Uploaded ${selected.name}`, {
+                description: `${dataset.name} is now at version ${dataset.lastSequence}.`,
+            })
 
             return
         }
 
         const { dataset } = await CatalogSDK.actions.dataset.createFromFile(target.parentRid, selected)
 
+        NotificationSDK.toast.success(`Created dataset ${dataset.name}`, { description: `From ${selected.name}.` })
+
         await navigate(resourceRoute('dataset', dataset.rid))
     }
 
-    function submit(event: FormEvent<HTMLFormElement>) {
+    const submit = withTask(async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
-        if (task.pending || !file)
+        if (!file)
             return
 
-        void task.run(async () => {
-            await upload(file)
+        await upload(file)
 
-            DialogSDK.actions.pop(dialog.entry.dialogId)
-        })
-    }
+        DialogSDK.actions.pop(dialog.entry.dialogId)
+    })
 
     return (
         <DialogSDK.Template

@@ -1,4 +1,3 @@
-import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@quarry/standard-ui/foundations/button'
@@ -7,7 +6,6 @@ import { Table } from '@quarry/standard-ui/foundations/table'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import type { DataConnection } from '@quarry/shared/domain'
 import { DataConnectionSDK } from '../sdk'
-import { NewSyncDialog } from './NewSyncDialog'
 import { RunHistory } from './RunHistory'
 import { Empty } from '@/components/Empty'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -27,10 +25,10 @@ export function SyncPanel({ source, definition }: Props) {
         query => [query.syncs(source.rid)],
     )
 
-    const task = useTask()
+    const [task, withTask] = useTask()
     const selected = syncs.find(sync => sync.rid === selectedRid) ?? syncs[0]
 
-    const runSync = (sync: DataConnection.Sync.Schema) => task.run(async () => {
+    const runSync = withTask(async (sync: DataConnection.Sync.Schema) => {
         setQueuedRid(null)
         setSelectedRid(sync.rid)
 
@@ -39,22 +37,16 @@ export function SyncPanel({ source, definition }: Props) {
         setQueuedRid(sync.rid)
     })
 
-    function openCreateDialog() {
-        DialogSDK.actions.push(`new-sync-${source.rid}`, dialog => (
-            <NewSyncDialog source={source} definition={definition} dialog={dialog} />
-        ))
-    }
-
     return (
         <section>
             <div className='section-toolbar'>
                 <p className='text-slate-500'>Copy a table or query into a versioned dataset.</p>
-                <Button icon='add' intent='primary' onClick={openCreateDialog}>
+                <Button icon='add' intent='primary' onClick={() => DataConnectionSDK.dialogs.openCreateSync({ source, definition })}>
                     Create sync
                 </Button>
             </div>
 
-            <ErrorNotice error={syncsRequest.error ?? task.error} />
+            <ErrorNotice error={syncsRequest.error} />
 
             {syncsRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
 
@@ -87,7 +79,7 @@ export function SyncPanel({ source, definition }: Props) {
                                     </Table.Cell>
                                     <Table.Cell className='font-mono'>{sync.schedule ?? 'Manual'}</Table.Cell>
                                     <Table.Cell>
-                                        <Link to='/resources/$rid' params={{ rid: sync.outputDatasetRid }}>
+                                        <Link to='/library/$rid' params={{ rid: sync.outputDatasetRid }}>
                                             Open dataset
                                         </Link>
                                     </Table.Cell>
@@ -96,7 +88,7 @@ export function SyncPanel({ source, definition }: Props) {
                                             size='sm'
                                             icon='play'
                                             disabled={!sync.enabled || task.pending}
-                                            onClick={() => void runSync(sync)}
+                                            onClick={() => runSync(sync)}
                                         >
                                             Run now
                                         </Button>

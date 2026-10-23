@@ -6,7 +6,7 @@ interface LibrarySearch {
     tab?: Exclude<LibraryTab, 'files'>
 }
 
-export const Route = createFileRoute('/_workspace/library')({
+export const Route = createFileRoute('/_workspace/library/')({
     validateSearch: (search: Record<string, unknown>): LibrarySearch => {
         if (search.tab === 'cloud' || search.tab === 'trash')
             return { tab: search.tab }

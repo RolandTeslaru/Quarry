@@ -3,12 +3,37 @@ import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { BaseSDK } from '../core/BaseSDK'
-import { _createDataConnectionActions_, type _DataConnectionSDKActions } from './actions'
+import { DataConnectionActions } from './actions'
+import { _createDataConnectionDialogs_, type _DataConnectionSDKDialogs } from './dialogs'
+import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
+import { observeDataConnection, type DataConnectionObserver, type ObserveOptions as ObserveOptions_ } from './observe'
 
 const DEFINITIONS_STALE_TIME = Infinity
-const RUNS_REFETCH_INTERVAL = 3_000
 
+@SDK('DataConnection')
 export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
+
+    constructor() {
+        super()
+
+        // While a source is open, its runs stay live: follow its channel from onOpen to onClose.
+        this.observe({
+            source: {
+                onOpen:  sourceRid => {
+                    this.runtime.stopFollowing = this.actions.run.follow(sourceRid)
+                },
+                onClose: () => {
+                    this.runtime.stopFollowing?.()
+                    this.runtime.stopFollowing = null
+                },
+            },
+        }, { immediate: true })
+    }
+
+    public readonly runtime = {
+        /** Ends following the open source's runs. */
+        stopFollowing: null as (() => void) | null,
+    }
 
     public readonly useStore: BaseSDK.Store<DataConnectionSDK.State> = createWithEqualityFn(
         immer<DataConnectionSDK.State>(() => ({
@@ -17,11 +42,14 @@ export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
             syncs: {},
             runs: {},
             tables: {},
+            openSourceRid: null,
         })),
         shallow,
     )
 
-    public readonly actions: DataConnectionSDK.Actions = _createDataConnectionActions_(this)
+    public readonly actions: DataConnectionSDK.Actions = new DataConnectionActions(this)
+
+    public readonly dialogs: DataConnectionSDK.Dialogs = _createDataConnectionDialogs_()
 
     public override readonly query = {
         definitions: {
@@ -55,8 +83,12 @@ export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
         runs: (sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid) => ({
             queryKey: ['data-connection', 'runs', sourceRid, syncRid] as const,
             queryFn: () => this.actions.run.list(sourceRid, syncRid),
-            refetchInterval: RUNS_REFETCH_INTERVAL,
         }),
+    }
+
+    /** Named callbacks for this SDK's transitions (`source.onOpen`, `source.onClose`); returns its own removal. */
+    public observe(observer: DataConnectionSDK.Observer, options?: DataConnectionSDK.ObserveOptions): () => void {
+        return observeDataConnection(this, observer, options)
     }
 
     public override cleanup(): void {
@@ -66,11 +98,12 @@ export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
             syncs: {},
             runs: {},
             tables: {},
+            openSourceRid: null,
         })
     }
 }
 
-export const DataConnectionSDK = new DataConnectionSDKImpl()
+export const DataConnectionSDK = SDK.get<DataConnectionSDKImpl>('DataConnection')
 
 export namespace DataConnectionSDK {
 
@@ -80,7 +113,13 @@ export namespace DataConnectionSDK {
         syncs:       Record<DataConnection.Source.Rid, DataConnection.Sync.Schema[]>
         runs:        Record<DataConnection.Sync.Rid, DataConnection.SyncRun.Schema[]>
         tables:      Record<DataConnection.Source.Rid, DataConnection.Source.Table[]>
+        /** The source whose page is open (the route sets it); its runs are followed live. */
+        openSourceRid: DataConnection.Source.Rid | null
     }
 
-    export type Actions = _DataConnectionSDKActions
+    export type Actions = DataConnectionActions
+    export type Dialogs = _DataConnectionSDKDialogs
+
+    export type Observer       = DataConnectionObserver
+    export type ObserveOptions = ObserveOptions_
 }

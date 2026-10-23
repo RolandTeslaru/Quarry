@@ -30,10 +30,10 @@ export function SourcePanel({ rid }: Props) {
         query => [query.definitions],
     )
 
-    const task = useTask()
+    const [task, withTask] = useTask()
     const definition = definitions.find(item => item.id === source?.definitionId)
 
-    const testConnection = () => task.run(async () => {
+    const testConnection = withTask(async () => {
         setTestResult(null)
 
         const result = await DataConnectionSDK.actions.source.test(rid)
@@ -70,7 +70,7 @@ export function SourcePanel({ rid }: Props) {
                 title={source.name}
                 description={source.description ?? definition.description}
                 actions={(
-                    <Button icon='link' loading={task.pending} onClick={() => void testConnection()}>
+                    <Button icon='link' loading={task.pending} onClick={testConnection}>
                         Test connection
                     </Button>
                 )}
@@ -85,7 +85,6 @@ export function SourcePanel({ rid }: Props) {
                 <code className='resource-rid'>{source.rid}</code>
             </div>
 
-            <ErrorNotice error={task.error} />
 
             {testResult && (
                 <Callout

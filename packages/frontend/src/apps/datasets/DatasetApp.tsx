@@ -3,12 +3,10 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Menubar } from '@quarry/standard-ui/foundations/menubar'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import { Icon } from '@quarry/standard-ui/icons'
-import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import type { Catalog } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
 import { CatalogSDK } from '@/SDKs/CatalogSDK/sdk'
 import { DatasetPreview } from '@/SDKs/CatalogSDK/ui/DatasetPreview'
-import { UploadDialog } from '@/SDKs/CatalogSDK/ui/UploadDialog'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceBreadcrumbs } from '@/components/ResourceBreadcrumbs'
@@ -34,12 +32,6 @@ export function DatasetApp({ rid }: Props) {
     const view = viewRequest.data?.view
     const preview = previewRequest.data
 
-    function openUploadDialog() {
-        DialogSDK.actions.push(`upload-${rid}`, dialog => (
-            <UploadDialog target={{ kind: 'dataset', datasetRid: rid }} dialog={dialog} />
-        ))
-    }
-
     function refresh() {
         void datasetRequest.refetch()
         void viewRequest.refetch()
@@ -56,7 +48,7 @@ export function DatasetApp({ rid }: Props) {
                         <Menubar.Menu>
                             <Menubar.Trigger>File</Menubar.Trigger>
                             <Menubar.Content>
-                                <Menubar.Item onSelect={openUploadDialog}>
+                                <Menubar.Item onSelect={() => CatalogSDK.dialogs.openUploadToDataset({ datasetRid: rid })}>
                                     <Icon name='upload' />
                                     Upload file…
                                 </Menubar.Item>
@@ -73,7 +65,7 @@ export function DatasetApp({ rid }: Props) {
                     <Button icon='refresh' loading={viewRequest.isFetching} onClick={refresh}>
                         Refresh
                     </Button>
-                    <Button intent='primary' icon='upload' onClick={openUploadDialog}>
+                    <Button intent='primary' icon='upload' onClick={() => CatalogSDK.dialogs.openUploadToDataset({ datasetRid: rid })}>
                         Upload file
                     </Button>
                 </App.Header.Actions>

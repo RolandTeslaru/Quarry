@@ -4,6 +4,7 @@ import { LibrarySDK } from './LibrarySDK/sdk'
 import { KeychainSDK } from './KeychainSDK/sdk'
 import { DataConnectionSDK } from './DataConnectionSDK/sdk'
 import { CatalogSDK } from './CatalogSDK/sdk'
+import { RealtimeSDK } from './RealtimeSDK/sdk'
 import { cancelSessionRequests } from './api'
 
 const sessionSDKs = [
@@ -11,6 +12,7 @@ const sessionSDKs = [
     KeychainSDK,
     DataConnectionSDK,
     CatalogSDK,
+    RealtimeSDK,
 ]
 
 export function cleanupSDKs(): void {

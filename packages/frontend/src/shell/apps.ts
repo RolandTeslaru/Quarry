@@ -30,7 +30,7 @@ export function resourceGlyph(type: Library.Resource.Type): App.Glyph | undefine
     return APPS.find(app => app.opens[type])?.glyph
 }
 
-/** Where a resource opens: its owning app's route, else the Library's view of it. */
+/** Where a resource opens: its owning app's route, else the Library Explorer's (which redirects to the owner). */
 export function resourceRoute(type: Library.Resource.Type, rid: Library.Resource.Rid): ToOptions {
     for (const app of APPS) {
         const open = app.opens[type]
@@ -39,5 +39,5 @@ export function resourceRoute(type: Library.Resource.Type, rid: Library.Resource
             return open(rid)
     }
 
-    return { to: '/resources/$rid', params: { rid } }
+    return { to: '/library/$rid', params: { rid } }
 }

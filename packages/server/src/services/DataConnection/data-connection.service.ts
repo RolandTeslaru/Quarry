@@ -1,11 +1,12 @@
 import { BadRequestException, ConflictException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
-import { DataConnection, Keychain, Storage } from '@quarry/shared/domain';
+import { DataConnection, Identity, Keychain, Storage } from '@quarry/shared/domain';
 import { findDefinition, SOURCE_DEFINITIONS, toWire } from '@quarry/integrations/definitions';
 import { Principal } from '@/auth/principal';
 import { FileStorage } from '@/infra/file-storage';
 import { QueueManager } from '@/infra/queue';
 import { CatalogService } from '@/services/Catalog/catalog.service';
+import { RealtimeService } from '@/services/Realtime/realtime.service';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { KeychainService } from '@/services/Keychain/keychain.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
@@ -253,6 +254,7 @@ export namespace DataConnectionService {
             private readonly catalog:    CatalogService,
             private readonly files:      FileStorage,
             private readonly repository: DataConnectionRepository,
+            private readonly realtime:   RealtimeService,
         ) {}
 
         /**
@@ -293,6 +295,7 @@ export namespace DataConnectionService {
             const runRid = DataConnection.SyncRun.createRid();
 
             await this.repository.run.start(principal, { rid: runRid, syncRid: sync.rid, trigger: job.trigger, triggeredBy: job.triggeredBy, stateFrom });
+            await this.publish(runRid, sync);
 
             try {
                 const credential = await this.sources.credentialOf(principal, source);
@@ -313,7 +316,12 @@ export namespace DataConnectionService {
                 };
             }
             catch (error) {
-                await this.repository.run.fail(Principal.SELF('sync.start'), runRid, { reason: 'error', message: error instanceof Error ? error.message : String(error) });
+                const message = error instanceof Error ? error.message : String(error);
+
+                await this.repository.run.fail(Principal.SELF('sync.start'), runRid, { reason: 'error', message });
+                await this.publish(runRid, sync);
+                this.notifyFailure(job.triggeredBy, sync, message);
+
                 throw error;
             }
         }
@@ -348,6 +356,7 @@ export namespace DataConnectionService {
             await this.catalog.transaction.registerChanges(principal, datasetRid, transactionRid, changes);
             await this.catalog.transaction.commit(principal, datasetRid, transactionRid, request.schema);
             await this.repository.run.succeed(principal, runRid, { stateTo: request.state, rowCount: request.rowCount });
+            await this.publish(runRid, sync);
 
             return { transactionRid, files: changes.length };
         }
@@ -361,6 +370,8 @@ export namespace DataConnectionService {
                 await this.catalog.transaction.abort(self, sync.output_dataset_rid, run.transaction_rid);
 
             await this.repository.run.fail(self, runRid, { reason: 'error', message });
+            await this.publish(runRid, sync);
+            this.notifyFailure(run.triggered_by, sync, message);
         }
 
         /** Runs still `running` with a heartbeat older than `staleMinutes` lost their worker: fail them, abort their transactions. */
@@ -373,9 +384,46 @@ export namespace DataConnectionService {
 
                 if (run.transaction_rid)
                     await this.catalog.transaction.abort(self, run.output_dataset_rid, run.transaction_rid);
+
+                const sync = await this.repository.sync.get(self, run.sync_rid);
+
+                if (sync) {
+                    await this.publish(run.rid, sync);
+                    this.notifyFailure(run.triggered_by, sync, 'The worker running it stopped responding.');
+                }
             }
 
             return stuck.length;
+        }
+
+        /** The run as it is now, to everyone on its source's channel (who can discover the source — the gateway checks). */
+        private async publish(runRid: DataConnection.SyncRun.Rid, sync: DataConnectionDB.Sync.Row): Promise<void> {
+            const run = await this.repository.run.get(Principal.SELF('sync.publish'), runRid);
+
+            if (!run)
+                return;
+
+            this.realtime.emitEvent<DataConnection.Event.RunUpdated>({
+                channel: DataConnection.Event.getChannel(sync.source_rid),
+                type:    'data-connection:run:updated',
+                run:     DataConnectionDB.SyncRun.toDomain(run),
+            });
+        }
+
+        /** Tells whoever the run acted for — who pressed run, or the sync's creator for a scheduled run — on their own channel. */
+        private notifyFailure(triggeredBy: Identity.User.Rid | null, sync: DataConnectionDB.Sync.Row, message: string): void {
+            const userRid = triggeredBy ?? sync.created_by;
+
+            if (!userRid)
+                return;
+
+            this.realtime.emitEvent<Identity.Event.Notification>({
+                channel:     Identity.Event.getChannel(userRid),
+                type:        'identity:notification',
+                level:       'error',
+                title:       `Sync "${sync.name}" failed`,
+                description: message,
+            });
         }
 
         private async requireRunning(runRid: DataConnection.SyncRun.Rid) {

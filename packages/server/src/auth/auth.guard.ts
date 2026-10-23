@@ -1,5 +1,4 @@
 import {
-    ForbiddenException,
     Injectable,
     UnauthorizedException,
     type CanActivate,
@@ -8,24 +7,20 @@ import {
 import { timingSafeEqual } from 'node:crypto';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { jwtVerify } from 'jose';
-import { Identity } from '@quarry/shared/domain';
 import { requireEnv } from '@/db/table';
-import { IdentityService } from '@/services/Identity/identity.service';
+import { TokenVerifier } from './token-verifier';
 import { INTERNAL, PUBLIC } from './current-principal';
 
 /**
- * Authentication: verify the GoTrue JWT locally (no network, no database),
- * then require an active identity.user row — membership of this workspace.
+ * Authentication: the service token on /internal endpoints, a member's GoTrue
+ * JWT everywhere else (TokenVerifier).
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
 
-    private secret: Uint8Array | undefined;
-
     constructor(
         private readonly reflector: Reflector,
-        private readonly identity:  IdentityService,
+        private readonly tokens:    TokenVerifier,
     ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -46,32 +41,7 @@ export class AuthGuard implements CanActivate {
             return true;
         }
 
-        let claims: { sub?: string; email?: unknown };
-
-        try {
-            ({ payload: claims } = await jwtVerify(token, this.key(), { audience: 'authenticated' }));
-        }
-        catch {
-            throw new UnauthorizedException('Invalid or expired token');
-        }
-
-        // GoTrue's `sub` is a UUID; the user's RID wraps it one-to-one.
-        let userRid: Identity.User.Rid;
-
-        try {
-            userRid = Identity.User.fromAuthId(String(claims.sub));
-        }
-        catch {
-            throw new UnauthorizedException('Invalid token subject');
-        }
-
-        const email = typeof claims.email === 'string' ? claims.email : null;
-        const member = await this.identity.resolveMember(userRid, email);
-
-        if (!member || member.deactivated_at)
-            throw new ForbiddenException('Not a member of this workspace');
-
-        request.principal = { type: 'user', userRid: member.rid, workspaceRole: member.workspace_role };
+        request.principal = await this.tokens.user(token);
 
         return true;
     }
@@ -81,9 +51,5 @@ export class AuthGuard implements CanActivate {
         const given = Buffer.from(token);
 
         return given.length === expected.length && timingSafeEqual(given, expected);
-    }
-
-    private key(): Uint8Array {
-        return (this.secret ??= new TextEncoder().encode(requireEnv('GOTRUE_JWT_SECRET')));
     }
 }

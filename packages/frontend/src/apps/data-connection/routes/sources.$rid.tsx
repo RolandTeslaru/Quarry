@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { DataConnection } from '@quarry/shared/domain'
 import { SourceApp } from '@/apps/data-connection/SourceApp'
+import { DataConnectionSDK } from '@/SDKs/DataConnectionSDK/sdk'
 
 export const Route = createFileRoute('/_workspace/data-connection/sources/$rid')({
     params: {
@@ -13,6 +14,10 @@ export const Route = createFileRoute('/_workspace/data-connection/sources/$rid')
             return { rid: parsed.data }
         },
     },
+    // The route says which source is open; DataConnectionSDK decides what that means (its runs go live).
+    onEnter: match => DataConnectionSDK.actions.source.open(match.params.rid),
+    onStay:  match => DataConnectionSDK.actions.source.open(match.params.rid),
+    onLeave: match => DataConnectionSDK.actions.source.close(match.params.rid),
     component: SourceRoute,
 })
 

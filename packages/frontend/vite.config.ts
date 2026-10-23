@@ -15,6 +15,12 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
         },
 
+        // The realtime socket (RealtimeSDK ↔ the server's RealtimeGateway).
+        '/socket': {
+            target: env.QUARRY_SERVER_URL || 'http://localhost:4000',
+            ws:     true,
+        },
+
         '/auth-api': {
             target: env.GOTRUE_URL || 'http://localhost:9999',
             changeOrigin: true,
@@ -24,8 +30,22 @@ export default defineConfig(({ mode }) => {
 
     return {
         plugins: [
-            tanstackRouter({ target: 'react', autoCodeSplitting: true }),
-            react(),
+            tanstackRouter({
+                target:             'react',
+                autoCodeSplitting:  true,
+                // The shell's routes plus each app's own (src/apps/<app>/routes), mounted at /<app>.
+                virtualRouteConfig: './src/routes.config.ts',
+            }),
+            // Babel (dev, Fast Refresh) must parse the SDKs' @SDK decorators like TypeScript's
+            // experimentalDecorators: legacy decorators, with class fields compiled loosely to match.
+            react({
+                babel: {
+                    plugins: [
+                        ['@babel/plugin-proposal-decorators', { legacy: true }],
+                        ['@babel/plugin-proposal-class-properties', { loose: true }],
+                    ],
+                },
+            }),
             tailwindcss(),
         ],
         envDir: WORKSPACE_ROOT,

@@ -4,9 +4,12 @@ import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { BaseSDK } from '../core/BaseSDK'
 import { _createKeychainActions_, type _KeychainSDKActions } from './actions'
+import { _createKeychainDialogs_, type _KeychainSDKDialogs } from './dialogs'
+import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 
 const TEMPLATES_STALE_TIME = Infinity
 
+@SDK('Keychain')
 export class KeychainSDKImpl extends BaseSDK<KeychainSDK.State> {
 
     public readonly useStore: BaseSDK.Store<KeychainSDK.State> = createWithEqualityFn(
@@ -18,6 +21,8 @@ export class KeychainSDKImpl extends BaseSDK<KeychainSDK.State> {
     )
 
     public readonly actions: KeychainSDK.Actions = _createKeychainActions_(this)
+
+    public readonly dialogs: KeychainSDK.Dialogs = _createKeychainDialogs_()
 
     public override readonly query = {
         credentials: {
@@ -40,7 +45,7 @@ export class KeychainSDKImpl extends BaseSDK<KeychainSDK.State> {
     }
 }
 
-export const KeychainSDK = new KeychainSDKImpl()
+export const KeychainSDK = SDK.get<KeychainSDKImpl>('Keychain')
 
 export namespace KeychainSDK {
 
@@ -50,4 +55,5 @@ export namespace KeychainSDK {
     }
 
     export type Actions = _KeychainSDKActions
+    export type Dialogs = _KeychainSDKDialogs
 }

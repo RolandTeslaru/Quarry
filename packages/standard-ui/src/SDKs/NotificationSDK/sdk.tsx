@@ -2,6 +2,7 @@ import { memo, useSyncExternalStore, type CSSProperties } from 'react'
 import { Toaster, toast } from 'sonner'
 import { Spinner } from '../../foundations/spinner'
 import { Icon } from '../../icons'
+import { SDK } from '../SDKManager'
 
 // From PretzelGraph's NotificationSDK: sonner's toasts, styled from the palette's status colours.
 
@@ -10,6 +11,7 @@ import { Icon } from '../../icons'
  * `NotificationSDK.toast(...)` anywhere — `.success`, `.info`, `.warning`,
  * `.error`, `.loading`, `.promise`, or any React content.
  */
+@SDK('Notification')
 export class NotificationSDKImpl {
 
     public readonly toast = toast
@@ -38,7 +40,7 @@ export class NotificationSDKImpl {
     })
 }
 
-export const NotificationSDK = new NotificationSDKImpl()
+export const NotificationSDK = SDK.get<NotificationSDKImpl>('Notification')
 
 // sonner's colour variables, mapped to the palette (styles.css: --popover, --success-background, …).
 const TOASTER_COLORS = {

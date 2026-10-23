@@ -42,3 +42,22 @@ export function errorMessage(error: unknown): string {
 
     return error instanceof Error ? error.message : String(error)
 }
+
+/**
+ * What to log about a failure: never the whole error — a request's carries its
+ * headers (the session token) and body (credential values).
+ */
+export function describeError(error: unknown): Record<string, unknown> {
+    if (axios.isAxiosError(error))
+        return {
+            message: errorMessage(error),
+            status:  error.response?.status,
+            method:  error.config?.method?.toUpperCase(),
+            url:     error.config?.url,
+        }
+
+    if (error instanceof Error)
+        return { message: error.message, stack: error.stack }
+
+    return { message: String(error) }
+}
