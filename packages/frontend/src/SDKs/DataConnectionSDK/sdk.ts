@@ -37,7 +37,7 @@ export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
 
     public readonly useStore: BaseSDK.Store<DataConnectionSDK.State> = createWithEqualityFn(
         immer<DataConnectionSDK.State>(() => ({
-            definitions: [],
+            definitions: {},
             sources: {},
             syncs: {},
             runs: {},
@@ -93,7 +93,7 @@ export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
 
     public override cleanup(): void {
         this.setState({
-            definitions: [],
+            definitions: {},
             sources: {},
             syncs: {},
             runs: {},
@@ -108,7 +108,7 @@ export const DataConnectionSDK = SDK.get<DataConnectionSDKImpl>('DataConnection'
 export namespace DataConnectionSDK {
 
     export type State = {
-        definitions: DataConnection.Source.Definition.Schema[]
+        definitions: Record<DataConnection.Source.DefinitionId, DataConnection.Source.Definition.Schema>
         sources:     Record<DataConnection.Source.Rid, DataConnection.Source.Schema>
         syncs:       Record<DataConnection.Source.Rid, DataConnection.Sync.Schema[]>
         runs:        Record<DataConnection.Sync.Rid, DataConnection.SyncRun.Schema[]>

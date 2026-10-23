@@ -21,9 +21,9 @@ export namespace Source {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** The source types this deployment supports, with their config forms (JSON Schema). */
+    /** The source types this deployment supports, with their config forms (JSON Schema) — by id. */
     export namespace ListDefinitions {
-        export const Response = z.object({ definitions: SourceD.Definition.Schema.array() })
+        export const Response = z.object({ definitions: z.record(SourceD.DefinitionId, SourceD.Definition.Schema) })
         export type  Response = z.infer<typeof Response>
     }
 

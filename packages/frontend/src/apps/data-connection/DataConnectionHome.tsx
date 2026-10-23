@@ -2,6 +2,7 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { App } from '@/AppKit'
+import type { DataConnection } from '@quarry/shared/domain'
 import { DataConnectionSDK } from '@/SDKs/DataConnectionSDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceLink } from '@/components/ResourceLink'
@@ -17,8 +18,8 @@ export function DataConnectionHome() {
 
     const sources = sourcesRequest.data?.sources ?? []
 
-    function systemName(definitionId: string): string {
-        return definitions.find(definition => definition.id === definitionId)?.displayName ?? definitionId
+    function systemName(definitionId: DataConnection.Source.DefinitionId): string {
+        return definitions[definitionId]?.displayName ?? definitionId
     }
 
     return (

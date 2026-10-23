@@ -53,8 +53,8 @@ export namespace DataConnectionService {
         ) {}
 
         /** Every source type, with its config forms as JSON Schema. */
-        definitions(): DataConnection.Source.Definition.Schema[] {
-            return Object.values(SOURCE_DEFINITIONS).map(toWire);
+        definitions(): Record<DataConnection.Source.DefinitionId, DataConnection.Source.Definition.Schema> {
+            return Object.fromEntries(Object.entries(SOURCE_DEFINITIONS).map(([id, definition]) => [id, toWire(definition)]));
         }
 
         /**

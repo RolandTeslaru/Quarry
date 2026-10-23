@@ -25,13 +25,12 @@ export function SourcePanel({ rid }: Props) {
         query => [query.source(rid)],
     )
 
-    const [definitions, [definitionsRequest]] = DataConnectionSDK.useWith(
-        state => state.definitions,
+    const [definition, [definitionsRequest]] = DataConnectionSDK.useWith(
+        state => source && state.definitions[source.definitionId],
         query => [query.definitions],
     )
 
     const [task, withTask] = useTask()
-    const definition = definitions.find(item => item.id === source?.definitionId)
 
     const testConnection = withTask(async () => {
         setTestResult(null)

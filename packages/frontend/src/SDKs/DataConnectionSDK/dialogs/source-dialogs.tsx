@@ -41,7 +41,7 @@ function NewSourceDialog({ parentRid, dialog }: Props) {
         query => [query.credentials],
     )
 
-    const definition = definitions.find(item => item.id === definitionId) ?? definitions[0]
+    const definition = definitions[definitionId] ?? Object.values(definitions)[0]
     const error = definitionsRequest.error ?? credentialsRequest.error
     const isPending = definitionsRequest.isPending || credentialsRequest.isPending
 
@@ -93,7 +93,7 @@ function NewSourceDialog({ parentRid, dialog }: Props) {
 
 interface SourceFormProps extends Props {
     definition:         DataConnection.Source.Definition.Schema
-    definitions:        DataConnection.Source.Definition.Schema[]
+    definitions:        DataConnectionSDK.State['definitions']
     credentials:        Keychain.Credential.Schema[]
     onDefinitionChange: (id: string) => void
 }
@@ -164,7 +164,7 @@ function SourceForm({
                                     <Select.Value />
                                 </Select.Trigger>
                                 <Select.Content className='z-[100]'>
-                                    {definitions.map(item => (
+                                    {Object.values(definitions).map(item => (
                                         <Select.Item key={item.id} value={item.id}>{item.displayName}</Select.Item>
                                     ))}
                                 </Select.Content>
