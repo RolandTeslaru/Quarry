@@ -1,4 +1,4 @@
-import type { Log } from '@quarry/shared/server/system'
+import type { Log } from './log'
 
 // Action groups as classes. An action that can fail handles it itself, as
 // PretzelGraph's actions do — logs it, toasts it, rethrows so the caller can

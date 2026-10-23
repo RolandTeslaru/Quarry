@@ -1,7 +1,6 @@
 import { Keychain } from '@quarry/shared/domain'
 import { api } from '@/SDKs/api'
-import { ActionGroup } from '@/SDKs/core/actions'
-import { log } from '@/SDKs/core/log'
+import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import type { KeychainSDKImpl } from '../sdk'
 
 /** `KeychainSDK.actions.credential` */

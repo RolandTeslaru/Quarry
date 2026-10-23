@@ -18,6 +18,7 @@
         "./foundations/*": "./src/foundations/*.tsx",
         "./icons": "./src/icons/index.ts",
         "./SDKs/SDKManager": "./src/SDKs/SDKManager.ts",
+        "./SDKs/core": "./src/SDKs/core/index.ts",
         "./SDKs/DialogSDK": "./src/SDKs/DialogSDK/index.ts",
         "./SDKs/NotificationSDK": "./src/SDKs/NotificationSDK/index.ts",
         "./utils/cn": "./src/utils/cn.ts"

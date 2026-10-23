@@ -133,7 +133,8 @@ return (
 - Group related actions by domain responsibility, such as `source`, `sync`, and
   `run`, as in PretzelGraph's entity-oriented action groups. An SDK with no
   groups (Auth) puts its actions on the root class directly.
-- Each action group is a class extending `ActionGroup` (`SDKs/core/actions.ts`). The SDK's actions are a class
+- Each action group is a class extending `ActionGroup` (`@quarry/standard-ui/SDKs/core`, with the browser `log`;
+  standard-ui's own SDKs use it too). The SDK's actions are a class
   too — `XActions extends ActionGroup` in `actions/index.ts`, holding the groups as fields
   (`public readonly source = new SourceActions(this.sdk)`) — and the SDK has `actions = new XActions(this)`.
   Callers keep `XSDK.actions.source.create(...)`.

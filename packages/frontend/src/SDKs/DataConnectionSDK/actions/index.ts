@@ -1,5 +1,4 @@
-import { ActionGroup } from '@/SDKs/core/actions'
-import { log } from '@/SDKs/core/log'
+import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import type { DataConnectionSDKImpl } from '../sdk'
 import { SourceActions } from './source'
 import { SyncActions } from './sync'

@@ -1,74 +1,71 @@
+import { ActionGroup, log } from '../core'
 import type { DialogSDK, DialogSDKImpl } from './sdk'
 
-export interface DialogSDKActions {
-    push: (dialogId: string, renderer: DialogSDK.Renderer) => void
-    pop: (dialogId: string) => void
-    popAll: () => void
-}
+/** `DialogSDK.actions` */
+export class DialogActions extends ActionGroup<DialogSDKImpl> {
 
-export function createDialogSDKActions(sdk: DialogSDKImpl) {
-    const removals = new Map<string, ReturnType<typeof setTimeout>>()
+    protected readonly log = log.withContext('Dialog.Actions')
 
-    function cancelRemoval(dialogId: string) {
-        clearTimeout(removals.get(dialogId))
-        removals.delete(dialogId)
+    // A popped dialog stays mounted for its exit animation, then is removed.
+    private readonly removals = new Map<string, ReturnType<typeof setTimeout>>()
+
+    public push(dialogId: string, renderer: DialogSDK.Renderer): void {
+        this.cancelRemoval(dialogId)
+
+        this.sdk.useStore.setState((state) => {
+            state.dialogs.set(dialogId, {
+                dialogId,
+                isOpen: true,
+                renderer,
+            })
+        })
     }
 
-    const actions: DialogSDKActions = {
-        push(dialogId, renderer) {
-            cancelRemoval(dialogId)
-
-            sdk.useStore.setState((state) => {
-                state.dialogs.set(dialogId, {
-                    dialogId,
-                    isOpen: true,
-                    renderer,
-                })
-            })
-        },
-
-        pop(dialogId) {
-            if (!sdk.state.dialogs.has(dialogId)) {
-                return
-            }
-
-            sdk.useStore.setState((state) => {
-                const entry = state.dialogs.get(dialogId)
-
-                if (entry) {
-                    entry.isOpen = false
-                }
-            })
-
-            cancelRemoval(dialogId)
-
-            const removal = setTimeout(() => {
-                sdk.useStore.setState((state) => {
-                    state.dialogs.delete(dialogId)
-                })
-
-                removals.delete(dialogId)
-            }, sdk.EXIT_ANIMATION_MS)
-
-            removals.set(dialogId, removal)
-        },
-
-        popAll() {
-            for (const dialogId of sdk.state.dialogs.keys()) {
-                actions.pop(dialogId)
-            }
-        },
-    }
-
-    function cleanup() {
-        for (const dialogId of removals.keys()) {
-            cancelRemoval(dialogId)
+    public pop(dialogId: string): void {
+        if (!this.sdk.state.dialogs.has(dialogId)) {
+            return
         }
 
-        sdk.useStore.setState((state) => {
+        this.sdk.useStore.setState((state) => {
+            const entry = state.dialogs.get(dialogId)
+
+            if (entry) {
+                entry.isOpen = false
+            }
+        })
+
+        this.cancelRemoval(dialogId)
+
+        const removal = setTimeout(() => {
+            this.sdk.useStore.setState((state) => {
+                state.dialogs.delete(dialogId)
+            })
+
+            this.removals.delete(dialogId)
+        }, this.sdk.EXIT_ANIMATION_MS)
+
+        this.removals.set(dialogId, removal)
+    }
+
+    public popAll(): void {
+        for (const dialogId of this.sdk.state.dialogs.keys()) {
+            this.pop(dialogId)
+        }
+    }
+
+    /** The SDK's cleanup: pending removals cancelled, every dialog gone at once. */
+    public clear(): void {
+        for (const dialogId of this.removals.keys()) {
+            this.cancelRemoval(dialogId)
+        }
+
+        this.sdk.useStore.setState((state) => {
             state.dialogs.clear()
         })
     }
 
-    return { actions, cleanup }
+    private cancelRemoval(dialogId: string): void {
+        clearTimeout(this.removals.get(dialogId))
+        this.removals.delete(dialogId)
+    }
 }

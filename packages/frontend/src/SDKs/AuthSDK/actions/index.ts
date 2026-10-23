@@ -1,8 +1,7 @@
 import { isAxiosError } from 'axios'
 import { Identity } from '@quarry/shared/domain'
 import { api, errorMessage } from '@/SDKs/api'
-import { ActionGroup } from '@/SDKs/core/actions'
-import { log } from '@/SDKs/core/log'
+import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import { authClient } from '../client'
 import type { AuthSDKImpl } from '../sdk'
 

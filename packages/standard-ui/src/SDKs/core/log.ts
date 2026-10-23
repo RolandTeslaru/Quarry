@@ -1,7 +1,18 @@
-import type { Log, LogLevel } from '@quarry/shared/server/system'
-
 // The browser's System.log: the same Log interface as the server's
-// (`withContext(context).error(message, meta)`), written to the console.
+// (`withContext(context).error(message, meta)`, @quarry/shared/server/system),
+// written to the console. Declared here, not imported: standard-ui doesn't
+// depend on @quarry/shared.
+
+export type LogLevel = 'debug' | 'info' | 'warning' | 'error'
+
+type Meta = Record<string, unknown>
+
+export interface Log {
+    debug:   (message: string, meta?: Meta) => void
+    info:    (message: string, meta?: Meta) => void
+    warning: (message: string, meta?: Meta) => void
+    error:   (message: string, meta?: Meta) => void
+}
 
 const SINKS: Record<LogLevel, (...data: unknown[]) => void> = {
     debug:   console.debug,

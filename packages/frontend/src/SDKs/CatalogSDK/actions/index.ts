@@ -1,5 +1,4 @@
-import { ActionGroup } from '@/SDKs/core/actions'
-import { log } from '@/SDKs/core/log'
+import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import type { CatalogSDKImpl } from '../sdk'
 import { DatasetActions } from './dataset'
 

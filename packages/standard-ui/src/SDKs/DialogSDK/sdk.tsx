@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { enableMapSet } from 'immer'
 import type { IconName } from '../../icons'
-import { createDialogSDKActions, type DialogSDKActions } from './actions'
+import { DialogActions } from './actions'
 import { dialogSelectors, type DialogSDKSelectors } from './selectors'
 import { Template, UnstyledTemplate, SplitTemplate, TripleSplitTemplate } from './ui/templates'
 import { AlertTemplate } from './ui/AlertTemplate'
@@ -26,9 +26,7 @@ export class DialogSDKImpl {
 
     public readonly selectors = dialogSelectors
 
-    private readonly runtime = createDialogSDKActions(this)
-
-    public readonly actions = this.runtime.actions
+    public readonly actions: DialogSDK.Actions = new DialogActions(this)
 
     public readonly Template = Template
 
@@ -87,7 +85,7 @@ export class DialogSDKImpl {
     public get setState() { return this.useStore.setState }
 
     public cleanup(): void {
-        this.runtime.cleanup()
+        this.actions.clear()
     }
 }
 
@@ -100,7 +98,7 @@ export namespace DialogSDK {
         selectors: DialogSDKSelectors
     }
     export type Selectors = DialogSDKSelectors
-    export type Actions = DialogSDKActions
+    export type Actions = DialogActions
 
     export type Icon = IconName | React.FC<React.SVGProps<SVGSVGElement>>
 

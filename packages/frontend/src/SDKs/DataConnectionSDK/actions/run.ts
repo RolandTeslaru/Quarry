@@ -2,8 +2,7 @@ import { DataConnection } from '@quarry/shared/domain'
 import { api } from '@/SDKs/api'
 import { RealtimeSDK } from '@/SDKs/RealtimeSDK/sdk'
 import { AsyncEventQueueHandler } from '@/SDKs/RealtimeSDK/EventQueue'
-import { ActionGroup } from '@/SDKs/core/actions'
-import { log } from '@/SDKs/core/log'
+import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import type { DataConnectionSDKImpl } from '../sdk'
 
 /** `DataConnectionSDK.actions.run` */

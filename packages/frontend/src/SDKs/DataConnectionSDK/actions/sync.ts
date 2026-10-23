@@ -1,8 +1,7 @@
 import { DataConnection } from '@quarry/shared/domain'
 import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { api, describeError, errorMessage } from '@/SDKs/api'
-import { ActionGroup } from '@/SDKs/core/actions'
-import { log } from '@/SDKs/core/log'
+import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import type { DataConnectionSDKImpl } from '../sdk'
 
