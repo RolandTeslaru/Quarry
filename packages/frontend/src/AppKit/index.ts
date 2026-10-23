@@ -1,6 +1,7 @@
 import { Glyph, type GlyphDefinition } from './glyph/Glyph'
 import { Header } from './header'
-import { Content, LeftNav, LeftSidebar, RightSidebar, Root } from './layout'
+import { Home } from './home'
+import { Content, LeftNav, LeftSidebar, RightSidebar, Root, useApp } from './layout'
 import type { Definition as DefinitionD } from './definition'
 
 /** Quarry's app design language: every app's layout is built from these parts. */
@@ -12,6 +13,8 @@ export const App = {
     RightSidebar,
     Content,
     Glyph,
+    Home,
+    useApp,
 }
 
 export namespace App {

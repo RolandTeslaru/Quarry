@@ -1,29 +1,53 @@
-import type { ComponentProps } from 'react'
+import { createContext, useContext, type ComponentProps } from 'react'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Tooltip } from '@quarry/standard-ui/foundations/Tooltip'
 import type { IconName } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
+import type { Definition } from './definition'
 
 // One shell measure: 56px (Tailwind `14`) is the collapsed workspace sidebar's width,
 // the left nav's width, the header's height and the header's icon square.
 
+const AppContext = createContext<Definition | null>(null)
+
+/** The app this is rendered in — its definition, from `App.Root`. */
+export function useApp(): Definition {
+    const app = useContext(AppContext)
+
+    if (!app)
+        throw new Error('useApp needs an App.Root above it — the app\'s layout route (routes/route.tsx)')
+
+    return app
+}
+
+interface RootProps extends ComponentProps<'div'> {
+    app: Definition
+}
+
 /**
- * The app's grid. The header spans the top; below it, left to right:
- * LeftNav · LeftSidebar · Content · RightSidebar. Parts place themselves by grid
- * area, so any of them can be left out and its column collapses.
+ * The app itself: rendered once, by the app's layout route (`routes/route.tsx`),
+ * around every page of the app — so moving between them keeps it mounted.
+ * Provides the app's definition (`App.useApp`).
+ *
+ * Its grid: the header spans the top; below it, left to right:
+ * LeftNav · LeftSidebar · Content · RightSidebar. A page renders the parts it
+ * fills; they place themselves by grid area, so any can be left out and its
+ * column collapses.
  */
-export function Root({ className, ...props }: ComponentProps<'div'>) {
+export function Root({ app, className, ...props }: RootProps) {
     return (
-        <div
-            data-slot='app'
-            className={cn(
-                `grid h-full min-h-0
-                grid-cols-[auto_auto_minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)]
-                [grid-template-areas:'header_header_header_header'_'nav_left_content_right']`,
-                className,
-            )}
-            {...props}
-        />
+        <AppContext.Provider value={app}>
+            <div
+                data-slot='app'
+                className={cn(
+                    `grid h-full min-h-0
+                    grid-cols-[auto_auto_minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)]
+                    [grid-template-areas:'header_header_header_header'_'nav_left_content_right']`,
+                    className,
+                )}
+                {...props}
+            />
+        </AppContext.Provider>
     )
 }
 

@@ -270,4 +270,4 @@ Markings need lineage (which datasets derive from which) to propagate, so they w
 - **Seeing the path** — a user with a grant deep in a project: can they see the names of the folders above it (implicit `discover` on ancestors), or only the resource?
 - **Project creation** — any member, or admins only?
 - **Group nesting** — groups inside groups? (Not supported now; `group_member` holds users only.)
-- **Audit log** — record grants, revokes and denied checks to an `audit` table from the start?
+- ~~**Audit log**~~ — designed in [audit.md](audit.md): grants, revokes and denied checks are access events (`modify`, `denied`).

@@ -4,6 +4,7 @@ import type { App } from '@/AppKit'
 export const layoutDemoApp: App.Definition = {
     id:           'layout-demo',
     label:        'Layout demo',
+    description:  'Test app: every AppKit part, with no backend.',
     glyph: {
         icon:  'page-layout',
         tile:  'bg-indigo-500/15',

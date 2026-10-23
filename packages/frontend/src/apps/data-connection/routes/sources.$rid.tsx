@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { DataConnection } from '@quarry/shared/domain'
-import { SourceApp } from '@/apps/data-connection/SourceApp'
+import { SourceApp } from '@/apps/data-connection/components/SourceApp'
 import { DataConnectionSDK } from '@/SDKs/DataConnectionSDK/sdk'
 
 export const Route = createFileRoute('/_workspace/data-connection/sources/$rid')({

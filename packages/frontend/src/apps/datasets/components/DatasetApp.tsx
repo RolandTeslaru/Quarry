@@ -11,7 +11,7 @@ import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceBreadcrumbs } from '@/components/ResourceBreadcrumbs'
 import { dateTime, fileSize, number } from '@/utils/format'
-import { datasetsApp } from './definition'
+import { datasetsApp } from '../definition'
 
 interface Props {
     rid: Catalog.Dataset.Rid
@@ -39,7 +39,7 @@ export function DatasetApp({ rid }: Props) {
     }
 
     return (
-        <App.Root>
+        <>
             <App.Header>
                 <App.Header.Icon glyph={datasetsApp.glyph} />
                 <App.Header.Rows>
@@ -115,7 +115,7 @@ export function DatasetApp({ rid }: Props) {
                     <DatasetPreview rid={rid} />
                 </div>
             </App.Content>
-        </App.Root>
+        </>
     )
 }
 

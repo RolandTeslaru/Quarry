@@ -1,4 +1,5 @@
 export { Foundations }    from "./Foundations"
+export { Platform }       from "./Platform"
 export { Storage }        from "./Storage"
 export { Identity }       from "./Identity"
 export { Library }        from "./Library"

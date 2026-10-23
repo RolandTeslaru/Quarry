@@ -16,7 +16,8 @@ workspace database (`quarry`)
 ├── gatekeeper        role grants, permission epoch
 ├── keychain          credentials, encrypted at rest
 ├── catalog           datasets, branches, transactions, files
-└── data_connection   sources, syncs, sync runs
+├── data_connection   sources, syncs, sync runs
+└── audit             access events, append-only — see audit.md
     (later: code_repository, ontology, …)
 
 GoTrue keeps its tables in its own database (`gotrue`, schema `auth`) on the same Postgres server,

@@ -4,7 +4,7 @@ import { App } from '@/AppKit'
 import { LibraryExplorer, type Cwd } from '@/SDKs/LibrarySDK/ui/LibraryExplorer'
 import { Empty } from '@/components/Empty'
 import { resourceRoute } from '@/shell/apps'
-import { libraryApp } from './definition'
+import { libraryApp } from '../definition'
 import { ProjectCards } from './ProjectCards'
 
 /** The app's sections, chosen in the left nav. Files is the default; the others live in `?tab=`. */
@@ -50,7 +50,7 @@ export function LibraryExplorerApp({ cwd, tab }: Props) {
 
     return (
         <LibraryExplorer.Root cwd={cwd} setCwd={openFolder} onItemClick={openItem}>
-            <App.Root>
+            <>
                 <App.Header>
                     <App.Header.Icon glyph={libraryApp.glyph} />
                     <App.Header.Rows>
@@ -100,7 +100,7 @@ export function LibraryExplorerApp({ cwd, tab }: Props) {
                     {tab === 'cloud' && <PlaceholderTab icon='cloud' title='Cloud is coming' />}
                     {tab === 'trash' && <PlaceholderTab icon='trash' title='Trash' />}
                 </App.Content>
-            </App.Root>
+            </>
         </LibraryExplorer.Root>
     )
 }

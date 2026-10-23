@@ -4,6 +4,7 @@ import type { App } from '@/AppKit'
 export const datasetsApp: App.Definition = {
     id:           'datasets',
     label:        'Datasets',
+    description:  "Versioned tables: upload files or sync them from sources, then browse every version's rows, schema and files.",
     glyph: {
         icon:  'th',
         tile:  'bg-sky-500/15',
@@ -19,6 +20,10 @@ export const datasetsApp: App.Definition = {
     },
     to:           '/datasets',
     inNavigation: false,
+    home: {
+        tint: '--color-sky-600',
+        wave: { speed: 0.04, frequency: 1.4, amplitude: 0.22 },
+    },
     opens: {
         dataset: rid => ({ to: '/datasets/$rid', params: { rid } }),
     },

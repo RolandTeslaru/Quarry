@@ -4,6 +4,7 @@ import type { App } from '@/AppKit'
 export const minimalDemoApp: App.Definition = {
     id:           'minimal-demo',
     label:        'Minimal demo',
+    description:  'Test app: only a header and content.',
     glyph: {
         icon:  'square',
         tile:  'bg-neutral-500/15',

@@ -200,6 +200,13 @@ if (projectsRequest.isError)
 - Let the router plugin generate the route tree; never hand-edit generated output.
 - An app's routes live in its own folder, `src/apps/<app>/routes/`, mounted at `/<app>` by
   `src/routes.config.ts`; `src/routes/` holds only the shell's routes (root, workspace layout, auth, playground).
+- An app's folder: `definition.ts`, `routes/`, `components/`.
+  - `routes/route.tsx` is the app's layout route: `<App.Root app={xApp}><Outlet /></App.Root>`, rendered once around
+    every page of the app. Pages never render `App.Root`; they render the parts they fill (`App.Header`,
+    `App.Content`, …) and read the app with `App.useApp()`.
+  - The home (`/<app>`) is defined in `routes/index.tsx` itself, as `App.Home`; a resource page's route renders its
+    page component from `components/`.
+  - Everything else the app renders lives in `components/`.
 - Pass typed auth state through router context. Put access checks in route
   `beforeLoad` hooks, with public paths explicitly identified.
 - Initialize auth before protected route loaders run. Keep bootstrap/loading UI

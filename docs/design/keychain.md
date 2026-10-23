@@ -92,5 +92,5 @@ Contracts: `Keychain.API.Credential` in `@quarry/shared`. Server: `services/Keyc
 
 - **OAuth templates** (PretzelGraph's `defineOAuth2Credential`: fields first, tokens from a consent callback).
 - **Key rotation** — re-encrypting every blob under a new key; the key id already makes old blobs identifiable.
-- **An audit table for reveals** — logged to the server log only.
+- **An audit table for reveals** — designed in [audit.md](audit.md) (`reveal` events); until built, the server log only.
 - **Changing which credential a source uses.**

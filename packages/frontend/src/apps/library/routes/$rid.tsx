@@ -1,6 +1,6 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { Foundations, Library } from '@quarry/shared/domain'
-import { LibraryExplorerApp } from '@/apps/library/LibraryExplorerApp'
+import { LibraryExplorerApp } from '@/apps/library/components/LibraryExplorerApp'
 import { APPS } from '@/shell/apps'
 
 export const Route = createFileRoute('/_workspace/library/$rid')({

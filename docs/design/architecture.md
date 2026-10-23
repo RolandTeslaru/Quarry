@@ -577,4 +577,4 @@ On failure the Data Connection worker calls `POST …/:runRid/fail`: the server 
 - **Transforms / builds / lineage** — and the Python transform runtime they probably need.
 - **Frontend.**
 - **Markings** (mandatory controls) — wait for lineage.
-- **Audit log** — see [gatekeeper.md §10](gatekeeper.md#10-open-questions).
+- **Audit log** — designed in [audit.md](audit.md).

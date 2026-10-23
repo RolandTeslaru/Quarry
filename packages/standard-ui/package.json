@@ -19,6 +19,7 @@
         "./icons": "./src/icons/index.ts",
         "./SDKs/SDKManager": "./src/SDKs/SDKManager.ts",
         "./SDKs/core": "./src/SDKs/core/index.ts",
+        "./components/Dither": "./src/components/Dither/index.ts",
         "./SDKs/DialogSDK": "./src/SDKs/DialogSDK/index.ts",
         "./SDKs/NotificationSDK": "./src/SDKs/NotificationSDK/index.ts",
         "./utils/cn": "./src/utils/cn.ts"
@@ -52,6 +53,7 @@
         "classnames": "^2.5.1",
         "clsx": "^2.1.1",
         "immer": "^11.1.3",
+        "ogl": "1.0.11",
         "react-day-picker": "^9.13.0",
         "react-hook-form": "^7.71.1",
         "reflect-metadata": "0.2.2",

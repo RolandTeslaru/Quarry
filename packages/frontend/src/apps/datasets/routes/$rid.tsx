@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { Catalog } from '@quarry/shared/domain'
-import { DatasetApp } from '@/apps/datasets/DatasetApp'
+import { DatasetApp } from '@/apps/datasets/components/DatasetApp'
 
 export const Route = createFileRoute('/_workspace/datasets/$rid')({
     params: {
