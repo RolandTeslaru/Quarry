@@ -3,7 +3,7 @@ import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { BaseSDK } from '../core/BaseSDK'
-import { _createKeychainActions_, type _KeychainSDKActions } from './actions'
+import { KeychainActions } from './actions'
 import { _createKeychainDialogs_, type _KeychainSDKDialogs } from './dialogs'
 import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 
@@ -20,7 +20,7 @@ export class KeychainSDKImpl extends BaseSDK<KeychainSDK.State> {
         shallow,
     )
 
-    public readonly actions: KeychainSDK.Actions = _createKeychainActions_(this)
+    public readonly actions: KeychainSDK.Actions = new KeychainActions(this)
 
     public readonly dialogs: KeychainSDK.Dialogs = _createKeychainDialogs_()
 
@@ -54,6 +54,6 @@ export namespace KeychainSDK {
         templates:   Keychain.Credential.Template.Schema[]
     }
 
-    export type Actions = _KeychainSDKActions
+    export type Actions = KeychainActions
     export type Dialogs = _KeychainSDKDialogs
 }

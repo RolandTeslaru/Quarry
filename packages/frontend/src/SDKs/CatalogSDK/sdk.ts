@@ -3,7 +3,7 @@ import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { BaseSDK } from '../core/BaseSDK'
-import { _createCatalogActions_, type _CatalogSDKActions } from './actions'
+import { CatalogActions } from './actions'
 import { _createCatalogDialogs_, type _CatalogSDKDialogs } from './dialogs'
 import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 
@@ -21,7 +21,7 @@ export class CatalogSDKImpl extends BaseSDK<CatalogSDK.State> {
         shallow,
     )
 
-    public readonly actions: CatalogSDK.Actions = _createCatalogActions_(this)
+    public readonly actions: CatalogSDK.Actions = new CatalogActions(this)
 
     public readonly dialogs: CatalogSDK.Dialogs = _createCatalogDialogs_()
 
@@ -73,6 +73,6 @@ export namespace CatalogSDK {
         datasets: Record<Catalog.Dataset.Rid, Catalog.Dataset.Schema>
     }
 
-    export type Actions = _CatalogSDKActions
+    export type Actions = CatalogActions
     export type Dialogs = _CatalogSDKDialogs
 }

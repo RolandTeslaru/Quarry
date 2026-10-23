@@ -3,7 +3,7 @@ import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
 import { BaseSDK } from '../core/BaseSDK'
-import { _createLibraryActions_, type _LibrarySDKActions } from './actions'
+import { LibraryActions } from './actions'
 import { _createLibraryDialogs_, type _LibrarySDKDialogs } from './dialogs'
 import { _librarySelectors_, type _LibrarySDKSelectors } from './selectors'
 import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
@@ -21,7 +21,7 @@ export class LibrarySDKImpl extends BaseSDK<LibrarySDK.State> {
         shallow,
     )
 
-    public readonly actions: LibrarySDK.Actions = _createLibraryActions_(this)
+    public readonly actions: LibrarySDK.Actions = new LibraryActions(this)
 
     public readonly dialogs: LibrarySDK.Dialogs = _createLibraryDialogs_()
 
@@ -65,7 +65,7 @@ export namespace LibrarySDK {
         paths:     Record<Library.Resource.Rid, Library.Resource.Rid[]>
     }
 
-    export type Actions   = _LibrarySDKActions
+    export type Actions   = LibraryActions
     export type Dialogs = _LibrarySDKDialogs
     export type Selectors = _LibrarySDKSelectors
 }

@@ -6,7 +6,7 @@ import { shallow } from 'zustand/shallow'
 import { BaseSDK } from '../core/BaseSDK'
 import { cleanupSDKs } from '../cleanup'
 import { authClient } from './client'
-import { _createAuthActions_, type _AuthSDKActions } from './actions'
+import { AuthActions } from './actions'
 import { observeAuth, type AuthObserver, type ObserveOptions as ObserveOptions_ } from './observe'
 import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 
@@ -29,7 +29,7 @@ export class AuthSDKImpl extends BaseSDK<AuthSDK.State> {
         unsubscribe: null as (() => void) | null,
     }
 
-    public readonly actions: AuthSDK.Actions = _createAuthActions_(this)
+    public readonly actions: AuthSDK.Actions = new AuthActions(this)
 
     public init(): () => void {
         this.runtime.unsubscribe?.()
@@ -112,7 +112,7 @@ export namespace AuthSDK {
         error:      string | null
     }
 
-    export type Actions = _AuthSDKActions
+    export type Actions = AuthActions
 
     export type Observer       = AuthObserver
     export type ObserveOptions = ObserveOptions_

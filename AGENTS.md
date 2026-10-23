@@ -88,8 +88,8 @@ return (
 
 ## 4. Files have clear responsibilities
 
-- Keep SDK assembly in `sdk.ts`, side-effectful operations in `actions.ts` or
-  `actions/`, derived reads in `selectors.ts`, and feature UI in `ui/`.
+- Keep SDK assembly in `sdk.ts`, side-effectful operations in `actions/` (one
+  file per group, the root class in `index.ts`), derived reads in `selectors.ts`, and feature UI in `ui/`.
 - Split an actions folder by domain entity when one file becomes difficult to
   navigate. Do not create a folder hierarchy without enough code to justify it.
 - Keep component rendering, schema/default-value helpers, hooks, and formatting
@@ -124,12 +124,13 @@ return (
   importing its instance (which can close an import cycle) or wiring it from the other SDK's actions.
 - Use the established shallow-equality store pattern for selectors returning
   arrays or objects. Do not create unstable subscriptions that repeatedly render.
-- SDK classes assemble the store, action factories, selectors, and query
+- SDK classes assemble the store, action groups, selectors, and query
   definitions. Do not put every API call inline in the SDK class.
 - Actions visibly perform their steps: call the shared API, update the store,
   invalidate relevant queries when necessary, and return the result.
 - Group related actions by domain responsibility, such as `source`, `sync`, and
-  `run`, as in PretzelGraph's entity-oriented action factories.
+  `run`, as in PretzelGraph's entity-oriented action groups. An SDK with no
+  groups (Auth) puts its actions on the root class directly.
 - Each action group is a class extending `ActionGroup` (`SDKs/core/actions.ts`). The SDK's actions are a class
   too — `XActions extends ActionGroup` in `actions/index.ts`, holding the groups as fields
   (`readonly source = new SourceActions(this.sdk)`) — and the SDK has `actions = new XActions(this)`.
