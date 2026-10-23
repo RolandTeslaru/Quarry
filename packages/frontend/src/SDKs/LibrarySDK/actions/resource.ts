@@ -1,12 +1,29 @@
-import { Library } from '@quarry/shared/domain'
+import { Library, type Platform } from '@quarry/shared/domain'
 import { api } from '@/SDKs/api'
 import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
+import { AuditSDK } from '@/SDKs/AuditSDK/sdk'
 import type { LibrarySDKImpl } from '../sdk'
 
 /** `LibrarySDK.actions.resource` */
 export class ResourceActions extends ActionGroup<LibrarySDKImpl> {
 
     protected readonly log = log.withContext('Library.Actions.Resource')
+
+    /**
+     * A project's or folder's page opening in an app — its route's loader, on
+     * enter. One request: the resource, the open recorded (audit).
+     */
+    public async open(rid: Library.Resource.Rid, application: Platform.Application.Id): Promise<Library.API.Resource.Open.Response> {
+        const data = await Library.API.Resource.open(api, rid, { application })
+
+        this.sdk.setState(state => {
+            state.resources[rid] = data.resource
+        })
+
+        void AuditSDK.invalidate(AuditSDK.query.recents(application))
+
+        return data
+    }
 
     public async children(rid: Library.Resource.Rid): Promise<Library.API.Resource.Children.Response> {
         const data = await Library.API.Resource.children(api, rid)

@@ -7,6 +7,8 @@ import { Principal } from '@/auth/principal';
 import { FileStorage } from '@/infra/file-storage';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
+import { Audit } from '@/services/Audit/audit.decorator';
+import { AuditService } from '@/services/Audit/audit.service';
 import { DatasetRepository } from '../dataset.repository';
 import { DatasetTransactions } from '../transaction/dataset-transactions';
 import { TransactionRepository } from '../transaction/transaction.repository';
@@ -37,6 +39,7 @@ export class DatasetFiles {
 
     constructor(
         readonly gatekeeper:                    GatekeeperService,
+        readonly audit:                         AuditService,
         private readonly transactions:          DatasetTransactions,
         private readonly transactionRepository: TransactionRepository,
         private readonly datasetRepository:     DatasetRepository,
@@ -115,6 +118,7 @@ export class DatasetFiles {
     }
 
     /** The first `limit` rows of the latest view. Gated: it hands out file contents, and RLS alone would answer a discoverer with an empty view. */
+    @Audit('read', (limit: number) => ({ op: 'preview', limit }))
     @SecurityGate('read')
     async preview(principal: Principal, datasetRid: Catalog.Dataset.Rid, limit: number): Promise<Catalog.API.Dataset.Preview.Response> {
         const view = await this.transactionRepository.resolveView(principal, datasetRid, 'main');

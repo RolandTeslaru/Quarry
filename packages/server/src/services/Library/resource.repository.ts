@@ -1,14 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Library } from '@quarry/shared/domain';
+import { Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { requireAffected } from '@/db/errors';
 import { Repository, Transactional } from '@/db/repository';
+import { AuditRepository } from '@/services/Audit/audit.repository';
 import { LibraryDB } from './library.db';
 import { insertResource, isLive, liveResources, visibleResources } from './library.statements';
 
 /** Row operations on library.resource. Trashed resources — and anything under them — read as absent. */
 @Injectable()
 export class ResourceRepository extends Repository(LibraryDB.database) {
+
+    constructor(private readonly audit: AuditRepository) {
+        super();
+    }
 
     /** The resource, unless it or an ancestor is trashed. */
     @Transactional()
@@ -21,6 +26,17 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
             .executeTakeFirst();
 
         return row ?? null;
+    }
+
+    /** An app opening the resource's page: it, and the audit `open`, in one transaction. Null: not there, or not theirs to see. */
+    @Transactional('user')
+    async open(principal: Principal.User, rid: Library.Resource.Rid, application: Platform.Application.Id): Promise<LibraryDB.Resource.Row | null> {
+        const row = await this.get(principal, rid);                 // joins this transaction
+
+        if (row)
+            await this.audit.recordOpen(principal, { rid, type: row.type, application });  // joins this transaction
+
+        return row;
     }
 
     @Transactional()

@@ -14,15 +14,18 @@ import { catchDatabaseErrors } from './errors';
  * the method its handle via `this.trx`. Services never see a transaction, so a
  * transaction never outlives one repository method.
  *
- * Nothing propagates: a decorated method calling another decorated method
- * throws. Compose inside one repository method with `_`-prefixed helpers.
+ * A decorated method called while one is already running joins its
+ * transaction — the same principal only (the transaction's role and
+ * `app.user_rid` are set for it); a different one throws. So a repository
+ * method composes the repository's others (`open` calls `this.get`), and the
+ * outermost call commits.
  */
 
 type Kind = Principal['type'];
 
 type PrincipalOf<K extends Kind> = Extract<Principal, { type: K }>;
 
-const transactionStorage = new AsyncLocalStorage<{ trx: unknown }>();
+const transactionStorage = new AsyncLocalStorage<{ trx: unknown; principal: Principal }>();
 
 /** The library row @EnsureResource inserted for the current call. */
 const resourceStorage = new AsyncLocalStorage<LibraryDB.Resource.Row>();
@@ -91,6 +94,15 @@ export function Repository<T>(database: Database<T>) {
 }
 
 const ALL_KINDS: readonly Kind[] = ['user', 'delegate', 'service'];
+
+/** Whether a call may join a transaction: the one it was opened for — the same user (and job), or the system. */
+function samePrincipal(open: Principal, next: Principal): boolean {
+    switch (open.type) {
+        case 'user':     return next.type === 'user' && next.userRid === open.userRid;
+        case 'delegate': return next.type === 'delegate' && next.userRid === open.userRid && next.via === open.via;
+        case 'service':  return next.type === 'service';
+    }
+}
 
 const ALLOW_TRASHED = Symbol.for('quarry.repository.allowTrashed');
 
@@ -177,22 +189,38 @@ export function Transactional(...requested: Kind[]): MethodDecoratorFor<Principa
             if (!principal || !accepted.includes(principal.type))
                 throw new InternalServerErrorException(`${operation} may not run as '${principal?.type}' (accepts: ${accepted.join(', ')})`);
 
-            if (transactionStorage.getStore())
-                throw new InternalServerErrorException(`${operation} would nest transactions — compose inside one repository method via a _ helper`);
+            const rids = resourceRidsOf(args, exempt);
+
+            const checkLive = async (trx: Transaction<unknown>): Promise<void> => {
+                if (rids.length === 0)
+                    return;
+
+                const live = await liveResources(trx, rids);
+
+                if (rids.some((rid) => !live.has(rid)))
+                    throw new NotFoundException('Not found');
+            };
+
+            const call = () => original.apply(this, [principal, ...rest] as Parameters<M>);
+
+            // Called inside another decorated method: join its transaction — as the same principal only.
+            const open = transactionStorage.getStore();
+
+            if (open) {
+                if (!samePrincipal(open.principal, principal))
+                    throw new InternalServerErrorException(`${operation} can't join a transaction opened as another principal`);
+
+                await checkLive(open.trx as Transaction<unknown>);
+
+                return call();
+            }
 
             const database = getDatabase(this);
 
-            const rids = resourceRidsOf(args, exempt);
-
             const run = async (trx: Transaction<unknown>): Promise<unknown> => {
-                if (rids.length > 0) {
-                    const live = await liveResources(trx, rids);
+                await checkLive(trx);
 
-                    if (rids.some((rid) => !live.has(rid)))
-                        throw new NotFoundException('Not found');
-                }
-
-                return transactionStorage.run({ trx }, () => original.apply(this, [principal, ...rest] as Parameters<M>));
+                return transactionStorage.run({ trx, principal }, call);
             };
 
             return principal.type === 'service'

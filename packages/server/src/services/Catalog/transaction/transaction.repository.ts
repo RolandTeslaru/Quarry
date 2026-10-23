@@ -119,9 +119,9 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
     }
 
     /**
-     * The file set at `sequence` (default: latest): the latest committed
-     * snapshot at or before it, then every later committed transaction in
-     * order, applied by logical path.
+     * The file set at `sequence` (default: the branch's head): the latest
+     * committed snapshot at or before it, then every later committed
+     * transaction in order, applied by logical path.
      */
     @Transactional()
     async resolveView(principal: Principal, datasetRid: Catalog.Dataset.Rid, branch: string, sequence?: number): Promise<Catalog.Dataset.View.Schema> {

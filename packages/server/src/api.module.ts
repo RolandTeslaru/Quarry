@@ -21,6 +21,8 @@ import { DataConnectionModule } from '@/services/DataConnection/data-connection.
 import { DataConnectionController } from '@/services/DataConnection/data-connection.controller';
 import { DataConnectionInternalController } from '@/services/DataConnection/data-connection.internal.controller';
 import { RealtimeModule } from '@/services/Realtime/realtime.module';
+import { AuditModule } from '@/services/Audit/audit.module';
+import { AuditController } from '@/services/Audit/audit.controller';
 
 /**
  * The server: every service's module + all controllers, including the
@@ -31,6 +33,7 @@ import { RealtimeModule } from '@/services/Realtime/realtime.module';
     imports: [
         InfraModule,
         RealtimeModule,
+        AuditModule,
         IdentityModule,
         LibraryModule,
         GatekeeperModule,
@@ -47,6 +50,7 @@ import { RealtimeModule } from '@/services/Realtime/realtime.module';
         KeychainController,
         CatalogController,
         DataConnectionController,
+        AuditController,
         // /api/internal/… — service token only, for the sync and system workers
         CatalogInternalController,
         DataConnectionInternalController,

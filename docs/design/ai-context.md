@@ -99,8 +99,9 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
     }
 }
 ```
-- Principal is always the first parameter. One transaction per method, no
-  nesting (runtime throw) — compose with `_`-prefixed private helpers.
+- Principal is always the first parameter. One transaction per outermost call;
+  a decorated method called inside one joins it (same principal only — another
+  throws), so `open` calls `this.get`.
 - `@EnsureResource('<type>')`: the owning service (Catalog for datasets,
   DataConnection for sources) is the entry point for creating its resource.
   Atomic with the subtype row. Must sit under `@Transactional`; compile-time

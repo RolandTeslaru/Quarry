@@ -2,6 +2,7 @@ import { z } from "zod"
 import type { AxiosInstance } from "axios"
 import { Resource as ResourceD } from "../../Library/Resource"
 import { Credential } from "../../Keychain/Credential"
+import { Application } from "../../Platform/Application"
 import { Source as SourceD } from "../Source"
 
 export namespace Source {
@@ -38,6 +39,16 @@ export namespace Source {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** An app opening the source's page: the source, the open recorded (audit). */
+    export namespace Open {
+        /** Which app opened it — recorded with the open. */
+        export const Request = z.object({ application: Application.Id })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({ source: SourceD.Schema })
+        export type  Response = z.infer<typeof Response>
+    }
+
     /** Runs in the Data Connection worker, which decrypts the credential — the server sends it encrypted. */
     export namespace Test {
         export const Response = z.object({ ok: z.boolean(), error: z.string().nullable() })
@@ -62,6 +73,11 @@ export namespace Source {
     export async function list(api: AxiosInstance): Promise<List.Response> {
         const { data } = await api.get("/api/sources")
         return List.Response.parse(data)
+    }
+
+    export async function open(api: AxiosInstance, rid: SourceD.Rid, req: Open.Request): Promise<Open.Response> {
+        const { data } = await api.post(`/api/sources/${rid}/open`, req)
+        return Open.Response.parse(data)
     }
 
     export async function get(api: AxiosInstance, rid: SourceD.Rid): Promise<Get.Response> {

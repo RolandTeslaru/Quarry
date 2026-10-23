@@ -31,6 +31,10 @@ function DatasetsHome() {
             </App.Home.Header>
 
             <App.Home.Content>
+                <App.Home.Section title='Recently opened'>
+                    <App.Home.Recents />
+                </App.Home.Section>
+
                 <App.Home.Section
                     title='All datasets'
                     meta={<>{number(datasets.length)} you can see</>}

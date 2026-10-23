@@ -36,6 +36,10 @@ function DataConnectionHome() {
             </App.Home.Header>
 
             <App.Home.Content>
+                <App.Home.Section title='Recently opened'>
+                    <App.Home.Recents />
+                </App.Home.Section>
+
                 <App.Home.Section
                     title='Sources'
                     meta={<>{number(sources.length)} you can see</>}

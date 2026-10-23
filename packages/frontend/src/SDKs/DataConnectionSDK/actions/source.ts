@@ -1,8 +1,9 @@
-import { DataConnection } from '@quarry/shared/domain'
+import { DataConnection, type Platform } from '@quarry/shared/domain'
 import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { api, describeError, errorMessage } from '@/SDKs/api'
 import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
+import { AuditSDK } from '@/SDKs/AuditSDK/sdk'
 import type { DataConnectionSDKImpl } from '../sdk'
 
 /** `DataConnectionSDK.actions.source` */
@@ -10,11 +11,24 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
 
     protected readonly log = log.withContext('DataConnection.Actions.Source')
 
-    /** This source's page is open (the route's onEnter / onStay). */
-    public open(rid: DataConnection.Source.Rid): void {
+    /**
+     * The source's page opening in an app — its route's loader, on enter. One
+     * request: the source, the open recorded (audit). Then it's the open source:
+     * its runs go live until close.
+     */
+    public async open(rid: DataConnection.Source.Rid, application: Platform.Application.Id): Promise<DataConnection.API.Source.Open.Response> {
+        const data = await DataConnection.API.Source.open(api, rid, { application })
+
         this.sdk.setState(state => {
+            state.sources[rid] = data.source
             state.openSourceRid = rid
         })
+
+        this.sdk.seedQuery(query => query.source(rid), { source: data.source })
+
+        void AuditSDK.invalidate(AuditSDK.query.recents(application))
+
+        return data
     }
 
     /** This source's page closed (the route's onLeave) — only if it's still the open one. */

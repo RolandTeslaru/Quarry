@@ -34,6 +34,17 @@ export class DataConnectionController {
         return { definitions: this.dataConnection.source.definitions() };
     }
 
+    /** An app opened the source's page: the source, the open recorded (audit). */
+    @Post(':rid/open')
+    @HttpCode(200)
+    async open(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', SourceRidParam) rid: DataConnection.Source.Rid,
+        @Body(new ZodPipe(API.Source.Open.Request)) body: API.Source.Open.Request,
+    ): Promise<API.Source.Open.Response> {
+        return { source: await this.dataConnection.source.open(principal, rid, body.application) };
+    }
+
     @Get(':rid')
     async get(@CurrentPrincipal() principal: Principal.User, @Param('rid', SourceRidParam) rid: DataConnection.Source.Rid): Promise<API.Source.Get.Response> {
         return { source: await this.dataConnection.source.get(principal, rid) };

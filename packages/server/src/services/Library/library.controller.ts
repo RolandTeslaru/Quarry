@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { Library } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
@@ -30,6 +30,17 @@ export class LibraryController {
     @Get('resources/:rid')
     async get(@CurrentPrincipal() principal: Principal.User, @Param('rid', RidParam) rid: Library.Resource.Rid): Promise<API.Resource.Get.Response> {
         return { resource: await this.library.get(principal, rid) };
+    }
+
+    /** An app opened the resource's page: the resource, the open recorded (audit). */
+    @Post('resources/:rid/open')
+    @HttpCode(200)
+    async open(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', RidParam) rid: Library.Resource.Rid,
+        @Body(new ZodPipe(API.Resource.Open.Request)) body: API.Resource.Open.Request,
+    ): Promise<API.Resource.Open.Response> {
+        return { resource: await this.library.open(principal, rid, body.application) };
     }
 
     @Get('resources/:rid/path')

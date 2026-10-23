@@ -524,7 +524,7 @@ flowchart LR
 | `@SecurityGate` on services, `@Transactional` on repositories, never both | Review; decorator target types |
 | Trashed resources read as absent: `@Transactional` 404s unless every top-level library-resource RID argument exists, isn't trashed, and has no trashed ancestor (one query, same transaction). Exempt a parameter with `@AllowTrashed()` (restore, purge, trash listing) | Runtime, detected by value (`Library.Resource.Rid` pattern) — so resources you act on are top-level parameters, payloads are objects |
 | Names say what they hold: `rid`, `parentRid`, `datasetRid`, `sourceRid` — never `…Id` for a RID | Review |
-| Repositories never call other repositories; `@Transactional` doesn't nest | Runtime throw (PretzelCloud pattern) |
+| A `@Transactional` call inside another joins it — same principal only; another service's repository only when its module exports it, to share a transaction | Runtime throw on a different principal; DI (unexported providers don't resolve) |
 | A repository touches only its own schema (+ foundation reads) | `Repository(CatalogDB)` typing |
 | Services import other services' **public services**, never their repositories or `.db.ts` | Lint (`eslint-plugin-boundaries` or `dependency-cruiser`) |
 | Pass the caller's principal service → service → repository; background work for a user is a delegate; `Principal.SELF` only for system work | Review; greppable reasons |

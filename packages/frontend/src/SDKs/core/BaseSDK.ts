@@ -29,6 +29,16 @@ export abstract class BaseSDK<T_State> {
     public invalidate = (query: Pick<BaseSDK.Query, 'queryKey'>): Promise<void> =>
         QuerySDK.client.invalidateQueries({ queryKey: query.queryKey })
 
+    /**
+     * Puts a response already in hand (an open's) into one of this SDK's queries,
+     * chosen like useWith's — so the component's useWith renders without fetching.
+     *
+     *   this.sdk.seedQuery(query => query.view(rid), { view })
+     */
+    public seedQuery = <Result>(select: (query: this['query']) => BaseSDK.Query<Result>, data: Result): void => {
+        QuerySDK.client.setQueryData(select(this.query).queryKey, data)
+    }
+
     public get state() { return this.useStore.getState() }
     public get subscribe() { return this.useStore.subscribe }
     public get setState() { return this.useStore.setState }

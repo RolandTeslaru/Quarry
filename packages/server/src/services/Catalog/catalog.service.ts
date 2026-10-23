@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Catalog } from '@quarry/shared/domain';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Catalog, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { FileStorage } from '@/infra/file-storage';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
+import { Audit } from '@/services/Audit/audit.decorator';
+import { AuditService } from '@/services/Audit/audit.service';
 import { DatasetRepository } from './dataset.repository';
 import { OutboxRepository } from './outbox/outbox.repository';
 import { DatasetFiles } from './files/dataset-files';
@@ -20,6 +22,7 @@ export class CatalogService {
 
     constructor(
         readonly gatekeeper:                    GatekeeperService,
+        readonly audit:                         AuditService,
         readonly transaction:                   DatasetTransactions,
         readonly files:                         DatasetFiles,
         private readonly datasetRepository:     DatasetRepository,
@@ -57,11 +60,30 @@ export class CatalogService {
      * transactions, so RLS alone would answer with a silently empty view — and
      * the view hands out storage keys.
      */
+    @Audit('read', (sequence?: number) => ({ op: 'view', sequence: sequence ?? null }))
     @SecurityGate('read')
     async view(principal: Principal, rid: Catalog.Dataset.Rid, sequence?: number): Promise<Catalog.Dataset.View.Schema> {
         await this.get(principal, rid);
 
         return this.transactionRepository.resolveView(principal, rid, 'main', sequence);
+    }
+
+    /**
+     * An app opening the dataset's page: the dataset and its latest view, with
+     * the audit `open` recorded in the same transaction. Gated like view (it
+     * hands out storage keys); only users open pages.
+     */
+    @SecurityGate('read')
+    async open(principal: Principal, rid: Catalog.Dataset.Rid, application: Platform.Application.Id): Promise<Catalog.API.Dataset.Open.Response> {
+        if (principal.type !== 'user')
+            throw new ForbiddenException('Only users open pages');
+
+        const opened = await this.datasetRepository.open(principal, rid, application);
+
+        if (!opened)
+            throw new NotFoundException('Not found');
+
+        return opened;
     }
 
     // ── housekeeping — called by the system worker through /internal ───

@@ -1,6 +1,6 @@
 # Audit — Access Events
 
-_Draft, 2026-10-23. Principals and `via` are in [gatekeeper.md](gatekeeper.md#3-principals); schema rules in [database.md](database.md); application ids in `@quarry/shared` (`Platform.Application.Id`). Answers the audit-log open question in [gatekeeper.md §10](gatekeeper.md#10-open-questions) and the reveal audit in [keychain.md](keychain.md)._
+_Built, 2026-10-23. Principals and `via` are in [gatekeeper.md](gatekeeper.md#3-principals); schema rules in [database.md](database.md); application ids in `@quarry/shared` (`Platform.Application.Id`). Answers the audit-log open question in [gatekeeper.md §10](gatekeeper.md#10-open-questions) and the reveal audit in [keychain.md](keychain.md)._
 
 Audit records **who accessed what, how, and when** — one append-only event per meaningful access. It serves two readers:
 
@@ -33,7 +33,7 @@ Not recorded:
 
 | Action | Recorded when | By (§4) |
 |---|---|---|
-| `open` | An app opens a resource's page (`/datasets/$rid`, `/data-connection/sources/$rid`, `/library/$rid` …) | The frontend: the route's `onEnter` → `POST /api/audit/open` |
+| `open` | An app opens a resource's page (`/datasets/$rid`, `/data-connection/sources/$rid`, `/library/$rid` …) | The resource's own open request (`POST …/:rid/open`), in the transaction that reads the page's data |
 | `read` | Data is read: a dataset's view or preview; a source tested or explored; a credential used by a run or probe | `@Audit('read')` on the service method |
 | `download` | A file or export leaves the platform | `@Audit('download')` (no such method yet) |
 | `modify` | A write: create, upload / commit, config or values change, rename, move, trash, restore, share (grant / revoke) | Database triggers on the written tables |
@@ -85,7 +85,7 @@ CREATE INDEX access_event_recent   ON audit.access_event (user_rid, application_
 | `modify` | **Triggers** (`audit.record_change`) on the tables users write | Every user and delegate transaction already sets `app.user_rid` and `app.via` (`asUser`, db/pool.ts) — a trigger knows who and via what, inside the write's transaction: committed with it, rolled back with it. It covers writes RLS allows that no service method gates (most writes have no `@SecurityGate`). Precedent: Gatekeeper's epoch triggers on foundation tables. |
 | `read`, `download`, `reveal` | **`@Audit(action)`** on the service method, shaped `(principal, rid, …)` like `@SecurityGate` | Postgres has no read triggers. Records after the method succeeds, in a transaction of its own — these methods are gated, not `@Transactional`, and a read has nothing to be atomic with. The class injects `AuditService`, as `@SecurityGate`'s injects `GatekeeperService`. |
 | `denied` | **`GatekeeperService.assert`** records before it throws | Every gated refusal passes through it. Its own transaction: the refusal rolls the caller's back. |
-| `open` | **`POST /api/audit/open`** | The only one the client sends (below). |
+| `open` | **`AuditRepository.recordOpen`**, called by each resource's open | It joins the open's transaction: the page's first read and its record are one request and one transaction (below). |
 
 The actor and `via` always come from the principal — the transaction's settings for triggers — never from the caller.
 
@@ -102,7 +102,7 @@ The actor and `via` always come from the principal — the transaction's setting
 | `data_connection.sync` | INSERT, UPDATE, DELETE | the sync's **source** | `{ op, syncRid }` |
 | `catalog.transaction` | UPDATE to `committed` | the dataset | `{ op: commit, transactionRid, type }` (snapshot · append · update · delete) |
 
-Creating a resource is one event (the `library.resource` insert), not one per subtype row. A sync run's commit is recorded on its dataset with `via = sync:<id>` — **only if the run commits as its delegate** (`Principal.onBehalfOf`), not as a service transaction. To verify when building: today `runs.complete` is called from the worker's internal API without a principal.
+Creating a resource is one event (the `library.resource` insert), not one per subtype row. A sync run's commit is recorded on its dataset with `via = sync:<id>`: `runs.complete` commits as the run's delegate (`runPrincipal`), so the transaction carries the user and the job.
 
 ### `@Audit` (`read`, `download`, `reveal`)
 
@@ -128,9 +128,17 @@ User and delegate transactions run as `quarry_user` (database.md §8):
 
 ### `open`
 
-**`POST /api/audit/open { rid, application }`** — one endpoint for every resource type; services get no `openX` method. A **get is not an open**: the same `GET` serves the details panel, the location picker, breadcrumbs and React Query's refetch on focus, and it can't say which app asked. The page fetches through its normal gets; the route's `onEnter` sends one open.
+**Each resource type has an open** — its page's entry point, owned by its service:
 
-Reads the resource from `library.resource` as the user — discover, or a 404 and no event — and records `open` with its type and the app (validated against `Platform.Application.Id`). Every entry into the route records one; re-entering minutes later records again — cheap, and recents take the latest anyway. Throttling (one per user, resource and app per few minutes) can come if volume says so.
+| Request | Returns |
+|---|---|
+| `POST /api/datasets/:rid/open { application }` | `{ dataset, view }` — the latest view; not its rows: the page fetches its preview (an audited `read`) |
+| `POST /api/sources/:rid/open { application }` | `{ source }` |
+| `POST /api/resources/:rid/open { application }` | `{ resource }` — a project or folder in the Library |
+
+One repository method (`DatasetRepository.open`, …) reads what the page needs first and calls `AuditRepository.recordOpen(principal, { rid, type, application })` — exported by AuditModule for this; called inside the open, it joins its transaction and writes through Audit's own database module — so the page's data and its `open` commit together, or neither. Not there, or not the user's to see: 404, nothing recorded. `application` is validated against `Platform.Application.Id`. Only users open pages.
+
+**A get is not an open.** The plain `GET`s stay side-effect free: they serve pickers, breadcrumbs, details panels and React Query's refetches, none of which is the user opening the page. Only the route opens.
 
 ---
 
@@ -175,16 +183,22 @@ Kept indefinitely for now. When it matters: partition `access_event` by month on
 
 ## 8. Frontend
 
-- **`AuditSDK`** (shared — every app uses it): `actions.open(rid, application)` and `query.recents(application)`.
-- **Recording**: each app's resource route calls `AuditSDK.actions.open(rid, app.id)` in `onEnter` and `onStay` (a new rid), like `sources.$rid.tsx` opens its source. A failed record is logged, never shown — it mustn't break the page.
-- **Home screens**: each app's home (`/<app>`, the route without a rid) shows the app's name and description, then *Recently opened* from `AuditSDK.query.recents(app.id)`. Apps with no resource pages (Keychain) have no recents.
+- **`AuditSDK`** (shared — every app uses it): `query.recents(application)`. It records nothing — opens are the resources' own requests.
+- **Opening**: a resource page's route `loader` is its entry point. On `enter` it awaits the owning SDK's open (`CatalogSDK.actions.dataset.open(rid, datasetsApp.id)`), which seeds the page's queries (`this.sdk.seedQuery(query => query.view(rid), { view })`) and invalidates the app's recents; the component's `useWith` then renders from cache. `pendingComponent: App.Pending` (`pendingMs: 0`) shows while it loads; a 404 is the route's not-found (`orNotFound`). A hover preload (`cause: 'preload'`) only prefetches unaudited metadata (`get`) — never a view, rows or anything else that records — and `preloadStaleTime: 0` makes the click after it still run the loader. A search change (`stay`) does nothing.
+- **Home screens**: `App.Home.Recents` lists `AuditSDK.query.recents(app.id)` — in a *Recently opened* section on Datasets' and Data Connection's homes, and the Library home's Recents tab. Apps with no resource pages (Keychain, Pipeline Builder for now) have none.
 
 ---
 
-## 9. Open questions
+## 9. Decided
+
+- **Who reads the log** — workspace admins only (`GET /api/audit/events`); no screen yet.
+- **Clearing recents** — not offered. Events are never deleted; if it's ever wanted, a "hidden before" marker per user and app, no change to events.
+- **Recents' location** — the parent's name, one join; not the full path.
+- **Throttling opens** — none; the frontend records once per visit (below).
+
+## 10. Open questions
 
 - **Owners reading their resources' history** — should **manage** on a resource let you see who accessed it, not only admins?
-- **Clearing recents** — events can't be deleted. If users should clear their list, that needs `audit.recent` (§5) with its own delete, or a "hidden before" marker per user and app.
 - **RLS refusals** — a write row-level security refuses (SQLSTATE 42501) isn't recorded as `denied`: `catchDatabaseErrors` doesn't know the resource. Services gate first, so these should be rare.
 - **Discover events** — never, or sampled for sensitive resources once markings exist ([gatekeeper.md §9](gatekeeper.md#9-later-mandatory-controls-markings))?
 - **Export** — stream events to an external SIEM, as Foundry's audit logs export?

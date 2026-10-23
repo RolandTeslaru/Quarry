@@ -7,6 +7,8 @@ import { CREDENTIAL_TEMPLATES, credentialToWire, findCredentialTemplate, type Cr
 import { Principal } from '@/auth/principal';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
+import { Audit } from '@/services/Audit/audit.decorator';
+import { AuditService } from '@/services/Audit/audit.service';
 import { KeychainRepository, type StoredCredential } from './keychain.repository';
 
 /**
@@ -31,6 +33,7 @@ export class KeychainService implements OnModuleInit {
 
     constructor(
         readonly gatekeeper:         GatekeeperService,
+        readonly audit:              AuditService,
         private readonly repository: KeychainRepository,
     ) {}
 
@@ -75,7 +78,8 @@ export class KeychainService implements OnModuleInit {
         await this.repository.setBlob(principal, rid, Encryption.encrypt(parseValues(template, values)));
     }
 
-    /** The decrypted values — editors and owners only, and logged. */
+    /** The decrypted values — editors and owners only, and recorded (audit `reveal`). */
+    @Audit('reveal')
     @SecurityGate('write')
     async reveal(principal: Principal, rid: Keychain.Credential.Rid): Promise<Keychain.Credential.Values> {
         const { blob } = await this.require(principal, rid);
@@ -89,6 +93,7 @@ export class KeychainService implements OnModuleInit {
      * For using it — a source naming it, a run or probe of that source: read on
      * the credential, and still encrypted. Data Connection hands it to the worker as is.
      */
+    @Audit('read', () => ({ op: 'use' }))
     @SecurityGate('read')
     async getEncryptedBlob(principal: Principal, rid: Keychain.Credential.Rid): Promise<Keychain.Credential.Encrypted> {
         const { credential, blob } = await this.require(principal, rid);

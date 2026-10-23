@@ -1,7 +1,10 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { App } from '@/AppKit'
 import { DataConnection } from '@quarry/shared/domain'
 import { SourceApp } from '@/apps/data-connection/components/SourceApp'
 import { DataConnectionSDK } from '@/SDKs/DataConnectionSDK/sdk'
+import { orNotFound } from '@/utils/loader'
+import { dataConnectionApp } from '../definition'
 
 export const Route = createFileRoute('/_workspace/data-connection/sources/$rid')({
     params: {
@@ -14,10 +17,20 @@ export const Route = createFileRoute('/_workspace/data-connection/sources/$rid')
             return { rid: parsed.data }
         },
     },
-    // The route says which source is open; DataConnectionSDK decides what that means (its runs go live).
-    onEnter: match => DataConnectionSDK.actions.source.open(match.params.rid),
-    onStay:  match => DataConnectionSDK.actions.source.open(match.params.rid),
+    // Entering opens the source: its data and the audit `open` in one request; then its runs
+    // go live until it closes (DataConnectionSDK decides what open means). A hover (preload)
+    // only reads; a search change (stay) does neither.
+    loader: async ({ params, cause }) => {
+        if (cause === 'enter')
+            await orNotFound(DataConnectionSDK.actions.source.open(params.rid, dataConnectionApp.id))
+        else if (cause === 'preload')
+            await DataConnectionSDK.prefetch(DataConnectionSDK.query.source(params.rid))
+    },
     onLeave: match => DataConnectionSDK.actions.source.close(match.params.rid),
+    // A preload is only a read: a click after a hover must still run the loader, to open.
+    preloadStaleTime: 0,
+    pendingComponent: App.Pending,
+    pendingMs: 0,
     component: SourceRoute,
 })
 

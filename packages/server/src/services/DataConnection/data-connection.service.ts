@@ -1,6 +1,6 @@
-import { BadRequestException, ConflictException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, BadRequestException, ConflictException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
-import { DataConnection, Identity, Keychain, Storage } from '@quarry/shared/domain';
+import { DataConnection, Identity, Keychain, Storage, type Platform } from '@quarry/shared/domain';
 import { findDefinition, SOURCE_DEFINITIONS, toWire } from '@quarry/integrations/definitions';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
@@ -11,6 +11,8 @@ import { RealtimeService } from '@/services/Realtime/realtime.service';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { KeychainService } from '@/services/Keychain/keychain.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
+import { Audit } from '@/services/Audit/audit.decorator';
+import { AuditService } from '@/services/Audit/audit.service';
 import { DataConnectionDB, DataConnectionRepository } from './data-connection.repository';
 
 /** How long the server waits for the Data Connection worker to answer a source probe. */
@@ -50,6 +52,7 @@ export namespace DataConnectionService {
 
         constructor(
             readonly gatekeeper:           GatekeeperService,
+            readonly audit:                AuditService,
             private readonly keychain:     KeychainService,
             private readonly queueManager: QueueManager,
             private readonly repository:   DataConnectionRepository,
@@ -107,12 +110,26 @@ export namespace DataConnectionService {
             return this.require(principal, rid);
         }
 
+        /** An app opening the source's page — the open recorded with the read (audit). Only users open pages. */
+        async open(principal: Principal, rid: DataConnection.Source.Rid, application: Platform.Application.Id): Promise<DataConnection.Source.Schema> {
+            if (principal.type !== 'user')
+                throw new ForbiddenException('Only users open pages');
+
+            const source = await this.repository.source.open(principal, rid, application);
+
+            if (!source)
+                throw new NotFoundException('Not found');
+
+            return source;
+        }
+
         /** Sources the principal can discover (RLS). */
         async list(principal: Principal): Promise<DataConnection.Source.Schema[]> {
             return this.repository.source.list(principal);
         }
 
         /** Read on the source and on its credential — gated: a probe writes no row RLS could refuse. */
+        @Audit('read', () => ({ op: 'test' }))
         @SecurityGate('read')
         async test(principal: Principal, rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Test.Response> {
             const source = await this.require(principal, rid);
@@ -130,6 +147,7 @@ export namespace DataConnectionService {
         }
 
         /** Read on the source and on its credential — gated, like test. */
+        @Audit('read', () => ({ op: 'explore' }))
         @SecurityGate('read')
         async explore(principal: Principal, rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Explore.Response> {
             const source = await this.require(principal, rid);

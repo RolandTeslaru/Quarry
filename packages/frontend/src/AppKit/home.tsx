@@ -1,6 +1,15 @@
 import type { ComponentProps, ReactNode } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Dither, ditherCtx } from '@quarry/standard-ui/components/Dither'
+import { Skeleton } from '@quarry/standard-ui/foundations/skeleton'
+import { FolderIllustration, Icon } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
+import type { Audit } from '@quarry/shared/domain'
+import { AuditSDK } from '@/SDKs/AuditSDK/sdk'
+import { ErrorNotice } from '@/components/ErrorNotice'
+import { resourceIcon } from '@/components/ResourceLink'
+import { resourceRoute } from '@/shell/apps'
+import { ago } from '@/utils/format'
 import { Glyph } from './glyph/Glyph'
 import { useApp } from './layout'
 
@@ -195,6 +204,57 @@ function Section({ title, meta, actions, className, children, ...props }: Sectio
     )
 }
 
+const RECENT_SKELETONS = [0, 1, 2]
+
+/**
+ * What the user opened recently in this app, newest first — from their audit
+ * `open` events, only what they can still see. Usually in a section:
+ *
+ *   <App.Home.Section title='Recently opened'><App.Home.Recents /></App.Home.Section>
+ */
+function Recents({ className }: { className?: string }) {
+    const app = useApp()
+
+    const [, [recentsRequest]] = AuditSDK.useWith(
+        () => null,
+        query => [query.recents(app.id)],
+    )
+
+    const recents = recentsRequest.data?.recents ?? []
+
+    return (
+        <div data-slot='app-home-recents' className={cn('flex flex-col', className)}>
+            <ErrorNotice error={recentsRequest.error} />
+
+            {recentsRequest.isPending && RECENT_SKELETONS.map(row => <Skeleton key={row} className='my-1 h-10 rounded-lg' />)}
+
+            {recentsRequest.isSuccess && recents.length === 0 && (
+                <p className='text-sm text-muted-foreground'>Nothing opened yet. What you open in {app.label} shows up here.</p>
+            )}
+
+            {recents.map(recent => <RecentRow key={recent.resource.rid} recent={recent} />)}
+        </div>
+    )
+}
+
+function RecentRow({ recent }: { recent: Audit.AccessEvent.Recent }) {
+    const { resource } = recent
+
+    return (
+        <Link
+            {...resourceRoute(resource.type, resource.rid)}
+            className='-mx-2 flex items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-muted/60'
+        >
+            {resource.type === 'folder' || resource.type === 'project'
+                ? <FolderIllustration color='var(--color-amber-400)' className='size-5 shrink-0' />
+                : <Icon name={resourceIcon(resource.type)} className='shrink-0 text-muted-foreground' />}
+            <span className='min-w-0 truncate font-medium text-foreground'>{resource.name}</span>
+            {recent.parentName && <span className='min-w-0 truncate text-xs text-muted-foreground'>{recent.parentName}</span>}
+            <span className='ml-auto shrink-0 text-xs text-muted-foreground'>{ago(recent.openedAt)}</span>
+        </Link>
+    )
+}
+
 export const Home = {
     Root,
     Header,
@@ -206,4 +266,5 @@ export const Home = {
     Content,
     Toolbar,
     Section,
+    Recents,
 }

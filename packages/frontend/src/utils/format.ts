@@ -25,3 +25,32 @@ export function fileSize(bytes: number): string {
 
     return `${value.toFixed(digits)} ${BYTE_UNITS[unit]}`
 }
+
+const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+
+const RELATIVE_STEPS: [Intl.RelativeTimeFormatUnit, number][] = [
+    ['second', 60],
+    ['minute', 60],
+    ['hour', 24],
+    ['day', 7],
+    ['week', 4.35],
+    ['month', 12],
+    ['year', Infinity],
+]
+
+/** How long ago: "just now", "5 minutes ago", "yesterday", "3 weeks ago". */
+export function ago(value: Date, now: Date = new Date()): string {
+    let amount = (value.getTime() - now.getTime()) / 1000
+
+    if (Math.abs(amount) < 45)
+        return 'just now'
+
+    for (const [unit, size] of RELATIVE_STEPS) {
+        if (Math.abs(amount) < size)
+            return relativeFormatter.format(Math.round(amount), unit)
+
+        amount /= size
+    }
+
+    return dateTime(value)
+}

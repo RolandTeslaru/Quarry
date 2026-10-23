@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Gatekeeper, Library } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
+import { AuditService } from '@/services/Audit/audit.service';
 import { GatekeeperDB } from './gatekeeper.db';
 import { GrantRepository } from './grant.repository';
 import { RequestMemo } from './request-memo';
@@ -14,7 +15,10 @@ const OWNER: Gatekeeper.Role.Rank = 4;
 @Injectable()
 export class GatekeeperService {
 
-    constructor(private readonly repository: GrantRepository) {}
+    constructor(
+        private readonly repository: GrantRepository,
+        private readonly audit:      AuditService,
+    ) {}
 
     async rank(principal: Principal, rid: Library.Resource.Rid): Promise<Gatekeeper.Role.Rank> {
         return (await this.ranks(principal, [rid])).get(rid) ?? 0;
@@ -24,15 +28,22 @@ export class GatekeeperService {
         return Gatekeeper.Action.isAllowed(await this.rank(principal, rid), action);
     }
 
-    /** NotFound if the principal can't even discover it (don't reveal it exists), Forbidden otherwise. */
+    /**
+     * NotFound if the principal can't even discover it (don't reveal it exists),
+     * Forbidden otherwise. Either way the refusal is recorded (audit `denied`).
+     */
     async assert(principal: Principal, action: Gatekeeper.Action.Name, rid: Library.Resource.Rid): Promise<void> {
         const rank = await this.rank(principal, rid);
+
+        if (Gatekeeper.Action.isAllowed(rank, action))
+            return;
+
+        await this.audit.recordDenied(principal, rid, action);
 
         if (!Gatekeeper.Action.isAllowed(rank, 'discover'))
             throw new NotFoundException('Not found');
 
-        if (!Gatekeeper.Action.isAllowed(rank, action))
-            throw new ForbiddenException(`Requires ${action} access`);
+        throw new ForbiddenException(`Requires ${action} access`);
     }
 
     /** Which of these the principal may act on — one query for any number. */

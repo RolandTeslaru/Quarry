@@ -1,13 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { Catalog, Library } from '@quarry/shared/domain';
+import { Catalog, Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { EnsureResource } from '@/services/Library/ensure-resource';
 import { isLive, trashResource } from '@/services/Library/library.statements';
+import { AuditRepository } from '@/services/Audit/audit.repository';
 import { CatalogDB } from './catalog.db';
+import { TransactionRepository } from './transaction/transaction.repository';
 
 @Injectable()
 export class DatasetRepository extends Repository(CatalogDB.database) {
+
+    constructor(
+        private readonly transactions: TransactionRepository,
+        private readonly audit:        AuditRepository,
+    ) {
+        super();
+    }
 
     /** Library row (via @EnsureResource) + dataset row + branch `main`, in one transaction. */
     @Transactional()
@@ -58,6 +67,25 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
         const { last_sequence, ...resource } = row;
 
         return CatalogDB.Dataset.toDomain({ rid, type: 'dataset' }, resource, last_sequence);
+    }
+
+    /**
+     * An app opening the dataset's page: the dataset, its latest view on `main`,
+     * and the audit `open` — one transaction, so a page is never shown
+     * unrecorded. Null: not there, or not the user's to see (nothing recorded).
+     */
+    @Transactional('user')
+    async open(principal: Principal.User, rid: Catalog.Dataset.Rid, application: Platform.Application.Id): Promise<{ dataset: Catalog.Dataset.Schema; view: Catalog.Dataset.View.Schema } | null> {
+        const dataset = await this.get(principal, rid);              // joins this transaction
+
+        if (!dataset)
+            return null;
+
+        const view = await this.transactions.resolveView(principal, rid, 'main');      // joins this transaction
+
+        await this.audit.recordOpen(principal, { rid, type: 'dataset', application });   // joins this transaction
+
+        return { dataset, view };
     }
 
     /** Every live dataset the user can discover (RLS), across projects. */

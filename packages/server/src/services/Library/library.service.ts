@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Library } from '@quarry/shared/domain';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { LibraryDB } from './library.db';
 import { ResourceRepository } from './resource.repository';
@@ -48,6 +48,19 @@ export class LibraryService {
 
     async get(principal: Principal, rid: Library.Resource.Rid): Promise<Library.Resource.Base> {
         const row = await this.repository.get(principal, rid);          // live rows only
+
+        if (!row)
+            throw new NotFoundException('Not found');
+
+        return LibraryDB.Resource.toBase(row);
+    }
+
+    /** An app opening the resource's page — the open recorded with the read (audit). Only users open pages. */
+    async open(principal: Principal, rid: Library.Resource.Rid, application: Platform.Application.Id): Promise<Library.Resource.Base> {
+        if (principal.type !== 'user')
+            throw new ForbiddenException('Only users open pages');
+
+        const row = await this.repository.open(principal, rid, application);
 
         if (!row)
             throw new NotFoundException('Not found');

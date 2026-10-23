@@ -3,7 +3,6 @@ import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import type { Library } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
 import { LibraryExplorer } from '@/SDKs/LibrarySDK/ui/LibraryExplorer'
-import { Empty } from '@/components/Empty'
 import { resourceRoute } from '@/shell/apps'
 import { LibraryExplorerApp, type LibraryTab } from '../components/LibraryExplorerApp'
 import { ProjectCards } from '../components/ProjectCards'
@@ -88,14 +87,7 @@ function LibraryHome({ view }: LibraryHomeProps) {
                         </Tabs.Content>
 
                         <Tabs.Content value='recents'>
-                            {/* Filled from audit's open events (docs/design/audit.md §5) once they're recorded. */}
-                            <div className='p-6'>
-                                <Empty
-                                    icon='history'
-                                    title='Nothing opened yet'
-                                    description='Projects, folders and files you open will show up here, newest first.'
-                                />
-                            </div>
+                            <App.Home.Recents className='p-6' />
                         </Tabs.Content>
                     </Tabs.Root>
                 </App.Home.Content>

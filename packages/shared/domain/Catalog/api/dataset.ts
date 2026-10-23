@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type { AxiosInstance } from "axios"
 import { Resource as ResourceD } from "../../Library/Resource"
+import { Application } from "../../Platform/Application"
 import { ColumnSchema } from "../ColumnSchema"
 import { Dataset as DatasetD } from "../Dataset"
 
@@ -76,6 +77,19 @@ export namespace Dataset {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** An app opening the dataset's page: the dataset and its latest view, the open recorded (audit). Rows aren't in it — the page reads its preview itself. Needs read. */
+    export namespace Open {
+        /** Which app opened it — recorded with the open. */
+        export const Request = z.object({ application: Application.Id })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({
+            dataset: DatasetD.Schema,
+            view:    DatasetD.View.Schema,                 // the latest, on main
+        })
+        export type  Response = z.infer<typeof Response>
+    }
+
     /** Replaces the schema — fix an inferred type or a CSV option. A transaction that changes no files. Needs write. */
     export namespace SetSchema {
         export const Request  = z.object({ schema: ColumnSchema.Schema })
@@ -97,6 +111,11 @@ export namespace Dataset {
     export async function get(api: AxiosInstance, rid: DatasetD.Rid): Promise<Get.Response> {
         const { data } = await api.get(`/api/datasets/${rid}`)
         return Get.Response.parse(data)
+    }
+
+    export async function open(api: AxiosInstance, rid: DatasetD.Rid, req: Open.Request): Promise<Open.Response> {
+        const { data } = await api.post(`/api/datasets/${rid}/open`, req)
+        return Open.Response.parse(data)
     }
 
     export async function getView(api: AxiosInstance, rid: DatasetD.Rid, query: GetView.Query = {}): Promise<GetView.Response> {

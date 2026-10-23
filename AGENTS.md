@@ -102,6 +102,8 @@ return (
 ## 5. Types and names communicate the domain
 
 - Reuse the domain types and API contracts from `@quarry/shared`.
+- `<Domain>.Event` is reserved for realtime events (a channel and its event union, docs/design/realtime.md).
+  Anything else named after events gets its own name — Audit's records are `Audit.AccessEvent`.
 - Use domain RID types instead of plain strings when the value is a known RID.
   Name them `rid`, `sourceRid`, `datasetRid`, and similar; do not rename RIDs to IDs.
 - Use explicit types for public action contracts, SDK state, and component props.
@@ -207,6 +209,11 @@ if (projectsRequest.isError)
   - The home (`/<app>`) is defined in `routes/index.tsx` itself, as `App.Home`; a resource page's route renders its
     page component from `components/`.
   - Everything else the app renders lives in `components/`.
+  - A resource page's entry point is its route `loader`: on `enter` it awaits the owning SDK's `open(rid, xApp.id)` —
+    one request returning the page's data and recording the audit `open` server-side, in the same transaction — with
+    `pendingComponent: App.Pending`, `pendingMs: 0`, `preloadStaleTime: 0`, and `orNotFound`. A preload only
+    prefetches the plain gets. Pages load through `open`; `get` is for everything else (pickers, breadcrumbs,
+    refetches). New resource types get their own `POST …/:rid/open` (docs/design/audit.md §4).
 - Pass typed auth state through router context. Put access checks in route
   `beforeLoad` hooks, with public paths explicitly identified.
 - Initialize auth before protected route loaders run. Keep bootstrap/loading UI
@@ -249,7 +256,10 @@ if (projectsRequest.isError)
 - Only the server accesses Quarry's application database. Workers use the
   existing internal API contracts.
 - Services call other services' public interfaces, not their repositories or DB
-  modules. Repositories do not call other repositories or nest transactions.
+  modules. A repository method may call its own repository's other methods: a decorated call made inside a running
+  one joins its transaction (same principal only; another throws). It calls another service's repository only to
+  share one transaction across schemas, and only one that service's module exports for that (AuditRepository:
+  `recordOpen`). Everything else goes through services.
 - Preserve the caller's principal through service and repository calls. Use
   service principals only for actual system work.
 - Keep resource creation atomic through the existing `@Transactional` and

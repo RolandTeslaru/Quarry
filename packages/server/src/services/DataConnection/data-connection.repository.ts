@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { z } from 'zod';
-import { Catalog, DataConnection, Identity, Keychain, Library } from '@quarry/shared/domain';
+import { Catalog, DataConnection, Identity, Keychain, Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { defineDatabase } from '@/db/pool';
 import { Repository, Transactional } from '@/db/repository';
+import { AuditRepository } from '@/services/Audit/audit.repository';
 import { json, type Table } from '@/db/table';
 import type { IdentityDB } from '@/services/Identity/identity.db';
 import { LibraryDB } from '@/services/Library/library.db';
@@ -115,14 +116,23 @@ export namespace DataConnectionDB {
  */
 @Injectable()
 export class DataConnectionRepository {
-    readonly source = new DataConnectionRepository.Source();
+    readonly source: DataConnectionRepository.Source;
     readonly sync   = new DataConnectionRepository.Sync();
     readonly run    = new DataConnectionRepository.SyncRun();
+
+    constructor(audit: AuditRepository) {
+        this.source = new DataConnectionRepository.Source(audit);
+    }
 }
 
 export namespace DataConnectionRepository {
 
     export class Source extends Repository(DataConnectionDB.database) {
+
+        constructor(private readonly audit: AuditRepository) {
+            super();
+        }
+
         /** Library row (via @EnsureResource) + source row, in one transaction. */
         @Transactional()
         @EnsureResource('source')
@@ -167,6 +177,17 @@ export namespace DataConnectionRepository {
             const { definition_id, config, credential_rid, ...resource } = row;
 
             return DataConnectionDB.Source.toDomain({ rid, type: 'source', definition_id, config, credential_rid }, resource);
+        }
+
+        /** An app opening the source's page: it, and the audit `open`, in one transaction. Null: not there, or not theirs to see. */
+        @Transactional('user')
+        async open(principal: Principal.User, rid: DataConnection.Source.Rid, application: Platform.Application.Id): Promise<DataConnection.Source.Schema | null> {
+            const source = await this.get(principal, rid);          // joins this transaction
+
+            if (source)
+                await this.audit.recordOpen(principal, { rid, type: 'source', application });   // joins this transaction
+
+            return source;
         }
 
         /** Every live source the user can discover (RLS), across projects. */

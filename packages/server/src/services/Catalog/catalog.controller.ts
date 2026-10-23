@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { Catalog } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
@@ -69,6 +69,17 @@ export class CatalogController {
     @Get(':rid')
     async get(@CurrentPrincipal() principal: Principal.User, @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid): Promise<API.Dataset.Get.Response> {
         return { dataset: await this.catalog.get(principal, rid) };
+    }
+
+    /** An app opened the dataset's page: the dataset and its latest view, the open recorded (audit). */
+    @Post(':rid/open')
+    @HttpCode(200)
+    async open(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Body(new ZodPipe(API.Dataset.Open.Request)) body: API.Dataset.Open.Request,
+    ): Promise<API.Dataset.Open.Response> {
+        return this.catalog.open(principal, rid, body.application);
     }
 
     @Get(':rid/view')
