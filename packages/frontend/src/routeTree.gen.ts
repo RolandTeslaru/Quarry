@@ -17,6 +17,7 @@ import { Route as WorkspaceKeychainRouteImport } from './routes/_workspace.keych
 import { Route as WorkspaceLayoutDemoRouteImport } from './routes/_workspace.layout-demo'
 import { Route as WorkspaceLibraryRouteImport } from './routes/_workspace.library'
 import { Route as WorkspaceMinimalDemoRouteImport } from './routes/_workspace.minimal-demo'
+import { Route as WorkspacePipelineBuilderRouteImport } from './routes/_workspace.pipeline-builder'
 import { Route as PlaygroundBlueprintRouteImport } from './routes/playground_.blueprint'
 import { Route as PlaygroundStandardRouteImport } from './routes/playground_.standard'
 import { Route as WorkspaceDataConnectionIndexRouteImport } from './routes/_workspace.data-connection.index'
@@ -64,6 +65,12 @@ const WorkspaceMinimalDemoRoute = WorkspaceMinimalDemoRouteImport.update({
   path: '/minimal-demo',
   getParentRoute: () => WorkspaceRoute,
 } as any)
+const WorkspacePipelineBuilderRoute =
+  WorkspacePipelineBuilderRouteImport.update({
+    id: '/pipeline-builder',
+    path: '/pipeline-builder',
+    getParentRoute: () => WorkspaceRoute,
+  } as any)
 const PlaygroundBlueprintRoute = PlaygroundBlueprintRouteImport.update({
   id: '/playground_/blueprint',
   path: '/playground/blueprint',
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/layout-demo': typeof WorkspaceLayoutDemoRoute
   '/library': typeof WorkspaceLibraryRoute
   '/minimal-demo': typeof WorkspaceMinimalDemoRoute
+  '/pipeline-builder': typeof WorkspacePipelineBuilderRoute
   '/playground/blueprint': typeof PlaygroundBlueprintRoute
   '/playground/standard': typeof PlaygroundStandardRoute
   '/datasets/$rid': typeof WorkspaceDatasetsRidRoute
@@ -126,6 +134,7 @@ export interface FileRoutesByTo {
   '/layout-demo': typeof WorkspaceLayoutDemoRoute
   '/library': typeof WorkspaceLibraryRoute
   '/minimal-demo': typeof WorkspaceMinimalDemoRoute
+  '/pipeline-builder': typeof WorkspacePipelineBuilderRoute
   '/playground/blueprint': typeof PlaygroundBlueprintRoute
   '/playground/standard': typeof PlaygroundStandardRoute
   '/datasets/$rid': typeof WorkspaceDatasetsRidRoute
@@ -144,6 +153,7 @@ export interface FileRoutesById {
   '/_workspace/layout-demo': typeof WorkspaceLayoutDemoRoute
   '/_workspace/library': typeof WorkspaceLibraryRoute
   '/_workspace/minimal-demo': typeof WorkspaceMinimalDemoRoute
+  '/_workspace/pipeline-builder': typeof WorkspacePipelineBuilderRoute
   '/playground_/blueprint': typeof PlaygroundBlueprintRoute
   '/playground_/standard': typeof PlaygroundStandardRoute
   '/_workspace/datasets/$rid': typeof WorkspaceDatasetsRidRoute
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/layout-demo'
     | '/library'
     | '/minimal-demo'
+    | '/pipeline-builder'
     | '/playground/blueprint'
     | '/playground/standard'
     | '/datasets/$rid'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/layout-demo'
     | '/library'
     | '/minimal-demo'
+    | '/pipeline-builder'
     | '/playground/blueprint'
     | '/playground/standard'
     | '/datasets/$rid'
@@ -195,6 +207,7 @@ export interface FileRouteTypes {
     | '/_workspace/layout-demo'
     | '/_workspace/library'
     | '/_workspace/minimal-demo'
+    | '/_workspace/pipeline-builder'
     | '/playground_/blueprint'
     | '/playground_/standard'
     | '/_workspace/datasets/$rid'
@@ -271,6 +284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspaceMinimalDemoRouteImport
       parentRoute: typeof WorkspaceRoute
     }
+    '/_workspace/pipeline-builder': {
+      id: '/_workspace/pipeline-builder'
+      path: '/pipeline-builder'
+      fullPath: '/pipeline-builder'
+      preLoaderRoute: typeof WorkspacePipelineBuilderRouteImport
+      parentRoute: typeof WorkspaceRoute
+    }
     '/playground_/blueprint': {
       id: '/playground_/blueprint'
       path: '/playground/blueprint'
@@ -328,6 +348,7 @@ interface WorkspaceRouteChildren {
   WorkspaceLayoutDemoRoute: typeof WorkspaceLayoutDemoRoute
   WorkspaceLibraryRoute: typeof WorkspaceLibraryRoute
   WorkspaceMinimalDemoRoute: typeof WorkspaceMinimalDemoRoute
+  WorkspacePipelineBuilderRoute: typeof WorkspacePipelineBuilderRoute
   WorkspaceDatasetsRidRoute: typeof WorkspaceDatasetsRidRoute
   WorkspaceResourcesRidRoute: typeof WorkspaceResourcesRidRoute
   WorkspaceDataConnectionIndexRoute: typeof WorkspaceDataConnectionIndexRoute
@@ -340,6 +361,7 @@ const WorkspaceRouteChildren: WorkspaceRouteChildren = {
   WorkspaceLayoutDemoRoute: WorkspaceLayoutDemoRoute,
   WorkspaceLibraryRoute: WorkspaceLibraryRoute,
   WorkspaceMinimalDemoRoute: WorkspaceMinimalDemoRoute,
+  WorkspacePipelineBuilderRoute: WorkspacePipelineBuilderRoute,
   WorkspaceDatasetsRidRoute: WorkspaceDatasetsRidRoute,
   WorkspaceResourcesRidRoute: WorkspaceResourcesRidRoute,
   WorkspaceDataConnectionIndexRoute: WorkspaceDataConnectionIndexRoute,

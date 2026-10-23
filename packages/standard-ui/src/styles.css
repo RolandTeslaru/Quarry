@@ -102,6 +102,16 @@ code {
 
     --muted: oklch(95.2% 0 0);
     --muted-foreground: theme(--color-neutral-500);
+
+    /* Status surfaces — notifications (NotificationSDK) and other status messages */
+    --success-background: theme(--color-emerald-100);
+    --success-foreground: theme(--color-emerald-700);
+    --warning-background: theme(--color-amber-50);
+    --warning-foreground: theme(--color-amber-700);
+    --info-background: theme(--color-blue-50);
+    --info-foreground: theme(--color-blue-700);
+    --error-background: theme(--color-red-100);
+    --error-foreground: theme(--color-red-700);
     --input: theme(--color-white);
     --input-border: var(--border);
     --input-shadow: 0 1px 1px rgb(0 0 0 / 0.3);
@@ -154,6 +164,15 @@ code {
     --secondary-foreground: theme(--color-white);
     --muted: theme(--color-neutral-800);
     --muted-foreground: theme(--color-neutral-400);
+
+    --success-background: theme(--color-emerald-950);
+    --success-foreground: theme(--color-emerald-400);
+    --warning-background: theme(--color-amber-950);
+    --warning-foreground: theme(--color-amber-400);
+    --info-background: theme(--color-blue-950);
+    --info-foreground: theme(--color-blue-400);
+    --error-background: theme(--color-red-950);
+    --error-foreground: theme(--color-red-400);
     --accent: theme(--color-neutral-700);
     --accent-foreground: theme(--color-white);
     --destructive: theme(--color-red-500);

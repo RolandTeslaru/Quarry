@@ -13,7 +13,7 @@ interface Props {
 
 /**
  * One resource as a card: projects and folders as the yellow folder, anything
- * else as its owning app's glyph. `data-library-*` mark it for a context menu.
+ * else as its owning app's glyph (bare — no tile). `data-library-*` mark it for a context menu.
  */
 export function ItemCard({ resource, disabled, onOpen }: Props) {
     return (
@@ -47,7 +47,7 @@ function ItemMark({ resource }: ItemMarkProps) {
     const glyph = resourceGlyph(resource.type)
 
     if (glyph)
-        return <App.Glyph glyph={glyph} size={52} className='m-1.5' />
+        return <App.Glyph glyph={glyph} size={52} bare className='size-16' />
 
     return (
         <span className='grid size-16 place-items-center text-muted-foreground'>

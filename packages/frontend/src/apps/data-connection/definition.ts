@@ -5,13 +5,12 @@ export const dataConnectionApp: App.Definition = {
     id:           'data-connection',
     label:        'Data Connection',
     glyph: {
-        icon:  'data-connection',
+        icon:  'database',
         tile:  'bg-amber-500/15',
         base:  'fill-amber-500',
         parts: {
-            1: 'fill-orange-600',                            // the badge
-            2: 'fill-amber-50',                              // its bolt
-            4: 'fill-amber-300',                             // the database's top
+            1: 'fill-amber-300',                             // the top
+            2: 'fill-amber-600',                             // the lower band
         },
     },
     to:           '/data-connection',

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createRootRouteWithContext, Link, Outlet, redirect, useRouterState } from '@tanstack/react-router'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
+import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import applicationStyles from '@/styles.css?inline'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { AuthSDK } from '@/SDKs/AuthSDK/sdk'
@@ -52,6 +53,7 @@ function RootLayout() {
             <QuerySDK.Provider>
                 <Outlet />
                 <DialogSDK.UIOverlay />
+                <NotificationSDK.UIOverlay />
             </QuerySDK.Provider>
         </>
     )

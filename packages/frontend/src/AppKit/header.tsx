@@ -29,7 +29,7 @@ function Icon({ glyph }: IconProps) {
             data-slot='app-header-icon'
             className={cn('grid w-14 shrink-0 place-items-center self-stretch border-r border-border', glyph.tile)}
         >
-            <Glyph glyph={glyph} size={22} bare />
+            <Glyph glyph={glyph} size={28} bare />
         </div>
     )
 }

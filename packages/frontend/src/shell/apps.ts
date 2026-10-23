@@ -7,6 +7,7 @@ import { keychainApp } from '@/apps/keychain/definition'
 import { layoutDemoApp } from '@/apps/layout-demo/definition'
 import { libraryApp } from '@/apps/library/definition'
 import { minimalDemoApp } from '@/apps/minimal-demo/definition'
+import { pipelineBuilderApp } from '@/apps/pipeline-builder/definition'
 
 /**
  * Every app in the workspace, from each app's own definition. The router mounts
@@ -17,6 +18,7 @@ export const APPS: App.Definition[] = [
     libraryApp,
     dataConnectionApp,
     datasetsApp,
+    pipelineBuilderApp,
     keychainApp,
     // Test apps for the shell and AppKit; no backend.
     layoutDemoApp,
