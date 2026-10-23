@@ -10,9 +10,9 @@ export class DataConnectionActions extends ActionGroup<DataConnectionSDKImpl> {
 
     protected readonly log = log.withContext('DataConnection.Actions')
 
-    readonly source = new SourceActions(this.sdk)
+    public readonly source = new SourceActions(this.sdk)
 
-    readonly sync = new SyncActions(this.sdk)
+    public readonly sync = new SyncActions(this.sdk)
 
-    readonly run = new RunActions(this.sdk)
+    public readonly run = new RunActions(this.sdk)
 }

@@ -11,7 +11,7 @@ export class SyncActions extends ActionGroup<DataConnectionSDKImpl> {
 
     protected readonly log = log.withContext('DataConnection.Actions.Sync')
 
-    async list(sourceRid: DataConnection.Source.Rid): Promise<DataConnection.API.Sync.List.Response> {
+    public async list(sourceRid: DataConnection.Source.Rid): Promise<DataConnection.API.Sync.List.Response> {
         const data = await DataConnection.API.Sync.list(api, sourceRid)
 
         this.sdk.setState(state => {
@@ -21,7 +21,7 @@ export class SyncActions extends ActionGroup<DataConnectionSDKImpl> {
         return data
     }
 
-    async create(sourceRid: DataConnection.Source.Rid, request: DataConnection.API.Sync.Create.Request): Promise<DataConnection.Sync.Schema> {
+    public async create(sourceRid: DataConnection.Source.Rid, request: DataConnection.API.Sync.Create.Request): Promise<DataConnection.Sync.Schema> {
         try {
             const { sync } = await DataConnection.API.Sync.create(api, sourceRid, request)
 
@@ -40,7 +40,7 @@ export class SyncActions extends ActionGroup<DataConnectionSDKImpl> {
         }
     }
 
-    async run(sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid): Promise<void> {
+    public async run(sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid): Promise<void> {
         try {
             await DataConnection.API.Sync.run(api, sourceRid, syncRid)
 

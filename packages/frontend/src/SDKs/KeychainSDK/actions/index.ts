@@ -9,7 +9,7 @@ export class KeychainActions extends ActionGroup<KeychainSDKImpl> {
 
     protected readonly log = log.withContext('Keychain.Actions')
 
-    readonly template = new TemplateActions(this.sdk)
+    public readonly template = new TemplateActions(this.sdk)
 
-    readonly credential = new CredentialActions(this.sdk)
+    public readonly credential = new CredentialActions(this.sdk)
 }

@@ -8,5 +8,5 @@ export class CatalogActions extends ActionGroup<CatalogSDKImpl> {
 
     protected readonly log = log.withContext('Catalog.Actions')
 
-    readonly dataset = new DatasetActions(this.sdk)
+    public readonly dataset = new DatasetActions(this.sdk)
 }

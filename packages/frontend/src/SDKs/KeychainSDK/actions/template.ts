@@ -9,7 +9,7 @@ export class TemplateActions extends ActionGroup<KeychainSDKImpl> {
 
     protected readonly log = log.withContext('Keychain.Actions.Template')
 
-    async list(): Promise<Keychain.API.Credential.ListTemplates.Response> {
+    public async list(): Promise<Keychain.API.Credential.ListTemplates.Response> {
         const data = await Keychain.API.Credential.listTemplates(api)
 
         this.sdk.setState({ templates: data.templates })

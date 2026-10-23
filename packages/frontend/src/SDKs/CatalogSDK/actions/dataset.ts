@@ -10,11 +10,11 @@ export class DatasetActions extends ActionGroup<CatalogSDKImpl> {
 
     protected readonly log = log.withContext('Catalog.Actions.Dataset')
 
-    list(): Promise<Catalog.API.Dataset.List.Response> {
+    public list(): Promise<Catalog.API.Dataset.List.Response> {
         return Catalog.API.Dataset.list(api)
     }
 
-    async get(rid: Catalog.Dataset.Rid): Promise<Catalog.API.Dataset.Get.Response> {
+    public async get(rid: Catalog.Dataset.Rid): Promise<Catalog.API.Dataset.Get.Response> {
         const data = await Catalog.API.Dataset.get(api, rid)
 
         this.sdk.setState(state => {
@@ -24,15 +24,15 @@ export class DatasetActions extends ActionGroup<CatalogSDKImpl> {
         return data
     }
 
-    view(rid: Catalog.Dataset.Rid, sequence?: number): Promise<Catalog.API.Dataset.GetView.Response> {
+    public view(rid: Catalog.Dataset.Rid, sequence?: number): Promise<Catalog.API.Dataset.GetView.Response> {
         return Catalog.API.Dataset.getView(api, rid, { sequence })
     }
 
-    preview(rid: Catalog.Dataset.Rid): Promise<Catalog.API.Dataset.Preview.Response> {
+    public preview(rid: Catalog.Dataset.Rid): Promise<Catalog.API.Dataset.Preview.Response> {
         return Catalog.API.Dataset.preview(api, rid)
     }
 
-    async createFromFile(parentRid: Library.Resource.Rid, file: File): Promise<Catalog.API.Dataset.Upload.Response> {
+    public async createFromFile(parentRid: Library.Resource.Rid, file: File): Promise<Catalog.API.Dataset.Upload.Response> {
         const data = await Catalog.API.Dataset.createFromFile(api, { parentRid }, file, file.name)
 
         this.sdk.setState(state => {
@@ -44,7 +44,7 @@ export class DatasetActions extends ActionGroup<CatalogSDKImpl> {
         return data
     }
 
-    async upload(
+    public async upload(
         rid:  Catalog.Dataset.Rid,
         mode: Catalog.API.Dataset.Upload.Fields['mode'],
         file: File,

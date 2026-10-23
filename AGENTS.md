@@ -105,6 +105,8 @@ return (
 - Use domain RID types instead of plain strings when the value is a known RID.
   Name them `rid`, `sourceRid`, `datasetRid`, and similar; do not rename RIDs to IDs.
 - Use explicit types for public action contracts, SDK state, and component props.
+- Give every class member an explicit access modifier (`public`, `protected`, `private`), as the SDK
+  classes and server services do.
   Allow inference for straightforward local values.
 - Follow the `FeatureSDKImpl` / `FeatureSDK.State` / `FeatureSDK.Actions` pattern.
   Expose selectors through the same namespace when the SDK has selectors.
@@ -133,7 +135,7 @@ return (
   groups (Auth) puts its actions on the root class directly.
 - Each action group is a class extending `ActionGroup` (`SDKs/core/actions.ts`). The SDK's actions are a class
   too — `XActions extends ActionGroup` in `actions/index.ts`, holding the groups as fields
-  (`readonly source = new SourceActions(this.sdk)`) — and the SDK has `actions = new XActions(this)`.
+  (`public readonly source = new SourceActions(this.sdk)`) — and the SDK has `actions = new XActions(this)`.
   Callers keep `XSDK.actions.source.create(...)`.
   Each group names its log once, like a server service
   (`protected readonly log = log.withContext('DataConnection.Actions.Sync')`). A write action handles its own

@@ -10,9 +10,9 @@ export class LibraryActions extends ActionGroup<LibrarySDKImpl> {
 
     protected readonly log = log.withContext('Library.Actions')
 
-    readonly project = new ProjectActions(this.sdk)
+    public readonly project = new ProjectActions(this.sdk)
 
-    readonly folder = new FolderActions(this.sdk)
+    public readonly folder = new FolderActions(this.sdk)
 
-    readonly resource = new ResourceActions(this.sdk)
+    public readonly resource = new ResourceActions(this.sdk)
 }

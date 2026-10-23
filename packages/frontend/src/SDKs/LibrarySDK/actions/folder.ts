@@ -9,7 +9,7 @@ export class FolderActions extends ActionGroup<LibrarySDKImpl> {
 
     protected readonly log = log.withContext('Library.Actions.Folder')
 
-    async create(request: Library.API.Folder.Create.Request): Promise<Library.Folder.Schema> {
+    public async create(request: Library.API.Folder.Create.Request): Promise<Library.Folder.Schema> {
         const { folder } = await Library.API.Folder.create(api, request)
 
         await this.sdk.invalidate(this.sdk.query.children(request.parentRid))

@@ -9,7 +9,7 @@ export class CredentialActions extends ActionGroup<KeychainSDKImpl> {
 
     protected readonly log = log.withContext('Keychain.Actions.Credential')
 
-    async list(): Promise<Keychain.API.Credential.List.Response> {
+    public async list(): Promise<Keychain.API.Credential.List.Response> {
         const data = await Keychain.API.Credential.list(api)
 
         this.sdk.setState({ credentials: data.credentials })
@@ -17,7 +17,7 @@ export class CredentialActions extends ActionGroup<KeychainSDKImpl> {
         return data
     }
 
-    async create(request: Keychain.API.Credential.Create.Request): Promise<Keychain.Credential.Schema> {
+    public async create(request: Keychain.API.Credential.Create.Request): Promise<Keychain.Credential.Schema> {
         const { credential } = await Keychain.API.Credential.create(api, request)
 
         await this.sdk.invalidate(this.sdk.query.credentials)
@@ -25,11 +25,11 @@ export class CredentialActions extends ActionGroup<KeychainSDKImpl> {
         return credential
     }
 
-    reveal(rid: Keychain.Credential.Rid): Promise<Keychain.API.Credential.Reveal.Response> {
+    public reveal(rid: Keychain.Credential.Rid): Promise<Keychain.API.Credential.Reveal.Response> {
         return Keychain.API.Credential.reveal(api, rid)
     }
 
-    async update(rid: Keychain.Credential.Rid, values: Keychain.Credential.Values): Promise<void> {
+    public async update(rid: Keychain.Credential.Rid, values: Keychain.Credential.Values): Promise<void> {
         await Keychain.API.Credential.updateValues(api, rid, { values })
     }
 }

@@ -9,7 +9,7 @@ export class ProjectActions extends ActionGroup<LibrarySDKImpl> {
 
     protected readonly log = log.withContext('Library.Actions.Project')
 
-    async list(): Promise<Library.API.Project.List.Response> {
+    public async list(): Promise<Library.API.Project.List.Response> {
         const data = await Library.API.Project.list(api)
 
         this.sdk.setState(state => {
@@ -22,7 +22,7 @@ export class ProjectActions extends ActionGroup<LibrarySDKImpl> {
         return data
     }
 
-    async create(request: Library.API.Project.Create.Request): Promise<Library.Project.Schema> {
+    public async create(request: Library.API.Project.Create.Request): Promise<Library.Project.Schema> {
         const { project } = await Library.API.Project.create(api, request)
 
         await this.sdk.invalidate(this.sdk.query.projects)

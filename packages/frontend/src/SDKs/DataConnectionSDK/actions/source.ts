@@ -12,14 +12,14 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
     protected readonly log = log.withContext('DataConnection.Actions.Source')
 
     /** This source's page is open (the route's onEnter / onStay). */
-    open(rid: DataConnection.Source.Rid): void {
+    public open(rid: DataConnection.Source.Rid): void {
         this.sdk.setState(state => {
             state.openSourceRid = rid
         })
     }
 
     /** This source's page closed (the route's onLeave) — only if it's still the open one. */
-    close(rid: DataConnection.Source.Rid): void {
+    public close(rid: DataConnection.Source.Rid): void {
         // Switching sources can enter the new one before leaving the old: never close the newer.
         if (this.sdk.state.openSourceRid !== rid)
             return
@@ -29,7 +29,7 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
         })
     }
 
-    async definitions(): Promise<DataConnection.API.Source.ListDefinitions.Response> {
+    public async definitions(): Promise<DataConnection.API.Source.ListDefinitions.Response> {
         const data = await DataConnection.API.Source.listDefinitions(api)
 
         this.sdk.setState({ definitions: data.definitions })
@@ -37,11 +37,11 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
         return data
     }
 
-    list(): Promise<DataConnection.API.Source.List.Response> {
+    public list(): Promise<DataConnection.API.Source.List.Response> {
         return DataConnection.API.Source.list(api)
     }
 
-    async get(rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Get.Response> {
+    public async get(rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Get.Response> {
         const data = await DataConnection.API.Source.get(api, rid)
 
         this.sdk.setState(state => {
@@ -51,7 +51,7 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
         return data
     }
 
-    async create(request: DataConnection.API.Source.Create.Request): Promise<DataConnection.Source.Schema> {
+    public async create(request: DataConnection.API.Source.Create.Request): Promise<DataConnection.Source.Schema> {
         try {
             const { source } = await DataConnection.API.Source.create(api, request)
 
@@ -67,7 +67,7 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
         }
     }
 
-    async test(rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Test.Response> {
+    public async test(rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Test.Response> {
         try {
             return await DataConnection.API.Source.test(api, rid)
         }
@@ -79,7 +79,7 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
         }
     }
 
-    async explore(rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Explore.Response> {
+    public async explore(rid: DataConnection.Source.Rid): Promise<DataConnection.API.Source.Explore.Response> {
         const data = await DataConnection.API.Source.explore(api, rid)
 
         this.sdk.setState(state => {

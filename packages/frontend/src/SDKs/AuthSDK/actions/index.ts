@@ -16,7 +16,7 @@ export class AuthActions extends ActionGroup<AuthSDKImpl> {
 
     protected readonly log = log.withContext('Auth.Actions')
 
-    async syncUser(): Promise<void> {
+    public async syncUser(): Promise<void> {
         if (!this.sdk.state.hasSession)
             return
 
@@ -52,14 +52,14 @@ export class AuthActions extends ActionGroup<AuthSDKImpl> {
         }
     }
 
-    async login(props: Credentials): Promise<void> {
+    public async login(props: Credentials): Promise<void> {
         const { error } = await authClient.signInWithPassword(props)
 
         if (error)
             throw error
     }
 
-    async signup(props: Credentials): Promise<boolean> {
+    public async signup(props: Credentials): Promise<boolean> {
         const { data, error } = await authClient.signUp(props)
 
         if (error)
@@ -68,7 +68,7 @@ export class AuthActions extends ActionGroup<AuthSDKImpl> {
         return Boolean(data.session)
     }
 
-    async logout(): Promise<void> {
+    public async logout(): Promise<void> {
         const { error } = await authClient.signOut({ scope: 'local' })
 
         if (error)
