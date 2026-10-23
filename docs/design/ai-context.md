@@ -112,7 +112,7 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
 - **Repository-level, default-on.** `@Transactional` checks, inside the
   transaction, that every top-level argument matching `Library.Resource.Rid`
   (detected **by value** with the regex — no TypeScript metadata) is live;
-  otherwise 404. One query (`library.statements.liveResources`).
+  otherwise 404. One query (`db/liveness.liveResources`).
 - **`@AllowTrashed()` parameter decorator** exempts one parameter, so the user
   can decide incrementally which RIDs may be trashed:
   `restore(principal, @AllowTrashed() rid, parentRid)` still requires a live
@@ -166,7 +166,7 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
         ├── infra/      redis.ts · queue.ts (producer only) · file-storage.ts
         └── services/
             ├── Identity/        users, groups, /me
-            ├── Library/         resource.repository · library.statements (insertResource, liveResources) · ensure-resource · library.service
+            ├── Library/         resource.repository (insert: every library row) · ensure-resource · library.service — liveness in db/liveness.ts
             ├── Gatekeeper/      gatekeeper.service · grant.repository (effective_ranks SQL fn) · security-gate · request-memo
             ├── Catalog/         dataset.repository · transaction/ · outbox/ · internal.controller (outbox, storage-gc)
             └── DataConnection/  controller · internal.controller · service · module · repository (.source · .sync · .run)

@@ -9,7 +9,8 @@ import type { Table } from '@/db/table';
 import type { IdentityDB } from '@/services/Identity/identity.db';
 import { LibraryDB } from '@/services/Library/library.db';
 import { EnsureResource } from '@/services/Library/ensure-resource';
-import { isLive } from '@/services/Library/library.statements';
+import { ResourceRepository } from '@/services/Library/resource.repository';
+import { isLive } from '@/db/liveness';
 
 /** The `keychain` schema: credentials, encrypted at rest. */
 export namespace KeychainDB {
@@ -44,6 +45,10 @@ export type StoredCredential = { credential: Keychain.Credential.Schema; blob: K
 
 @Injectable()
 export class KeychainRepository extends Repository(KeychainDB.database) {
+
+    constructor(readonly resources: ResourceRepository) {          // @EnsureResource's
+        super();
+    }
 
     /** Library row (via @EnsureResource) + credential row, in one transaction. */
     @Transactional()

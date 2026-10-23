@@ -4,7 +4,7 @@ import type { Transaction } from 'kysely';
 import { Library } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import type { LibraryDB } from '@/services/Library/library.db';
-import { liveResources } from '@/services/Library/library.statements';
+import { liveResources } from './liveness';
 import type { Database } from './pool';
 import { catchDatabaseErrors } from './errors';
 

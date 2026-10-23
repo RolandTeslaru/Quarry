@@ -65,7 +65,7 @@ export namespace LibraryDB {
         'library.resource_ancestor': ReadOnly<Table<typeof ResourceAncestor.Row>>;
     }
 
-    /** What other services may include: select only. Writes go through library.statements.ts. */
+    /** What other services may include: select only. Writes go through ResourceRepository (exported by LibraryModule). */
     export type ReadTables = { [K in keyof Tables]: ReadOnly<Tables[K]> };
 
     export const database = defineDatabase<Tables & IdentityDB.ReadTables>();

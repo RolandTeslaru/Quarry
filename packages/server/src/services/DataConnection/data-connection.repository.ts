@@ -6,11 +6,12 @@ import { Principal } from '@/auth/principal';
 import { defineDatabase } from '@/db/pool';
 import { Repository, Transactional } from '@/db/repository';
 import { AuditRepository } from '@/services/Audit/audit.repository';
+import { ResourceRepository } from '@/services/Library/resource.repository';
 import { json, type Table } from '@/db/table';
 import type { IdentityDB } from '@/services/Identity/identity.db';
 import { LibraryDB } from '@/services/Library/library.db';
 import { EnsureResource } from '@/services/Library/ensure-resource';
-import { isLive } from '@/services/Library/library.statements';
+import { isLive } from '@/db/liveness';
 
 /** The `data_connection` schema: sources, syncs, sync runs. */
 export namespace DataConnectionDB {
@@ -120,8 +121,8 @@ export class DataConnectionRepository {
     readonly sync   = new DataConnectionRepository.Sync();
     readonly run    = new DataConnectionRepository.SyncRun();
 
-    constructor(audit: AuditRepository) {
-        this.source = new DataConnectionRepository.Source(audit);
+    constructor(resources: ResourceRepository, audit: AuditRepository) {
+        this.source = new DataConnectionRepository.Source(resources, audit);
     }
 }
 
@@ -129,7 +130,10 @@ export namespace DataConnectionRepository {
 
     export class Source extends Repository(DataConnectionDB.database) {
 
-        constructor(private readonly audit: AuditRepository) {
+        constructor(
+            readonly resources:     ResourceRepository,          // @EnsureResource's
+            private readonly audit: AuditRepository,
+        ) {
             super();
         }
 

@@ -3,8 +3,9 @@ import { Catalog, Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { EnsureResource } from '@/services/Library/ensure-resource';
-import { isLive, trashResource } from '@/services/Library/library.statements';
+import { isLive } from '@/db/liveness';
 import { AuditRepository } from '@/services/Audit/audit.repository';
+import { ResourceRepository } from '@/services/Library/resource.repository';
 import { CatalogDB } from './catalog.db';
 import { TransactionRepository } from './transaction/transaction.repository';
 
@@ -12,6 +13,7 @@ import { TransactionRepository } from './transaction/transaction.repository';
 export class DatasetRepository extends Repository(CatalogDB.database) {
 
     constructor(
+        readonly resources:            ResourceRepository,          // @EnsureResource's
         private readonly transactions: TransactionRepository,
         private readonly audit:        AuditRepository,
     ) {
@@ -39,13 +41,6 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
             .execute();
 
         return CatalogDB.Dataset.toDomain(dataset, this.resource, 0);
-    }
-
-
-    /** Undoes a create that couldn't be finished (an upload that failed) — the library row goes to the trash. */
-    @Transactional()
-    async trash(principal: Principal, rid: Catalog.Dataset.Rid): Promise<void> {
-        await trashResource(this.trx, rid, Principal.actorOf(principal));
     }
 
     /** Live datasets only — trashed resources read as absent. */

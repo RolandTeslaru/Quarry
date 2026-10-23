@@ -23,7 +23,7 @@ export class LibraryService {
 
     /** Projects are roots: RLS lets only workspace admins insert one (gatekeeper.md §10). */
     async createProject(principal: Principal, request: Library.API.Project.Create.Request): Promise<Library.Project.Schema> {
-        const row = await this.repository.createContainer(principal, {
+        const row = await this.repository.insert(principal, {
             rid:         Library.Project.createRid(),
             type:        'project',
             name:        request.name,
@@ -35,7 +35,7 @@ export class LibraryService {
     }
 
     async createFolder(principal: Principal, request: Library.API.Folder.Create.Request): Promise<Library.Folder.Schema> {
-        const row = await this.repository.createContainer(principal, {
+        const row = await this.repository.insert(principal, {
             rid:         Library.Folder.createRid(),
             type:        'folder',
             name:        request.name,

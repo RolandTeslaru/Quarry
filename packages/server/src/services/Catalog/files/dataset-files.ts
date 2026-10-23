@@ -6,6 +6,7 @@ import { fromColumnType, identifier, literal, toColumnType } from '@quarry/integ
 import { Principal } from '@/auth/principal';
 import { FileStorage } from '@/infra/file-storage';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
+import { LibraryService } from '@/services/Library/library.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { Audit } from '@/services/Audit/audit.decorator';
 import { AuditService } from '@/services/Audit/audit.service';
@@ -40,6 +41,7 @@ export class DatasetFiles {
     constructor(
         readonly gatekeeper:                    GatekeeperService,
         readonly audit:                         AuditService,
+        private readonly library:               LibraryService,
         private readonly transactions:          DatasetTransactions,
         private readonly transactionRepository: TransactionRepository,
         private readonly datasetRepository:     DatasetRepository,
@@ -62,7 +64,7 @@ export class DatasetFiles {
             return await this.upload(principal, dataset.rid, 'snapshot', file);
         }
         catch (error) {
-            await this.datasetRepository.trash(principal, dataset.rid).catch(() => undefined);
+            await this.library.trash(principal, dataset.rid).catch(() => undefined);   // trashing is Library's, for every type
             throw error;
         }
     }

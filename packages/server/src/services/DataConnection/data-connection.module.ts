@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { LibraryModule } from '@/services/Library/library.module';
 import { CatalogModule } from '@/services/Catalog/catalog.module';
 import { KeychainModule } from '@/services/Keychain/keychain.module';
 import { DataConnectionService } from './data-connection.service';
@@ -11,7 +12,7 @@ import { DataConnectionRepository } from './data-connection.repository';
  * does, with the source's Keychain credential, which it gets encrypted.
  */
 @Module({
-    imports:   [CatalogModule, KeychainModule],
+    imports:   [LibraryModule, CatalogModule, KeychainModule],
     providers: [DataConnectionService, DataConnectionService.Sources, DataConnectionService.Syncs, DataConnectionService.Runs, DataConnectionRepository],
     exports:   [DataConnectionService, DataConnectionRepository],
 })

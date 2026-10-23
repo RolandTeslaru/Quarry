@@ -6,7 +6,7 @@ import { defineDatabase } from '@/db/pool';
 import { Repository, Transactional } from '@/db/repository';
 import { json, type Table } from '@/db/table';
 import { LibraryDB } from '@/services/Library/library.db';
-import { isLive } from '@/services/Library/library.statements';
+import { isLive } from '@/db/liveness';
 
 /** The `audit` schema: access events, append-only. Writes of other services' rows are recorded by triggers (audit/001_initial.sql). */
 export namespace AuditDB {

@@ -4,6 +4,7 @@ import { ResourceRepository } from './resource.repository';
 
 @Module({
     providers: [LibraryService, ResourceRepository],
-    exports:   [LibraryService],
+    // ResourceRepository: for services creating or trashing their resources' library rows in their own transaction (@EnsureResource).
+    exports:   [LibraryService, ResourceRepository],
 })
 export class LibraryModule {}

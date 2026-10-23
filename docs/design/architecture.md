@@ -238,9 +238,8 @@ services/Identity/
 services/Library/
 ├── library.module.ts
 ├── library.db.ts             LibraryDB: Resource.Row, ResourceAncestor.Row, Tables, ReadTables
-├── resource.repository.ts    get, list children, path, move, rename, trash, restore
-├── library.statements.ts     insertResource / liveResources(trx, …) — Library's SQL run inside other code's transactions
-├── ensure-resource.ts          @EnsureResource('<type>') — the only cross-schema write path: a subtype's create method writes its library row first, same transaction (see §5)
+├── resource.repository.ts    insert (every library row), get, open, children, path, move, rename, trash — exported for @EnsureResource
+├── ensure-resource.ts          @EnsureResource('<type>') — a subtype's create method has ResourceRepository.insert write its library row first, joining its transaction (see §5)
 ├── library.service.ts        projects, folders, move, trash; @SecurityGate on each
 └── library.controller.ts     /api/projects, /api/folders, /api/resources/:rid (+ /path, /children, /name, /move, /trash)
 ```
@@ -502,7 +501,7 @@ async create(principal: Principal, values: { rid, name, description, parentRid }
 }
 ```
 
-Both commit or neither (verified: a body that throws after both inserts leaves no library row). The SQL stays Library's (`library.statements.insertResource`, the one cast to `LibraryDB.Tables`); `@EnsureResource` must sit under `@Transactional` (wrong order fails with a clear error), the method's second parameter must carry `rid, name, description, parentRid` (compile-time), and the parent must be live (404 otherwise). Projects and folders are Library's own: `ResourceRepository.createContainer`.
+Both commit or neither (verified: a body that throws after both inserts leaves no library row). The SQL stays Library's: the decorator calls `ResourceRepository.insert` (the class injects it as `resources`; LibraryModule exports it), which joins the create's transaction; `@EnsureResource` must sit under `@Transactional` (wrong order fails with a clear error), the method's second parameter must carry `rid, name, description, parentRid` (compile-time), and the parent must be live (404 otherwise). Projects and folders go to the same `ResourceRepository.insert`, from LibraryService. Liveness (`liveResources`, `isLive`) is infrastructure in `db/liveness.ts` — @Transactional checks it before every method, so it can't be a repository call.
 
 ---
 

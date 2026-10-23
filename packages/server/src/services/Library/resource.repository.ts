@@ -5,7 +5,7 @@ import { requireAffected } from '@/db/errors';
 import { Repository, Transactional } from '@/db/repository';
 import { AuditRepository } from '@/services/Audit/audit.repository';
 import { LibraryDB } from './library.db';
-import { insertResource, isLive, liveResources, visibleResources } from './library.statements';
+import { isLive, liveResources } from '@/db/liveness';
 
 /** Row operations on library.resource. Trashed resources — and anything under them — read as absent. */
 @Injectable()
@@ -80,20 +80,39 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
             .execute();
     }
 
-    /** Projects and folders. Subtypes are created by their owning service via library.statements. */
+    /**
+     * A resource's library row — the only way one is created. Projects and
+     * folders come here from LibraryService; every other type from its owning
+     * service's create, through @EnsureResource, joining that transaction so the
+     * library row and the subtype's own commit together.
+     *
+     * The parent must be live and visible to the user — a hidden one 404s like a
+     * missing one, or the insert's 403 would reveal it exists. Whether they may
+     * write into it is RLS's call on the insert.
+     */
     @Transactional()
-    async createContainer(principal: Principal, values: {
-        rid:         Library.Project.Rid | Library.Folder.Rid;
-        type:        'project' | 'folder';
+    async insert(principal: Principal, values: {
+        rid:         Library.Resource.Rid;
+        type:        Library.Resource.Type;
         name:        string;
         description: string | null;
         parentRid:   Library.Resource.Rid | null;
     }): Promise<LibraryDB.Resource.Row> {
-        if (values.parentRid && (!(await liveResources(this.trx, [values.parentRid])).has(values.parentRid)
-            || !(await visibleResources(this.trx, [values.parentRid])).has(values.parentRid)))
+        if (values.parentRid && !(await this._isLiveAndVisible(values.parentRid)))
             throw new NotFoundException('Not found');
 
-        return insertResource(this.trx, { ...values, createdBy: Principal.actorOf(principal) });
+        return this.trx
+            .insertInto('library.resource')
+            .values({
+                rid:         values.rid,
+                type:        values.type,
+                name:        values.name,
+                description: values.description,
+                parent_rid:  values.parentRid,
+                created_by:  Principal.actorOf(principal),
+            })
+            .returningAll()
+            .executeTakeFirstOrThrow();
     }
 
     @Transactional()
@@ -126,5 +145,15 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
             .where('rid', '=', rid)
             .where('trashed_at', 'is', null)
             .executeTakeFirstOrThrow());
+    }
+
+    /** Live (the whole tree) and visible to the transaction's user (RLS; everything for the system). */
+    private async _isLiveAndVisible(rid: Library.Resource.Rid): Promise<boolean> {
+        if (!(await liveResources(this.trx, [rid])).has(rid))
+            return false;
+
+        const visible = await this.trx.selectFrom('library.resource').select('rid').where('rid', '=', rid).executeTakeFirst();
+
+        return visible !== undefined;
     }
 }
