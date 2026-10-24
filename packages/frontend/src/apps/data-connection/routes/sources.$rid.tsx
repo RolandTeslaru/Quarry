@@ -6,7 +6,18 @@ import { DataConnectionSDK } from '@/SDKs/DataConnectionSDK/sdk'
 import { orNotFound } from '@/utils/loader'
 import { dataConnectionApp } from '../definition'
 
+/** The table shown in the content: `?schema=public&table=customers`. Neither means the syncs. */
+export interface SourceSearch {
+    schema?: string
+    table?:  string
+}
+
 export const Route = createFileRoute('/_workspace/data-connection/sources/$rid')({
+    // A table needs both halves; half of one is none.
+    validateSearch: (search: Record<string, unknown>): SourceSearch =>
+        typeof search.schema === 'string' && typeof search.table === 'string'
+            ? { schema: search.schema, table: search.table }
+            : {},
     params: {
         parse: params => {
             const parsed = DataConnection.Source.Rid.safeParse(params.rid)
@@ -36,6 +47,7 @@ export const Route = createFileRoute('/_workspace/data-connection/sources/$rid')
 
 function SourceRoute() {
     const { rid } = Route.useParams()
+    const { schema, table } = Route.useSearch()
 
-    return <SourceApp key={rid} rid={rid} />
+    return <SourceApp key={rid} rid={rid} table={schema && table ? { schema, name: table } : null} />
 }

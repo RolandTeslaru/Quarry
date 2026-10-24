@@ -75,6 +75,14 @@ export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
             queryFn: () => this.actions.source.explore(rid),
         }),
 
+        /** A source table's first rows — a live read of the source, so not on window focus. */
+        tablePreview: (rid: DataConnection.Source.Rid, table: DataConnection.Source.Table) => ({
+            queryKey: ['data-connection', 'table-preview', rid, table.schema, table.name] as const,
+            queryFn: () => this.actions.source.previewTable(rid, table),
+            staleTime: 0,
+            refetchOnWindowFocus: false,
+        }),
+
         syncs: (sourceRid: DataConnection.Source.Rid) => ({
             queryKey: ['data-connection', 'syncs', sourceRid] as const,
             queryFn: () => this.actions.sync.list(sourceRid),

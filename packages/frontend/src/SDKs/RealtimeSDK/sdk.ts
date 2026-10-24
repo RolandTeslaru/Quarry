@@ -1,6 +1,7 @@
 import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
+import type { z } from 'zod'
 import { Identity, Realtime } from '@quarry/shared/domain'
 import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { BaseSDK } from '../core/BaseSDK'
@@ -101,14 +102,28 @@ export class RealtimeSDKImpl extends BaseSDK<RealtimeSDK.State> {
         this.socket = socket
     }
 
-    /** Listens to a channel until the returned function is called; the last listener leaving unsubscribes on the server. */
-    public subscribeToChannel<E extends Realtime.Event>(channel: Realtime.Channel, listener: (event: E) => void): () => void {
+    /**
+     * Listens to a channel until the returned function is called; the last listener leaving unsubscribes on the server.
+     * Each event is parsed with the channel's `schema` first — JSON has no dates, so a `z.coerce.date()` field
+     * arrives as a string until then — and one that doesn't fit is dropped, never handed on.
+     */
+    public subscribeToChannel<E extends Realtime.Event>(channel: Realtime.Channel, schema: z.ZodType<E>, listener: (event: E) => void): () => void {
         if (!this.listeners.has(channel)) {
             this.listeners.set(channel, new Set())
             this.send({ action: 'subscribe', channel })
         }
 
-        const channelListener = listener as Listener
+        const channelListener: Listener = event => {
+            const parsed = schema.safeParse(event)
+
+            if (!parsed.success) {
+                console.warn(`[Realtime] Ignored an unexpected event on ${channel}`, parsed.error)
+
+                return
+            }
+
+            listener(parsed.data)
+        }
 
         this.listeners.get(channel)!.add(channelListener)
 
@@ -130,8 +145,9 @@ export class RealtimeSDKImpl extends BaseSDK<RealtimeSDK.State> {
     private startSession(userRid: Identity.User.Rid): void {
         void this.connect()
 
-        this.stopNotifications = this.subscribeToChannel<Identity.Event.Notification>(
+        this.stopNotifications = this.subscribeToChannel(
             Identity.Event.getChannel(userRid),
+            Identity.Event.Notification.Schema,
             notification => {
                 NotificationSDK.toast[notification.level](notification.title, {
                     description: notification.description ?? undefined,

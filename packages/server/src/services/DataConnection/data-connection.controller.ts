@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import type { z } from 'zod';
 import { DataConnection } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
@@ -54,6 +55,17 @@ export class DataConnectionController {
     @HttpCode(200)
     test(@CurrentPrincipal() principal: Principal.User, @Param('rid', SourceRidParam) rid: DataConnection.Source.Rid): Promise<API.Source.Test.Response> {
         return this.dataConnection.source.test(principal, rid);
+    }
+
+    @Get(':rid/tables/:schema/:table/preview')
+    previewTable(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', SourceRidParam) rid: DataConnection.Source.Rid,
+        @Param('schema') schema: string,
+        @Param('table') table: string,
+        @Query(new ZodPipe(API.Source.PreviewTable.Query)) query: z.output<typeof API.Source.PreviewTable.Query>,
+    ): Promise<API.Source.PreviewTable.Response> {
+        return this.dataConnection.source.previewTable(principal, rid, { schema, name: table }, query.limit);
     }
 
     @Get(':rid/explore')

@@ -12,11 +12,10 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { useTask } from '@/hooks/useTask'
 
 interface Props {
-    source:     DataConnection.Source.Schema
-    definition: DataConnection.Source.Definition.Schema
+    source: DataConnection.Source.Schema
 }
 
-export function SyncPanel({ source, definition }: Props) {
+export function SyncPanel({ source }: Props) {
     const [selectedRid, setSelectedRid] = useState<DataConnection.Sync.Rid | null>(null)
     const [queuedRid, setQueuedRid] = useState<DataConnection.Sync.Rid | null>(null)
 
@@ -41,13 +40,6 @@ export function SyncPanel({ source, definition }: Props) {
 
     return (
         <section>
-            <div className='section-toolbar'>
-                <p className='text-slate-500'>Copy a table or query into a versioned dataset.</p>
-                <Button icon='add' intent='primary' onClick={() => DataConnectionSDK.dialogs.openCreateSync({ source, definition })}>
-                    Create sync
-                </Button>
-            </div>
-
             <ErrorNotice error={syncsRequest.error} />
 
             {syncsRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}

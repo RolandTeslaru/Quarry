@@ -110,4 +110,17 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
             throw error
         }
     }
+
+    /** A source table's first rows, read live from the source — nothing is copied. */
+    public async previewTable(rid: DataConnection.Source.Rid, table: DataConnection.Source.Table): Promise<DataConnection.API.Source.PreviewTable.Response> {
+        try {
+            return await DataConnection.API.Source.previewTable(api, rid, table)
+        }
+        catch (error) {
+            this.log.error('preview failed', describeError(error))
+            NotificationSDK.toast.error(`Couldn't preview ${table.schema}.${table.name}`, { id: `preview-${rid}`, description: errorMessage(error) })
+
+            throw error
+        }
+    }
 }

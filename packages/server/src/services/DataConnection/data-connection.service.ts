@@ -171,6 +171,23 @@ export namespace DataConnectionService {
             return { tables: result.op === 'explore' ? result.tables : [] };
         }
 
+        /** A table's first rows, read live — gated and audited like explore. */
+        @Audit('read', (table: DataConnection.Source.Table) => ({ op: 'preview', table: `${table.schema}.${table.name}` }))
+        @SecurityGate('read')
+        async previewTable(principal: Principal, rid: DataConnection.Source.Rid, table: DataConnection.Source.Table, limit: number): Promise<DataConnection.API.Source.PreviewTable.Response> {
+            const source = await this.require(principal, rid);
+            const credential = await this.credentialOf(principal, source);
+
+            const queueDefinition = DataConnection.Queue.SourceProbe.Definition;
+
+            const result = await this.queueManager.request(queueDefinition, { op: 'preview', source, credential, table, limit }, PROBE_TIMEOUT_MS);
+
+            if (result.op !== 'preview')
+                throw new BadRequestException('Unexpected probe result');
+
+            return result.preview;
+        }
+
         /** The source's credential, encrypted, for the worker — asserts the principal may use it (read). */
         async credentialOf(principal: Principal, source: DataConnection.Source.Schema): Promise<Keychain.Credential.Encrypted | null> {
             return source.credentialRid ? this.keychain.getEncryptedBlob(principal, source.credentialRid) : null;

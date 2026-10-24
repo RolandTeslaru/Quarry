@@ -61,6 +61,15 @@ export namespace Source {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** A table's first rows, read live from the source (`?limit=`, 100 by default). Needs read on the source and its credential. */
+    export namespace PreviewTable {
+        export const Query = z.object({ limit: z.coerce.number().int().min(1).max(1000).default(100) })
+        export type  Query = z.input<typeof Query>
+
+        export const Response = SourceD.TablePreview
+        export type  Response = z.infer<typeof Response>
+    }
+
     export async function create(api: AxiosInstance, req: Create.Request): Promise<Create.Response> {
         const { data } = await api.post("/api/sources", req)
         return Create.Response.parse(data)
@@ -89,6 +98,11 @@ export namespace Source {
     export async function test(api: AxiosInstance, rid: SourceD.Rid): Promise<Test.Response> {
         const { data } = await api.post(`/api/sources/${rid}/test`)
         return Test.Response.parse(data)
+    }
+
+    export async function previewTable(api: AxiosInstance, rid: SourceD.Rid, table: SourceD.Table, query: PreviewTable.Query = {}): Promise<PreviewTable.Response> {
+        const { data } = await api.get(`/api/sources/${rid}/tables/${encodeURIComponent(table.schema)}/${encodeURIComponent(table.name)}/preview`, { params: query })
+        return PreviewTable.Response.parse(data)
     }
 
     export async function explore(api: AxiosInstance, rid: SourceD.Rid): Promise<Explore.Response> {

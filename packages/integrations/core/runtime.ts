@@ -33,6 +33,7 @@ export interface SyncResult {
  *   sync run   open → sync(config, run) → close
  *   test       open → close            (open succeeding is the test)
  *   explore    open → explore → close
+ *   preview    open → preview(table) → close   (a table's first rows; with explore)
  *   (later) streaming: open → stream … → close, kept alive by a registry
  *
  * The connection lives on the instance: open() creates it, close() releases it.
@@ -58,6 +59,9 @@ export abstract class SourceRuntime<D extends SourceDefinition = SourceDefinitio
 
     /** Lists readable tables — present iff the definition's `capabilities.explore`. */
     explore?(): Promise<DataConnection.Source.Table[]>;
+
+    /** A table's first `limit` rows — present with `explore`: a listed table can be looked into. */
+    preview?(table: DataConnection.Source.Table, limit: number): Promise<DataConnection.Source.TablePreview>;
 }
 
 export type RuntimeClass = new (rid: DataConnection.Source.Rid, config: never, credential: never, ctx: RuntimeContext) => SourceRuntime;

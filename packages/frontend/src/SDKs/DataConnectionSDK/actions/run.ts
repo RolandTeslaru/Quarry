@@ -38,8 +38,9 @@ export class RunActions extends ActionGroup<DataConnectionSDKImpl> {
             })
         })
 
-        const unsubscribe = RealtimeSDK.subscribeToChannel<DataConnection.Event.RunUpdated>(
+        const unsubscribe = RealtimeSDK.subscribeToChannel(
             DataConnection.Event.getChannel(sourceRid),
+            DataConnection.Event.RunUpdated.Schema,
             event => events.add(event),
         )
 

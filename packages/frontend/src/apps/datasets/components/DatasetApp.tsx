@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Menubar } from '@quarry/standard-ui/foundations/menubar'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
@@ -8,6 +7,7 @@ import { App } from '@/AppKit'
 import { CatalogSDK } from '@/SDKs/CatalogSDK/sdk'
 import { DatasetPreview } from '@/SDKs/CatalogSDK/ui/DatasetPreview'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
+import { Detail, Details } from '@/components/Details'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceBreadcrumbs } from '@/components/ResourceBreadcrumbs'
 import { dateTime, fileSize, number } from '@/utils/format'
@@ -151,7 +151,7 @@ function AboutPanel({ dataset, view }: AboutPanelProps) {
         <div className='flex flex-col gap-4 py-4'>
             <p className='text-sm text-muted-foreground'>{dataset.description || 'No description.'}</p>
 
-            <dl className='grid grid-cols-[6.5rem_1fr] gap-x-3 gap-y-2.5 text-sm'>
+            <Details>
                 <Detail label='Updated'>{dateTime(dataset.updatedAt)}</Detail>
                 <Detail label='Created'>{dateTime(dataset.createdAt)}</Detail>
                 <Detail label='Location'>
@@ -163,22 +163,8 @@ function AboutPanel({ dataset, view }: AboutPanelProps) {
                 <Detail label='RID'>
                     <span className='block truncate font-mono text-xs' title={dataset.rid}>{dataset.rid}</span>
                 </Detail>
-            </dl>
+            </Details>
         </div>
-    )
-}
-
-interface DetailProps {
-    label:    string
-    children: ReactNode
-}
-
-function Detail({ label, children }: DetailProps) {
-    return (
-        <>
-            <dt className='text-muted-foreground'>{label}</dt>
-            <dd className='min-w-0'>{children}</dd>
-        </>
     )
 }
 

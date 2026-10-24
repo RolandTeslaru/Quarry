@@ -2,6 +2,7 @@ import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { Resource } from "../Library/Resource"
 import { Credential } from "../Keychain/Credential"
+import { ColumnSchema } from "../Catalog/ColumnSchema"
 
 /**
  * A configured external system — a library resource. Logs in with a Keychain
@@ -70,4 +71,11 @@ export namespace Source {
         name:   z.string(),
     })
     export type Table = z.infer<typeof Table>
+
+    /** A table's first rows, read live from the source: its columns (as dataset types) and rows, one array per row in column order. */
+    export const TablePreview = z.object({
+        columns: z.object({ name: z.string(), type: ColumnSchema.Type }).array(),
+        rows:    z.unknown().array().array(),
+    })
+    export type TablePreview = z.infer<typeof TablePreview>
 }

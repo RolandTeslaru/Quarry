@@ -131,6 +131,17 @@ export class SourceProbeProcessor extends JobProcessor<typeof DataConnection.Que
                         return runtime.explore();
                     }),
                 };
+
+            case 'preview':
+                return {
+                    op:      'preview',
+                    preview: await this.runtimes.with(job.source, job.credential, (runtime) => {
+                        if (!runtime.preview)
+                            throw new Error(`Source type '${job.source.definitionId}' can't be previewed`);
+
+                        return runtime.preview(job.table, job.limit);
+                    }),
+                };
         }
     }
 }

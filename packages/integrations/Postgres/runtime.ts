@@ -1,6 +1,6 @@
 import type { DuckDBConnection } from '@duckdb/node-api';
 import type { DataConnection } from '@quarry/shared/domain';
-import { identifier, literal } from '../core/duckdb';
+import { identifier, literal, toColumnType } from '../core/duckdb';
 import type { SyncConfigOf } from '../core/definition';
 import { SourceRuntime, type SyncResult, type SyncRunContext } from '../core/runtime';
 import type { Definition } from './definition';
@@ -92,6 +92,20 @@ export class PostgresRuntime extends SourceRuntime<typeof Definition> {
              ORDER BY schema_name, table_name`);
 
         return reader.getRowObjectsJS().map((row) => ({ schema: String(row.schema_name), name: String(row.table_name) }));
+    }
+
+    /** The table's first rows, read through the attachment — its columns typed as datasets type them. */
+    override async preview(table: DataConnection.Source.Table, limit: number): Promise<DataConnection.Source.TablePreview> {
+        const connection = this.requireOpen();
+        const relation = `${identifier(this.alias)}.${identifier(table.schema)}.${identifier(table.name)}`;
+
+        const described = (await connection.runAndReadAll(`DESCRIBE SELECT * FROM ${relation}`)).getRowObjectsJS();
+        const rows = (await connection.runAndReadAll(`SELECT * FROM ${relation} LIMIT ${Math.trunc(limit)}`)).getRowsJson();
+
+        return {
+            columns: described.map((column) => ({ name: String(column.column_name), type: toColumnType(String(column.column_type)) })),
+            rows,
+        };
     }
 
     /**

@@ -50,7 +50,7 @@ export namespace Queue {
     /**
      * Connection test / table exploration. Request-reply from the API; consumed by
      * the Data Connection worker, which opens the source's runtime: test = open → close,
-     * explore = open → explore → close.
+     * explore = open → explore → close, preview = open → a table's first rows → close.
      */
     export namespace SourceProbe {
         /**
@@ -65,12 +65,14 @@ export namespace Queue {
         export const Job = z.discriminatedUnion("op", [
             Base.extend({ op: z.literal("test") }),
             Base.extend({ op: z.literal("explore") }),
+            Base.extend({ op: z.literal("preview"), table: SourceD.Table, limit: z.number().int().min(1).max(1000) }),
         ])
         export type Job = z.infer<typeof Job>
 
         export const Result = z.discriminatedUnion("op", [
             z.object({ op: z.literal("test"),    ok: z.boolean(), error: z.string().nullable() }),
             z.object({ op: z.literal("explore"), tables: SourceD.Table.array() }),
+            z.object({ op: z.literal("preview"), preview: SourceD.TablePreview }),
         ])
         export type Result = z.infer<typeof Result>
 
