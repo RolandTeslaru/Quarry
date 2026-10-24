@@ -23,14 +23,16 @@ export namespace DataConnectionDB {
             definition_id:  DataConnection.Source.DefinitionId,
             config:         DataConnection.Source.Config,
             credential_rid: Keychain.Credential.Rid.nullable(),
+            output_folder_rid: Library.Resource.Rid.nullable(),
         });
         export type Row = z.infer<typeof Row>;
 
         export const toDomain = (row: Row, resource: LibraryDB.Resource.Row) => DataConnection.Source.Schema.parse({
             ...LibraryDB.Resource.toBase(resource),
-            definitionId:  row.definition_id,
-            config:        row.config,
-            credentialRid: row.credential_rid,
+            definitionId:    row.definition_id,
+            config:          row.config,
+            credentialRid:   row.credential_rid,
+            outputFolderRid: row.output_folder_rid,
         });
     }
 
@@ -148,6 +150,7 @@ export namespace DataConnectionRepository {
             definitionId:  DataConnection.Source.DefinitionId;
             config:        DataConnection.Source.Config;          // already validated against the definition
             credentialRid: Keychain.Credential.Rid | null;        // already checked: live, readable, of the definition's template
+            outputFolderRid: Library.Resource.Rid | null;         // already checked: a live project or folder the user can see
         }): Promise<DataConnection.Source.Schema> {
             const source = await this.trx
                 .insertInto('data_connection.source')
@@ -156,6 +159,7 @@ export namespace DataConnectionRepository {
                     definition_id:  values.definitionId,
                     config:         json(values.config),
                     credential_rid: values.credentialRid,
+                    output_folder_rid: values.outputFolderRid,
                 })
                 .returningAll()
                 .executeTakeFirstOrThrow();
@@ -170,7 +174,7 @@ export namespace DataConnectionRepository {
                 .selectFrom('data_connection.source as s')
                 .innerJoin('library.resource as r', 'r.rid', 's.rid')
                 .selectAll('r')
-                .select(['s.definition_id', 's.config', 's.credential_rid'])
+                .select(['s.definition_id', 's.config', 's.credential_rid', 's.output_folder_rid'])
                 .where('s.rid', '=', rid)
                 .where('r.trashed_at', 'is', null)
                 .executeTakeFirst();
@@ -178,9 +182,9 @@ export namespace DataConnectionRepository {
             if (!row)
                 return null;
 
-            const { definition_id, config, credential_rid, ...resource } = row;
+            const { definition_id, config, credential_rid, output_folder_rid, ...resource } = row;
 
-            return DataConnectionDB.Source.toDomain({ rid, type: 'source', definition_id, config, credential_rid }, resource);
+            return DataConnectionDB.Source.toDomain({ rid, type: 'source', definition_id, config, credential_rid, output_folder_rid }, resource);
         }
 
         /** An app opening the source's page: it, and the audit `open`, in one transaction. Null: not there, or not theirs to see. */
@@ -201,13 +205,13 @@ export namespace DataConnectionRepository {
                 .selectFrom('data_connection.source as s')
                 .innerJoin('library.resource as r', 'r.rid', 's.rid')
                 .selectAll('r')
-                .select(['s.rid as source_rid', 's.definition_id', 's.config', 's.credential_rid'])
+                .select(['s.rid as source_rid', 's.definition_id', 's.config', 's.credential_rid', 's.output_folder_rid'])
                 .where(isLive('r.rid'))
                 .orderBy('r.name')
                 .execute();
 
-            return rows.map(({ source_rid, definition_id, config, credential_rid, ...resource }) =>
-                DataConnectionDB.Source.toDomain({ rid: source_rid, type: 'source', definition_id, config, credential_rid }, resource));
+            return rows.map(({ source_rid, definition_id, config, credential_rid, output_folder_rid, ...resource }) =>
+                DataConnectionDB.Source.toDomain({ rid: source_rid, type: 'source', definition_id, config, credential_rid, output_folder_rid }, resource));
         }
     }
 

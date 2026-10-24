@@ -2,14 +2,13 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
-import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { Form } from '@quarry/standard-ui/foundations/form'
 import { Input } from '@quarry/standard-ui/foundations/input'
 import { DataConnection, Library } from '@quarry/shared/domain'
 import { errorMessage } from '@/SDKs/api'
 import { ResourceInput } from '@/SDKs/LibrarySDK/ui/ResourceInput'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { SchemaFields, defaults, type Values } from '@/components/SchemaFields'
+import { JSONFieldSchemaRenderer, defaults, type Values } from '@/components/JSONFieldSchemaRenderer'
 import { DataConnectionSDK } from '../sdk'
 
 // The create request, with the form's messages; an empty schedule is none (manual runs only).
@@ -24,6 +23,23 @@ const Schema = DataConnection.API.Sync.Create.Request.extend({
 
 type FormInput  = z.input<typeof Schema>
 type FormOutput = z.output<typeof Schema>
+
+const STEPS = [
+    { id: 'name',     title: 'Name',         description: 'What to call this sync.' },
+    { id: 'what',     title: 'What to copy', description: 'A table, or the result of a query, from the source.' },
+    { id: 'schedule', title: 'Schedule',     description: 'When it runs on its own — or only when you run it.' },
+    { id: 'output',   title: 'Output',       description: 'The dataset each run writes a new version of.' },
+] as const
+
+type StepId = (typeof STEPS)[number]['id']
+
+/** What each step asks for — validated before Next leaves it. */
+const FIELDS: Record<StepId, (keyof FormInput)[]> = {
+    name:     ['name'],
+    what:     ['config'],
+    schedule: ['schedule'],
+    output:   ['output'],
+}
 
 interface Props {
     source:     DataConnection.Source.Schema
@@ -59,7 +75,8 @@ function NewSyncDialog({ source, definition, table, dialog }: Props) {
             name:     table?.name ?? '',
             config:   initialConfig(definition, table),
             schedule: '',
-            output:   { parentRid: source.parentRid ?? undefined, name: table?.name ?? '' },
+            // The source's output folder if it has one, else its own folder.
+            output:   { parentRid: source.outputFolderRid ?? source.parentRid, name: table?.name ?? '' },
         },
     })
 
@@ -77,86 +94,84 @@ function NewSyncDialog({ source, definition, table, dialog }: Props) {
     }
 
     return (
-        <DialogSDK.Template
-            {...dialog}
-            dismissible={!submitting}
-            className='w-[min(520px,calc(100vw-32px))]'
-        >
-            <Dialog.Header>
-                <Dialog.Title>Create a sync</Dialog.Title>
-            </Dialog.Header>
-            <Dialog.Description className='sr-only'>
-                Complete the fields below, then choose create.
-            </Dialog.Description>
+        <Form.Root {...form}>
+            <DialogSDK.WizardTemplate
+                {...dialog}
+                title='Create a sync'
+                steps={STEPS}
+                onNext={step => form.trigger(FIELDS[step.id as StepId])}
+                onSubmit={form.handleSubmit(submit)}
+                submitLabel='Create'
+                submitting={submitting}
+                footer={<ErrorNotice error={form.formState.errors.root?.message ?? null} />}
+                renderStep={step => {
+                    switch (step.id as StepId) {
+                        case 'name':
+                            return (
+                                <Form.Field control={form.control} name='name' render={({ field }) => (
+                                    <Form.Item>
+                                        <Form.Label>Sync name</Form.Label>
+                                        <Form.Control>
+                                            <Input {...field} autoFocus />
+                                        </Form.Control>
+                                        <Form.Message />
+                                    </Form.Item>
+                                )} />
+                            )
 
-            <Form.Root {...form}>
-                <form onSubmit={form.handleSubmit(submit)} autoComplete='off' className='flex min-h-0 flex-col'>
-                    <Dialog.Body>
-                        <fieldset disabled={submitting} className='flex flex-col gap-4'>
-                            <Form.Field control={form.control} name='name' render={({ field }) => (
-                                <Form.Item>
-                                    <Form.Label>Sync name</Form.Label>
-                                    <Form.Control>
-                                        <Input {...field} autoFocus />
-                                    </Form.Control>
-                                    <Form.Message />
-                                </Form.Item>
-                            )} />
+                        case 'what':
+                            return (
+                                <Form.Field control={form.control} name='config' render={({ field }) => (
+                                    <JSONFieldSchemaRenderer schema={definition.syncConfigSchema} value={field.value} onChange={field.onChange} />
+                                )} />
+                            )
 
-                            <Form.Field control={form.control} name='config' render={({ field }) => (
-                                <SchemaFields schema={definition.syncConfigSchema} value={field.value} onChange={field.onChange} />
-                            )} />
+                        case 'schedule':
+                            return (
+                                <Form.Field control={form.control} name='schedule' render={({ field }) => (
+                                    <Form.Item>
+                                        <Form.Label>Schedule</Form.Label>
+                                        <Form.Description>Optional five-field cron expression. Leave empty to run manually.</Form.Description>
+                                        <Form.Control>
+                                            <Input {...field} value={field.value ?? ''} placeholder='0 * * * *' autoFocus />
+                                        </Form.Control>
+                                        <Form.Message />
+                                    </Form.Item>
+                                )} />
+                            )
 
-                            <Form.Field control={form.control} name='schedule' render={({ field }) => (
-                                <Form.Item>
-                                    <Form.Label>Schedule</Form.Label>
-                                    <Form.Description>Optional five-field cron expression. Leave empty to run manually.</Form.Description>
-                                    <Form.Control>
-                                        <Input {...field} value={field.value ?? ''} placeholder='0 * * * *' />
-                                    </Form.Control>
-                                    <Form.Message />
-                                </Form.Item>
-                            )} />
+                        case 'output':
+                            return (
+                                <>
+                                    <Form.Field control={form.control} name='output.name' render={({ field }) => (
+                                        <Form.Item>
+                                            <Form.Label>Dataset name</Form.Label>
+                                            <Form.Control>
+                                                <Input {...field} autoFocus />
+                                            </Form.Control>
+                                            <Form.Message />
+                                        </Form.Item>
+                                    )} />
 
-                            <div className='form-divider'>OUTPUT DATASET</div>
-
-                            <Form.Field control={form.control} name='output.name' render={({ field }) => (
-                                <Form.Item>
-                                    <Form.Label>Dataset name</Form.Label>
-                                    <Form.Control>
-                                        <Input {...field} />
-                                    </Form.Control>
-                                    <Form.Message />
-                                </Form.Item>
-                            )} />
-
-                            <Form.Field control={form.control} name='output.parentRid' render={({ field }) => (
-                                <Form.Item>
-                                    <Form.Label>Location</Form.Label>
-                                    <Form.Control>
-                                        <ResourceInput
-                                            value={(field.value as Library.Resource.Rid | undefined) ?? null}
-                                            onChange={location => field.onChange(location.rid)}
-                                            accept={['project', 'folder']}
-                                            placeholder='Choose a project or folder…'
-                                        />
-                                    </Form.Control>
-                                    <Form.Message />
-                                </Form.Item>
-                            )} />
-                        </fieldset>
-
-                        <ErrorNotice error={form.formState.errors.root?.message ?? null} />
-                    </Dialog.Body>
-
-                    <Dialog.Footer>
-                        <Dialog.Cancel disabled={submitting}>Cancel</Dialog.Cancel>
-                        <Dialog.Action type='submit' intent='primary' loading={submitting}>
-                            Create
-                        </Dialog.Action>
-                    </Dialog.Footer>
-                </form>
-            </Form.Root>
-        </DialogSDK.Template>
+                                    <Form.Field control={form.control} name='output.parentRid' render={({ field }) => (
+                                        <Form.Item>
+                                            <Form.Label>Location</Form.Label>
+                                            <Form.Control>
+                                                <ResourceInput
+                                                    value={(field.value as Library.Resource.Rid | undefined) ?? null}
+                                                    onChange={location => field.onChange(location.rid)}
+                                                    accept={['project', 'folder']}
+                                                    placeholder='Choose a project or folder…'
+                                                />
+                                            </Form.Control>
+                                            <Form.Message />
+                                        </Form.Item>
+                                    )} />
+                                </>
+                            )
+                    }
+                }}
+            />
+        </Form.Root>
     )
 }

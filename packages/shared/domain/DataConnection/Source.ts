@@ -34,6 +34,8 @@ export namespace Source {
         config:        Config,
         /** Of the definition's credential template; null iff the definition takes none. */
         credentialRid: Credential.Rid.nullable(),
+        /** Where its syncs' datasets go by default — a project or folder; null: the source's own folder. */
+        outputFolderRid: Resource.Rid.nullable(),
     })
     export type Schema = z.infer<typeof Schema>
 

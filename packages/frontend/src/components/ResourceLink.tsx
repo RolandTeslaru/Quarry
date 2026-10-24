@@ -1,6 +1,7 @@
-import { FolderIllustration, Icon, type IconName } from '@quarry/standard-ui/icons'
+import type { IconName } from '@quarry/standard-ui/icons'
 import { Link } from '@tanstack/react-router'
 import type { Library } from '@quarry/shared/domain'
+import { ResourceIcon } from './ResourceIcon'
 import { resourceRoute } from '@/shell/apps'
 
 const RESOURCE_ICONS: Record<Library.Resource.Type, IconName> = {
@@ -25,9 +26,7 @@ export function ResourceLink({ resource }: Props) {
             {...resourceRoute(resource.type, resource.rid)}
             className='resource-link'
         >
-            {resource.type === 'folder'
-                ? <FolderIllustration color='var(--color-amber-400)' className='size-4' />
-                : <Icon name={resourceIcon(resource.type)} />}
+            <ResourceIcon type={resource.type} />
             <span>{resource.name}</span>
         </Link>
     )

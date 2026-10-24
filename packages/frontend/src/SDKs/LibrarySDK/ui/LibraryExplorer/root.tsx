@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
+import { matchesSearch } from '@/hooks/useSearch'
 import type { Library } from '@quarry/shared/domain'
 
 /** The open folder: a project or folder RID, or null for the workspace's projects. */
@@ -70,7 +71,5 @@ export function Root({ cwd, setCwd, onItemClick, isItemDisabled, children }: Pro
 
 /** Case-insensitive name match; an empty query matches everything. */
 export function matchesQuery(resource: Library.Resource.Base, query: string): boolean {
-    const needle = query.trim().toLowerCase()
-
-    return needle === '' || resource.name.toLowerCase().includes(needle)
+    return matchesSearch(resource.name, query)
 }

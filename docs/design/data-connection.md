@@ -34,8 +34,12 @@ Source {
   definitionId: "postgres",                   // which source type — see §3
   config: {},                                 // settings that aren't the login; validated against the definition's Config
   credentialRid: "ri.keychain.main.credential.…",   // the Keychain credential it logs in with (host, port, user, password…)
-}                                             // null iff the definition takes none — see keychain.md
+                                              // null iff the definition takes none — see keychain.md
+  outputFolderRid: "ri.library.main.folder.…",      // where its syncs' datasets go by default — a project or folder;
+}                                             // null: the source's own folder. A sync can still choose another.
 ```
+
+Sources are connected from the **Data Connection app** ("New source" on its home), in a wizard: source type (searchable) → details (name, location, description) → connection (the definition's Config) → credential (only for a definition that takes one) → output folder.
 
 ### Sync and sync run
 

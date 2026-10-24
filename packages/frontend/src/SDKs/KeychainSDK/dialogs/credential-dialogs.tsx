@@ -10,7 +10,7 @@ import { Keychain, Library } from '@quarry/shared/domain'
 import { errorMessage } from '@/SDKs/api'
 import { ResourceInput } from '@/SDKs/LibrarySDK/ui/ResourceInput'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { SchemaFields, defaults } from '@/components/SchemaFields'
+import { JSONFieldSchemaRenderer, defaults } from '@/components/JSONFieldSchemaRenderer'
 import { KeychainSDK } from '../sdk'
 
 // The create request, with what the form says when a field is missing.
@@ -156,7 +156,7 @@ function CredentialDialog({ templates, dialog }: Props) {
                         case 'connection':
                             return (
                                 <Form.Field control={form.control} name='values' render={({ field }) => (
-                                    <SchemaFields
+                                    <JSONFieldSchemaRenderer
                                         key={template.id}
                                         schema={template.fieldsSchema}
                                         value={field.value}

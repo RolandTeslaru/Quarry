@@ -107,7 +107,7 @@ export const WizardTemplate: DialogSDK.WizardTemplate = ({
             >
                 <div
                     className={cn(
-                        'surface-elevated-sidebar flex w-56 shrink-0 flex-col gap-1 rounded-l-2xl border border-r-separator px-3 pt-5 pb-4',
+                        'surface-elevated-sidebar flex w-56 shrink-0 flex-col gap-1 rounded-l-2xl border border-r-separator px-3 pt-3 pb-4',
                         sidebarClassName,
                     )}
                     style={{ ...surfaceStyle, ...delayStyle }}
@@ -161,8 +161,8 @@ export const WizardTemplate: DialogSDK.WizardTemplate = ({
                     )}
                     style={{ ...surfaceStyle, ...delayStyle }}
                 >
-                    <div className='flex shrink-0 flex-col gap-1 border-b border-separator px-5 pt-5 pb-4'>
-                        <h3 className='text-base font-semibold text-foreground'>{step.title}</h3>
+                    <div className='flex shrink-0 flex-col gap-1 border-b border-separator px-5 pt-3 pb-2'>
+                        <h4 className='text-sm font-semibold text-foreground'>{step.title}</h4>
                         {step.description
                             ? <Dialog.Description className='text-sm text-muted-foreground'>{step.description}</Dialog.Description>
                             : <Dialog.Description className='sr-only'>{`${title}: ${step.title}`}</Dialog.Description>}

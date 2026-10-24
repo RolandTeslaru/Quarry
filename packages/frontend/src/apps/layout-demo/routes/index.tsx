@@ -104,7 +104,7 @@ function LayoutDemoApp() {
                         <li key={row}>
                             <button
                                 type='button'
-                                className='w-full rounded px-3 py-2 text-left text-sm hover:bg-muted aria-pressed:bg-muted aria-pressed:font-medium'
+                                className='w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-muted aria-pressed:bg-muted aria-pressed:font-medium'
                                 aria-pressed={row === selected}
                                 onClick={() => setSelected(row)}
                             >

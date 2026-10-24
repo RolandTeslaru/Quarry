@@ -1,12 +1,12 @@
 import { useId } from 'react'
 import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
 import { Select } from '@quarry/standard-ui/foundations/select'
-import { FieldInput } from './SchemaFields/FieldInput'
-import { defaults, findDiscriminator, selectedVariant } from './SchemaFields/schema'
-import type { Schema, Values } from './SchemaFields/types'
+import { FieldInput } from './JSONFieldSchemaRenderer/FieldInput'
+import { defaults, findDiscriminator, selectedVariant } from './JSONFieldSchemaRenderer/schema'
+import type { Schema, Values } from './JSONFieldSchemaRenderer/types'
 
-export { defaults } from './SchemaFields/schema'
-export type { Schema, Values } from './SchemaFields/types'
+export { defaults } from './JSONFieldSchemaRenderer/schema'
+export type { Schema, Values } from './JSONFieldSchemaRenderer/types'
 
 interface Props {
     schema:   Schema
@@ -14,7 +14,15 @@ interface Props {
     onChange: (value: Values) => void
 }
 
-export function SchemaFields({ schema, value, onChange }: Props) {
+/**
+ * Form fields drawn from a JSON Schema — the standard, plain-data description of
+ * a JSON object. Integrations define their fields in zod; the server sends them
+ * as JSON Schema (`z.toJSONSchema`), since zod can't cross the network: a source
+ * type's config, a sync's config, a credential's fields. One input per property
+ * (text, number, checkbox, select, masked for `secret`), and a choice between
+ * variants for `oneOf` / `anyOf`.
+ */
+export function JSONFieldSchemaRenderer({ schema, value, onChange }: Props) {
     const id = useId()
 
     const variants = schema.oneOf ?? schema.anyOf
@@ -69,7 +77,7 @@ export function SchemaFields({ schema, value, onChange }: Props) {
                     </Select.Root>
                 </Field.Root>
 
-                <SchemaFields
+                <JSONFieldSchemaRenderer
                     schema={variants[selected]}
                     value={value}
                     onChange={onChange}

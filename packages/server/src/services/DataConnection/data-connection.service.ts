@@ -1,6 +1,6 @@
 import { ForbiddenException, BadRequestException, ConflictException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
-import { DataConnection, Identity, Keychain, Storage, type Platform } from '@quarry/shared/domain';
+import { DataConnection, Identity, Keychain, Storage, type Platform, Library } from '@quarry/shared/domain';
 import { findDefinition, SOURCE_DEFINITIONS_WIRE } from '@quarry/integrations/definitions';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
@@ -10,6 +10,7 @@ import { CatalogService } from '@/services/Catalog/catalog.service';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { KeychainService } from '@/services/Keychain/keychain.service';
+import { LibraryService } from '@/services/Library/library.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { Audit } from '@/services/Audit/audit.decorator';
 import { AuditService } from '@/services/Audit/audit.service';
@@ -54,6 +55,7 @@ export namespace DataConnectionService {
             readonly gatekeeper:           GatekeeperService,
             readonly audit:                AuditService,
             private readonly keychain:     KeychainService,
+            private readonly library:      LibraryService,
             private readonly queueManager: QueueManager,
             private readonly repository:   DataConnectionRepository,
         ) {}
@@ -95,6 +97,14 @@ export namespace DataConnectionService {
                     throw new BadRequestException(`A ${definition.displayName} source needs a ${template.displayName} credential, not '${credential.templateId}'`);
             }
 
+            // Its default output: a project or folder the user can see (live, discoverable — 404 otherwise).
+            if (request.outputFolderRid) {
+                const folder = await this.library.get(principal, request.outputFolderRid);
+
+                if (!Library.Resource.CONTAINERS.includes(folder.type))
+                    throw new BadRequestException('A source\'s output folder must be a project or folder');
+            }
+
             return this.repository.source.create(principal, {
                 rid:           DataConnection.Source.createRid(),
                 name:          request.name,
@@ -103,6 +113,7 @@ export namespace DataConnectionService {
                 definitionId:  definition.id,
                 config:        config.data,
                 credentialRid: request.credentialRid,
+                outputFolderRid: request.outputFolderRid,
             });
         }
 

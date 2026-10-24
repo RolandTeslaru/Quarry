@@ -5,10 +5,8 @@ import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { FolderIllustration, Icon } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import { LibrarySDK } from '../../../sdk'
-import { App } from '@/AppKit'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { resourceIcon } from '@/components/ResourceLink'
-import { resourceGlyph } from '@/shell/apps'
+import { ResourceIcon } from '@/components/ResourceIcon'
 import { matchesQuery, useLibraryExplorer } from '../root'
 import { IndentGuides } from './indent-guides'
 
@@ -215,7 +213,6 @@ function LeafItem({ resource, level, ancestorIsLast, isLastSibling }: LeafItemPr
     const { onItemClick, isItemDisabled } = useLibraryExplorer()
 
     const disabled = isItemDisabled?.(resource) ?? false
-    const glyph = resourceGlyph(resource.type)
 
     return (
         <div role='treeitem' aria-disabled={disabled}>
@@ -226,9 +223,7 @@ function LeafItem({ resource, level, ancestorIsLast, isLastSibling }: LeafItemPr
                 disabled={disabled}
                 onClick={() => onItemClick?.(resource)}
             >
-                {glyph
-                    ? <App.Glyph glyph={glyph} size={16} bare className='mr-1.5' />
-                    : <Icon name={resourceIcon(resource.type)} className='mr-1.5 text-muted-foreground' />}
+                <ResourceIcon type={resource.type} className='mr-1.5' />
                 <span className='min-w-0 flex-1 truncate'>{resource.name}</span>
             </Row>
         </div>

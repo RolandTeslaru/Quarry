@@ -15,6 +15,7 @@ export namespace Source {
             definitionId: SourceD.DefinitionId,
             config:       SourceD.Config,                  // validated by the server against the definition
             credentialRid: Credential.Rid.nullable().default(null),   // of the definition's template; needs read on it
+            outputFolderRid: ResourceD.Rid.nullable().default(null),  // a project or folder its syncs write to; null: its own folder
         })
         export type  Request = z.infer<typeof Request>
 

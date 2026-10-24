@@ -50,13 +50,13 @@ const triggerVariantClasses = {
     'ghost-no-focus': `border-transparent bg-transparent shadow-none rounded-md border`,
 }
 
-const Trigger: SelectComponents.Trigger = ({ className, children, size = 'sm', variant = 'default', ...props }) => {
-    return (
-        <SelectPrimitive.Trigger
-            data-slot='select-trigger'
-            data-size={size}
-            className={cn(
-                `cursor-pointer
+/**
+ * A select trigger's look (size via `data-size` on the element) — for a control
+ * that isn't a Radix select but stands in for one (a picker that opens a dialog).
+ */
+export function selectTriggerClasses({ variant = 'default' }: { variant?: keyof typeof triggerVariantClasses } = {}): string {
+    return cn(
+        `cursor-pointer
         data-[placeholder]:text-muted-foreground
         [&_svg:not([class*='text-'])]:text-muted-foreground
         aria-invalid:ring-destructive/20
@@ -72,9 +72,16 @@ const Trigger: SelectComponents.Trigger = ({ className, children, size = 'sm', v
         data-[size=sm]:h-7 data-[size=sm]:px-2 data-[size=sm]:py-0.5 data-[size=sm]:text-sm
         data-[size=xs]:h-6 data-[size=xs]:px-1.5 data-[size=xs]:py-0.5 data-[size=xs]:text-xs
         *:data-[slot=select-value]:truncate *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:block [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4`,
-                triggerVariantClasses[variant],
-                className,
-            )}
+        triggerVariantClasses[variant],
+    )
+}
+
+const Trigger: SelectComponents.Trigger = ({ className, children, size = 'sm', variant = 'default', ...props }) => {
+    return (
+        <SelectPrimitive.Trigger
+            data-slot='select-trigger'
+            data-size={size}
+            className={cn(selectTriggerClasses({ variant }), className)}
             {...props}
         >
             {children}

@@ -7,7 +7,7 @@ import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import type { Keychain } from '@quarry/shared/domain'
 import { errorMessage } from '@/SDKs/api'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { SchemaFields, type Values } from '@/components/SchemaFields'
+import { JSONFieldSchemaRenderer, type Values } from '@/components/JSONFieldSchemaRenderer'
 import { useTask } from '@/hooks/useTask'
 import { KeychainSDK } from '../sdk'
 
@@ -78,7 +78,7 @@ function CredentialEditor({ credential, template, dialog }: Props) {
                         <fieldset disabled={submitting} className='flex flex-col gap-4'>
                             {values ? (
                                 <Form.Field control={form.control} name='values' render={({ field }) => (
-                                    <SchemaFields schema={template.fieldsSchema} value={field.value ?? {}} onChange={field.onChange} />
+                                    <JSONFieldSchemaRenderer schema={template.fieldsSchema} value={field.value ?? {}} onChange={field.onChange} />
                                 )} />
                             ) : (
                                 <>

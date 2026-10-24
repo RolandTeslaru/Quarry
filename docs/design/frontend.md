@@ -176,10 +176,10 @@ The generic dialog renders `name` and `description` itself (the parent is the cu
 
 1. `z.toJSONSchema(<Type>.API.Create.Request, { io: 'input' })` — in the browser; request schemas live in `@quarry/shared`.
 2. Remove `parentRid`, `name`, `description`.
-3. Render the rest with `SchemaFields` (it renders JSON Schema, already used for source config and credential fields).
+3. Render the rest with `JSONFieldSchemaRenderer` (it renders JSON Schema, already used for source config and credential fields).
 4. Validate with the same zod schema before sending.
 
-A type with no extra fields (dataset, folder) gets the plain dialog. Fields that need more than an input are marked in the schema with `.meta(...)`, which zod copies into the JSON Schema — e.g. `{ widget: 'resource', resourceType: 'credential' }` for a resource picker, `{ widget: 'options', from: '…' }` for choices loaded from the server; `SchemaFields` maps widgets to components.
+A type with no extra fields (dataset, folder) gets the plain dialog. Fields that need more than an input are marked in the schema with `.meta(...)`, which zod copies into the JSON Schema — e.g. `{ widget: 'resource', resourceType: 'credential' }` for a resource picker, `{ widget: 'options', from: '…' }` for choices loaded from the server; `JSONFieldSchemaRenderer` maps widgets to components.
 
 ### Custom dialogs
 
@@ -191,7 +191,7 @@ A source isn't a file you name and fill in later — it needs a system, a creden
 
 1. **System** — choose the source type (`definitionId`).
 2. **Name and location** — a folder picker (any project or folder; Foundry recommends a project per source, Quarry doesn't enforce it).
-3. **Connection** — credential (filtered to the system's template) and config (`SchemaFields` from the definition's `configSchema`).
+3. **Connection** — credential (filtered to the system's template) and config (`JSONFieldSchemaRenderer` from the definition's `configSchema`).
 4. **Test**, then create — the source is created at the end, in one request, so there's no half-configured source.
 
 A source is still a library resource (`library.resource` + `data_connection.source`): it appears in its folder, has grants, can be moved and trashed, and opening it goes to Data Connection.

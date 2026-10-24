@@ -6,13 +6,13 @@ import { LibrarySDK } from '../../../sdk'
 import { App } from '@/AppKit'
 import { AuthSDK } from '@/SDKs/AuthSDK/sdk'
 import { CatalogSDK } from '@/SDKs/CatalogSDK/sdk'
-import { DataConnectionSDK } from '@/SDKs/DataConnectionSDK/sdk'
 import { resourceGlyph } from '@/shell/apps'
 import { useLibraryExplorer } from '../root'
 
 /**
- * "+ New" for the open folder: a folder, a dataset (from a file), a source — or,
- * at the top, a project (workspace admins only). Each opens its SDK's dialog.
+ * "+ New" for the open folder: a folder or a dataset (from a file) — or, at the
+ * top, a project (workspace admins only). Each opens its SDK's dialog. Sources
+ * are connected from the Data Connection app.
  */
 export function CreateBtn() {
     const { cwd } = useLibraryExplorer()
@@ -45,10 +45,6 @@ export function CreateBtn() {
                 <DropdownMenu.Item onSelect={() => CatalogSDK.dialogs.openCreateDatasetFromFile({ parentRid: cwd })}>
                     <TypeGlyph type='dataset' />
                     Dataset
-                </DropdownMenu.Item>
-                <DropdownMenu.Item onSelect={() => DataConnectionSDK.dialogs.openCreateSource({ parentRid: cwd })}>
-                    <TypeGlyph type='source' />
-                    Source
                 </DropdownMenu.Item>
             </DropdownMenu.Content>
         </DropdownMenu.Root>

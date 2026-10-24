@@ -36,7 +36,7 @@ const listVars = cva(
 )
 
 const triggerVars = cva(
-    'inline-flex items-center z-10 justify-center whitespace-nowrap font-semibold text-label-primary! ring-offset-background transition-all border border-transparent cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 group-data-[variant=primary]/list:data-[state=active]:text-white!',
+    'inline-flex items-center z-10 justify-center whitespace-nowrap font-semibold text-label-primary! transition-all border border-transparent cursor-pointer outline-none focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 group-data-[variant=primary]/list:data-[state=active]:text-white!',
     {
         variants: {
             size: {
@@ -197,7 +197,7 @@ function Content({ className, ...props }: React.ComponentProps<typeof TabsPrimit
         <TabsPrimitive.Content
             data-slot='tabs-content'
             className={cn(
-                'mt-2 ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                'mt-2 outline-none focus-visible:outline-none',
                 'data-[state=inactive]:hidden',
                 className,
             )}

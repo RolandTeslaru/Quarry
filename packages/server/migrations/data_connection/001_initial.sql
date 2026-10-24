@@ -22,6 +22,10 @@ CREATE TABLE data_connection.source (
     credential_rid foundations.rid REFERENCES library.resource (rid) ON DELETE RESTRICT
                    CHECK (credential_rid LIKE 'ri.keychain.main.credential.%'),
 
+    -- where its syncs' datasets go unless a sync says otherwise: a project or folder; NULL = the source's own folder
+    output_folder_rid foundations.rid REFERENCES library.resource (rid) ON DELETE SET NULL
+                      CHECK (output_folder_rid LIKE 'ri.library.main.project.%' OR output_folder_rid LIKE 'ri.library.main.folder.%'),
+
     FOREIGN KEY (rid, type) REFERENCES library.resource (rid, type) ON DELETE RESTRICT
 );
 

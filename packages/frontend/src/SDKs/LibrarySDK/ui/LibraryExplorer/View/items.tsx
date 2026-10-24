@@ -1,9 +1,6 @@
 import { Library } from '@quarry/shared/domain'
-import { FolderIllustration, Icon } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
-import { App } from '@/AppKit'
-import { resourceIcon } from '@/components/ResourceLink'
-import { resourceGlyph } from '@/shell/apps'
+import { ResourceIcon } from '@/components/ResourceIcon'
 
 interface Props {
     resource: Library.Resource.Base
@@ -41,17 +38,5 @@ interface ItemMarkProps {
 }
 
 function ItemMark({ resource }: ItemMarkProps) {
-    if (Library.Resource.CONTAINERS.includes(resource.type))
-        return <FolderIllustration color='var(--color-amber-400)' className='size-16' />
-
-    const glyph = resourceGlyph(resource.type)
-
-    if (glyph)
-        return <App.Glyph glyph={glyph} size={52} bare className='size-16' />
-
-    return (
-        <span className='grid size-16 place-items-center text-muted-foreground'>
-            <Icon name={resourceIcon(resource.type)} size={28} />
-        </span>
-    )
+    return <ResourceIcon type={resource.type} size={64} />
 }

@@ -2,12 +2,11 @@ import type { ComponentProps, ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Dither, ditherCtx } from '@quarry/standard-ui/components/Dither'
 import { Skeleton } from '@quarry/standard-ui/foundations/skeleton'
-import { FolderIllustration, Icon } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import type { Audit } from '@quarry/shared/domain'
 import { AuditSDK } from '@/SDKs/AuditSDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { resourceIcon } from '@/components/ResourceLink'
+import { ResourceIcon } from '@/components/ResourceIcon'
 import { resourceRoute } from '@/shell/apps'
 import { ago } from '@/utils/format'
 import { Glyph } from './glyph/Glyph'
@@ -245,9 +244,7 @@ function RecentRow({ recent }: { recent: Audit.AccessEvent.Recent }) {
             {...resourceRoute(resource.type, resource.rid)}
             className='-mx-2 flex items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-muted/60'
         >
-            {resource.type === 'folder' || resource.type === 'project'
-                ? <FolderIllustration color='var(--color-amber-400)' className='size-5 shrink-0' />
-                : <Icon name={resourceIcon(resource.type)} className='shrink-0 text-muted-foreground' />}
+            <ResourceIcon type={resource.type} size={20} />
             <span className='min-w-0 truncate font-medium text-foreground'>{resource.name}</span>
             {recent.parentName && <span className='min-w-0 truncate text-xs text-muted-foreground'>{recent.parentName}</span>}
             <span className='ml-auto shrink-0 text-xs text-muted-foreground'>{ago(recent.openedAt)}</span>
