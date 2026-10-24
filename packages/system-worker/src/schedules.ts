@@ -3,7 +3,7 @@ import { Injectable, type OnApplicationBootstrap } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { Catalog, DataConnection } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import { server } from './infra';
+import { api } from '@quarry/shared/server/internal-api';
 
 /**
  * On boot: registers each housekeeping job's repeating schedule (BullMQ keeps
@@ -38,7 +38,7 @@ export class Schedules implements OnApplicationBootstrap {
 
     private async reconcileSyncSchedules(): Promise<void> {
         const queueDefinition = DataConnection.Queue.Sync.Definition;
-        const { syncs } = await DataConnection.API.Internal.scheduledSyncs(server());
+        const { syncs } = await DataConnection.API.Internal.scheduledSyncs(api);
         const wanted = new Set<string>(syncs.map((sync) => sync.rid));
 
         for (const sync of syncs)

@@ -1,0 +1,17 @@
+{
+    "python.defaultInterpreterPath": "/workspace/repo/.venv/bin/python",
+    "python.languageServer": "None",
+    "basedpyright.analysis.typeCheckingMode": "basic",
+    "workbench.startupEditor": "none",
+    "workbench.welcomePage.walkthroughs.openOnInstall": false,
+    "workbench.secondarySideBar.defaultVisibility": "hidden",
+    "chat.disableAIFeatures": true,
+    "telemetry.telemetryLevel": "off",
+    "extensions.ignoreRecommendations": true,
+    "update.mode": "none",
+    "git.autofetch": true,
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.pytest_cache": true
+    }
+}

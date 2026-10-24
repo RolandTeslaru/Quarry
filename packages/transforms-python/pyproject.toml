@@ -1,0 +1,34 @@
+[project]
+name = "quarry-transforms"
+version = "0.1.0"
+description = "Quarry's transforms library: datasets in, datasets out (docs/design/transforms.md)."
+requires-python = ">=3.12"
+dependencies = [
+    "polars>=1.20",
+    "duckdb>=1.2",
+    "pyarrow>=19",
+]
+
+[project.optional-dependencies]
+pandas = [
+    "pandas>=2.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[tool.uv]
+# Only releases at least two weeks old (move forward deliberately).
+exclude-newer = "2026-10-10T00:00:00Z"
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/quarry"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

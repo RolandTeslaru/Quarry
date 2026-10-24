@@ -1,5 +1,6 @@
-// infra first: reflect-metadata and the env every other module reads.
-import { waitForServer } from './infra';
+// load-env first: reflect-metadata and the env every other module reads.
+import './load-env';
+import { waitForServer } from '@quarry/shared/server/internal-api';
 import { NestFactory } from '@nestjs/core';
 import { Encryption } from '@quarry/shared/server/encryption';
 import { System } from '@quarry/shared/server/system';

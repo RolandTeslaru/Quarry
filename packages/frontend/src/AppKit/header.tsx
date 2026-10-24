@@ -45,6 +45,17 @@ function Rows({ className, ...props }: ComponentProps<'div'>) {
     )
 }
 
+/** Side-by-side columns: e.g. a title next to a status badge, or several `Rows` groups. */
+function Cols({ className, ...props }: ComponentProps<'div'>) {
+    return (
+        <div
+            data-slot='app-header-cols'
+            className={cn('flex min-w-0 items-center gap-3 first:pl-3', className)}
+            {...props}
+        />
+    )
+}
+
 /** Where the resource is; children are `Breadcrumb.Item`s, the last usually holding `App.Header.Title`. */
 function Breadcrumbs({ className, children, ...props }: ComponentProps<'nav'>) {
     return (
@@ -92,6 +103,7 @@ function Actions({ className, ...props }: ComponentProps<'div'>) {
 export const Header = Object.assign(HeaderRoot, {
     Icon,
     Rows,
+    Cols,
     Breadcrumbs,
     Title,
     Menubar,

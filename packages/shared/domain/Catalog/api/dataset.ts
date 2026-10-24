@@ -66,6 +66,16 @@ export namespace Dataset {
     }
 
     /** The first rows of the latest view, read with its schema. Needs read. */
+    /**
+     * A random sample of the latest view as a Parquet file, read with the dataset's
+     * schema — what a transform preview runs on. The `X-Quarry-Sequence` header says
+     * which version it came from.
+     */
+    export namespace Sample {
+        export const Query = z.object({ rows: z.coerce.number().int().min(1).max(100_000).default(1000) })
+        export type  Query = z.infer<typeof Query>
+    }
+
     export namespace Preview {
         export const Query = z.object({ limit: z.coerce.number().int().min(1).max(1000).default(100) })
         export type  Query = z.infer<typeof Query>

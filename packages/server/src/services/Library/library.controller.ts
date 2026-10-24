@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { Library } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
@@ -25,6 +25,15 @@ export class LibraryController {
         @Body(new ZodPipe(API.Project.Create.Request)) body: API.Project.Create.Request,
     ): Promise<API.Project.Create.Response> {
         return { project: await this.library.createProject(principal, body) };
+    }
+
+    /** Before `resources/:rid`, which would take "by-path" for a RID. */
+    @Get('resources/by-path')
+    async getByPath(
+        @CurrentPrincipal() principal: Principal.User,
+        @Query(new ZodPipe(API.Resource.GetByPath.Request)) query: API.Resource.GetByPath.Request,
+    ): Promise<API.Resource.GetByPath.Response> {
+        return { resource: await this.library.getByPath(principal, query.path) };
     }
 
     @Get('resources/:rid')

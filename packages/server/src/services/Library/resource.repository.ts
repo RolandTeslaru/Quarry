@@ -68,6 +68,35 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
             .execute();
     }
 
+    /**
+     * The live resource at a path of names, root first: a project, then a child
+     * of it by name, and so on. Names are unique among live siblings; each step
+     * is the user's to see (RLS). Null: no such path, or part of it hidden.
+     */
+    @Transactional()
+    async getByPath(principal: Principal, names: string[]): Promise<LibraryDB.Resource.Row | null> {
+        let current: LibraryDB.Resource.Row | null = null;
+
+        for (const name of names) {
+            let query = this.trx
+                .selectFrom('library.resource')
+                .selectAll()
+                .where('name', '=', name)
+                .where('trashed_at', 'is', null);
+
+            query = current
+                ? query.where('parent_rid', '=', current.rid)
+                : query.where('parent_rid', 'is', null);
+
+            current = (await query.executeTakeFirst()) ?? null;
+
+            if (!current)
+                return null;
+        }
+
+        return current;
+    }
+
     /** Root first, the resource itself last. */
     @Transactional()
     async path(principal: Principal, rid: Library.Resource.Rid): Promise<LibraryDB.Resource.Row[]> {

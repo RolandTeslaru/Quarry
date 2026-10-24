@@ -12,6 +12,7 @@ export namespace Application {
         "data-connection",
         "keychain",
         "pipeline-builder",
+        "code-workspaces",
         "layout-demo",                                   // test apps: the shell's layouts
         "minimal-demo",
     ])

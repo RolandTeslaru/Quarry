@@ -20,6 +20,10 @@ import { CatalogInternalController } from '@/services/Catalog/catalog.internal.c
 import { DataConnectionModule } from '@/services/DataConnection/data-connection.module';
 import { DataConnectionController } from '@/services/DataConnection/data-connection.controller';
 import { DataConnectionInternalController } from '@/services/DataConnection/data-connection.internal.controller';
+import { CodeWorkspaceModule } from '@/services/CodeWorkspace/code-workspace.module';
+import { CodeWorkspaceController } from '@/services/CodeWorkspace/code-workspace.controller';
+import { GitController } from '@/services/CodeWorkspace/git/git.controller';
+import { CodeWorkspaceInternalController } from '@/services/CodeWorkspace/code-workspace.internal.controller';
 import { RealtimeModule } from '@/services/Realtime/realtime.module';
 import { AuditModule } from '@/services/Audit/audit.module';
 import { AuditController } from '@/services/Audit/audit.controller';
@@ -40,6 +44,7 @@ import { AuditController } from '@/services/Audit/audit.controller';
         KeychainModule,
         CatalogModule,
         DataConnectionModule,
+        CodeWorkspaceModule,
     ],
     controllers: [
         HealthController,
@@ -50,10 +55,13 @@ import { AuditController } from '@/services/Audit/audit.controller';
         KeychainController,
         CatalogController,
         DataConnectionController,
+        CodeWorkspaceController,
+        GitController,
         AuditController,
-        // /api/internal/… — service token only, for the sync and system workers
+        // /api/internal/… — service token only, for the workers
         CatalogInternalController,
         DataConnectionInternalController,
+        CodeWorkspaceInternalController,
     ],
     providers: [
         TokenVerifier,

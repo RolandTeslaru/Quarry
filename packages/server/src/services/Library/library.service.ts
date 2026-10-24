@@ -68,6 +68,16 @@ export class LibraryService {
         return LibraryDB.Resource.toBase(row);
     }
 
+    /** The live resource at `/Project/folder/name`; 404 if there's none, or it (or a folder on the way) is hidden. */
+    async getByPath(principal: Principal, path: string): Promise<Library.Resource.Base> {
+        const row = await this.repository.getByPath(principal, Library.Resource.parsePath(path));
+
+        if (!row)
+            throw new NotFoundException('Not found');
+
+        return LibraryDB.Resource.toBase(row);
+    }
+
     /** Root first — ancestors the principal can't discover are left out (RLS). */
     async path(principal: Principal, rid: Library.Resource.Rid): Promise<Library.Resource.Base[]> {
         const rows = await this.repository.path(principal, rid);

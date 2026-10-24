@@ -2,7 +2,8 @@ import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { Controller, Get, Module, ServiceUnavailableException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { DataConnection } from '@quarry/shared/domain';
-import { DuckDb, QUEUE_PREFIX, redisConnection, SourceRuntimes } from './infra';
+import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
+import { DuckDb, SourceRuntimes } from './infra';
 import { SourceProbeProcessor, SyncProcessor } from './processors';
 
 /** For container probes: up, and able to reach Redis (where its jobs come from). */

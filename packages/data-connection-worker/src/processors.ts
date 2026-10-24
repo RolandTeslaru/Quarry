@@ -1,7 +1,9 @@
 import { Processor } from '@nestjs/bullmq';
 import { DataConnection } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import { describeParquet, DuckDb, JobProcessor, server, SourceRuntimes } from './infra';
+import { api } from '@quarry/shared/server/internal-api';
+import { JobProcessor } from '@quarry/shared/server/queue';
+import { describeParquet, DuckDb, SourceRuntimes } from './infra';
 
 import Internal = DataConnection.API.Internal;
 
@@ -32,13 +34,13 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
     }
 
     protected async handle(job: DataConnection.Queue.Sync.Job): Promise<DataConnection.Queue.Sync.Result> {
-        const run = await Internal.startRun(server(), job);
+        const run = await Internal.startRun(api, job);
 
         if (run.skipped)
             return { syncRunRid: null, transactionRid: null, rowCount: 0, skipped: true };
 
         const heartbeat = setInterval(() => {
-            Internal.heartbeat(server(), run.runRid).catch((error: unknown) => {
+            Internal.heartbeat(api, run.runRid).catch((error: unknown) => {
                 this.log.warning('Heartbeat failed', {
                     runRid: run.runRid,
                     error:  error instanceof Error ? error.message : String(error),
@@ -50,7 +52,7 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
             const copied = await this.runtimes.sync(run.source, run.credential, run.syncConfig, { destination: run.destination, state: run.state });
             const written = await describeParquet(this.duckdb, run.destination);
 
-            const completed = await Internal.completeRun(server(), run.runRid, {
+            const completed = await Internal.completeRun(api, run.runRid, {
                 rowCount:  copied.rowCount,
                 state:     copied.state,
                 schema:    written.schema,
@@ -70,7 +72,7 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
         catch (error) {
             const message = error instanceof Error ? error.message : String(error);
 
-            await Internal.failRun(server(), run.runRid, { message }).catch((failError: unknown) => {
+            await Internal.failRun(api, run.runRid, { message }).catch((failError: unknown) => {
                 this.log.warning('Could not fail run', {
                     runRid: run.runRid,
                     error:  failError instanceof Error ? failError.message : String(failError),

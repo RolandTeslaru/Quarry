@@ -2,8 +2,8 @@ import type { ConnectionOptions } from 'bullmq';
 import { Redis, type RedisOptions } from 'ioredis';
 import { requireEnv } from '@/db/table';
 
-/** Key prefix for every queue, so a shared Redis can't collide with other apps. */
-export const QUEUE_PREFIX = 'quarry';
+/** The queues' key prefix — one definition, shared with the workers. */
+export { QUEUE_PREFIX } from '@quarry/shared/server/redis';
 
 function options(): RedisOptions {
     const url = new URL(requireEnv('REDIS_URL'));

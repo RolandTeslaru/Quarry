@@ -22,11 +22,12 @@ export namespace LibrarySelector {
 }
 
 const NOUNS: Record<Library.Resource.Type, string> = {
-    project:    'a project',
-    folder:     'a folder',
-    dataset:    'a dataset',
-    source:     'a source',
-    credential: 'a credential',
+    'project':        'a project',
+    'folder':         'a folder',
+    'dataset':        'a dataset',
+    'source':         'a source',
+    'credential':     'a credential',
+    'workspace':      'a code workspace',
 }
 
 const titleOf = (accept: readonly LibrarySelector.Accept[]) =>

@@ -39,7 +39,7 @@ class SqlMigrationProvider implements MigrationProvider {
  * its own history (`<schema>.kysely_migration`), so a schema can move to its
  * own database with its migrations.
  */
-export const SCHEMAS = ['foundations', 'identity', 'library', 'gatekeeper', 'keychain', 'catalog', 'data_connection', 'audit'] as const;
+export const SCHEMAS = ['foundations', 'identity', 'library', 'gatekeeper', 'keychain', 'catalog', 'data_connection', 'code_workspace', 'audit'] as const;
 
 // src/db (dev) → packages/server/migrations; dist/server/src/db (build) → dist/server/migrations.
 const migrationsRoot = () => path.resolve(__dirname, '../../migrations');

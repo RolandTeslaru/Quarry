@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Identity } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
@@ -42,6 +42,16 @@ export class IdentityService {
             this.log.info(`Bootstrapped first workspace admin: ${email}`);
 
         return admin;
+    }
+
+    /** A member by RID, as the principal may see them. */
+    async getUser(principal: Principal, userRid: Identity.User.Rid): Promise<Identity.User.Schema> {
+        const row = await this.userRepository.get(principal, userRid);
+
+        if (!row)
+            throw new NotFoundException('Not found');
+
+        return IdentityDB.User.toDomain(row);
     }
 
     async me(principal: Principal.User): Promise<Identity.User.Schema> {

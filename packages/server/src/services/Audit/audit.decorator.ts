@@ -3,7 +3,7 @@ import type { Principal } from '@/auth/principal';
 import type { NewEvent } from './audit.repository';
 import type { AuditService } from './audit.service';
 
-type RidSecond<M> = M extends (principal: Principal, rid: infer R, ...rest: never[]) => unknown
+type RidSecond<M> = M extends (principal: never, rid: infer R, ...rest: never[]) => unknown
     ? ([R] extends [Library.Resource.Rid] ? unknown : { error: 'second parameter must be a library resource Rid' })
     : never;
 
@@ -24,7 +24,7 @@ export function Audit<Rest extends unknown[] = never[]>(
     action: NewEvent['action'],
     detail?: (...rest: Rest) => Record<string, unknown>,
 ) {
-    return function <M extends (principal: Principal, rid: never, ...rest: never[]) => Promise<unknown>>(
+    return function <M extends (principal: never, rid: never, ...rest: never[]) => Promise<unknown>>(
         _target:    { audit: AuditService },                // the class must inject AuditService
         _key:       string | symbol,
         descriptor: TypedPropertyDescriptor<M> & RidSecond<M>,

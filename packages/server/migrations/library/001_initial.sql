@@ -9,7 +9,7 @@ CREATE SCHEMA IF NOT EXISTS library;
 
 -- Registry of resource types: which can hold children, which the explorer lists
 CREATE TABLE library.resource_type (
-    type              text PRIMARY KEY,                -- 'project' | 'folder' | 'dataset' | 'source' | 'credential' | …
+    type              text PRIMARY KEY,                -- 'project' | 'folder' | 'dataset' | 'source' | 'credential' | 'workspace' | …
     is_container      boolean NOT NULL DEFAULT false,  -- can have children (project, folder)
     show_in_explorer  boolean NOT NULL DEFAULT true    -- listed by the library explorer; credentials live in Keychain
 );
@@ -19,7 +19,8 @@ INSERT INTO library.resource_type VALUES
     ('folder',     true,  true),
     ('dataset',    false, true),
     ('source',     false, true),
-    ('credential', false, false);
+    ('credential', false, false),
+    ('workspace',  false, true);                         -- a Code Workspace
 
 CREATE TABLE library.resource (
     rid         foundations.rid PRIMARY KEY,

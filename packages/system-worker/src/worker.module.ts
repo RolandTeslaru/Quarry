@@ -2,7 +2,7 @@ import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { Controller, Get, Module, ServiceUnavailableException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { Catalog, DataConnection } from '@quarry/shared/domain';
-import { QUEUE_PREFIX, redisConnection } from './infra';
+import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { OutboxRelayProcessor } from './processors/outbox-relay.processor';
 import { StorageGcProcessor } from './processors/storage-gc.processor';
 import { SyncReaperProcessor } from './processors/sync-reaper.processor';

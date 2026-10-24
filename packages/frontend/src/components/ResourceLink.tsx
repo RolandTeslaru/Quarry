@@ -10,6 +10,7 @@ const RESOURCE_ICONS: Record<Library.Resource.Type, IconName> = {
     source: 'database',
     dataset: 'th',
     credential: 'key',
+    workspace: 'code',
 }
 
 export function resourceIcon(type: Library.Resource.Type): IconName {

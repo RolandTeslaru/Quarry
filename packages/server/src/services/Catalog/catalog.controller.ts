@@ -1,5 +1,7 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { createReadStream, promises as fs } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import { Catalog } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
@@ -55,6 +57,27 @@ export class CatalogController {
         @Query(new ZodPipe(API.Dataset.Preview.Query)) query: API.Dataset.Preview.Query,
     ): Promise<API.Dataset.Preview.Response> {
         return this.catalog.storage.preview(principal, rid, query.limit);
+    }
+
+    /** Parquet bytes, not JSON: types survive. The temp file goes once it's sent. */
+    @Get(':rid/sample')
+    async sample(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Query(new ZodPipe(API.Dataset.Sample.Query)) query: API.Dataset.Sample.Query,
+        @Res() response: Response,
+    ): Promise<void> {
+        const sample = await this.catalog.storage.sample(principal, rid, query.rows);
+
+        response.setHeader('Content-Type', 'application/vnd.apache.parquet');
+        response.setHeader('X-Quarry-Sequence', String(sample.sequence));
+
+        try {
+            await pipeline(createReadStream(sample.file), response);
+        }
+        finally {
+            await fs.rm(sample.file, { force: true });
+        }
     }
 
     @Put(':rid/schema')

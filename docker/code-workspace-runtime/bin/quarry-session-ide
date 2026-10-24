@@ -1,0 +1,18 @@
+#!/bin/sh
+# The session's main process: VS Code in the browser, served under the session's
+# secret path (the code workspace worker's gateway forwards /s/<secret>/… here unchanged).
+# The secret is also VS Code's connection token, so the port alone opens nothing.
+set -eu
+
+: "${QUARRY_SESSION_SECRET:?QUARRY_SESSION_SECRET is not set}"
+
+mkdir -p /workspace/repo
+
+exec /opt/openvscode-server/bin/openvscode-server \
+    --host 0.0.0.0 \
+    --port 3000 \
+    --server-base-path "/s/${QUARRY_SESSION_SECRET}" \
+    --connection-token "${QUARRY_SESSION_SECRET}" \
+    --default-folder /workspace/repo \
+    --disable-workspace-trust \
+    --telemetry-level off

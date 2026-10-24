@@ -1,7 +1,8 @@
 import { Processor } from '@nestjs/bullmq';
 import { DataConnection } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import { JobProcessor, server } from '../infra';
+import { api } from '@quarry/shared/server/internal-api';
+import { JobProcessor } from '@quarry/shared/server/queue';
 
 const STALE_HEARTBEAT_MINUTES = 5;
 
@@ -14,7 +15,7 @@ export class SyncReaperProcessor extends JobProcessor<typeof DataConnection.Queu
     private readonly log = System.log.withContext('SyncReaper');
 
     protected async handle(): Promise<DataConnection.Queue.SyncReaper.Result> {
-        const result = await DataConnection.API.Internal.reapRuns(server(), { staleMinutes: STALE_HEARTBEAT_MINUTES });
+        const result = await DataConnection.API.Internal.reapRuns(api, { staleMinutes: STALE_HEARTBEAT_MINUTES });
 
         if (result.reaped > 0)
             this.log.warning(`Reaped ${result.reaped} stuck sync runs`);

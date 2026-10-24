@@ -2,7 +2,8 @@ import { InjectQueue, Processor } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { Catalog } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import { JobProcessor, server } from '../infra';
+import { api } from '@quarry/shared/server/internal-api';
+import { JobProcessor } from '@quarry/shared/server/queue';
 
 const OUTBOX_BATCH = 100;
 
@@ -23,7 +24,7 @@ export class OutboxRelayProcessor extends JobProcessor<typeof Catalog.Queue.Outb
     }
 
     protected async handle(): Promise<Catalog.Queue.OutboxRelay.Result> {
-        const { events } = await Catalog.API.Internal.pendingEvents(server(), OUTBOX_BATCH);
+        const { events } = await Catalog.API.Internal.pendingEvents(api, OUTBOX_BATCH);
 
         const queueDefinition = Catalog.Queue.DatasetUpdated.Definition;
 
@@ -38,7 +39,7 @@ export class OutboxRelayProcessor extends JobProcessor<typeof Catalog.Queue.Outb
             await this.datasetUpdated.add(queueDefinition.name, job, { ...queueDefinition.options, jobId: job.transactionRid });
         }
 
-        await Catalog.API.Internal.markPublished(server(), { ids: events.map((event) => event.id) });
+        await Catalog.API.Internal.markPublished(api, { ids: events.map((event) => event.id) });
 
         return { published: events.length };
     }

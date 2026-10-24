@@ -2,7 +2,7 @@ import type { Gatekeeper, Library } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
 import type { GatekeeperService } from './gatekeeper.service';
 
-type RidSecond<M> = M extends (principal: Principal, rid: infer R, ...rest: never[]) => unknown
+type RidSecond<M> = M extends (principal: never, rid: infer R, ...rest: never[]) => unknown
     ? ([R] extends [Library.Resource.Rid] ? unknown : { error: 'second parameter must be a library resource Rid' })
     : never;
 
@@ -19,7 +19,8 @@ type RidSecond<M> = M extends (principal: Principal, rid: infer R, ...rest: neve
  * @Transactional.
  */
 export function SecurityGate(action: Gatekeeper.Action.Name) {
-    return function <M extends (principal: Principal, rid: never, ...rest: never[]) => Promise<unknown>>(
+    // Any principal type: a method may take a narrower one (Principal.User) that an outer decorator guarantees.
+    return function <M extends (principal: never, rid: never, ...rest: never[]) => Promise<unknown>>(
         _target:    { gatekeeper: GatekeeperService },      // the class must inject GatekeeperService
         _key:       string | symbol,
         descriptor: TypedPropertyDescriptor<M> & RidSecond<M>,

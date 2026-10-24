@@ -19,6 +19,7 @@ const listVars = cva(
                 accent: 'bg-accent/30 text-foreground',
                 sidebar:
                     'flex flex-col items-stretch justify-start w-full border-0 bg-transparent shadow-none rounded-none text-foreground',
+                underline: 'flex justify-start rounded-none bg-transparent text-foreground',
             },
             size: {
                 xxs: 'p-0 gap-0',
@@ -28,6 +29,8 @@ const listVars = cva(
                 lg: 'p-0.5 gap-1.5',
             },
         },
+        // Compound so it lands after the size classes and wins the padding/gap merge.
+        compoundVariants: [{ variant: 'underline', className: 'p-0 gap-4' }],
         defaultVariants: {
             size: 'default',
             variant: 'primary',
@@ -51,8 +54,10 @@ const triggerVars = cva(
                 accent: '',
                 sidebar:
                     'w-full justify-start gap-2 rounded-md px-2 py-1 text-sm font-normal hover:bg-accent/30  data-[state=active]:bg-input',
+                underline: 'border-0 font-medium data-[state=active]:text-primary!',
             },
         },
+        compoundVariants: [{ variant: 'underline', className: 'rounded-none px-0 py-2.5' }],
         defaultVariants: {
             size: 'default',
             variant: 'primary',
@@ -65,6 +70,7 @@ const indicatorVars = cva('absolute z-0 pointer-events-none! border transition-a
         variant: {
             primary: 'bg-primary border-primary-accent shadow-black/20',
             accent: 'bg-input dark:border-neutral-500/60 dark:bg-neutral-600 border-white',
+            underline: 'bottom-0 h-0.5 border-0 bg-primary shadow-none',
         },
         size: {
             xxs: 'rounded-sm',
@@ -74,6 +80,7 @@ const indicatorVars = cva('absolute z-0 pointer-events-none! border transition-a
             lg: 'rounded-md',
         },
     },
+    compoundVariants: [{ variant: 'underline', className: 'rounded-none' }],
     defaultVariants: {
         size: 'default',
         variant: 'primary',
@@ -85,7 +92,7 @@ function Root({ className, ...props }: React.ComponentProps<typeof TabsPrimitive
 }
 
 type TabsSize = 'xxs' | 'xs' | 'sm' | 'default' | 'lg'
-type TabsVariant = 'primary' | 'accent' | 'sidebar'
+type TabsVariant = 'primary' | 'accent' | 'sidebar' | 'underline'
 
 const TabsSizeContext = React.createContext<TabsSize>('default')
 const TabsVariantContext = React.createContext<TabsVariant>('primary')
@@ -114,10 +121,13 @@ const List = ({
         }
 
         indicatorRef.current.style.width = `${activeTab.offsetWidth}px`
-        indicatorRef.current.style.height = `${activeTab.offsetHeight}px`
         indicatorRef.current.style.left = `${activeTab.offsetLeft}px`
-        indicatorRef.current.style.top = `${activeTab.offsetTop}px`
-    }, [])
+        // The underline keeps its CSS height and sits on the list's bottom edge.
+        if (variant !== 'underline') {
+            indicatorRef.current.style.height = `${activeTab.offsetHeight}px`
+            indicatorRef.current.style.top = `${activeTab.offsetTop}px`
+        }
+    }, [variant])
 
     // Update indicator on mount and when tabs change
     useEffect(() => {

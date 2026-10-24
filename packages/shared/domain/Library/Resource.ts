@@ -7,7 +7,7 @@ import { User } from "../Identity/User"
 export namespace Resource {
 
     /** Mirrors library.resource_type. */
-    export const Type = z.enum(["project", "folder", "dataset", "source", "credential"])
+    export const Type = z.enum(["project", "folder", "dataset", "source", "credential", "workspace"])
     export type  Type = z.infer<typeof Type>
 
     export const CONTAINERS: readonly Type[] = ["project", "folder"]
@@ -32,4 +32,12 @@ export namespace Resource {
 
     /** No slashes: names are path segments. */
     export const Name = z.string().trim().min(1).max(255).regex(/^[^/]+$/, "Names cannot contain '/'")
+
+    /** A resource's library path from its path (root first, itself last): `/Project/folder/name`. */
+    export const getPath = (path: readonly Pick<Base, "name">[]): string =>
+        `/${path.map(resource => resource.name).join("/")}`
+
+    /** `/Project/folder/name` → its names, root first. */
+    export const parsePath = (path: string): string[] =>
+        path.split("/").filter(name => name.length > 0)
 }

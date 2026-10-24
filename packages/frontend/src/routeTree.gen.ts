@@ -13,6 +13,7 @@ import { Route as indexRouteImport } from './routes/index'
 import { Route as workspaceRouteImport } from './routes/_workspace'
 import { Route as authRouteImport } from './routes/auth'
 import { Route as playgroundRouteImport } from './routes/playground'
+import { Route as CodeWorkspacesRouteRouteImport } from './apps/code-workspaces/routes/route'
 import { Route as DataConnectionRouteRouteImport } from './apps/data-connection/routes/route'
 import { Route as DatasetsRouteRouteImport } from './apps/datasets/routes/route'
 import { Route as KeychainRouteRouteImport } from './apps/keychain/routes/route'
@@ -22,6 +23,8 @@ import { Route as MinimalDemoRouteRouteImport } from './apps/minimal-demo/routes
 import { Route as PipelineBuilderRouteRouteImport } from './apps/pipeline-builder/routes/route'
 import { Route as playground_DotblueprintRouteImport } from './routes/playground_.blueprint'
 import { Route as playground_DotstandardRouteImport } from './routes/playground_.standard'
+import { Route as CodeWorkspacesIndexRouteImport } from './apps/code-workspaces/routes/index'
+import { Route as CodeWorkspacesRidRouteImport } from './apps/code-workspaces/routes/$rid'
 import { Route as DataConnectionIndexRouteImport } from './apps/data-connection/routes/index'
 import { Route as DatasetsIndexRouteImport } from './apps/datasets/routes/index'
 import { Route as DatasetsRidRouteImport } from './apps/datasets/routes/$rid'
@@ -51,6 +54,11 @@ const playgroundRoute = playgroundRouteImport.update({
   id: '/playground',
   path: '/playground',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CodeWorkspacesRouteRoute = CodeWorkspacesRouteRouteImport.update({
+  id: '/code-workspaces',
+  path: '/code-workspaces',
+  getParentRoute: () => workspaceRoute,
 } as any)
 const DataConnectionRouteRoute = DataConnectionRouteRouteImport.update({
   id: '/data-connection',
@@ -96,6 +104,16 @@ const playground_DotstandardRoute = playground_DotstandardRouteImport.update({
   id: '/playground/standard',
   path: '/playground/standard',
   getParentRoute: () => rootRouteImport,
+} as any)
+const CodeWorkspacesIndexRoute = CodeWorkspacesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CodeWorkspacesRouteRoute,
+} as any)
+const CodeWorkspacesRidRoute = CodeWorkspacesRidRouteImport.update({
+  id: '/$rid',
+  path: '/$rid',
+  getParentRoute: () => CodeWorkspacesRouteRoute,
 } as any)
 const DataConnectionIndexRoute = DataConnectionIndexRouteImport.update({
   id: '/',
@@ -153,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/': typeof indexRoute
   '/auth': typeof authRoute
   '/playground': typeof playgroundRoute
+  '/code-workspaces': typeof CodeWorkspacesRouteRouteWithChildren
   '/data-connection': typeof DataConnectionRouteRouteWithChildren
   '/datasets': typeof DatasetsRouteRouteWithChildren
   '/keychain': typeof KeychainRouteRouteWithChildren
@@ -162,8 +181,10 @@ export interface FileRoutesByFullPath {
   '/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
   '/playground/blueprint': typeof playground_DotblueprintRoute
   '/playground/standard': typeof playground_DotstandardRoute
+  '/code-workspaces/$rid': typeof CodeWorkspacesRidRoute
   '/datasets/$rid': typeof DatasetsRidRoute
   '/library/$rid': typeof LibraryRidRoute
+  '/code-workspaces/': typeof CodeWorkspacesIndexRoute
   '/data-connection/': typeof DataConnectionIndexRoute
   '/datasets/': typeof DatasetsIndexRoute
   '/keychain/': typeof KeychainIndexRoute
@@ -179,8 +200,10 @@ export interface FileRoutesByTo {
   '/playground': typeof playgroundRoute
   '/playground/blueprint': typeof playground_DotblueprintRoute
   '/playground/standard': typeof playground_DotstandardRoute
+  '/code-workspaces/$rid': typeof CodeWorkspacesRidRoute
   '/datasets/$rid': typeof DatasetsRidRoute
   '/library/$rid': typeof LibraryRidRoute
+  '/code-workspaces': typeof CodeWorkspacesIndexRoute
   '/data-connection': typeof DataConnectionIndexRoute
   '/datasets': typeof DatasetsIndexRoute
   '/keychain': typeof KeychainIndexRoute
@@ -196,6 +219,7 @@ export interface FileRoutesById {
   '/_workspace': typeof workspaceRouteWithChildren
   '/auth': typeof authRoute
   '/playground': typeof playgroundRoute
+  '/_workspace/code-workspaces': typeof CodeWorkspacesRouteRouteWithChildren
   '/_workspace/data-connection': typeof DataConnectionRouteRouteWithChildren
   '/_workspace/datasets': typeof DatasetsRouteRouteWithChildren
   '/_workspace/keychain': typeof KeychainRouteRouteWithChildren
@@ -205,8 +229,10 @@ export interface FileRoutesById {
   '/_workspace/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
   '/playground/blueprint': typeof playground_DotblueprintRoute
   '/playground/standard': typeof playground_DotstandardRoute
+  '/_workspace/code-workspaces/$rid': typeof CodeWorkspacesRidRoute
   '/_workspace/datasets/$rid': typeof DatasetsRidRoute
   '/_workspace/library/$rid': typeof LibraryRidRoute
+  '/_workspace/code-workspaces/': typeof CodeWorkspacesIndexRoute
   '/_workspace/data-connection/': typeof DataConnectionIndexRoute
   '/_workspace/datasets/': typeof DatasetsIndexRoute
   '/_workspace/keychain/': typeof KeychainIndexRoute
@@ -222,6 +248,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/playground'
+    | '/code-workspaces'
     | '/data-connection'
     | '/datasets'
     | '/keychain'
@@ -231,8 +258,10 @@ export interface FileRouteTypes {
     | '/pipeline-builder'
     | '/playground/blueprint'
     | '/playground/standard'
+    | '/code-workspaces/$rid'
     | '/datasets/$rid'
     | '/library/$rid'
+    | '/code-workspaces/'
     | '/data-connection/'
     | '/datasets/'
     | '/keychain/'
@@ -248,8 +277,10 @@ export interface FileRouteTypes {
     | '/playground'
     | '/playground/blueprint'
     | '/playground/standard'
+    | '/code-workspaces/$rid'
     | '/datasets/$rid'
     | '/library/$rid'
+    | '/code-workspaces'
     | '/data-connection'
     | '/datasets'
     | '/keychain'
@@ -264,6 +295,7 @@ export interface FileRouteTypes {
     | '/_workspace'
     | '/auth'
     | '/playground'
+    | '/_workspace/code-workspaces'
     | '/_workspace/data-connection'
     | '/_workspace/datasets'
     | '/_workspace/keychain'
@@ -273,8 +305,10 @@ export interface FileRouteTypes {
     | '/_workspace/pipeline-builder'
     | '/playground/blueprint'
     | '/playground/standard'
+    | '/_workspace/code-workspaces/$rid'
     | '/_workspace/datasets/$rid'
     | '/_workspace/library/$rid'
+    | '/_workspace/code-workspaces/'
     | '/_workspace/data-connection/'
     | '/_workspace/datasets/'
     | '/_workspace/keychain/'
@@ -323,6 +357,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/playground'
       preLoaderRoute: typeof playgroundRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_workspace/code-workspaces': {
+      id: '/_workspace/code-workspaces'
+      path: '/code-workspaces'
+      fullPath: '/code-workspaces'
+      preLoaderRoute: typeof CodeWorkspacesRouteRouteImport
+      parentRoute: typeof workspaceRoute
     }
     '/_workspace/data-connection': {
       id: '/_workspace/data-connection'
@@ -386,6 +427,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/playground/standard'
       preLoaderRoute: typeof playground_DotstandardRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_workspace/code-workspaces/': {
+      id: '/_workspace/code-workspaces/'
+      path: '/'
+      fullPath: '/code-workspaces/'
+      preLoaderRoute: typeof CodeWorkspacesIndexRouteImport
+      parentRoute: typeof CodeWorkspacesRouteRoute
+    }
+    '/_workspace/code-workspaces/$rid': {
+      id: '/_workspace/code-workspaces/$rid'
+      path: '/$rid'
+      fullPath: '/code-workspaces/$rid'
+      preLoaderRoute: typeof CodeWorkspacesRidRouteImport
+      parentRoute: typeof CodeWorkspacesRouteRoute
     }
     '/_workspace/data-connection/': {
       id: '/_workspace/data-connection/'
@@ -459,6 +514,19 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface CodeWorkspacesRouteRouteChildren {
+  CodeWorkspacesRidRoute: typeof CodeWorkspacesRidRoute
+  CodeWorkspacesIndexRoute: typeof CodeWorkspacesIndexRoute
+}
+
+const CodeWorkspacesRouteRouteChildren: CodeWorkspacesRouteRouteChildren = {
+  CodeWorkspacesRidRoute: CodeWorkspacesRidRoute,
+  CodeWorkspacesIndexRoute: CodeWorkspacesIndexRoute,
+}
+
+const CodeWorkspacesRouteRouteWithChildren =
+  CodeWorkspacesRouteRoute._addFileChildren(CodeWorkspacesRouteRouteChildren)
 
 interface DataConnectionRouteRouteChildren {
   DataConnectionIndexRoute: typeof DataConnectionIndexRoute
@@ -548,6 +616,7 @@ const PipelineBuilderRouteRouteWithChildren =
   PipelineBuilderRouteRoute._addFileChildren(PipelineBuilderRouteRouteChildren)
 
 interface workspaceRouteChildren {
+  CodeWorkspacesRouteRoute: typeof CodeWorkspacesRouteRouteWithChildren
   DataConnectionRouteRoute: typeof DataConnectionRouteRouteWithChildren
   DatasetsRouteRoute: typeof DatasetsRouteRouteWithChildren
   KeychainRouteRoute: typeof KeychainRouteRouteWithChildren
@@ -558,6 +627,7 @@ interface workspaceRouteChildren {
 }
 
 const workspaceRouteChildren: workspaceRouteChildren = {
+  CodeWorkspacesRouteRoute: CodeWorkspacesRouteRouteWithChildren,
   DataConnectionRouteRoute: DataConnectionRouteRouteWithChildren,
   DatasetsRouteRoute: DatasetsRouteRouteWithChildren,
   KeychainRouteRoute: KeychainRouteRouteWithChildren,

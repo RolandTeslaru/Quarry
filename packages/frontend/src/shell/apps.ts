@@ -1,6 +1,7 @@
 import type { ToOptions } from '@tanstack/react-router'
 import type { Library } from '@quarry/shared/domain'
 import type { App } from '@/AppKit'
+import { codeWorkspacesApp } from '@/apps/code-workspaces/definition'
 import { dataConnectionApp } from '@/apps/data-connection/definition'
 import { datasetsApp } from '@/apps/datasets/definition'
 import { keychainApp } from '@/apps/keychain/definition'
@@ -19,6 +20,7 @@ export const APPS: App.Definition[] = [
     dataConnectionApp,
     datasetsApp,
     pipelineBuilderApp,
+    codeWorkspacesApp,
     keychainApp,
     // Test apps for the shell and AppKit; no backend.
     layoutDemoApp,

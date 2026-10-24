@@ -21,6 +21,15 @@ export namespace Resource {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** The live resource at a library path — `/Project/folder/name`, as transforms name their inputs. */
+    export namespace GetByPath {
+        export const Request = z.object({ path: z.string().regex(/^\/[^/]/, "A library path starts with '/' and a project") })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({ resource: ResourceD.Base })
+        export type  Response = z.infer<typeof Response>
+    }
+
     /** Root first, the resource itself last. */
     export namespace Path {
         export const Response = z.object({ path: ResourceD.Base.array() })
@@ -50,6 +59,11 @@ export namespace Resource {
     export async function open(api: AxiosInstance, rid: ResourceD.Rid, req: Open.Request): Promise<Open.Response> {
         const { data } = await api.post(`/api/resources/${rid}/open`, req)
         return Open.Response.parse(data)
+    }
+
+    export async function getByPath(api: AxiosInstance, req: GetByPath.Request): Promise<GetByPath.Response> {
+        const { data } = await api.get("/api/resources/by-path", { params: req })
+        return GetByPath.Response.parse(data)
     }
 
     export async function path(api: AxiosInstance, rid: ResourceD.Rid): Promise<Path.Response> {

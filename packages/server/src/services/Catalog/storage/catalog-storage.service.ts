@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Readable } from 'node:stream';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
@@ -16,6 +18,12 @@ import { TransactionRepository } from '../transaction/transaction.repository';
 import { DuckDb } from './duckdb';
 
 import ColumnSchema = Catalog.ColumnSchema;
+
+/** A sample written for one response: where it is, and which version it came from. */
+export interface DatasetSample {
+    readonly file:     string;
+    readonly sequence: number;
+}
 
 /** A file as it arrives in a multipart request — read once, as a stream. */
 export interface IncomingFile {
@@ -117,6 +125,30 @@ export class CatalogStorage {
             await this.transactions.abort(Principal.SELF('catalog.storage.upload'), datasetRid, transaction.rid).catch(() => undefined);
             throw error;
         }
+    }
+
+    /**
+     * A random sample of the latest view, written to a Parquet file in the temp
+     * directory (the caller streams and deletes it). Gated like preview: it hands
+     * out file contents.
+     */
+    @Audit('read', (rows: number) => ({ op: 'sample', rows }))
+    @SecurityGate('read')
+    async sample(principal: Principal, datasetRid: Catalog.Dataset.Rid, rows: number): Promise<DatasetSample> {
+        const view = await this.transactionRepository.resolveView(principal, datasetRid, 'main');
+
+        if (!view.schema || view.files.length === 0)
+            throw new ConflictException('The dataset has no committed data yet');
+
+        const scan = this.scan(view.schema, view.files.map((file) => this.storage.url(file.key)));
+        const columns = view.schema.columns.map((column) => identifier(column.name)).join(', ');
+        const file = path.join(os.tmpdir(), `quarry-sample-${randomUUID()}.parquet`);
+
+        await this.duckdb.with((connection) => connection.run(
+            `COPY (SELECT ${columns} FROM ${scan} USING SAMPLE reservoir(${rows} ROWS)) TO ${literal(file)} (FORMAT parquet)`,
+        ));
+
+        return { file, sequence: view.sequence };
     }
 
     /** The first `limit` rows of the latest view. Gated: it hands out file contents, and RLS alone would answer a discoverer with an empty view. */

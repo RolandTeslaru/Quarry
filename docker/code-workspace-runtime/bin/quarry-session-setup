@@ -1,0 +1,28 @@
+#!/bin/sh
+# Run by the code workspace worker (docker exec) every time the session is opened, with a
+# freshly minted token: points git at the workspace's repository with it, clones
+# on first open, and syncs the workspace's .venv with its lock.
+#
+#   QUARRY_TOKEN, QUARRY_GIT_URL, QUARRY_USER_NAME, QUARRY_USER_EMAIL
+set -eu
+
+: "${QUARRY_TOKEN:?}" "${QUARRY_GIT_URL:?}" "${QUARRY_USER_NAME:?}" "${QUARRY_USER_EMAIL:?}"
+
+# Rewritten each open: the token in it is the session's current one.
+git config --global --replace-all "http.${QUARRY_GIT_URL}.extraHeader" "Authorization: Bearer ${QUARRY_TOKEN}"
+git config --global user.name "${QUARRY_USER_NAME}"
+git config --global user.email "${QUARRY_USER_EMAIL}"
+git config --global init.defaultBranch main
+
+cd /workspace/repo
+
+if [ ! -d .git ]; then
+    git clone --quiet "${QUARRY_GIT_URL}" .
+fi
+
+# The workspace's environment sees quarry.transforms and the engines from the image.
+if [ ! -d .venv ]; then
+    uv venv --quiet --system-site-packages .venv
+fi
+
+uv sync --quiet

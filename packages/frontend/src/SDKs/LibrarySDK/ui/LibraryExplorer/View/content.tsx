@@ -8,14 +8,15 @@ import { matchesQuery, useLibraryExplorer } from '../root'
 import { ItemCard } from './items'
 
 // Sections in this order; anything else the server lists comes after.
-const TYPE_ORDER: Library.Resource.Type[] = ['project', 'folder', 'dataset', 'source']
+const TYPE_ORDER: Library.Resource.Type[] = ['project', 'folder', 'dataset', 'source', 'workspace']
 
 const TYPE_LABELS: Record<Library.Resource.Type, string> = {
-    project:    'Project',
-    folder:     'Folder',
-    dataset:    'Dataset',
-    source:     'Source',
-    credential: 'Credential',
+    'project':        'Project',
+    'folder':         'Folder',
+    'dataset':        'Dataset',
+    'source':         'Source',
+    'credential':     'Credential',
+    'workspace':      'Code workspace',
 }
 
 const SKELETON_CARDS = [0, 1, 2, 3, 4, 5, 6, 7]

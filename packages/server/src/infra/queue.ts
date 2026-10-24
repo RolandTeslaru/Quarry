@@ -87,6 +87,19 @@ export class QueueManager implements OnModuleDestroy {
         return definition.result.parse(result) as ResultOf<Q>;
     }
 
+    /**
+     * `request` for a queue whose jobs and results are unions on `op` (one
+     * processor, several operations): the result typed as the job's op's. The
+     * processor answers each op with the same op — its contract, not checked here.
+     */
+    async requestOp<Q extends Definition, const J extends InputOf<Q> & { op: string }>(
+        definition: Q,
+        data:       J,
+        timeoutMs:  number,
+    ): Promise<Extract<ResultOf<Q>, { op: J['op'] }>> {
+        return await this.request(definition, data, timeoutMs) as Extract<ResultOf<Q>, { op: J['op'] }>;
+    }
+
     /** After a failed wait: a QueueTimeoutError if the job never finished (asked of BullMQ, not read from the message), else a QueueJobError with its reason. */
     private async timeoutOr(job: Job, queue: Foundations.Queue.Name, timeoutMs: number, error: unknown): Promise<unknown> {
         const state = await job.getState();
