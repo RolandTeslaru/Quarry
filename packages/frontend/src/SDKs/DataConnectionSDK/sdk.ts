@@ -110,7 +110,8 @@ export namespace DataConnectionSDK {
     export type State = {
         definitions: Record<DataConnection.Source.DefinitionId, DataConnection.Source.Definition.Schema>
         sources:     Record<DataConnection.Source.Rid, DataConnection.Source.Schema>
-        syncs:       Record<DataConnection.Source.Rid, DataConnection.Sync.Schema[]>
+        /** Each source's syncs, by rid — in the server's order (keys keep insertion order). */
+        syncs:       Record<DataConnection.Source.Rid, Record<DataConnection.Sync.Rid, DataConnection.Sync.Schema>>
         runs:        Record<DataConnection.Sync.Rid, DataConnection.SyncRun.Schema[]>
         tables:      Record<DataConnection.Source.Rid, DataConnection.Source.Table[]>
         /** The source whose page is open (the route sets it); its runs are followed live. */

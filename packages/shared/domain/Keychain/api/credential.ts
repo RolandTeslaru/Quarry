@@ -5,9 +5,9 @@ import { Credential as CredentialD } from "../Credential"
 
 export namespace Credential {
 
-    /** Every credential template the deployment's integrations declare, with its form (JSON Schema). */
+    /** Every credential template the deployment's integrations declare, with its form (JSON Schema) — by id. */
     export namespace ListTemplates {
-        export const Response = z.object({ templates: CredentialD.Template.Schema.array() })
+        export const Response = z.object({ templates: z.record(CredentialD.Template.Id, CredentialD.Template.Schema) })   // by id
         export type  Response = z.infer<typeof Response>
     }
 

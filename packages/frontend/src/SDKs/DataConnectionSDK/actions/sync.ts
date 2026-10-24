@@ -14,7 +14,7 @@ export class SyncActions extends ActionGroup<DataConnectionSDKImpl> {
         const data = await DataConnection.API.Sync.list(api, sourceRid)
 
         this.sdk.setState(state => {
-            state.syncs[sourceRid] = data.syncs
+            state.syncs[sourceRid] = Object.fromEntries(data.syncs.map(sync => [sync.rid, sync]))
         })
 
         return data

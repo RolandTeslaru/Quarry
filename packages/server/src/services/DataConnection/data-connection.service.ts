@@ -1,7 +1,7 @@
 import { ForbiddenException, BadRequestException, ConflictException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
 import { DataConnection, Identity, Keychain, Storage, type Platform } from '@quarry/shared/domain';
-import { findDefinition, SOURCE_DEFINITIONS, toWire } from '@quarry/integrations/definitions';
+import { findDefinition, SOURCE_DEFINITIONS_WIRE } from '@quarry/integrations/definitions';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { FileStorage } from '@/infra/file-storage';
@@ -60,7 +60,7 @@ export namespace DataConnectionService {
 
         /** Every source type, with its config forms as JSON Schema. */
         definitions(): Record<DataConnection.Source.DefinitionId, DataConnection.Source.Definition.Schema> {
-            return Object.fromEntries(Object.entries(SOURCE_DEFINITIONS).map(([id, definition]) => [id, toWire(definition)]));
+            return SOURCE_DEFINITIONS_WIRE;
         }
 
         /**

@@ -24,34 +24,36 @@ type FormInput  = z.input<typeof Schema>
 type FormOutput = z.output<typeof Schema>
 
 interface Props {
-    templates: Keychain.Credential.Template.Schema[]
+    templates: KeychainSDK.State['templates']
     dialog:    DialogSDK.TemplateProps
 }
 
 /** A new credential, of one of these templates. */
-export function openCreateCredentialDialog(args: { templates: Keychain.Credential.Template.Schema[] }) {
+export function openCreateCredentialDialog(args: { templates: KeychainSDK.State['templates'] }) {
     DialogSDK.actions.push('create-credential', dialog => (
         <CredentialDialog templates={args.templates} dialog={dialog} />
     ))
 }
 
 function CredentialDialog({ templates, dialog }: Props) {
+    const first = Object.values(templates)[0]
+
     const form = useForm<FormInput, unknown, FormOutput>({
         resolver:      zodResolver(Schema),
         defaultValues: {
-            templateId: templates[0].id,
+            templateId: first.id,
             name:       '',
-            values:     defaults(templates[0].fieldsSchema),
+            values:     defaults(first.fieldsSchema),
         },
     })
 
     const templateId = form.watch('templateId')
-    const template = templates.find(item => item.id === templateId) ?? templates[0]
+    const template = templates[templateId] ?? first
     const submitting = form.formState.isSubmitting
 
     // Another system: its own fields, from their defaults.
     function selectTemplate(id: string) {
-        const next = templates.find(item => item.id === id)
+        const next = templates[id]
 
         if (!next)
             return
@@ -99,7 +101,7 @@ function CredentialDialog({ templates, dialog }: Props) {
                                             </Select.Trigger>
                                         </Form.Control>
                                         <Select.Content className='z-[100]'>
-                                            {templates.map(item => (
+                                            {Object.values(templates).map(item => (
                                                 <Select.Item key={item.id} value={item.id}>{item.displayName}</Select.Item>
                                             ))}
                                         </Select.Content>

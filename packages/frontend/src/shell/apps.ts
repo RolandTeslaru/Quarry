@@ -25,19 +25,17 @@ export const APPS: App.Definition[] = [
     minimalDemoApp,
 ]
 
+/** The app each resource type opens in — the first that declares it in `opens`. */
+export const APP_FOR_TYPE: Partial<Record<Library.Resource.Type, App.Definition>> = Object.fromEntries(
+    [...APPS].reverse().flatMap(app => Object.keys(app.opens).map(type => [type, app])),
+)
+
 /** The glyph of the app that opens a resource type, if one does. */
 export function resourceGlyph(type: Library.Resource.Type): App.Glyph | undefined {
-    return APPS.find(app => app.opens[type])?.glyph
+    return APP_FOR_TYPE[type]?.glyph
 }
 
 /** Where a resource opens: its owning app's route, else the Library Explorer's (which redirects to the owner). */
 export function resourceRoute(type: Library.Resource.Type, rid: Library.Resource.Rid): ToOptions {
-    for (const app of APPS) {
-        const open = app.opens[type]
-
-        if (open)
-            return open(rid)
-    }
-
-    return { to: '/library/$rid', params: { rid } }
+    return APP_FOR_TYPE[type]?.opens[type]?.(rid) ?? { to: '/library/$rid', params: { rid } }
 }

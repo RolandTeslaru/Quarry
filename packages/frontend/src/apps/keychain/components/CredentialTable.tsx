@@ -2,18 +2,16 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import type { Keychain } from '@quarry/shared/domain'
+import type { KeychainSDK } from '@/SDKs/KeychainSDK/sdk'
 import { dateTime } from '@/utils/format'
 
 interface CredentialTableProps {
     credentials: Keychain.Credential.Schema[]
-    templates:   Keychain.Credential.Template.Schema[]
+    templates:   KeychainSDK.State['templates']
     onEdit:      (credential: Keychain.Credential.Schema) => void
 }
 
 export function CredentialTable({ credentials, templates, onEdit }: CredentialTableProps) {
-    const templateOf = (credential: Keychain.Credential.Schema) =>
-        templates.find(template => template.id === credential.templateId)
-
     return (
         <Table.Root>
             <Table.Header>
@@ -29,14 +27,14 @@ export function CredentialTable({ credentials, templates, onEdit }: CredentialTa
                     <Table.Row key={credential.rid}>
                         <Table.Cell className='font-medium'>{credential.name}</Table.Cell>
                         <Table.Cell>
-                            <Badge variant='secondary'>{templateOf(credential)?.displayName ?? credential.templateId}</Badge>
+                            <Badge variant='secondary'>{templates[credential.templateId]?.displayName ?? credential.templateId}</Badge>
                         </Table.Cell>
                         <Table.Cell>{dateTime(credential.updatedAt)}</Table.Cell>
                         <Table.Cell className='text-right'>
                             <Button
                                 size='sm'
                                 icon='edit'
-                                disabled={!templateOf(credential)}
+                                disabled={!templates[credential.templateId]}
                                 onClick={() => onEdit(credential)}
                             >
                                 Edit values

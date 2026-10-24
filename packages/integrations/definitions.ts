@@ -1,6 +1,6 @@
 import type { DataConnection, Keychain } from '@quarry/shared/domain';
-import type { CredentialTemplate } from './core/credential';
-import type { SourceDefinition } from './core/definition';
+import { credentialToWire, type CredentialTemplate } from './core/credential';
+import { toWire, type SourceDefinition } from './core/definition';
 import { Definition as Postgres } from './Postgres/definition';
 
 export { credentialToWire, defineCredential, type CredentialTemplate, type ValuesOf } from './core/credential';
@@ -50,3 +50,15 @@ export const CREDENTIAL_TEMPLATES: Readonly<Record<Keychain.Credential.Template.
 
 export const findCredentialTemplate = (id: Keychain.Credential.Template.Id): CredentialTemplate | undefined =>
     CREDENTIAL_TEMPLATES[id];
+
+/** A record with each value mapped, the keys kept. */
+const mapValues = <K extends string, V, W>(record: Readonly<Record<K, V>>, map: (value: V) => W): Record<K, W> =>
+    Object.fromEntries(Object.entries<V>(record).map(([key, value]) => [key, map(value)])) as Record<K, W>;
+
+/**
+ * What the API sends: every definition and template as JSON (their zod Configs
+ * and Fields as JSON Schema), by id. Built once at load — they're code, they
+ * never change while the server runs.
+ */
+export const SOURCE_DEFINITIONS_WIRE = mapValues(SOURCE_DEFINITIONS, toWire);
+export const CREDENTIAL_TEMPLATES_WIRE = mapValues(CREDENTIAL_TEMPLATES, credentialToWire);

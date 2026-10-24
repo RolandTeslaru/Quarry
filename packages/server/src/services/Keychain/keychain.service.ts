@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Keychain } from '@quarry/shared/domain';
 import { Encryption } from '@quarry/shared/server/encryption';
 import { System } from '@quarry/shared/server/system';
-import { CREDENTIAL_TEMPLATES, credentialToWire, findCredentialTemplate, type CredentialTemplate } from '@quarry/integrations/definitions';
+import { CREDENTIAL_TEMPLATES_WIRE, findCredentialTemplate, type CredentialTemplate } from '@quarry/integrations/definitions';
 import { Principal } from '@/auth/principal';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
@@ -43,8 +43,8 @@ export class KeychainService implements OnModuleInit {
     }
 
     /** Every template the deployment's integrations declare, with its form. */
-    templates(): Keychain.Credential.Template.Schema[] {
-        return Object.values(CREDENTIAL_TEMPLATES).map(credentialToWire);
+    templates(): Record<Keychain.Credential.Template.Id, Keychain.Credential.Template.Schema> {
+        return CREDENTIAL_TEMPLATES_WIRE;
     }
 
     /** Credentials the principal can discover (RLS), across projects. */

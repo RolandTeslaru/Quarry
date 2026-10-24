@@ -28,7 +28,7 @@ function KeychainApp() {
     )
 
     function openEditor(credential: Keychain.Credential.Schema) {
-        const template = templates.find(item => item.id === credential.templateId)
+        const template = templates[credential.templateId]
 
         if (!template)
             return
@@ -61,7 +61,7 @@ function KeychainApp() {
                             <Button
                                 intent='primary'
                                 icon='add'
-                                disabled={templates.length === 0}
+                                disabled={Object.keys(templates).length === 0}
                                 onClick={() => KeychainSDK.dialogs.openCreateCredential({ templates })}
                             >
                                 New credential

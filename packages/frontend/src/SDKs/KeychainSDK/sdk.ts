@@ -15,7 +15,7 @@ export class KeychainSDKImpl extends BaseSDK<KeychainSDK.State> {
     public readonly useStore: BaseSDK.Store<KeychainSDK.State> = createWithEqualityFn(
         immer<KeychainSDK.State>(() => ({
             credentials: [],
-            templates: [],
+            templates: {},
         })),
         shallow,
     )
@@ -40,7 +40,7 @@ export class KeychainSDKImpl extends BaseSDK<KeychainSDK.State> {
     public override cleanup(): void {
         this.setState({
             credentials: [],
-            templates: [],
+            templates: {},
         })
     }
 }
@@ -51,7 +51,7 @@ export namespace KeychainSDK {
 
     export type State = {
         credentials: Keychain.Credential.Schema[]
-        templates:   Keychain.Credential.Template.Schema[]
+        templates:   Record<Keychain.Credential.Template.Id, Keychain.Credential.Template.Schema>
     }
 
     export type Actions = KeychainActions

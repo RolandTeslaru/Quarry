@@ -1,7 +1,7 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { Foundations, Library } from '@quarry/shared/domain'
 import { LibraryExplorerApp } from '@/apps/library/components/LibraryExplorerApp'
-import { APPS } from '@/shell/apps'
+import { APP_FOR_TYPE } from '@/shell/apps'
 import { App } from '@/AppKit'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { orNotFound } from '@/utils/loader'
@@ -28,7 +28,7 @@ export const Route = createFileRoute('/_workspace/library/$rid')({
         if (Library.Resource.CONTAINERS.includes(type.data))
             return
 
-        const open = APPS.find(app => app.opens[type.data])?.opens[type.data]
+        const open = APP_FOR_TYPE[type.data]?.opens[type.data]
 
         if (!open)
             throw notFound()

@@ -20,13 +20,15 @@ export function SyncPanel({ source, definition }: Props) {
     const [selectedRid, setSelectedRid] = useState<DataConnection.Sync.Rid | null>(null)
     const [queuedRid, setQueuedRid] = useState<DataConnection.Sync.Rid | null>(null)
 
-    const [syncs, [syncsRequest]] = DataConnectionSDK.useWith(
-        state => state.syncs[source.rid] ?? [],
+    const [syncsByRid, [syncsRequest]] = DataConnectionSDK.useWith(
+        state => state.syncs[source.rid] ?? {},
         query => [query.syncs(source.rid)],
     )
 
+    const syncs = Object.values(syncsByRid)
+
     const [task, withTask] = useTask()
-    const selected = syncs.find(sync => sync.rid === selectedRid) ?? syncs[0]
+    const selected = (selectedRid && syncsByRid[selectedRid]) || syncs[0]
 
     const runSync = withTask(async (sync: DataConnection.Sync.Schema) => {
         setQueuedRid(null)
