@@ -232,6 +232,9 @@ if (projectsRequest.isError)
 
 ## 9. UI and async behavior stay explicit
 
+- A dialog renders one DialogSDK template from its first frame — never a loading dialog swapped for the real
+  one, never a template switched on state. Swapping remounts the dialog, and its overlay's fade restarts (a
+  flicker). Load inside it: the body or step shows a spinner, or an error with a retry, while data loads.
 - Forms never hold their fields in `useState`. Every form is react-hook-form, as in PretzelGraph:
   `useForm<z.input<typeof Schema>, unknown, z.output<typeof Schema>>({ resolver: zodResolver(Schema), defaultValues })`,
   with `Schema` built from the shared request schema (`X.API.….Request.extend({ …messages… })`); fields through

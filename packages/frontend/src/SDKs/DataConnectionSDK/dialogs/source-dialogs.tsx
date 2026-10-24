@@ -5,7 +5,6 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { Button } from '@quarry/standard-ui/foundations/button'
-import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { Form } from '@quarry/standard-ui/foundations/form'
 import { Input } from '@quarry/standard-ui/foundations/input'
 import { Select } from '@quarry/standard-ui/foundations/select'
@@ -74,12 +73,19 @@ interface Props {
 /** Connect a new source: its type, details, connection, credential and output. Opens it when it's created. */
 export function openCreateSourceDialog(args: { parentRid?: Library.Resource.Rid } = {}) {
     DialogSDK.actions.push('create-source', dialog => (
-        <NewSourceDialog parentRid={args.parentRid} dialog={dialog} />
+        <SourceWizard parentRid={args.parentRid} dialog={dialog} />
     ))
 }
 
-/** The source types and credentials load first; the wizard opens once they're there. */
-function NewSourceDialog({ parentRid, dialog }: Props) {
+/**
+ * The wizard from the first frame — its source types and credentials load
+ * inside it (the first step waits for them). Never a loading dialog swapped for
+ * the wizard: a different template remounts the dialog, and its overlay's fade
+ * starts over — a flicker on the first open after a reload.
+ */
+function SourceWizard({ parentRid, dialog }: Props) {
+    const navigate = useNavigate()
+
     const [definitions, [definitionsRequest]] = DataConnectionSDK.useWith(
         state => state.definitions,
         query => [query.definitions],
@@ -90,46 +96,9 @@ function NewSourceDialog({ parentRid, dialog }: Props) {
         query => [query.credentials],
     )
 
-    const error = definitionsRequest.error ?? credentialsRequest.error
-    const isPending = definitionsRequest.isPending || credentialsRequest.isPending
-
-    if (isPending || error || Object.keys(definitions).length === 0) {
-        return (
-            <DialogSDK.Template {...dialog} className='w-[min(520px,calc(100vw-32px))]'>
-                <Dialog.Header>
-                    <Dialog.Title>Connect a source</Dialog.Title>
-                </Dialog.Header>
-                <Dialog.Description className='sr-only'>Loading the source types you can connect.</Dialog.Description>
-                <Dialog.Body>
-                    {isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
-                    <ErrorNotice error={error} />
-                    {!isPending && !error && <p>No source types are available.</p>}
-                    {error && (
-                        <Button onClick={() => { void definitionsRequest.refetch(); void credentialsRequest.refetch() }}>
-                            Try again
-                        </Button>
-                    )}
-                </Dialog.Body>
-                <Dialog.Footer>
-                    <Dialog.Cancel>Cancel</Dialog.Cancel>
-                </Dialog.Footer>
-            </DialogSDK.Template>
-        )
-    }
-
-    return <SourceWizard definitions={definitions} credentials={credentials} parentRid={parentRid} dialog={dialog} />
-}
-
-interface SourceWizardProps extends Props {
-    definitions: Definitions
-    credentials: Keychain.Credential.Schema[]
-}
-
-function SourceWizard({ definitions, credentials, parentRid, dialog }: SourceWizardProps) {
-    const navigate = useNavigate()
-
     const form = useForm<FormInput, unknown, FormOutput>({
-        resolver:      zodResolver(schemaFor(definitions)),
+        // Validated against the definitions as they are when it runs — they may still be loading on the first render.
+        resolver:      (values, context, options) => zodResolver(schemaFor(DataConnectionSDK.state.definitions))(values, context, options),
         defaultValues: {
             definitionId:    '',
             name:            '',
@@ -196,7 +165,15 @@ function SourceWizard({ definitions, credentials, parentRid, dialog }: SourceWiz
                 renderStep={step => {
                     switch (step.id as StepId) {
                         case 'type':
-                            return <SourceTypeStep definitions={definitions} onSelect={selectDefinition} />
+                            return (
+                                <SourceTypeStep
+                                    definitions={definitions}
+                                    pending={definitionsRequest.isPending || credentialsRequest.isPending}
+                                    error={definitionsRequest.error ?? credentialsRequest.error}
+                                    onRetry={() => { void definitionsRequest.refetch(); void credentialsRequest.refetch() }}
+                                    onSelect={selectDefinition}
+                                />
+                            )
 
                         case 'details':
                             return (
@@ -286,12 +263,27 @@ function SourceWizard({ definitions, credentials, parentRid, dialog }: SourceWiz
 
 interface SourceTypeStepProps {
     definitions: Definitions
+    /** The source types (and credentials, for later) still loading; or failed. */
+    pending:     boolean
+    error:       Error | null
+    onRetry:     () => void
     onSelect:    (id: string) => void
 }
 
 /** The source types (definitions), searchable; choosing one is the form's `definitionId`. */
-function SourceTypeStep({ definitions, onSelect }: SourceTypeStepProps) {
+function SourceTypeStep({ definitions, pending, error, onRetry, onSelect }: SourceTypeStepProps) {
     const search = useSearch(Object.values(definitions), item => `${item.displayName} ${item.description}`)
+
+    if (pending)
+        return <Spinner className='size-6' role='status' aria-label='Loading source types' />
+
+    if (error)
+        return (
+            <>
+                <ErrorNotice error={error} />
+                <Button className='self-start' onClick={onRetry}>Try again</Button>
+            </>
+        )
 
     return (
         <Form.Field name='definitionId' render={({ field }) => (
@@ -320,7 +312,9 @@ function SourceTypeStep({ definitions, onSelect }: SourceTypeStepProps) {
                     ))}
 
                     {search.results.length === 0 && (
-                        <p className='px-1 py-2 text-sm text-muted-foreground'>No source type matches “{search.query}”.</p>
+                        <p className='px-1 py-2 text-sm text-muted-foreground'>
+                            {Object.keys(definitions).length === 0 ? 'No source types are available.' : `No source type matches “${search.query}”.`}
+                        </p>
                     )}
                 </div>
 
