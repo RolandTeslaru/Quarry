@@ -131,7 +131,7 @@ function UploadDialog({ target, dialog }: Props) {
                                                     <Select.Value />
                                                 </Select.Trigger>
                                             </Form.Control>
-                                            <Select.Content className='z-[100]'>
+                                            <Select.Content>
                                                 <Select.Item value='snapshot'>Snapshot: replace the files and schema</Select.Item>
                                                 <Select.Item value='append'>Append: add the file (same columns)</Select.Item>
                                             </Select.Content>

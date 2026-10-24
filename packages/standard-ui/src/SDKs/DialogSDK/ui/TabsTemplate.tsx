@@ -5,7 +5,7 @@ import { Tabs } from '../../../foundations/tabs'
 import { ScrollArea } from '../../../foundations/scrollArea'
 import { cn } from '../../../utils/cn'
 import { DialogIcon } from './DialogIcon'
-import { useAnimationDelay, SPLIT_SHELL, DIALOG_STACK_Z_INDEX } from './motion'
+import { useAnimationDelay, SPLIT_SHELL } from './motion'
 
 export const TabsTemplate: DialogSDK.TabsTemplate = ({
     children,
@@ -49,7 +49,6 @@ export const TabsTemplate: DialogSDK.TabsTemplate = ({
                     style={{
                         ...delayStyle,
                         transform: `translate(-50%, -50%) translateY(${verticalOffset}px) scale(${finalScale})`,
-                        zIndex: DIALOG_STACK_Z_INDEX + index,
                     }}
                     darkenBackground={index === 0}
                     className={cn(SPLIT_SHELL, className)}

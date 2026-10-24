@@ -61,7 +61,7 @@ export function SchemaFields({ schema, value, onChange }: Props) {
                         <Select.Trigger id={id} size='default'>
                             <Select.Value />
                         </Select.Trigger>
-                        <Select.Content className='z-[100]'>
+                        <Select.Content>
                             {options.map(option => (
                                 <Select.Item key={option.value} value={option.value}>{option.label}</Select.Item>
                             ))}

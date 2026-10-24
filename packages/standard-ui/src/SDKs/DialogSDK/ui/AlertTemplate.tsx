@@ -2,7 +2,7 @@ import { DialogSDK } from '../sdk'
 import { cn } from '../../../utils/cn'
 import { AlertDialog } from '../../../foundations/alertDialog'
 import { Icon } from '../../../icons'
-import { useAnimationDelay, DIALOG_STACK_Z_INDEX } from './motion'
+import { useAnimationDelay } from './motion'
 
 export const AlertTemplate: DialogSDK.AlertTemplate = ({
     children,
@@ -42,7 +42,6 @@ export const AlertTemplate: DialogSDK.AlertTemplate = ({
                 style={{
                     ...delayStyle,
                     transform: `translate(-50%, -50%) translateY(${verticalOffset}px) scale(${finalScale})`,
-                    zIndex: DIALOG_STACK_Z_INDEX + index,
                     filter: `brightness(${1 / -(index - dialogsSize)})`,
                 }}
                 darkenBackground={index === 0}

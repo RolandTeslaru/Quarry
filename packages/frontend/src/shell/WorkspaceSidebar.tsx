@@ -235,7 +235,7 @@ function ThemeSelect() {
                 <Select.Trigger size='sm' aria-label='Theme' className='flex-1'>
                     <Select.Value />
                 </Select.Trigger>
-                <Select.Content className='z-[100]'>
+                <Select.Content>
                     {THEMES.map(option => (
                         <Select.Item key={option.value} value={option.value}>
                             <Icon name={option.icon} />

@@ -76,7 +76,7 @@ function FieldControl({ id, descriptionId, name, definition, required, value, on
                 <Select.Trigger id={id} size='default' aria-describedby={descriptionId}>
                     <Select.Value />
                 </Select.Trigger>
-                <Select.Content className='z-[100]'>
+                <Select.Content>
                     {definition.enum.map(option => (
                         <Select.Item key={String(option)} value={String(option)}>{String(option)}</Select.Item>
                     ))}

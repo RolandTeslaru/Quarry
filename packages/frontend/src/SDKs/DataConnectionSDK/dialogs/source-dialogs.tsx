@@ -185,7 +185,7 @@ function SourceForm({ first, definitions, credentials, parentRid, dialog }: Sour
                                                 <Select.Value />
                                             </Select.Trigger>
                                         </Form.Control>
-                                        <Select.Content className='z-[100]'>
+                                        <Select.Content>
                                             {Object.values(definitions).map(item => (
                                                 <Select.Item key={item.id} value={item.id}>{item.displayName}</Select.Item>
                                             ))}
@@ -215,7 +215,7 @@ function SourceForm({ first, definitions, credentials, parentRid, dialog }: Sour
                                                     <Select.Value placeholder='Choose a credential…' />
                                                 </Select.Trigger>
                                             </Form.Control>
-                                            <Select.Content className='z-[100]'>
+                                            <Select.Content>
                                                 {matchingCredentials.map(credential => (
                                                     <Select.Item key={credential.rid} value={credential.rid}>
                                                         {credential.name}

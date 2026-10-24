@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react'
 
-export const DIALOG_STACK_Z_INDEX = 51
-
 const ENTRY_DELAY_MS = 300
 const ENTRY_ANIMATION_MS = 400
 

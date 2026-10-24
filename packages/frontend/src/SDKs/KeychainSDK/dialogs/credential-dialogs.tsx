@@ -100,7 +100,7 @@ function CredentialDialog({ templates, dialog }: Props) {
                                                 <Select.Value />
                                             </Select.Trigger>
                                         </Form.Control>
-                                        <Select.Content className='z-[100]'>
+                                        <Select.Content>
                                             {Object.values(templates).map(item => (
                                                 <Select.Item key={item.id} value={item.id}>{item.displayName}</Select.Item>
                                             ))}

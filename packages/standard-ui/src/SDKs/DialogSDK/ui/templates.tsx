@@ -3,7 +3,7 @@ import { DialogSDK } from '../sdk'
 import { Dialog } from '../../../foundations/dialog'
 import { cn } from '../../../utils/cn'
 import { DialogIcon } from './DialogIcon'
-import { useAnimationDelay, SPLIT_SHELL, DIALOG_STACK_Z_INDEX } from './motion'
+import { useAnimationDelay, SPLIT_SHELL } from './motion'
 
 const SplitHeader: DialogSDK.SplitTemplate.Header = ({ children }) => (
     <div className='grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2'>{children}</div>
@@ -54,7 +54,6 @@ export const Template: DialogSDK.Template = ({
                 style={{
                     ...delayStyle,
                     transform: `translate(-50%, -50%) translateY(${verticalOffset}px) scale(${finalScale})`,
-                    zIndex: DIALOG_STACK_Z_INDEX + index,
 
                     filter: `brightness(${1 / (dialogsSize - index)})`,
                 }}
@@ -99,7 +98,6 @@ export const UnstyledTemplate: DialogSDK.UnstyledTemplate = ({
                 style={{
                     ...delayStyle,
                     transform: `translate(-50%, -50%) translateY(${verticalOffset}px) scale(${finalScale})`,
-                    zIndex: DIALOG_STACK_Z_INDEX + index,
                 }}
                 darkenBackground={index === 0}
                 className={className}
@@ -146,7 +144,6 @@ export const SplitTemplate: DialogSDK.SplitTemplate = Object.assign(
                     style={{
                         ...delayStyle,
                         transform: `translate(-50%, -50%) translateY(${verticalOffset}px) scale(${finalScale})`,
-                        zIndex: DIALOG_STACK_Z_INDEX + index,
                     }}
                     darkenBackground={index === 0}
                     className={cn(SPLIT_SHELL, className)}
@@ -218,7 +215,6 @@ export const TripleSplitTemplate: DialogSDK.TripleSplitTemplate = ({
                 style={{
                     ...delayStyle,
                     transform: `translate(-50%, -50%) translateY(${verticalOffset}px) scale(${finalScale})`,
-                    zIndex: DIALOG_STACK_Z_INDEX + index,
                 }}
                 darkenBackground={index === 0}
                 className={cn(SPLIT_SHELL, className)}
