@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import {
     Button,
     ButtonGroup,
@@ -161,32 +162,34 @@ function FieldExample() {
 }
 
 function FormExample() {
-    const [name, setName] = useState('')
-    const [error, setError] = useState(false)
-    const [saved, setSaved] = useState(false)
+    const form = useForm({ defaultValues: { name: '' } })
 
-    function submit(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault()
-        setError(name.trim().length === 0)
-        setSaved(name.trim().length > 0)
-    }
+    // Not a field: whether the last submit got through.
+    const saved = form.formState.isSubmitSuccessful
 
     return (
-        <form onSubmit={submit} className='demo-stack'>
-            <FormGroup
-                label='Dataset name'
-                labelFor='blueprint-form-name'
-                intent={error ? 'danger' : undefined}
-                helperText={error ? 'Enter a dataset name.' : undefined}
-            >
-                <InputGroup
-                    id='blueprint-form-name'
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    placeholder='Try submitting an empty name'
-                    intent={error ? 'danger' : undefined}
-                />
-            </FormGroup>
+        <form onSubmit={form.handleSubmit(() => undefined)} className='demo-stack'>
+            <Controller
+                control={form.control}
+                name='name'
+                rules={{ validate: (value) => value.trim().length > 0 || 'Enter a dataset name.' }}
+                render={({ field, fieldState }) => (
+                    <FormGroup
+                        label='Dataset name'
+                        labelFor='blueprint-form-name'
+                        intent={fieldState.error ? 'danger' : undefined}
+                        helperText={fieldState.error?.message}
+                    >
+                        <InputGroup
+                            {...field}
+                            id='blueprint-form-name'
+                            inputRef={field.ref}
+                            placeholder='Try submitting an empty name'
+                            intent={fieldState.error ? 'danger' : undefined}
+                        />
+                    </FormGroup>
+                )}
+            />
             <div className='demo-line'>
                 <Button type='submit' intent='primary'>
                     Create dataset

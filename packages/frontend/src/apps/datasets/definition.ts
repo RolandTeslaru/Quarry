@@ -1,9 +1,9 @@
 import type { App } from '@/AppKit'
 
-/** Datasets: a home listing them, and one dataset's rows, schema and files. */
+/** Dataset Viewer: a home listing datasets, and one dataset's rows, schema and files. */
 export const datasetsApp: App.Definition = {
     id:           'datasets',
-    label:        'Datasets',
+    label:        'Dataset Viewer',
     description:  "Versioned tables: upload files or sync them from sources, then browse every version's rows, schema and files.",
     glyph: {
         icon:  'th',

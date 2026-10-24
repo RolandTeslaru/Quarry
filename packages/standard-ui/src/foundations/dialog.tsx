@@ -85,8 +85,9 @@ const Content: DialogComponents.Content = ({
             onOpenAutoFocus={(e) => e.preventDefault()}
             className={classNames(
                 `${theme || ''} group/dialog-content fixed top-[50%] left-[50%] z-50 outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0
-         transition-[transform] duration-400 ease-in-out
+         transition-[transform,filter] duration-400 ease-in-out
          `,
+                // filter: a dialog stacked under another dims (brightness) — eased, not instant.
                 // Unstyled animates transform only: keyframes touching opacity would blank descendant backdrop blurs.
                 unstyled
                     ? `data-[state=open]:animate-[dialog-zoom-in_150ms_ease-in-out]

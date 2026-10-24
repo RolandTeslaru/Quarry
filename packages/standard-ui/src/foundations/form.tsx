@@ -26,12 +26,14 @@ type FormFieldContextValue<
 
 const FormFieldContext = React.createContext<FormFieldContextValue | undefined>(undefined)
 
+// TTransformedValues: what the form submits once its resolver has run, when that differs from what's typed in.
 const Field = <
     TFieldValues extends FieldValues = FieldValues,
     TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
+    TTransformedValues = TFieldValues,
 >({
     ...props
-}: ControllerProps<TFieldValues, TName>) => {
+}: ControllerProps<TFieldValues, TName, TTransformedValues>) => {
     return (
         <FormFieldContext.Provider value={{ name: props.name }}>
             <Controller {...props} />

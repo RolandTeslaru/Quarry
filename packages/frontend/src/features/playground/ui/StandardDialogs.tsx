@@ -1,4 +1,5 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useId, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { AlertDialog } from '@quarry/standard-ui/foundations/alertDialog'
@@ -27,11 +28,12 @@ function openDatasetDialog(onCreated: (name: string) => void, depth = 0) {
 
 function DatasetDialog({ dialogId, depth, onCreated }: DatasetDialogProps) {
     const formId = useId()
-    const [name, setName] = useState('Customer transactions')
+    const form = useForm({ defaultValues: { name: 'Customer transactions' } })
 
-    function handleSubmit(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault()
-        onCreated(name.trim())
+    const name = form.watch('name')
+
+    function submit(values: { name: string }) {
+        onCreated(values.name.trim())
         DialogSDK.actions.pop(dialogId)
     }
 
@@ -48,14 +50,12 @@ function DatasetDialog({ dialogId, depth, onCreated }: DatasetDialogProps) {
                 </Dialog.Description>
             </Dialog.Header>
             <Dialog.Body>
-                <form id={formId} onSubmit={handleSubmit} className='flex flex-col gap-3'>
+                <form id={formId} onSubmit={form.handleSubmit(submit)} className='flex flex-col gap-3'>
                     <div className='flex flex-col gap-2'>
                         <Label htmlFor={`dataset-name-${depth}`}>Dataset name</Label>
                         <Input
                             id={`dataset-name-${depth}`}
-                            value={name}
-                            onChange={(event) => setName(event.target.value)}
-                            required
+                            {...form.register('name', { required: true })}
                         />
                     </div>
                     <Button variant='outlined' onClick={openNextDialog}>

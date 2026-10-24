@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Library } from '@quarry/shared/domain'
 import { Skeleton } from '@quarry/standard-ui/foundations/skeleton'
+import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { FolderIllustration, Icon } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import { LibrarySDK } from '../../../sdk'
@@ -18,9 +19,11 @@ interface Props {
 }
 
 /**
- * The project tree: every item, with branch lines. A folder's children load
- * when it's expanded (the Library serves one folder at a time); the open
- * folder's ancestors expand themselves. The tree search filters loaded rows.
+ * The project tree: every item, with branch lines. A folder never expands
+ * before its children are there: the first time, its chevron spins while they
+ * load (the Library serves one folder at a time), then it opens — so the open
+ * animation always has its rows. The open folder's ancestors expand the same
+ * way. The tree search filters loaded rows.
  */
 export function Content({ className }: Props) {
     const { cwd } = useLibraryExplorer()
@@ -106,15 +109,10 @@ function TreeItem({ resource, level, ancestorIsLast, isLastSibling, openPath }: 
 
 function FolderItem({ resource, level, ancestorIsLast, isLastSibling, openPath }: TreeItemProps) {
     const { cwd, setCwd } = useLibraryExplorer()
-    const [expanded, setExpanded] = useState(() => openPath.has(resource.rid))
+    const [expanded, setExpanded] = useState(false)
+    const [loading, setLoading] = useState(false)
 
     const onOpenPath = openPath.has(resource.rid)
-
-    // A folder opened elsewhere (the view, a link) expands its ancestors here.
-    useEffect(() => {
-        if (onOpenPath)
-            setExpanded(true)
-    }, [onOpenPath])
 
     const [children, [childrenRequest]] = LibrarySDK.useWith(
         state => LibrarySDK.selectors.children(state, resource.rid),
@@ -122,6 +120,42 @@ function FolderItem({ resource, level, ancestorIsLast, isLastSibling, openPath }
     )
 
     const isEmpty = childrenRequest.isSuccess && children.length === 0
+
+    // Opens only once the children are there: loaded already, or after a fetch with the chevron spinning.
+    async function expand() {
+        if (!childrenRequest.isSuccess) {
+            setLoading(true)
+
+            try {
+                await LibrarySDK.fetch(LibrarySDK.query.children(resource.rid))
+            }
+            catch {
+                return                                              // stays closed; the next click tries again
+            }
+            finally {
+                setLoading(false)
+            }
+        }
+
+        setExpanded(true)
+    }
+
+    function toggle() {
+        if (loading)
+            return
+
+        if (expanded)
+            setExpanded(false)
+        else
+            void expand()
+    }
+
+    // A folder opened elsewhere (the view, a link) expands its ancestors here — the same way.
+    useEffect(() => {
+        if (onOpenPath && !expanded)
+            void expand()
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onOpenPath])
 
     return (
         <div role='treeitem' aria-expanded={expanded} aria-selected={cwd === resource.rid}>
@@ -136,23 +170,20 @@ function FolderItem({ resource, level, ancestorIsLast, isLastSibling, openPath }
                 <button
                     type='button'
                     aria-label={expanded ? `Collapse ${resource.name}` : `Expand ${resource.name}`}
+                    aria-busy={loading}
                     className={cn('grid size-4 shrink-0 cursor-pointer place-items-center text-muted-foreground', isEmpty && 'invisible')}
                     onClick={event => {
                         event.stopPropagation()
-                        setExpanded(open => !open)
+                        toggle()
                     }}
                 >
-                    <Icon name='chevron-right' size={12} className={cn('transition-transform duration-150', expanded && 'rotate-90')} />
+                    {loading
+                        ? <Spinner className='size-3' />
+                        : <Icon name='chevron-right' size={12} className={cn('transition-transform duration-150', expanded && 'rotate-90')} />}
                 </button>
                 <FolderIllustration color='var(--color-amber-400)' className='mr-1.5 size-4' />
                 <span className='min-w-0 flex-1 truncate'>{resource.name}</span>
             </Row>
-
-            {expanded && childrenRequest.isPending && (
-                <div className='flex h-7 items-center' style={{ paddingLeft: (level + 1) * 20 + 4 }}>
-                    <Skeleton className='h-3.5 w-28' />
-                </div>
-            )}
 
             {/* Expands and collapses by animating the row from 0fr to 1fr, as PretzelGraph's tree does;
                 the children stay mounted while collapsed so closing animates too. */}

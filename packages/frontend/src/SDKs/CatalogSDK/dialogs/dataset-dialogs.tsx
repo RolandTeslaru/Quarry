@@ -1,18 +1,26 @@
-import { useTask } from '@/hooks/useTask'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { useNavigate } from '@tanstack/react-router'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
-import { useId, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Dialog } from '@quarry/standard-ui/foundations/dialog'
-import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
-import { Select } from '@quarry/standard-ui/foundations/select'
+import { Form } from '@quarry/standard-ui/foundations/form'
 import { Input } from '@quarry/standard-ui/foundations/input'
-import { useNavigate } from '@tanstack/react-router'
-import type { Catalog, Library } from '@quarry/shared/domain'
-import { CatalogSDK } from '../sdk'
+import { Select } from '@quarry/standard-ui/foundations/select'
+import { Catalog, type Library } from '@quarry/shared/domain'
+import { errorMessage } from '@/SDKs/api'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { resourceRoute } from '@/shell/apps'
+import { CatalogSDK } from '../sdk'
 
-type Mode = Catalog.API.Dataset.Upload.Fields['mode']
+// The upload's fields (its mode) and the file itself.
+const Schema = Catalog.API.Dataset.Upload.Fields.extend({
+    file: z.instanceof(File, { error: 'Choose a CSV or Parquet file' }),
+})
+
+type FormInput  = z.input<typeof Schema>
+type FormOutput = z.output<typeof Schema>
 
 /** Where the file goes: a new dataset in a folder, or a new version of an existing dataset. */
 type UploadTarget =
@@ -41,58 +49,48 @@ export function openUploadToDatasetDialog(args: { datasetRid: Catalog.Dataset.Ri
 }
 
 function UploadDialog({ target, dialog }: Props) {
-    const formId = useId()
-    const fileInputId = useId()
-    const modeId = useId()
-    const [task, withTask] = useTask()
     const navigate = useNavigate()
 
-    const [file, setFile] = useState<File | null>(null)
-    const [mode, setMode] = useState<Mode>('snapshot')
+    const form = useForm<FormInput, unknown, FormOutput>({
+        resolver:      zodResolver(Schema),
+        defaultValues: { mode: 'snapshot' },
+    })
 
-    function selectFile(event: ChangeEvent<HTMLInputElement>) {
-        setFile(event.target.files?.[0] ?? null)
-        task.reset()
-    }
+    const submitting = form.formState.isSubmitting
 
-    function selectMode(value: string) {
-        if (value === 'snapshot' || value === 'append')
-            setMode(value)
-    }
-
-    const upload = async (selected: File) => {
+    async function upload({ file, mode }: FormOutput) {
         if (target.kind === 'dataset') {
-            const { dataset } = await CatalogSDK.actions.dataset.upload(target.datasetRid, mode, selected)
+            const { dataset } = await CatalogSDK.actions.dataset.upload(target.datasetRid, mode, file)
 
-            NotificationSDK.toast.success(`Uploaded ${selected.name}`, {
+            NotificationSDK.toast.success(`Uploaded ${file.name}`, {
                 description: `${dataset.name} is now at version ${dataset.lastSequence}.`,
             })
 
             return
         }
 
-        const { dataset } = await CatalogSDK.actions.dataset.createFromFile(target.parentRid, selected)
+        const { dataset } = await CatalogSDK.actions.dataset.createFromFile(target.parentRid, file)
 
-        NotificationSDK.toast.success(`Created dataset ${dataset.name}`, { description: `From ${selected.name}.` })
+        NotificationSDK.toast.success(`Created dataset ${dataset.name}`, { description: `From ${file.name}.` })
 
         await navigate(resourceRoute('dataset', dataset.rid))
     }
 
-    const submit = withTask(async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
+    async function submit(values: FormOutput) {
+        try {
+            await upload(values)
 
-        if (!file)
-            return
-
-        await upload(file)
-
-        DialogSDK.actions.pop(dialog.entry.dialogId)
-    })
+            DialogSDK.actions.pop(dialog.entry.dialogId)
+        }
+        catch (error) {
+            form.setError('root', { message: errorMessage(error) })
+        }
+    }
 
     return (
         <DialogSDK.Template
             {...dialog}
-            dismissible={!task.pending}
+            dismissible={!submitting}
             className='w-[min(520px,calc(100vw-32px))]'
         >
             <Dialog.Header>
@@ -102,62 +100,59 @@ function UploadDialog({ target, dialog }: Props) {
                 A CSV or Parquet file, stored as uploaded. Its columns and types are inferred, and CSV parsing
                 options are detected.
             </Dialog.Description>
-            <Dialog.Body>
-                <form id={formId} onSubmit={submit}>
-                    <Field.Set disabled={task.pending}>
-                        <Field.Root>
-                            <Field.Label htmlFor={fileInputId}>File</Field.Label>
-                            <Input
-                                id={fileInputId}
-                                type='file'
-                                accept={ACCEPTED_FILES}
-                                required
-                                onChange={selectFile}
-                            />
-                        </Field.Root>
 
-                        {target.kind === 'dataset' && (
-                            <ModeField id={modeId} mode={mode} onModeChange={selectMode} />
-                        )}
-                    </Field.Set>
-                    <ErrorNotice error={task.error} />
+            <Form.Root {...form}>
+                <form onSubmit={form.handleSubmit(submit)} className='flex min-h-0 flex-col'>
+                    <Dialog.Body>
+                        <fieldset disabled={submitting} className='flex flex-col gap-4'>
+                            {/* A file input can't be given a value — it only reports the chosen file. */}
+                            <Form.Field control={form.control} name='file' render={({ field: { value: _file, onChange, ...field } }) => (
+                                <Form.Item>
+                                    <Form.Label>File</Form.Label>
+                                    <Form.Control>
+                                        <Input
+                                            {...field}
+                                            type='file'
+                                            accept={ACCEPTED_FILES}
+                                            onChange={event => onChange(event.target.files?.[0])}
+                                        />
+                                    </Form.Control>
+                                    <Form.Message />
+                                </Form.Item>
+                            )} />
+
+                            {target.kind === 'dataset' && (
+                                <Form.Field control={form.control} name='mode' render={({ field }) => (
+                                    <Form.Item>
+                                        <Form.Label>Mode</Form.Label>
+                                        <Select.Root value={field.value} onValueChange={field.onChange}>
+                                            <Form.Control>
+                                                <Select.Trigger size='default'>
+                                                    <Select.Value />
+                                                </Select.Trigger>
+                                            </Form.Control>
+                                            <Select.Content className='z-[100]'>
+                                                <Select.Item value='snapshot'>Snapshot: replace the files and schema</Select.Item>
+                                                <Select.Item value='append'>Append: add the file (same columns)</Select.Item>
+                                            </Select.Content>
+                                        </Select.Root>
+                                        <Form.Message />
+                                    </Form.Item>
+                                )} />
+                            )}
+                        </fieldset>
+
+                        <ErrorNotice error={form.formState.errors.root?.message ?? null} />
+                    </Dialog.Body>
+
+                    <Dialog.Footer>
+                        <Dialog.Cancel disabled={submitting}>Cancel</Dialog.Cancel>
+                        <Dialog.Action type='submit' intent='primary' loading={submitting}>
+                            Upload
+                        </Dialog.Action>
+                    </Dialog.Footer>
                 </form>
-            </Dialog.Body>
-            <Dialog.Footer>
-                <Dialog.Cancel disabled={task.pending}>Cancel</Dialog.Cancel>
-                <Dialog.Action
-                    type='submit'
-                    form={formId}
-                    intent='primary'
-                    disabled={!file}
-                    loading={task.pending}
-                >
-                    Upload
-                </Dialog.Action>
-            </Dialog.Footer>
+            </Form.Root>
         </DialogSDK.Template>
-    )
-}
-
-interface ModeFieldProps {
-    id:           string
-    mode:         Mode
-    onModeChange: (value: string) => void
-}
-
-function ModeField({ id, mode, onModeChange }: ModeFieldProps) {
-    return (
-        <Field.Root>
-            <Field.Label htmlFor={id}>Mode</Field.Label>
-            <Select.Root value={mode} onValueChange={onModeChange}>
-                <Select.Trigger id={id} size='default'>
-                    <Select.Value />
-                </Select.Trigger>
-                <Select.Content className='z-[100]'>
-                    <Select.Item value='snapshot'>Snapshot: replace the files and schema</Select.Item>
-                    <Select.Item value='append'>Append: add the file (same columns)</Select.Item>
-                </Select.Content>
-            </Select.Root>
-        </Field.Root>
     )
 }

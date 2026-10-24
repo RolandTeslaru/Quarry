@@ -1,39 +1,60 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Callout } from '@quarry/standard-ui/foundations/callout'
 import { Card } from '@quarry/standard-ui/foundations/card'
-import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Form } from '@quarry/standard-ui/foundations/form'
 import { Input } from '@quarry/standard-ui/foundations/input'
+import { errorMessage } from '@/SDKs/api'
 import { AuthSDK } from '../sdk'
 import { useTask } from '@/hooks/useTask'
 import { ErrorNotice } from '@/components/ErrorNotice'
 
+const Schema = z.object({
+    email:    z.email('Enter your email address'),
+    password: z.string().min(6, 'At least 6 characters'),
+})
+
+type Values = z.infer<typeof Schema>
+
 export function AuthenticationPanel() {
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
+    // Not form values: which form this is, and whether a sign-up now awaits its confirmation email.
     const [isSignup, setIsSignup] = useState(false)
     const [confirmation, setConfirmation] = useState(false)
 
     const hasSession = AuthSDK.useStore(state => state.hasSession)
     const accessError = AuthSDK.useStore(state => state.error)
 
+    const form = useForm<Values>({
+        resolver:      zodResolver(Schema),
+        defaultValues: { email: '', password: '' },
+    })
+
+    const submitting = form.formState.isSubmitting
+
+    // Signing out of a session without workspace access — a button, not the form.
     const [task, withTask] = useTask()
 
-    const submit = withTask(async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-
+    async function submit(credentials: Values) {
         setConfirmation(false)
 
-        if (isSignup) {
-            const hasSession = await AuthSDK.actions.signup({ email, password })
+        try {
+            if (isSignup) {
+                const hasSession = await AuthSDK.actions.signup(credentials)
 
-            setConfirmation(!hasSession)
+                setConfirmation(!hasSession)
 
-            return
+                return
+            }
+
+            await AuthSDK.actions.login(credentials)
         }
-
-        await AuthSDK.actions.login({ email, password })
-    })
+        catch (error) {
+            form.setError('root', { message: errorMessage(error) })
+        }
+    }
 
     return (
         <main className='auth-page'>
@@ -77,50 +98,49 @@ export function AuthenticationPanel() {
                         </div>
                     </>
                 ) : (
-                    <form onSubmit={submit} className='mt-6 flex flex-col gap-4'>
-                        <Field.Root>
-                            <Field.Label htmlFor='auth-email'>Email</Field.Label>
-                            <Input
-                                id='auth-email'
-                                type='email'
-                                autoComplete='email'
-                                required
-                                value={email}
-                                onChange={event => setEmail(event.target.value)}
-                            />
-                        </Field.Root>
+                    <Form.Root {...form}>
+                        <form onSubmit={form.handleSubmit(submit)} className='mt-6 flex flex-col gap-4'>
+                            <Form.Field control={form.control} name='email' render={({ field }) => (
+                                <Form.Item>
+                                    <Form.Label>Email</Form.Label>
+                                    <Form.Control>
+                                        <Input {...field} type='email' autoComplete='email' />
+                                    </Form.Control>
+                                    <Form.Message />
+                                </Form.Item>
+                            )} />
 
-                        <Field.Root>
-                            <Field.Label htmlFor='auth-password'>Password</Field.Label>
-                            <Input
-                                id='auth-password'
-                                type='password'
-                                autoComplete={isSignup ? 'new-password' : 'current-password'}
-                                required
-                                minLength={6}
-                                value={password}
-                                onChange={event => setPassword(event.target.value)}
-                            />
-                        </Field.Root>
+                            <Form.Field control={form.control} name='password' render={({ field }) => (
+                                <Form.Item>
+                                    <Form.Label>Password</Form.Label>
+                                    <Form.Control>
+                                        <Input {...field} type='password' autoComplete={isSignup ? 'new-password' : 'current-password'} />
+                                    </Form.Control>
+                                    <Form.Message />
+                                </Form.Item>
+                            )} />
 
-                        {confirmation && (
-                            <Callout intent='success'>Check your email to confirm your account.</Callout>
-                        )}
+                            {confirmation && (
+                                <Callout intent='success'>Check your email to confirm your account.</Callout>
+                            )}
 
-                        <Button type='submit' intent='primary' className='w-full' loading={task.pending}>
-                            {isSignup ? 'Create account' : 'Sign in'}
-                        </Button>
+                            <ErrorNotice error={form.formState.errors.root?.message ?? null} />
 
-                        <Button
-                            type='button'
-                            variant='minimal'
-                            className='w-full'
-                            disabled={task.pending}
-                            onClick={() => setIsSignup(current => !current)}
-                        >
-                            {isSignup ? 'Already have an account? Sign in' : 'First time here? Create an account'}
-                        </Button>
-                    </form>
+                            <Button type='submit' intent='primary' className='w-full' loading={submitting}>
+                                {isSignup ? 'Create account' : 'Sign in'}
+                            </Button>
+
+                            <Button
+                                type='button'
+                                variant='minimal'
+                                className='w-full'
+                                disabled={submitting}
+                                onClick={() => setIsSignup(current => !current)}
+                            >
+                                {isSignup ? 'Already have an account? Sign in' : 'First time here? Create an account'}
+                            </Button>
+                        </form>
+                    </Form.Root>
                 )}
 
                 <ErrorNotice error={task.error} />

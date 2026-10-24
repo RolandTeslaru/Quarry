@@ -1,12 +1,22 @@
-import { useId, useState, type FormEvent } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { Dialog } from '@quarry/standard-ui/foundations/dialog'
-import { Field } from '@quarry/standard-ui/foundations/fieldLayout'
+import { Form } from '@quarry/standard-ui/foundations/form'
 import { Input } from '@quarry/standard-ui/foundations/input'
-import type { Library } from '@quarry/shared/domain'
-import { LibrarySDK } from '../sdk'
+import { Library } from '@quarry/shared/domain'
+import { errorMessage } from '@/SDKs/api'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { useTask } from '@/hooks/useTask'
+import { LibrarySDK } from '../sdk'
+
+// The create request, with what the form says when the name is missing.
+const Schema = Library.API.Folder.Create.Request.extend({
+    name: z.string().trim().min(1, 'Name the folder').pipe(Library.Resource.Name),
+})
+
+type FormInput  = z.input<typeof Schema>
+type FormOutput = z.output<typeof Schema>
 
 /** A new folder in this project or folder. */
 export function openCreateFolderDialog(args: { parentRid: Library.Resource.Rid }) {
@@ -15,57 +25,63 @@ export function openCreateFolderDialog(args: { parentRid: Library.Resource.Rid }
     ))
 }
 
-interface DialogProps {
-    dialog: DialogSDK.TemplateProps
-}
-
-interface NewFolderDialogProps extends DialogProps {
+interface NewFolderDialogProps {
     parentRid: Library.Resource.Rid
+    dialog:    DialogSDK.TemplateProps
 }
 
 function NewFolderDialog({ parentRid, dialog }: NewFolderDialogProps) {
-    const formId = useId()
-    const [task, withTask] = useTask()
-
-    const [name, setName] = useState('')
-
-    const submit = withTask(async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-
-        await LibrarySDK.actions.folder.create({ parentRid, name, description: null })
-
-        DialogSDK.actions.pop(dialog.entry.dialogId)
+    const form = useForm<FormInput, unknown, FormOutput>({
+        resolver:      zodResolver(Schema),
+        defaultValues: { parentRid, name: '' },
     })
 
+    const submitting = form.formState.isSubmitting
+
+    async function submit(values: FormOutput) {
+        try {
+            await LibrarySDK.actions.folder.create(values)
+
+            DialogSDK.actions.pop(dialog.entry.dialogId)
+        }
+        catch (error) {
+            form.setError('root', { message: errorMessage(error) })
+        }
+    }
+
     return (
-        <DialogSDK.Template {...dialog} dismissible={!task.pending} className='w-[min(520px,calc(100vw-32px))]'>
+        <DialogSDK.Template {...dialog} dismissible={!submitting} className='w-[min(520px,calc(100vw-32px))]'>
             <Dialog.Header>
                 <Dialog.Title>New folder</Dialog.Title>
             </Dialog.Header>
             <Dialog.Description className='sr-only'>Complete the fields below, then choose create.</Dialog.Description>
-            <Dialog.Body>
-                <form id={formId} onSubmit={submit}>
-                    <Field.Set disabled={task.pending}>
-                        <Field.Root>
-                            <Field.Label htmlFor='folder-name'>Name</Field.Label>
-                            <Input
-                                id='folder-name'
-                                autoFocus
-                                required
-                                value={name}
-                                onChange={event => setName(event.target.value)}
-                            />
-                        </Field.Root>
-                    </Field.Set>
-                    <ErrorNotice error={task.error} />
+
+            <Form.Root {...form}>
+                <form onSubmit={form.handleSubmit(submit)} autoComplete='off' className='flex min-h-0 flex-col'>
+                    <Dialog.Body>
+                        <fieldset disabled={submitting} className='flex flex-col gap-4'>
+                            <Form.Field control={form.control} name='name' render={({ field }) => (
+                                <Form.Item>
+                                    <Form.Label>Name</Form.Label>
+                                    <Form.Control>
+                                        <Input {...field} autoFocus />
+                                    </Form.Control>
+                                    <Form.Message />
+                                </Form.Item>
+                            )} />
+                        </fieldset>
+
+                        <ErrorNotice error={form.formState.errors.root?.message ?? null} />
+                    </Dialog.Body>
+
+                    <Dialog.Footer>
+                        <Dialog.Cancel disabled={submitting}>Cancel</Dialog.Cancel>
+                        <Dialog.Action type='submit' intent='primary' loading={submitting}>
+                            Create
+                        </Dialog.Action>
+                    </Dialog.Footer>
                 </form>
-            </Dialog.Body>
-            <Dialog.Footer>
-                <Dialog.Cancel disabled={task.pending}>Cancel</Dialog.Cancel>
-                <Dialog.Action type='submit' form={formId} intent='primary' loading={task.pending}>
-                    Create
-                </Dialog.Action>
-            </Dialog.Footer>
+            </Form.Root>
         </DialogSDK.Template>
     )
 }

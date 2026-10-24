@@ -73,9 +73,10 @@ code {
     --surface: #ffffff;
     --surface-elevated: #ffffff;
     --surface-elevated-sidebar: #ffffff;
-    --material-opacity-content: 80%;
-    --material-opacity-sidebar: 60%;
-    --dialog-opacity: 96%;
+    /* Behind an app home's dither: the surface in light mode, near black in dark. */
+    --backdrop: var(--surface);
+    --material-opacity-content: 90%;
+    --material-opacity-sidebar: 70%;
 
     --card: var(--surface);
     --card-foreground: theme(--color-stone-600);
@@ -145,7 +146,8 @@ code {
     --surface: #2f343c;
     --surface-elevated: rgb(24 24 25);
     --surface-elevated-sidebar: rgb(42 42 44);
-    --material-opacity-content: 85%;
+    --backdrop: theme(--color-neutral-950);
+    --material-opacity-content: 94%;
     --material-opacity-sidebar: 70%;
 
     --card: var(--surface);
@@ -339,12 +341,6 @@ code {
 @keyframes dialog-fade-out {
     to {
         opacity: 0;
-    }
-}
-
-@layer components {
-    :where([data-slot='dialog-content'], [data-slot='alert-dialog-content']) {
-        --material-opacity: var(--dialog-opacity);
     }
 }
 

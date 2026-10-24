@@ -232,6 +232,12 @@ if (projectsRequest.isError)
 
 ## 9. UI and async behavior stay explicit
 
+- Forms never hold their fields in `useState`. Every form is react-hook-form, as in PretzelGraph:
+  `useForm<z.input<typeof Schema>, unknown, z.output<typeof Schema>>({ resolver: zodResolver(Schema), defaultValues })`,
+  with `Schema` built from the shared request schema (`X.API.….Request.extend({ …messages… })`); fields through
+  standard-ui's `Form.Field` / `Form.Item` / `Form.Label` / `Form.Control` / `Form.Message`; submit with
+  `form.handleSubmit`; pending from `form.formState.isSubmitting`; a server error with `form.setError('root', …)`.
+  A field that resets others (a template switch) uses `form.setValue`. `useState` is for UI state only.
 - Use Blueprint for UI controls and Tailwind for layout and spacing. Reuse
   established Quarry components before adding wrappers around the library.
 - Follow the existing dialog ownership and composition pattern. Do not introduce

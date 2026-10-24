@@ -50,7 +50,7 @@ function Root({ className, children, ...props }: ComponentProps<'div'>) {
                     <Dither
                         ctx={ditherCtx}
                         waveColorVar={look.tint}
-                        bgColorVar='--surface'
+                        bgColorVar='--backdrop'                    // near black in dark mode
                         waveSpeed={look.wave?.speed}
                         waveFrequency={look.wave?.frequency}
                         waveAmplitude={look.wave?.amplitude}
