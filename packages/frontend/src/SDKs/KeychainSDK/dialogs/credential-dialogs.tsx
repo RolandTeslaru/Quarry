@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { DialogSDK } from '@quarry/standard-ui/SDKs/DialogSDK'
 import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
-import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { Form } from '@quarry/standard-ui/foundations/form'
 import { Input } from '@quarry/standard-ui/foundations/input'
 import { Select } from '@quarry/standard-ui/foundations/select'
@@ -22,6 +21,21 @@ const Schema = Keychain.API.Credential.Create.Request.extend({
 
 type FormInput  = z.input<typeof Schema>
 type FormOutput = z.output<typeof Schema>
+
+const STEPS = [
+    { id: 'system',     title: 'System',     description: 'What this credential logs in to.' },
+    { id: 'details',    title: 'Details',    description: 'Its name, and where it lives in the Library.' },
+    { id: 'connection', title: 'Connection', description: 'How to reach the system, and as whom.' },
+] as const
+
+type StepId = (typeof STEPS)[number]['id']
+
+/** What each step asks for — validated before Next leaves it. */
+const FIELDS: Record<StepId, (keyof FormInput)[]> = {
+    system:     ['templateId'],
+    details:    ['name', 'parentRid'],
+    connection: ['values'],
+}
 
 interface Props {
     templates: KeychainSDK.State['templates']
@@ -75,89 +89,84 @@ function CredentialDialog({ templates, dialog }: Props) {
     }
 
     return (
-        <DialogSDK.Template
-            {...dialog}
-            dismissible={!submitting}
-            className='w-[min(520px,calc(100vw-32px))]'
-        >
-            <Dialog.Header>
-                <Dialog.Title>New credential</Dialog.Title>
-            </Dialog.Header>
-            <Dialog.Description className='sr-only'>
-                Complete the fields below, then choose create.
-            </Dialog.Description>
+        <Form.Root {...form}>
+            <DialogSDK.WizardTemplate
+                {...dialog}
+                title='New credential'
+                steps={STEPS}
+                onNext={step => form.trigger(FIELDS[step.id as StepId])}
+                onSubmit={form.handleSubmit(submit)}
+                submitLabel='Create'
+                submitting={submitting}
+                footer={<ErrorNotice error={form.formState.errors.root?.message ?? null} />}
+                renderStep={step => {
+                    switch (step.id as StepId) {
+                        case 'system':
+                            return (
+                                <Form.Field control={form.control} name='templateId' render={({ field }) => (
+                                    <Form.Item>
+                                        <Form.Label>System</Form.Label>
+                                        <Select.Root value={field.value} onValueChange={selectTemplate}>
+                                            <Form.Control>
+                                                <Select.Trigger size='default'>
+                                                    <Select.Value />
+                                                </Select.Trigger>
+                                            </Form.Control>
+                                            <Select.Content>
+                                                {Object.values(templates).map(item => (
+                                                    <Select.Item key={item.id} value={item.id}>{item.displayName}</Select.Item>
+                                                ))}
+                                            </Select.Content>
+                                        </Select.Root>
+                                        <Form.Message />
+                                    </Form.Item>
+                                )} />
+                            )
 
-            <Form.Root {...form}>
-                <form onSubmit={form.handleSubmit(submit)} autoComplete='off' className='flex min-h-0 flex-col'>
-                    <Dialog.Body>
-                        <fieldset disabled={submitting} className='flex flex-col gap-4'>
-                            <Form.Field control={form.control} name='templateId' render={({ field }) => (
-                                <Form.Item>
-                                    <Form.Label>System</Form.Label>
-                                    <Select.Root value={field.value} onValueChange={selectTemplate}>
-                                        <Form.Control>
-                                            <Select.Trigger size='default'>
-                                                <Select.Value />
-                                            </Select.Trigger>
-                                        </Form.Control>
-                                        <Select.Content>
-                                            {Object.values(templates).map(item => (
-                                                <Select.Item key={item.id} value={item.id}>{item.displayName}</Select.Item>
-                                            ))}
-                                        </Select.Content>
-                                    </Select.Root>
-                                    <Form.Message />
-                                </Form.Item>
-                            )} />
+                        case 'details':
+                            return (
+                                <>
+                                    <Form.Field control={form.control} name='name' render={({ field }) => (
+                                        <Form.Item>
+                                            <Form.Label>Name</Form.Label>
+                                            <Form.Control>
+                                                <Input {...field} autoFocus placeholder='Production database' />
+                                            </Form.Control>
+                                            <Form.Message />
+                                        </Form.Item>
+                                    )} />
 
-                            <Form.Field control={form.control} name='name' render={({ field }) => (
-                                <Form.Item>
-                                    <Form.Label>Name</Form.Label>
-                                    <Form.Control>
-                                        <Input {...field} autoFocus placeholder='Production database' />
-                                    </Form.Control>
-                                    <Form.Message />
-                                </Form.Item>
-                            )} />
+                                    <Form.Field control={form.control} name='parentRid' render={({ field }) => (
+                                        <Form.Item>
+                                            <Form.Label>Location</Form.Label>
+                                            <Form.Control>
+                                                <ResourceInput
+                                                    value={(field.value as Library.Resource.Rid | undefined) ?? null}
+                                                    onChange={location => field.onChange(location.rid)}
+                                                    accept={['project', 'folder']}
+                                                    placeholder='Choose a project or folder…'
+                                                />
+                                            </Form.Control>
+                                            <Form.Message />
+                                        </Form.Item>
+                                    )} />
+                                </>
+                            )
 
-                            <Form.Field control={form.control} name='parentRid' render={({ field }) => (
-                                <Form.Item>
-                                    <Form.Label>Location</Form.Label>
-                                    <Form.Control>
-                                        <ResourceInput
-                                            value={(field.value as Library.Resource.Rid | undefined) ?? null}
-                                            onChange={location => field.onChange(location.rid)}
-                                            accept={['project', 'folder']}
-                                            placeholder='Choose a project or folder…'
-                                        />
-                                    </Form.Control>
-                                    <Form.Message />
-                                </Form.Item>
-                            )} />
-
-                            <div className='form-divider'>CONNECTION DETAILS</div>
-
-                            <Form.Field control={form.control} name='values' render={({ field }) => (
-                                <SchemaFields
-                                    key={template.id}
-                                    schema={template.fieldsSchema}
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                />
-                            )} />
-                        </fieldset>
-
-                        <ErrorNotice error={form.formState.errors.root?.message ?? null} />
-                    </Dialog.Body>
-
-                    <Dialog.Footer>
-                        <Dialog.Cancel disabled={submitting}>Cancel</Dialog.Cancel>
-                        <Dialog.Action type='submit' intent='primary' loading={submitting}>
-                            Create
-                        </Dialog.Action>
-                    </Dialog.Footer>
-                </form>
-            </Form.Root>
-        </DialogSDK.Template>
+                        case 'connection':
+                            return (
+                                <Form.Field control={form.control} name='values' render={({ field }) => (
+                                    <SchemaFields
+                                        key={template.id}
+                                        schema={template.fieldsSchema}
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                    />
+                                )} />
+                            )
+                    }
+                }}
+            />
+        </Form.Root>
     )
 }

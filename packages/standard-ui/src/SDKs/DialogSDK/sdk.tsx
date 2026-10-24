@@ -8,6 +8,7 @@ import { dialogSelectors, type DialogSDKSelectors } from './selectors'
 import { Template, UnstyledTemplate, SplitTemplate, TripleSplitTemplate } from './ui/templates'
 import { AlertTemplate } from './ui/AlertTemplate'
 import { TabsTemplate } from './ui/TabsTemplate'
+import { WizardTemplate } from './ui/WizardTemplate'
 import { SDK } from '../SDKManager'
 
 enableMapSet()
@@ -39,6 +40,8 @@ export class DialogSDKImpl {
     public readonly TripleSplitTemplate = TripleSplitTemplate
 
     public readonly TabsTemplate = TabsTemplate
+
+    public readonly WizardTemplate = WizardTemplate
 
     public readonly UIOverlay: DialogSDK.UILayer = memo(() => {
         const dialogs = this.useStore((state) => state.dialogs)
@@ -197,6 +200,36 @@ export namespace DialogSDK {
             description: string
         }
     }
+
+    export namespace WizardTemplate {
+
+        /** One page of the wizard; walked in order. */
+        export interface Step {
+            id:           string
+            title:        string
+            description?: string
+        }
+    }
+
+    export type WizardTemplate = React.FC<
+        TemplateProps & {
+            /** The dialog's title, over the steps. */
+            title:      string
+            steps:      readonly WizardTemplate.Step[]
+            /** The current step's fields. */
+            renderStep: (step: WizardTemplate.Step, index: number) => React.ReactNode
+            /** Whether the step may be left forward — validate it here. Default: always. */
+            onNext?:    (step: WizardTemplate.Step) => boolean | Promise<boolean>
+            /** Runs on the last step's submit. */
+            onSubmit:   () => void | Promise<void>
+            submitLabel?: string
+            submitting?:  boolean
+            /** Above the buttons, under every step — a form-wide error, say. */
+            footer?:    React.ReactNode
+            sidebarClassName?: string
+            contentClassName?: string
+        }
+    >
 
     export type TabsTemplate = React.FC<
         TemplateProps & {

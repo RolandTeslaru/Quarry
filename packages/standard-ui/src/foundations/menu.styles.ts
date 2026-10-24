@@ -25,7 +25,7 @@ export const menuCheckableItemClasses = `
 export const menuSubTriggerClasses = `
     focus:bg-secondary focus:text-secondary-foreground border border-transparent data-[state=open]:bg-secondary
     data-[state=open]:text-secondary-foreground
-    not-data-[variant=destructive]:focus:**:text-secondary-foreground gap-1.5 rounded-md px-1.5 py-1 text-sm
+    not-data-[variant=destructive]:focus:**:text-secondary-foreground gap-1.5 rounded-sm px-1.5 py-1 text-sm
     [&_svg:not([class*='size-'])]:size-4 flex cursor-default items-center outline-hidden select-none
     data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:text-accent-foreground/50
 `

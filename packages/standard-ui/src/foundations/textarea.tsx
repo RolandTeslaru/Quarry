@@ -8,9 +8,9 @@ type TextareaProps = Omit<React.ComponentProps<'textarea'>, 'size'> & {
 }
 
 const textareaSizeClasses: Record<TextareaSize, string> = {
-    default: 'min-h-16 rounded-lg px-3 py-2 text-base md:text-sm',
+    default: 'min-h-16 rounded-md px-3 py-2 text-base md:text-sm',
     sm: 'min-h-14 rounded-md px-2.5 py-1.5 text-sm',
-    xs: 'min-h-10 rounded-sm px-2 py-1 text-xs',
+    xs: 'min-h-10 rounded-md px-2 py-1 text-xs',
 }
 
 const textareaBaseClasses = `border-input-border placeholder:text-muted-foreground

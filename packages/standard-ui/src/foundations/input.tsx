@@ -9,10 +9,11 @@ type InputProps = Omit<React.ComponentProps<'input'>, 'size'> & {
     variant?: InputVariant
 }
 
+// Rounded like buttons and selects at every size: controls side by side share one radius.
 const inputSizeClasses: Record<InputSize, string> = {
     default: 'rounded-md h-8 px-2.5 py-1 text-base md:text-sm',
-    sm: 'rounded-sm! h-7 px-2 py-0.5 text-sm',
-    xs: 'rounded-sm! h-6 px-1.5 py-0.5 text-xs',
+    sm: 'rounded-md h-7 px-2 py-0.5 text-sm',
+    xs: 'rounded-md h-6 px-1.5 py-0.5 text-xs',
 }
 
 const inputVariantClasses: Record<InputVariant, string> = {
