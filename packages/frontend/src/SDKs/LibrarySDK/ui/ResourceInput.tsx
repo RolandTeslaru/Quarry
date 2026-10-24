@@ -1,4 +1,4 @@
-import { Button } from '@quarry/standard-ui/foundations/button'
+import { inputClasses } from '@quarry/standard-ui/foundations/input'
 import { FolderIllustration, Icon } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import type { Library } from '@quarry/shared/domain'
@@ -21,8 +21,9 @@ interface Props {
 
 /**
  * A form field for choosing a Library resource (after PretzelGraph's
- * LibraryRef field): shows the choice — its name, where it sits — and opens the
- * Library selector to change it, starting where the current choice is.
+ * LibraryRef field), looking like an input: shows the choice as its path —
+ * "Project / Folder / Name" — and opens the Library selector to change it,
+ * starting where the current choice is.
  *
  *   <ResourceInput value={parentRid} onChange={folder => setParentRid(folder.rid)} accept={['project', 'folder']} />
  */
@@ -33,7 +34,6 @@ export function ResourceInput({ value, onChange, accept, placeholder = 'Select�
     )
 
     const chosen = path.at(-1)
-    const location = path.slice(0, -1).map(ancestor => ancestor.name).join(' / ')
 
     function open() {
         LibrarySDK.dialogs.openLibrarySelector({
@@ -45,26 +45,33 @@ export function ResourceInput({ value, onChange, accept, placeholder = 'Select�
     }
 
     return (
-        <Button
+        <button
             id={id}
             type='button'
-            variant='outlined'
             disabled={disabled}
-            className={cn('h-auto min-h-9 w-full justify-start px-2.5 py-1.5 text-left font-normal', className)}
+            // An input's look — it stands in for one — opening the selector instead of taking text.
+            className={cn(inputClasses(), 'flex cursor-pointer items-center gap-2 text-left', className)}
             onClick={open}
         >
             {chosen?.type === 'project' || chosen?.type === 'folder'
-                ? <FolderIllustration color='var(--color-amber-400)' className='size-5 shrink-0' />
+                ? <FolderIllustration color='var(--color-amber-400)' className='size-4 shrink-0' />
                 : <Icon name={chosen ? resourceIcon(chosen.type) : 'folder-open'} className='shrink-0 text-muted-foreground' />}
 
-            <span className='flex min-w-0 flex-col'>
-                <span className={cn('truncate text-sm', chosen ? 'text-foreground' : 'text-muted-foreground')}>
-                    {chosen?.name ?? placeholder}
-                </span>
-                {location && <span className='truncate text-xs text-muted-foreground'>{location}</span>}
+            {/* The path, root first: the ancestors muted, the choice itself in full. */}
+            <span className='min-w-0 flex-1 truncate'>
+                {chosen
+                    ? path.map((resource, index) => (
+                        <span key={resource.rid}>
+                            {index > 0 && <span className='text-muted-foreground'> / </span>}
+                            <span className={index === path.length - 1 ? 'text-foreground' : 'text-muted-foreground'}>
+                                {resource.name}
+                            </span>
+                        </span>
+                    ))
+                    : <span className='text-muted-foreground'>{placeholder}</span>}
             </span>
 
-            <Icon name='caret-down' className='ml-auto shrink-0 text-muted-foreground' />
-        </Button>
+            <Icon name='caret-down' className='shrink-0 text-muted-foreground' />
+        </button>
     )
 }

@@ -38,14 +38,19 @@ const inputVariantClasses: Record<InputVariant, string> = {
         disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50`,
 }
 
+/** An input's look, for a control that isn't an `<input>` but stands in for one (a picker that opens a dialog). */
+function inputClasses({ size = 'default', variant = 'default' }: { size?: InputSize; variant?: InputVariant } = {}): string {
+    return cn(inputVariantClasses[variant], inputSizeClasses[size])
+}
+
 function Input({ className, type, size = 'default', variant = 'default', ...props }: InputProps) {
     return (
         <input
             type={type}
             data-slot='input'
-            className={cn(inputVariantClasses[variant], inputSizeClasses[size], className)}
+            className={cn(inputClasses({ size, variant }), className)}
             {...props}
         />
     )
 }
-export { Input }
+export { Input, inputClasses, type InputSize, type InputVariant }
