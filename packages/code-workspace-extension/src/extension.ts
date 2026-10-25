@@ -5,7 +5,7 @@ import { ComponentsView } from './features/components-view'
 import { ReferenceDiagnostics } from './features/diagnostics'
 import { ReferenceHover } from './features/hover'
 import { ReferenceLenses } from './features/lenses'
-import { PreviewView } from './features/preview-view'
+import { PreviewView } from './features/DatasetTransformPreview/preview-view'
 import { adoptQuarryTheme } from './features/theme'
 import { Quarry } from './quarry'
 

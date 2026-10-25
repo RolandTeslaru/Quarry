@@ -1,4 +1,4 @@
-import type { CodeWorkspace } from '@quarry/shared/domain'
+import type { CodeWorkspace, CodeTransform } from '@quarry/shared/domain'
 
 /**
  * What the Preview panel's page (webviews/preview) and the extension
@@ -15,7 +15,7 @@ export namespace PreviewMessage {
 
     /** The transform being previewed — what it declares, and its references' labels, by reference. */
     interface Run {
-        transform: CodeWorkspace.Preview.Transform
+        transform: CodeTransform.Schema
         labels:    Record<string, Label>
     }
 

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode'
-import type { CodeWorkspace } from '@quarry/shared/domain'
-import { getFunctionName, getModuleName, getTransforms } from '../pipeline'
+import { CodeWorkspace, type CodeTransform } from '@quarry/shared/domain'
+import { getModuleName, getTransformsFromFolder } from './DatasetTransformPreview/pipeline'
 
 interface TransformItem extends vscode.QuickPickItem {
-    readonly transform: CodeWorkspace.Preview.Transform
+    readonly transform: CodeTransform.Schema
 }
 
 interface PickOptions {
@@ -18,7 +18,7 @@ interface PickOptions {
  * pipeline is read from disk (saved files). Undefined if dismissed, or if the
  * pipeline couldn't be read (the user is told why).
  */
-export async function pickTransform(uri: vscode.Uri | undefined, options: PickOptions): Promise<CodeWorkspace.Preview.Transform | undefined> {
+export async function pickTransform(uri: vscode.Uri | undefined, options: PickOptions): Promise<CodeTransform.Schema | undefined> {
     const file = uri ?? vscode.window.activeTextEditor?.document.uri
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri
 
@@ -36,7 +36,7 @@ export async function pickTransform(uri: vscode.Uri | undefined, options: PickOp
     const showing = setTimeout(() => picker.show(), 150)
 
     try {
-        const listing = await getTransforms(folder)
+        const listing = await getTransformsFromFolder(folder)
 
         if ('error' in listing) {
             void vscode.window.showErrorMessage(`The pipeline didn’t load: ${listing.error.message}`)
@@ -80,15 +80,15 @@ export async function pickTransform(uri: vscode.Uri | undefined, options: PickOp
 }
 
 /** A titled group of the picker: one row per transform — its function, module, and what it writes. */
-function getSection(label: string, transforms: CodeWorkspace.Preview.Transform[]): (TransformItem | vscode.QuickPickItem)[] {
+function getSection(label: string, transforms: CodeTransform.Schema[]): (TransformItem | vscode.QuickPickItem)[] {
     if (transforms.length === 0)
         return []
 
     return [
         { label, kind: vscode.QuickPickItemKind.Separator },
         ...transforms.map(transform => ({
-            label:       `$(symbol-function) ${getFunctionName(transform.name)}`,
-            description: transform.name.slice(0, transform.name.lastIndexOf('.')),
+            label:       `$(symbol-function) ${CodeWorkspace.ModuleFunctionPath.getFunctionName(transform.name)}`,
+            description: CodeWorkspace.ModuleFunctionPath.getModuleName(transform.name),
             detail:      `→ ${Object.values(transform.outputs).join(', ')}`,
             transform,
         })),

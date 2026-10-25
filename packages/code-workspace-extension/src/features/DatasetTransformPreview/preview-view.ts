@@ -1,10 +1,10 @@
 import * as vscode from 'vscode'
-import type { CodeWorkspace } from '@quarry/shared/domain'
-import type { PreviewMessage } from '../domain/PreviewMessage'
-import { runPreview } from '../pipeline'
-import type { Quarry } from '../quarry'
-import { pickTransform } from './transform-picker'
-import { getWebviewHtml, getWebviewRoot } from './webview-html'
+import type { CodeTransform } from '@quarry/shared/domain'
+import type { PreviewMessage } from '../../domain/PreviewMessage'
+import { runPreview } from './pipeline'
+import type { Quarry } from '../../quarry'
+import { pickTransform } from '../transform-picker'
+import { getWebviewHtml, getWebviewRoot } from '../webview-html'
 
 /**
  * Preview, in this container: the editor title's ▶ Preview picks a transform
@@ -25,7 +25,7 @@ export class PreviewView implements vscode.WebviewViewProvider {
     private latest: PreviewMessage.ToPage | null = null
 
     /** The transform last run — Run again's. */
-    private transform: CodeWorkspace.Preview.Transform | null = null
+    private transform: CodeTransform.Schema | null = null
 
     private running: vscode.CancellationTokenSource | null = null
 
@@ -77,7 +77,7 @@ export class PreviewView implements vscode.WebviewViewProvider {
             await this.run(transform)
     }
 
-    private async run(transform: CodeWorkspace.Preview.Transform): Promise<void> {
+    private async run(transform: CodeTransform.Schema): Promise<void> {
         const folder = vscode.workspace.workspaceFolders?.[0]?.uri
         const session = this.quarry.getSession()
 
@@ -128,7 +128,7 @@ export class PreviewView implements vscode.WebviewViewProvider {
     }
 
     /** Every input's and output's reference as a dataset name — from Quarry (cached), else from the path itself. */
-    private async getLabels(transform: CodeWorkspace.Preview.Transform): Promise<Record<string, PreviewMessage.Label>> {
+    private async getLabels(transform: CodeTransform.Schema): Promise<Record<string, PreviewMessage.Label>> {
         const references = [...new Set([...Object.values(transform.inputs), ...Object.values(transform.outputs)])]
 
         const labels = await Promise.all(references.map(async reference => {

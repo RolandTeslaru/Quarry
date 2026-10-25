@@ -5,18 +5,23 @@ from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
+import re
 from dataclasses import dataclass, replace
 from types import ModuleType
 from typing import Callable
 
 CONTEXT_PARAMETER = "ctx"
 
+# Mirrors CodeTransform.DatasetReference.
+DATASET_RID = re.compile(r"^ri\.catalog\.main\.dataset\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+LIBRARY_PATH = re.compile(r"^/[^/]")
+
 
 class Input:
     """A dataset the transform reads — a library path (`/Project/folder/name`) or a RID."""
 
     def __init__(self, ref: str):
-        self.ref = ref
+        self.ref = _check_reference(ref)
 
     def __repr__(self) -> str:
         return f"Input({self.ref!r})"
@@ -26,7 +31,7 @@ class Output:
     """A dataset the transform writes — a library path or a RID. Checks create it if it doesn't exist."""
 
     def __init__(self, ref: str):
-        self.ref = ref
+        self.ref = _check_reference(ref)
 
     def __repr__(self) -> str:
         return f"Output({self.ref!r})"
@@ -133,6 +138,13 @@ def _modules(package: ModuleType) -> list[ModuleType]:
             modules.append(importlib.import_module(info.name))
 
     return modules
+
+
+def _check_reference(ref: str) -> str:
+    if not isinstance(ref, str) or not (DATASET_RID.match(ref) or LIBRARY_PATH.match(ref)):
+        raise ValueError(f"{ref!r} isn't a dataset RID (ri.catalog.main.dataset.…) or a library path (/Project/folder/name)")
+
+    return ref
 
 
 def _check_parameters(function: Callable[..., None], inputs: dict[str, Input], outputs: dict[str, Output]) -> bool:

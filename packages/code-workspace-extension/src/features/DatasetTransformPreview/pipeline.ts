@@ -1,7 +1,7 @@
 import { execFile, spawn } from 'node:child_process'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
-import { CodeWorkspace } from '@quarry/shared/domain'
+import { CodeWorkspace, CodeTransform } from '@quarry/shared/domain'
 
 /** Importing the pipeline — the same limit the worker gives `--list`. */
 const LIST_TIMEOUT_MS = 60_000
@@ -17,7 +17,7 @@ export const PREVIEW_ROWS = 1000
  * quarry.transforms.preview --list` with the working copy's environment — what
  * it declares as saved on disk. No Quarry call: listing only imports the code.
  */
-export async function getTransforms(folder: vscode.Uri): Promise<CodeWorkspace.Preview.Listing> {
+export async function getTransformsFromFolder(folder: vscode.Uri): Promise<CodeTransform.Listing> {
     const python = path.join(folder.fsPath, '.venv', 'bin', 'python')
 
     const stdout = await new Promise<string>((resolve, reject) => {
@@ -30,7 +30,7 @@ export async function getTransforms(folder: vscode.Uri): Promise<CodeWorkspace.P
         })
     })
 
-    return CodeWorkspace.Preview.Listing.parse(JSON.parse(stdout))
+    return CodeTransform.Listing.parse(JSON.parse(stdout))
 }
 
 /**
@@ -41,7 +41,7 @@ export async function getTransforms(folder: vscode.Uri): Promise<CodeWorkspace.P
  */
 export async function runPreview(
     folder:       vscode.Uri,
-    name:         string,
+    name:         CodeWorkspace.ModuleFunctionPath.Schema,
     session:      { token: string; serverUrl: string },
     cancellation: vscode.CancellationToken,
 ): Promise<CodeWorkspace.Preview.Result | null> {
@@ -91,6 +91,3 @@ export function getModuleName(folder: vscode.Uri, file: vscode.Uri): string | nu
 
     return relative.slice(0, -'.py'.length).split(path.sep).filter(part => part !== '__init__').join('.')
 }
-
-/** `sales_cleaning.datasets.example.example` → `example` */
-export const getFunctionName = (name: string): string => name.slice(name.lastIndexOf('.') + 1)

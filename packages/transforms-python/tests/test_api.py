@@ -31,6 +31,15 @@ def test_parameters_must_match_the_declaration():
             pass
 
 
+def test_references_are_dataset_rids_or_library_paths():
+    assert Input("ri.catalog.main.dataset.01a1729a-975b-70de-8141-89cca28b34d2").ref.startswith("ri.")
+    assert Output("/Sales/clean/orders").ref == "/Sales/clean/orders"
+
+    for ref in ["orders", "//Sales", "ri.code-workspace.main.workspace.01a1729a-975b-70de-8141-89cca28b34d2"]:
+        with pytest.raises(ValueError, match="isn't a dataset RID"):
+            Input(ref)
+
+
 def test_a_transform_needs_an_output():
     with pytest.raises(ValueError, match="at least one Output"):
         transform.using(orders=Input("/a"))

@@ -19,7 +19,7 @@ sequenceDiagram
     E->>X: quarry.preview (the file)
     X->>R: --list (the pipeline as saved)
     R-->>X: the transforms
-    Note over X: this file's only one → straight on;<br/>else a Quick Pick (this file's first)
+    Note over X: this file's only one → straight on,<br/>else a Quick Pick (this file's first)
     X->>X: save all editors · resolve references' names (cached lookups)
     X->>P: running { transform, labels }
     X->>R: {transform} --rows 1000<br/>env: QUARRY_TOKEN, QUARRY_SERVER_URL (~/.quarry/session.json)
@@ -37,10 +37,10 @@ sequenceDiagram
     R-->>X: one JSON object on stdout (exit 0, or 1 with { error })
     X->>X: CodeWorkspace.Preview.Result.parse
     X->>P: result { transform, labels, result }
-    P->>P: inputs and outputs on the left; the chosen output's rows (TableViewer), logs, or the traceback on the right
+    P->>P: inputs and outputs on the left, the chosen output's rows (TableViewer), logs, or the traceback on the right
 ```
 
-`features/preview-view.ts` runs it (`pipeline.ts` `runPreview`); `webviews/preview/main.tsx` is the panel; `domain/PreviewMessage.ts` is what they say to each other. **Stop** kills the process; a new Preview replaces a running one. **Build** (beside Preview) picks a transform the same way (`features/transform-picker.ts`) — builds themselves aren't wired up yet.
+`features/DatasetTransformPreview/preview-view.ts` runs it (`DatasetTransformPreview/pipeline.ts` `runPreview`); `webviews/preview/main.tsx` is the panel; `domain/PreviewMessage.ts` is what they say to each other. **Stop** kills the process; a new Preview replaces a running one. **Build** (beside Preview) picks a transform the same way (`features/transform-picker.ts`) — builds themselves aren't wired up yet.
 
 ## The runner
 

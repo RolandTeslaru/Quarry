@@ -23,7 +23,7 @@ export namespace Resource {
 
     /** The live resource at a library path — `/Project/folder/name`, as transforms name their inputs. */
     export namespace GetByPath {
-        export const Request = z.object({ path: z.string().regex(/^\/[^/]/, "A library path starts with '/' and a project") })
+        export const Request = z.object({ path: ResourceD.Path })
         export type  Request = z.infer<typeof Request>
 
         export const Response = z.object({ resource: ResourceD.Base })

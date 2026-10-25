@@ -9,7 +9,7 @@ import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import { Icon } from '@quarry/standard-ui/icons'
 import { TableViewer } from '@quarry/standard-ui/components/TableViewer'
 import { cn } from '@quarry/standard-ui/utils/cn'
-import type { CodeWorkspace } from '@quarry/shared/domain'
+import { CodeWorkspace, type CodeTransform } from '@quarry/shared/domain'
 import { PreviewMessage } from '../../src/domain/PreviewMessage'
 import { followVsCodeTheme } from '../theme'
 import { vscode } from '../vscode'
@@ -90,8 +90,8 @@ function TransformColumn({ state, selected, onSelect }: ColumnProps) {
         <aside className='flex min-h-0 flex-col overflow-y-auto'>
             <header className='flex items-start gap-2 border-b px-3 py-2'>
                 <div className='min-w-0 flex-1'>
-                    <div className='truncate text-sm font-medium'>{getFunctionName(transform.name)}</div>
-                    <div className='truncate text-xs text-muted-foreground' title={transform.name}>{getModuleName(transform.name)}</div>
+                    <div className='truncate text-sm font-medium'>{CodeWorkspace.ModuleFunctionPath.getFunctionName(transform.name)}</div>
+                    <div className='truncate text-xs text-muted-foreground' title={transform.name}>{CodeWorkspace.ModuleFunctionPath.getModuleName(transform.name)}</div>
                 </div>
 
                 {running
@@ -167,7 +167,7 @@ function ResultColumn({ state, selected, onSelect }: ColumnProps) {
 }
 
 interface PreviewOutputsProps {
-    result:   Exclude<CodeWorkspace.Preview.Result, CodeWorkspace.Preview.Failure>
+    result:   Exclude<CodeWorkspace.Preview.Result, CodeTransform.Failure>
     selected: string
     onSelect: (tab: string) => void
 }
@@ -205,7 +205,7 @@ function PreviewOutputs({ result, selected, onSelect }: PreviewOutputsProps) {
 }
 
 /** The transform raised: its message, and the traceback to find where. */
-function PreviewFailure({ failure }: { failure: CodeWorkspace.Preview.Failure }) {
+function PreviewFailure({ failure }: { failure: CodeTransform.Failure }) {
     return (
         <div className='flex h-full flex-col gap-2 overflow-auto p-3'>
             <p className='text-xs font-medium text-destructive'>{failure.error.message}</p>
@@ -262,12 +262,6 @@ function Card({ icon, label, reference, parameter, active = false, onClick, chil
         </Element>
     )
 }
-
-/** `sales_cleaning.datasets.example.example` → `example` */
-const getFunctionName = (name: string): string => name.slice(name.lastIndexOf('.') + 1)
-
-/** `sales_cleaning.datasets.example.example` → `sales_cleaning.datasets.example` */
-const getModuleName = (name: string): string => name.slice(0, name.lastIndexOf('.'))
 
 const formatNumber = (value: number): string => new Intl.NumberFormat().format(value)
 

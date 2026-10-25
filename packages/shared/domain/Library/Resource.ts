@@ -33,6 +33,10 @@ export namespace Resource {
     /** No slashes: names are path segments. */
     export const Name = z.string().trim().min(1).max(255).regex(/^[^/]+$/, "Names cannot contain '/'")
 
+    /** `/Project/folder/name` */
+    export const Path = z.string().regex(/^\/[^/]/, "A library path starts with '/' and a project")
+    export type  Path = z.infer<typeof Path>
+
     /** A resource's library path from its path (root first, itself last): `/Project/folder/name`. */
     export const getPath = (path: readonly Pick<Base, "name">[]): string =>
         `/${path.map(resource => resource.name).join("/")}`
