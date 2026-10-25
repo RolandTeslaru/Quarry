@@ -21,14 +21,12 @@ A user's rank is the highest of their grants on the workspace or any ancestor (a
 | `GET /api/code-workspaces/:rid` | user | RLS `discover` + liveness | the row |
 | `POST …/:rid/open` | user | `@RequireUserPrincipal` · RLS + liveness | row + audit `open` |
 | `POST …/:rid/session` | user | `@RequireUserPrincipal` → `@SecurityGate('read')` → `get` (404 if trashed) | worker → container |
-| `GET …/:rid/session/transforms` | user | same | worker → `docker exec` |
-| `POST …/:rid/session/preview` | user | same | worker → `docker exec` |
 | `POST /api/internal/code-workspaces/session-credentials` | **service token** (worker) | as a **delegate** of the user: `get` + `assert read` | a minted token |
 | `/api/git/<rid>.git/info/refs`, `git-upload-pack` | user (Bearer) | `get` + `assert read` | clone / fetch |
 | `/api/git/<rid>.git/git-receive-pack` (and its advertisement) | user (Bearer) | `get` + `assert write` | push |
 | `/api/git/…` anything else | — | 404 (no dumb protocol) | — |
 | IDE proxy `/s/<secret>/…` (`CODE_WORKSPACE_IDE_PROXY_PORT`) | the secret (capability) | the secret is a known, running session | VS Code |
-| Worker `/sessions/{open,transforms,preview}` (`CODE_WORKSPACE_WORKER_PORT`) | **service token** (the server) | `ServiceTokenGuard` — never published to browsers | the session |
+| Worker `/sessions/open` (`CODE_WORKSPACE_WORKER_PORT`) | **service token** (the server) | `ServiceTokenGuard` — never published to browsers | the session |
 
 Inside a preview, the session token reaches two more endpoints as the user:
 
@@ -67,13 +65,13 @@ sequenceDiagram
     S->>G: Principal.onBehalfOf(user, 'code-workspace-session:{rid}')
     G-->>S: get → live? assert read → allowed?
     alt revoked or trashed meanwhile
-        S-->>W: 404 / 403 — the open or preview fails
+        S-->>W: 404 / 403 — the open fails
     else
         S-->>W: { token (12h), author }
     end
 ```
 
-So revoking someone's access stops their next open, preview and transforms listing. Deactivating them stops everything their tokens do on the next request (`TokenVerifier` resolves the member every time).
+So revoking someone's access stops their next open. (Previews run in the session on its token: every read they make is still checked as the user.) Deactivating them stops everything their tokens do on the next request (`TokenVerifier` resolves the member every time).
 
 ## What a session token can do — and the gaps
 

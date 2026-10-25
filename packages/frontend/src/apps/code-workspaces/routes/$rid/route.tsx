@@ -1,18 +1,14 @@
-import { useState } from 'react'
 import { createFileRoute, Link, notFound, Outlet, useMatchRoute } from '@tanstack/react-router'
-import { Button } from '@quarry/standard-ui/foundations/button'
 import { Menubar } from '@quarry/standard-ui/foundations/menubar'
-import { Select } from '@quarry/standard-ui/foundations/select'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
+import { Icon } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import { CodeWorkspace } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
 import { CodeWorkspaceSDK } from '@/SDKs/CodeWorkspaceSDK/sdk'
 import { IDESessionFrame } from '@/SDKs/CodeWorkspaceSDK/ui/IDESessionFrame'
 import { ResourceBreadcrumbs } from '@/components/ResourceBreadcrumbs'
-import { useTask } from '@/hooks/useTask'
 import { orNotFound } from '@/utils/loader'
-import { PreviewPanel, type PreviewRun } from '../../components/PreviewPanel'
 import { WORKSPACE_TABS, type WorkspaceTab } from '../../constants'
 import { codeWorkspacesApp } from '../../definition'
 
@@ -55,9 +51,8 @@ interface WorkspaceLayoutProps {
  * One Code Workspace — the layout around its tabs. The header and its tabs are
  * here; so is the user's session — VS Code in the browser — which stays
  * mounted on every tab and is only hidden away from Code, so the editor never
- * reloads. On Code: a transform of the working copy previewed on samples of its
- * inputs (picked in the header), the result under the editor. The other tabs
- * render into the outlet.
+ * reloads (previews run in it — the Quarry extension's ▶ Preview). The other
+ * tabs render into the outlet. The IDE menu reconnects the session.
  */
 function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
     const tab = useWorkspaceTab(rid)
@@ -66,24 +61,6 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
         () => null,
         query => [query.session(rid)],
     )
-
-    const [preview, setPreview] = useState<PreviewRun | null>(null)
-    const [task, withTask] = useTask()
-
-    const runPreview = withTask(async (transform: string) => {
-        setPreview({ transform, result: null })
-
-        try {
-            const result = await CodeWorkspaceSDK.actions.session.preview(rid, transform)
-
-            setPreview({ transform, result })
-        }
-        catch {
-            setPreview(null)                                // the action told the user why
-        }
-    })
-
-    const sessionUrl = sessionRequest.data?.url ?? null
 
     return (
         <>
@@ -96,6 +73,16 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
                             <Menubar.Trigger>File</Menubar.Trigger>
                             <Menubar.Content>
                                 
+                            </Menubar.Content>
+                        </Menubar.Menu>
+                        <Menubar.Menu>
+                            <Menubar.Trigger>IDE</Menubar.Trigger>
+                            <Menubar.Content>
+                                {/* Starts the session again if it stopped, and reloads the editor with it. */}
+                                <Menubar.Item disabled={sessionRequest.isFetching} onSelect={() => void sessionRequest.refetch()}>
+                                    <Icon name='refresh' />
+                                    {sessionRequest.isFetching ? 'Reconnecting…' : 'Reconnect'}
+                                </Menubar.Item>
                             </Menubar.Content>
                         </Menubar.Menu>
                         <Menubar.Menu>
@@ -116,35 +103,11 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
                         ))}
                     </Tabs.List>
                 </Tabs.Root>
-
-                {tab === 'code' && (
-                    <App.Header.Actions>
-                        <PreviewControls
-                            rid={rid}
-                            ready={sessionUrl !== null}
-                            running={task.pending}
-                            onPreview={runPreview}
-                        />
-                        <Button icon='refresh' loading={sessionRequest.isFetching} onClick={() => void sessionRequest.refetch()}>
-                            Reconnect
-                        </Button>
-                    </App.Header.Actions>
-                )}
             </App.Header>
 
             <App.Content className='overflow-hidden'>
-                <div className={cn('flex min-h-0 flex-1 flex-col', tab !== 'code' && 'hidden')}>
-                    <div className='min-h-0 flex-1'>
-                        <IDESessionFrame rid={rid} />
-                    </div>
-
-                    {preview && (
-                        <PreviewPanel
-                            run={preview}
-                            onRerun={() => runPreview(preview.transform)}
-                            onClose={() => setPreview(null)}
-                        />
-                    )}
+                <div className={cn('min-h-0 flex-1', tab !== 'code' && 'hidden')}>
+                    <IDESessionFrame rid={rid} />
                 </div>
 
                 <Outlet />
@@ -159,99 +122,4 @@ function useWorkspaceTab(rid: CodeWorkspace.Rid): WorkspaceTab {
     const tabs = Object.entries(WORKSPACE_TABS) as [WorkspaceTab, (typeof WORKSPACE_TABS)[WorkspaceTab]][]
 
     return tabs.find(([, { to }]) => matchRoute({ to, params: { rid } }))?.[0] ?? 'code'
-}
-
-interface PreviewControlsProps {
-    rid:       CodeWorkspace.Rid
-    /** The session is up — its working copy can be read. */
-    ready:     boolean
-    running:   boolean
-    onPreview: (transform: string) => void
-}
-
-/**
- * The transforms the working copy declares, and Preview. Opening the list reads
- * it again, so a transform just written (and saved) is there.
- */
-function PreviewControls({ rid, ready, running, onPreview }: PreviewControlsProps) {
-    const [chosen, setChosen] = useState<string | null>(null)
-
-    const [, [transformsRequest]] = CodeWorkspaceSDK.useWith(
-        () => null,
-        query => [{ ...query.transforms(rid), enabled: ready }],
-    )
-
-    const listing = transformsRequest.data
-    const transforms = listing && 'transforms' in listing ? listing.transforms : []
-    const byName = Object.fromEntries(transforms.map(transform => [transform.name, transform]))
-
-    // The one chosen while it's still declared; else the first.
-    const selected = chosen && byName[chosen] ? chosen : transforms[0]?.name ?? null
-
-    function refreshOnOpen(open: boolean) {
-        if (open)
-            void transformsRequest.refetch()
-    }
-
-    return (
-        <div className='flex items-center gap-1.5'>
-            <Select.Root
-                value={selected ?? ''}
-                onValueChange={setChosen}
-                onOpenChange={refreshOnOpen}
-                disabled={!ready || transforms.length === 0}
-            >
-                <Select.Trigger size='sm' className='w-56' title={listingProblem(listing, transformsRequest.error) ?? undefined}>
-                    <Select.Value placeholder={placeholder(ready, listing, transformsRequest.error)} />
-                </Select.Trigger>
-                <Select.Content>
-                    {transforms.map(transform => (
-                        <Select.Item key={transform.name} value={transform.name} description={transform.name}>
-                            {functionName(transform.name)}
-                        </Select.Item>
-                    ))}
-                </Select.Content>
-            </Select.Root>
-
-            <Button
-                intent='primary'
-                icon='play'
-                loading={running}
-                disabled={!selected}
-                onClick={() => selected && onPreview(selected)}
-            >
-                Preview
-            </Button>
-        </div>
-    )
-}
-
-/** What the picker says while there's nothing to pick. */
-function placeholder(ready: boolean, listing: CodeWorkspace.Preview.Listing | undefined, error: Error | null): string {
-    if (!ready)
-        return 'Starting the session…'
-
-    if (error || (listing && 'error' in listing))
-        return 'The pipeline didn’t load'
-
-    if (!listing)
-        return 'Reading transforms…'
-
-    return 'No transforms yet'
-}
-
-/** Why the transforms couldn't be listed — the picker's hover text. */
-function listingProblem(listing: CodeWorkspace.Preview.Listing | undefined, error: Error | null): string | null {
-    if (error)
-        return error.message
-
-    if (listing && 'error' in listing)
-        return listing.error.message
-
-    return null
-}
-
-/** `sales_cleaning.datasets.example.example` → `example` */
-function functionName(name: string): string {
-    return name.slice(name.lastIndexOf('.') + 1)
 }

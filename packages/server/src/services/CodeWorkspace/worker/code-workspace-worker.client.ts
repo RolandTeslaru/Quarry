@@ -8,11 +8,6 @@ import Worker = CodeWorkspace.API.Worker;
 /** A first open starts a container, clones and syncs the environment — minutes on a cold cache. */
 const SESSION_OPEN_TIMEOUT_MS = 300_000;
 
-/** Imports the working copy's pipeline. */
-const TRANSFORMS_TIMEOUT_MS = 60_000;
-
-/** Samples every input, then runs the transform. */
-const PREVIEW_TIMEOUT_MS = 300_000;
 
 /**
  * The code workspace worker's API (CodeWorkspace.API.Worker), called with the
@@ -36,18 +31,6 @@ export class CodeWorkspaceWorkerClient {
         const { url } = await this.call(() => Worker.openSession(this.worker, { workspaceRid, userRid }, SESSION_OPEN_TIMEOUT_MS));
 
         return url;
-    }
-
-    public getTransforms(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid): Promise<CodeWorkspace.Preview.Listing> {
-        return this.call(() => Worker.listTransforms(this.worker, { workspaceRid, userRid }, TRANSFORMS_TIMEOUT_MS));
-    }
-
-    public preview(
-        workspaceRid: CodeWorkspace.Rid,
-        userRid:      Identity.User.Rid,
-        request:      CodeWorkspace.API.Preview.Request,
-    ): Promise<CodeWorkspace.Preview.Result> {
-        return this.call(() => Worker.preview(this.worker, { workspaceRid, userRid, transform: request.transform, rows: request.rows }, PREVIEW_TIMEOUT_MS));
     }
 
     private async call<R>(request: () => Promise<R>): Promise<R> {

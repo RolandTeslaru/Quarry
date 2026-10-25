@@ -1,5 +1,5 @@
 import { HotkeysProvider } from '@blueprintjs/core'
-import { Cell, Column, ColumnHeaderCell, RenderMode, Table2 } from '@blueprintjs/table'
+import { Cell, Column, ColumnHeaderCell, Table2 } from '@blueprintjs/table'
 import tableStyles from '@blueprintjs/table/lib/css/table.css?inline'
 
 const NUMERIC_TYPES = ['integer', 'long', 'double']
@@ -30,9 +30,6 @@ export function TableViewer({ columns, rows }: Props) {
                 defaultRowHeight={24}
                 defaultColumnWidth={180}
                 enableFocusedCell
-                // Draw the visible cells at once. Batched rendering spreads them over idle callbacks,
-                // which a webview (VS Code's panels) can starve — scrolled-to rows stayed blank.
-                renderMode={RenderMode.NONE}
                 cellRendererDependencies={[rows]}
                 className='h-full'
             >

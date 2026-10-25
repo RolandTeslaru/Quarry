@@ -20,7 +20,7 @@ import { TEMPLATES, TEMPLATES_WIRE, type TemplateParams, type WorkspaceTemplate 
  * transforms (docs/design/transforms.md).
  *
  *   discover  see it exists
- *   read      open it, clone it, preview its transforms
+ *   read      open it (a session — previews run in it), clone it
  *   write     push to it
  *   manage    share it (Gatekeeper grants)
  *
@@ -132,24 +132,6 @@ export class CodeWorkspaceService {
         await this.get(principal, rid);                     // 404 if it's gone or trashed
 
         return this.worker.openSession(rid, principal.userRid);
-    }
-
-    /** What the caller's working copy declares. Read on the workspace; the session must be open. */
-    @RequireUserPrincipal('Only users have sessions')
-    @SecurityGate('read')
-    async getTransforms(principal: Principal.User, rid: CodeWorkspace.Rid): Promise<CodeWorkspace.Preview.Listing> {
-        await this.get(principal, rid);                     // 404 if it's gone or trashed
-
-        return this.worker.getTransforms(rid, principal.userRid);
-    }
-
-    /** One transform of the caller's working copy, on samples of its inputs (read as the caller). Writes nothing. */
-    @RequireUserPrincipal('Only users have sessions')
-    @SecurityGate('read')
-    async preview(principal: Principal.User, rid: CodeWorkspace.Rid, request: CodeWorkspace.API.Preview.Request): Promise<CodeWorkspace.Preview.Result> {
-        await this.get(principal, rid);                     // 404 if it's gone or trashed
-
-        return this.worker.preview(rid, principal.userRid, request);
     }
 
     /**

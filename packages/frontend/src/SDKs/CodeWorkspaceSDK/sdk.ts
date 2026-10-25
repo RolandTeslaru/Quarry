@@ -27,7 +27,7 @@ export class CodeWorkspaceSDKImpl extends BaseSDK<CodeWorkspaceSDK.State> {
 
     public readonly dialogs: CodeWorkspaceSDK.Dialogs = _createCodeWorkspaceDialogs_()
 
-    // Sessions, their transforms and previews are one screen's: query cache only.
+    // Sessions are one screen's: query cache only.
     public override readonly query = {
         templates: {
             queryKey: ['code-workspace', 'templates'] as const,
@@ -54,13 +54,6 @@ export class CodeWorkspaceSDKImpl extends BaseSDK<CodeWorkspaceSDK.State> {
             staleTime: SESSION_STALE_TIME,
             refetchOnWindowFocus: false,
             retry: false,
-        }),
-
-        /** What the session's working copy declares — read when the list is shown, so it follows edits. */
-        transforms: (rid: CodeWorkspace.Rid) => ({
-            queryKey: ['code-workspace', 'transforms', rid] as const,
-            queryFn: () => this.actions.session.getTransforms(rid),
-            staleTime: 0,
         }),
     }
 

@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { CodeWorkspace, type Identity } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { DockerDriver } from './docker-driver';
@@ -20,19 +20,15 @@ const IDE_READY_TIMEOUT_MS = 60_000;
 /** Clone, venv and `uv sync` — minutes on a cold cache. */
 const SETUP_TIMEOUT_MS = 300_000;
 
-/** Samples every input, then runs the transform. */
-const PREVIEW_TIMEOUT_MS = 300_000;
 
-/** Imports the working copy's pipeline. */
-const LIST_TIMEOUT_MS = 60_000;
 
 /**
  * Code Workspace sessions (docs/design/transforms.md §6): one container per
  * user per workspace, from the runtime image, with a volume for the working
  * copy. Started on open, stopped when idle, started again on the next open.
- * The IDE proxy serves each one's IDE at `/s/<secret>/`; previews run in it
- * with `docker exec`. Containers are labelled, so a restarted worker finds its
- * sessions again.
+ * The IDE proxy serves each one's IDE at `/s/<secret>/`; previews run in it,
+ * started by the Quarry extension. Containers are labelled, so a restarted
+ * worker finds its sessions again.
  */
 @Injectable()
 export class SessionManager implements OnModuleInit, OnModuleDestroy {
@@ -69,27 +65,6 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
         }));
 
         return opening;
-    }
-
-    /** What the working copy's pipeline declares. */
-    public async getTransforms(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid): Promise<CodeWorkspace.Preview.Listing> {
-        const output = await this.runPreview(workspaceRid, userRid, ['--list'], LIST_TIMEOUT_MS);
-
-        return CodeWorkspace.Preview.Listing.parse(output);
-    }
-
-    /** One transform on samples of its inputs, read as the session's user. */
-    public async preview(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid, transform: string, rows: number): Promise<CodeWorkspace.Preview.Result> {
-        const output = await this.runPreview(workspaceRid, userRid, [transform, '--rows', String(rows)], PREVIEW_TIMEOUT_MS);
-        const result = CodeWorkspace.Preview.Result.parse(output);
-
-        this.log.info('Preview ran', {
-            workspaceRid,
-            transform,
-            failed: 'error' in result,
-        });
-
-        return result;
     }
 
     /** The running session an IDE proxy request is for — and it was just used. */
@@ -169,34 +144,6 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
         this.log.info('Session started', { workspaceRid, userRid, container: name });
 
         return session;
-    }
-
-    /** Runs `python -m quarry.transforms.preview …` in the session — its JSON is the answer even when it exits 1. */
-    private async runPreview(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid, args: string[], timeoutMs: number): Promise<unknown> {
-        const session = this.byKey[Session.getKey(workspaceRid, userRid)];
-
-        if (!session?.port)
-            throw new ConflictException('No open session: open the workspace first');
-
-        const credentials = await CodeWorkspace.API.Internal.getSessionCredentials(api, { workspaceRid, userRid });
-
-        session.lastActivityAt = Date.now();
-
-        const result = await this.dockerDriver.exec(session.container, [`${REPOSITORY}/.venv/bin/python`, '-m', 'quarry.transforms.preview', ...args], {
-            env: {
-                QUARRY_TOKEN:      credentials.token,
-                QUARRY_SERVER_URL: config.sessions.serverUrl,
-            },
-            workdir: REPOSITORY,
-            timeoutMs,
-        });
-
-        try {
-            return JSON.parse(result.stdout);
-        }
-        catch {
-            throw new Error(`The preview printed no result: ${result.stderr.trim() || `exit ${result.code}`}`);
-        }
     }
 
     /** Sessions left by an earlier worker: running ones keep serving, stopped ones start on their next open. */

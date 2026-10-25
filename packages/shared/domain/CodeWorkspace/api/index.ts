@@ -3,7 +3,6 @@ import type { AxiosInstance } from "axios"
 import { Application } from "../../Platform/Application"
 import { Dataset as DatasetD } from "../../Catalog/Dataset"
 import { Resource as ResourceD } from "../../Library/Resource"
-import { Preview as PreviewD } from "../Preview"
 import { Template as TemplateD } from "../Template"
 import { Workspace as WorkspaceD } from "../Workspace"
 import * as InternalMod from "./internal"
@@ -60,24 +59,6 @@ export namespace API {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** The transforms the caller's working copy declares — or why its pipeline didn't import. */
-    export namespace ListTransforms {
-        export const Response = PreviewD.Listing
-        export type  Response = z.infer<typeof Response>
-    }
-
-    /** Runs a transform in the caller's session, on samples of its inputs. Writes nothing. */
-    export namespace Preview {
-        export const Request = z.object({
-            transform: z.string().min(1),
-            rows:      z.number().int().min(1).max(100_000).default(1000),   // sampled from each input
-        })
-        export type  Request = z.infer<typeof Request>
-
-        export const Response = PreviewD.Result
-        export type  Response = z.infer<typeof Response>
-    }
-
     export async function listTemplates(api: AxiosInstance): Promise<ListTemplates.Response> {
         const { data } = await api.get("/api/code-workspaces/templates")
         return ListTemplates.Response.parse(data)
@@ -106,16 +87,6 @@ export namespace API {
     export async function openSession(api: AxiosInstance, rid: WorkspaceD.Rid): Promise<OpenSession.Response> {
         const { data } = await api.post(`/api/code-workspaces/${rid}/session`)
         return OpenSession.Response.parse(data)
-    }
-
-    export async function listTransforms(api: AxiosInstance, rid: WorkspaceD.Rid): Promise<ListTransforms.Response> {
-        const { data } = await api.get(`/api/code-workspaces/${rid}/session/transforms`)
-        return ListTransforms.Response.parse(data)
-    }
-
-    export async function preview(api: AxiosInstance, rid: WorkspaceD.Rid, req: z.input<typeof Preview.Request>): Promise<Preview.Response> {
-        const { data } = await api.post(`/api/code-workspaces/${rid}/session/preview`, req)
-        return Preview.Response.parse(data)
     }
 
     /** Code-workspace-worker-only endpoints (`/api/internal/…`). */

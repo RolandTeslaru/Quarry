@@ -50,21 +50,6 @@ export class CodeWorkspaceController {
         return { url: await this.service.openSession(principal, rid) };
     }
 
-    @Get(':rid/session/transforms')
-    getTransforms(@CurrentPrincipal() principal: Principal.User, @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid): Promise<API.ListTransforms.Response> {
-        return this.service.getTransforms(principal, rid);
-    }
-
-    @Post(':rid/session/preview')
-    @HttpCode(200)
-    preview(
-        @CurrentPrincipal() principal: Principal.User,
-        @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid,
-        @Body(new ZodPipe(API.Preview.Request)) body: API.Preview.Request,
-    ): Promise<API.Preview.Response> {
-        return this.service.preview(principal, rid, body);
-    }
-
     @Get(':rid')
     async get(@CurrentPrincipal() principal: Principal.User, @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid): Promise<API.Get.Response> {
         return { workspace: await this.service.get(principal, rid) };

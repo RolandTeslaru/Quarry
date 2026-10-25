@@ -18,7 +18,7 @@ A **session** is one user's container on one workspace — the computer behind t
 stateDiagram-v2
     [*] --> Starting: first open<br/>docker run
     Starting --> Running: VS Code answers,<br/>setup succeeds
-    Running --> Running: open again (setup re-runs,<br/>fresh token), IDE proxy traffic,<br/>preview / transforms
+    Running --> Running: open again (setup re-runs,<br/>fresh token), IDE proxy traffic
     Running --> Stopped: no activity for<br/>CODE_WORKSPACE_SESSION_IDLE_MINUTES (30)<br/>docker stop
     Stopped --> Running: next open<br/>docker start, setup
     Running --> Running: worker restarts —<br/>restored from labels
@@ -85,4 +85,4 @@ On boot the worker lists every container labelled `quarry.code-workspace-session
 
 ## Idle stop
 
-Every minute, any running session whose `lastActivityAt` is older than the idle limit is stopped. Activity is: an open, a preview or transforms listing, and **every IDE proxy request or WebSocket frame from the browser** (`SessionManager.touchBySecret`) — so an open IDE tab keeps its session alive; a closed one lets it stop.
+Every minute, any running session whose `lastActivityAt` is older than the idle limit is stopped. Activity is: an open, and **every IDE proxy request or WebSocket frame from the browser** (`SessionManager.touchBySecret`) — so an open IDE tab keeps its session alive; a closed one lets it stop.

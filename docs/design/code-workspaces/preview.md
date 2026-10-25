@@ -1,26 +1,28 @@
 # Running a preview
 
-**Preview** runs one transform **as it is in the working copy** — saved, not necessarily committed — on **samples** of its inputs, and shows its outputs under the editor. It writes nothing anywhere.
+**Preview** runs one transform **as it is in the working copy** — saved, not necessarily committed — on **samples** of its inputs, and shows its outputs in the IDE's **Preview** panel (bottom panel, beside Problems and Terminal). It writes nothing anywhere.
+
+It all happens in the session: the **Quarry extension** (`code-workspace-extension`) runs the runner itself, in the container, as a child process. Neither the server's Code Workspace API nor the worker takes part; only the runner's reads of the inputs reach Quarry, as the user.
 
 ## End to end
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant P as Page (routes/$rid/route.tsx)
-    participant S as Server
-    participant W as Worker (SessionManager)
-    participant C as Session container
+    participant E as Editor (title bar ▶ Preview)
+    participant X as Quarry extension (PreviewView)
     participant R as Runner (python -m quarry.transforms.preview)
     participant L as Library / Catalog
     participant O as Object storage
+    participant P as Preview panel (webview, React)
 
-    P->>S: POST /api/code-workspaces/:rid/session/preview { transform, rows: 1000 }
-    Note over S: @RequireUserPrincipal → @SecurityGate('read') → get
-    S->>W: POST {worker}/sessions/preview { workspaceRid, userRid, transform, rows } (≤ 5 min)
-    W->>S: session-credentials → a fresh token (re-checked: read)
-    W->>C: docker exec -w /workspace/repo .venv/bin/python -m quarry.transforms.preview {transform} --rows 1000<br/>env: QUARRY_TOKEN, QUARRY_SERVER_URL (by name)
-    C->>R: start
+    E->>X: quarry.preview (the file)
+    X->>R: --list (the pipeline as saved)
+    R-->>X: the transforms
+    Note over X: this file's only one → straight on;<br/>else a Quick Pick (this file's first)
+    X->>X: save all editors · resolve references' names (cached lookups)
+    X->>P: running { transform, labels }
+    X->>R: {transform} --rows 1000<br/>env: QUARRY_TOKEN, QUARRY_SERVER_URL (~/.quarry/session.json)
     R->>R: import src/{package}/pipeline.py — discover transforms
     loop each Input
         R->>L: GET /api/resources/by-path?path=… (or the RID as is)
@@ -32,13 +34,13 @@ sequenceDiagram
         R->>L: by-path → the RID, or none yet
     end
     R->>R: run the function (stdout and ctx.log captured)
-    R-->>C: one JSON object on stdout (exit 0, or 1 with { error })
-    C-->>W: stdout
-    W->>W: CodeWorkspace.Preview.Result.parse
-    W-->>S: the result
-    S-->>P: result
-    P->>P: PreviewPanel — a tab per output (TableViewer), logs, or the traceback
+    R-->>X: one JSON object on stdout (exit 0, or 1 with { error })
+    X->>X: CodeWorkspace.Preview.Result.parse
+    X->>P: result { transform, labels, result }
+    P->>P: inputs and outputs on the left; the chosen output's rows (TableViewer), logs, or the traceback on the right
 ```
+
+`features/preview-view.ts` runs it (`pipeline.ts` `runPreview`); `webviews/preview/main.tsx` is the panel; `domain/PreviewMessage.ts` is what they say to each other. **Stop** kills the process; a new Preview replaces a running one. **Build** (beside Preview) picks a transform the same way (`features/transform-picker.ts`) — builds themselves aren't wired up yet.
 
 ## The runner
 
@@ -52,9 +54,9 @@ sequenceDiagram
 6. **Check** every output was written.
 7. **Print** `{ transform, inputs: { name: { rid, sequence } }, outputs: { name: { columns, rows (≤ 1000), rowCount } }, logs }`. Column types are mapped from Arrow to Quarry's (`integer`, `long`, `double`, `boolean`, `date`, `timestamp`, `decimal(p,s)`, `binary`, `string`).
 
-A transform that **raises** (or a pipeline that doesn't import) prints `{ error: { message, traceback } }` and exits 1. That's an **answer**, not a failed request: the panel shows the message and traceback. A failed *request* is a toast: no open session (409), the worker down or too slow (503), the worker failing (424, with its reason).
+A transform that **raises** (or a pipeline that doesn't import) prints `{ error: { message, traceback } }` and exits 1. That's an **answer**, not a failed run: the panel shows the message and traceback. A run that fails itself (no output, the session not connected yet) shows as an error in the panel.
 
-`--list` prints the declared transforms instead — what the header's picker shows (`GET …/session/transforms`, re-read whenever the picker opens).
+`--list` prints the declared transforms instead — what Preview's and Build's pickers show, read each time one opens.
 
 ## The sample
 
@@ -74,6 +76,10 @@ Sessions can't read storage themselves — they hold no storage credentials, and
 
 | Step | Limit |
 |---|---|
-| Server waiting for the worker (`CodeWorkspaceWorkerClient`) | open 5 min · preview 5 min · transforms 1 min |
-| Worker waiting for `docker exec` | setup 5 min · preview 5 min · list 1 min |
+| The extension listing transforms (`--list`) | 1 min |
+| The extension waiting for a preview | 5 min, then the process is killed |
 | Runner's HTTP calls to Quarry | 120 s each |
+
+## Known issue
+
+Inside VS Code's webview, scrolling the Preview panel's table can leave rows blank (Blueprint's table, rendering only part of the viewport). Not reproducible outside the webview; not fixed yet.
