@@ -10,6 +10,7 @@ import { CodeWorkspaceSDK } from '@/SDKs/CodeWorkspaceSDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceLink } from '@/components/ResourceLink'
 import { dateTime } from '@/utils/format'
+import { codeWorkspacesApp } from '../definition'
 
 /** The home's tabs: Recent is the default; All workspaces lives in `?view=all`. */
 type HomeView = 'recent' | 'all'
@@ -70,7 +71,10 @@ function CodeWorkspacesHome() {
     return (
         <App.Home.Root>
             <App.Home.Header>
-                <App.Home.Logo />
+                <App.Home.Logo>
+                    {/* The brick on its own — no tinted tile behind it. */}
+                    <App.Glyph glyph={codeWorkspacesApp.glyph} size={88} bare />
+                </App.Home.Logo>
                 <App.Home.PreTitle />
                 <App.Home.Title />
                 <App.Home.TitleDescription />
@@ -136,7 +140,7 @@ function WorkspacesTable({ workspaces, templates }: WorkspacesTableProps) {
                 {workspaces.map(workspace => (
                     <Table.Row key={workspace.rid}>
                         <Table.Cell>
-                            <ResourceLink resource={workspace} />
+                            <ResourceLink resource={workspace} iconSize='sm' />
                         </Table.Cell>
                         <Table.Cell>{templates[workspace.templateId]?.displayName ?? workspace.templateId}</Table.Cell>
                         <Table.Cell>{dateTime(workspace.updatedAt)}</Table.Cell>

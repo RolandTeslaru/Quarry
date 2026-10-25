@@ -244,7 +244,7 @@ function RecentRow({ recent }: { recent: Audit.AccessEvent.Recent }) {
             {...resourceRoute(resource.type, resource.rid)}
             className='-mx-2 flex items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-muted/60'
         >
-            <ResourceIcon type={resource.type} size={20} />
+            <ResourceIcon type={resource.type} size='sm' />
             <span className='min-w-0 truncate font-medium text-foreground'>{resource.name}</span>
             {recent.parentName && <span className='min-w-0 truncate text-xs text-muted-foreground'>{recent.parentName}</span>}
             <span className='ml-auto shrink-0 text-xs text-muted-foreground'>{ago(recent.openedAt)}</span>

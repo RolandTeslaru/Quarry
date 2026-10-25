@@ -38,5 +38,5 @@ interface ItemMarkProps {
 }
 
 function ItemMark({ resource }: ItemMarkProps) {
-    return <ResourceIcon type={resource.type} size={64} />
+    return <ResourceIcon type={resource.type} size='lg' />
 }

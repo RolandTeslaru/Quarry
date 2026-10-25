@@ -222,7 +222,7 @@ function TemplateStep({ templates, pending, error, onRetry }: TemplateStepProps)
                                 field.value === template.id ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-accent/50',
                             )}
                         >
-                            <ResourceIcon type='workspace' size={20} />
+                            <ResourceIcon type='workspace' size='sm' />
                             <span className='flex min-w-0 flex-col'>
                                 <span className='text-sm font-medium text-foreground'>{template.displayName}</span>
                                 <span className='truncate text-xs text-muted-foreground'>{template.description}</span>

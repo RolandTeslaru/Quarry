@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, type ComponentType, type CSSProperties } from 'react'
 import svgpath from 'svgpath'
-import { FolderIllustration, useIconPaths, type IconName } from '@quarry/standard-ui/icons'
+import { CodeWorkspaceIllustration, FolderIllustration, useIconPaths, type IconName } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 
 /**
@@ -9,7 +9,8 @@ import { cn } from '@quarry/standard-ui/utils/cn'
  *   icon          a Blueprint icon drawn whole in `base` (holes included, as
  *                 Blueprint draws it), then any of its parts — the sub-paths of
  *                 its path, numbered in order — painted over in their own colour
- *   illustration  a shaded standard-ui illustration, all shades mixed from `color`
+ *   illustration  a shaded standard-ui illustration — the folder's shades all
+ *                 mixed from `color`; the code workspace brick has its own
  *
  * Classes are Tailwind palette utilities (`fill-sky-600`, `bg-sky-500/15`);
  * `color` is a palette variable (`var(--color-amber-400)`).
@@ -23,12 +24,16 @@ export type GlyphDefinition =
     }
     | {
         illustration: keyof typeof ILLUSTRATIONS
-        color:        string
+        /** The illustration's base colour, where it takes one (the folder). */
+        color?:       string
         tile:         string
+        /** How much of the tile it fills (default 0.6, as icons) — more for a mark drawn edge to edge. */
+        share?:       number
     }
 
-const ILLUSTRATIONS = {
-    folder: FolderIllustration,
+const ILLUSTRATIONS: Record<'folder' | 'codeWorkspace', ComponentType<{ color?: string; style?: CSSProperties }>> = {
+    folder:        FolderIllustration,
+    codeWorkspace: ({ style }) => <CodeWorkspaceIllustration style={style} />,
 }
 
 interface Props {
@@ -43,7 +48,8 @@ interface Props {
 const ICON_SHARE = 0.6
 
 export function Glyph({ glyph, size = 28, bare = false, className }: Props) {
-    const markSize = bare ? size : Math.round(size * ICON_SHARE)
+    const share = 'illustration' in glyph ? glyph.share ?? ICON_SHARE : ICON_SHARE
+    const markSize = bare ? size : Math.round(size * share)
 
     const mark = 'illustration' in glyph
         ? <GlyphIllustration glyph={glyph} size={markSize} />

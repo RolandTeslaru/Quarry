@@ -303,7 +303,7 @@ function SourceTypeStep({ definitions, pending, error, onRetry, onSelect }: Sour
                                 field.value === item.id ? 'border-primary bg-primary/10' : 'border-transparent hover:bg-accent/50',
                             )}
                         >
-                            <ResourceIcon type='source' size={20} />
+                            <ResourceIcon type='source' size='sm' />
                             <span className='flex min-w-0 flex-col'>
                                 <span className='text-sm font-medium text-foreground'>{item.displayName}</span>
                                 <span className='truncate text-xs text-muted-foreground'>{item.description}</span>

@@ -82,7 +82,7 @@ export function SourceApp({ rid, table }: Props) {
 
             <App.LeftSidebar className='w-96'>
                 <div className='flex items-start gap-2 px-4 py-3'>
-                    <ResourceIcon type='source' size={16} className='mt-px' />
+                    <ResourceIcon type='source' size='xs' className='mt-px' />
                     <h2 className='text-xs font-semibold break-all'>{source?.name ?? ''}</h2>
                 </div>
 
@@ -250,7 +250,7 @@ function ResourceName({ rid }: { rid: Library.Resource.Rid }) {
 
     return (
         <span className='flex min-w-0 items-center gap-1.5'>
-            <ResourceIcon type={resource.type} size={12} />
+            <ResourceIcon type={resource.type} size='xs' />
             <span className='truncate' title={resource.name}>{resource.name}</span>
         </span>
     )
