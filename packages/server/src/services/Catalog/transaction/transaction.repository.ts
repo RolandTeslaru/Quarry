@@ -1,8 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { sql } from 'kysely';
 import { Catalog } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { AllowTrashed, Repository, Transactional } from '@/db/repository';
+import { liveResources } from '@/db/liveness';
 import { json } from '@/db/table';
 import { CatalogDB } from '../catalog.db';
 
@@ -30,6 +31,56 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
             })
             .returningAll()
             .executeTakeFirstOrThrow();
+    }
+
+    /**
+     * Opens one transaction on each dataset, all or none. Datasets are inside
+     * the payload, so their liveness is checked here; one already being
+     * written is a conflict, named (transaction_one_open is the backstop).
+     */
+    @Transactional()
+    public async openBatch(principal: Principal, branch: string, values: {
+        rid:        Catalog.Transaction.Rid;
+        datasetRid: Catalog.Dataset.Rid;
+        type:       Catalog.Transaction.Type;
+        provenance: Record<string, unknown>;
+    }[]): Promise<CatalogDB.Transaction.Row[]> {
+        if (values.length === 0)
+            return [];
+
+        const datasetRids = values.map((value) => value.datasetRid);
+
+        if (new Set(datasetRids).size !== datasetRids.length)
+            throw new BadRequestException('A dataset is opened twice');
+
+        const live = await liveResources(this.trx, datasetRids);
+
+        if (datasetRids.some((rid) => !live.has(rid)))
+            throw new NotFoundException('Not found');
+
+        const busy = await this.trx
+            .selectFrom('catalog.transaction')
+            .select('dataset_rid')
+            .where('dataset_rid', 'in', datasetRids)
+            .where('branch', '=', branch)
+            .where('status', '=', 'open')
+            .executeTakeFirst();
+
+        if (busy)
+            throw new ConflictException(`${busy.dataset_rid} is already being written`);
+
+        return this.trx
+            .insertInto('catalog.transaction')
+            .values(values.map((value) => ({
+                rid:         value.rid,
+                dataset_rid: value.datasetRid,
+                branch,
+                type:        value.type,
+                provenance:  json(value.provenance),
+                started_by:  Principal.actorOf(principal),
+            })))
+            .returningAll()
+            .execute();
     }
 
     @Transactional()

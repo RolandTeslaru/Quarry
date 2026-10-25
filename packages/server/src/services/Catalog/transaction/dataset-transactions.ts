@@ -44,6 +44,35 @@ export class DatasetTransactions {
         return CatalogDB.Transaction.toDomain(row);
     }
 
+    /**
+     * One transaction on each dataset, in one database transaction: all open,
+     * or none (a dataset already being written is a 409). In the order given.
+     */
+    public async openBatch(
+        principal: Principal,
+        openings:  { datasetRid: Catalog.Dataset.Rid; type: Catalog.Transaction.Type; provenance?: Record<string, unknown> }[],
+        branch = 'main',
+    ): Promise<Catalog.Transaction.Schema[]> {
+        const values = openings.map((opening) => ({
+            rid:        Catalog.Transaction.createRid(),
+            datasetRid: opening.datasetRid,
+            type:       opening.type,
+            provenance: opening.provenance ?? {},
+        }));
+
+        const rows = await this.repository.openBatch(principal, branch, values);
+        const byRid = new Map(rows.map((row) => [row.rid, CatalogDB.Transaction.toDomain(row)]));
+
+        return values.map((value) => {
+            const transaction = byRid.get(value.rid);
+
+            if (!transaction)
+                throw new Error(`Transaction ${value.rid} wasn't opened`);
+
+            return transaction;
+        });
+    }
+
     /** Adds stored files to the transaction (or removes logical paths from the view). */
     async registerChanges(
         principal:      Principal,

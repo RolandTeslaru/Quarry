@@ -1,6 +1,6 @@
 # Forge — Builds
 
-_Draft, 2026-10-25. Nothing here is built yet. Split from [transforms.md](transforms.md) §5. What a build writes: [catalog.md](catalog.md); permissions: [gatekeeper.md](gatekeeper.md); queues: [jobs.md](jobs.md). Foundry background: its [Builds](https://www.palantir.com/docs/foundry/data-integration/builds/) docs._
+_Draft, 2026-10-25. **Built 2026-10-26 (server only)**: job specs, creating, listing and canceling builds — see [What runs today](#what-runs-today); no worker runs jobs yet. Split from [transforms.md](transforms.md) §5. What a build writes: [catalog.md](catalog.md); permissions: [gatekeeper.md](gatekeeper.md); queues: [jobs.md](jobs.md). Foundry background: its [Builds](https://www.palantir.com/docs/foundry/data-integration/builds/) docs._
 
 **Forge** is the service that computes new versions of datasets. It's a platform service, like Catalog — not part of Code Workspaces: producers (a workspace's checks, later Pipeline Builder) publish **job specs**, and anything can start a **build** of them (a Build button, Data Lineage, a schedule). The name is a noun only: what it does is **build** — "built 2 hours ago", never "forged".
 
@@ -40,12 +40,12 @@ forge.job_spec                  -- immutable: one row per publish, never updated
   rid PRIMARY KEY, producer_rid, branch, logic, resources, published_by, published_at
 
 forge.job_spec_input_dataset    -- what it reads
-  job_spec_rid → forge.job_spec, dataset_rid → catalog.dataset
+  job_spec_rid → forge.job_spec, dataset_rid → library.resource
   PRIMARY KEY (job_spec_rid, dataset_rid)
   INDEX (dataset_rid)                      -- what reads this dataset: lineage downstream
 
 forge.job_spec_output_dataset   -- what it writes
-  job_spec_rid → forge.job_spec, dataset_rid → catalog.dataset
+  job_spec_rid → forge.job_spec, dataset_rid → library.resource
   PRIMARY KEY (job_spec_rid, dataset_rid)
 
 forge.current_job_spec          -- the pointer: which spec computes this dataset on this branch
@@ -74,15 +74,37 @@ forge.job
   status, attempt, failure, started_at, finished_at
 
 forge.job_input_transaction     -- the input versions it read, pinned when it starts
-  job_rid → forge.job, transaction_rid → catalog.transaction
+  job_rid → forge.job, transaction_rid, dataset_rid → library.resource
   PRIMARY KEY (job_rid, transaction_rid)
   INDEX (transaction_rid)                  -- what read this version
 
 forge.job_output_transaction    -- the transactions it writes, opened when the build resolves
-  job_rid → forge.job, transaction_rid → catalog.transaction
+  job_rid → forge.job, transaction_rid, dataset_rid → library.resource
   PRIMARY KEY (job_rid, transaction_rid)
   UNIQUE (transaction_rid)                 -- one writer per transaction
+  UNIQUE (job_rid, dataset_rid)
 ```
+
+Datasets and producers are other services' resources, so their columns reference `library.resource` (database.md rule 3); transactions are Catalog's and have no FK. The job tables also keep each transaction's **dataset**: Forge can't join `catalog` (rule 2), and cancelling has to abort each transaction through its dataset. Migration: `server/migrations/forge/001_initial.sql`.
+
+**Row-level security.** A job spec is its producer's: seen with discover on the producer, published with write on it — plus read on each input and write on each output; moving the pointer is write on the dataset. A build is seen by whoever can discover one of its targets, and created or changed (canceled) by whoever can write all of them; its jobs and their transactions follow the build.
+
+## What runs today
+
+Server only (`server/src/services/Forge/`); nothing runs a job yet, so a created build **waits** — its jobs stay `waiting`, holding their outputs' open transactions (no other writer gets in) until the build is canceled.
+
+| Endpoint | What |
+|---|---|
+| `POST /api/builds` | A **manual** build on **main**: each target's current spec (the branch, then its fallbacks) becomes one job — a spec writing several targets is one job; write on every output and read on every input are asserted; an input not built here must have data. Opens a snapshot transaction on every output, all in one database transaction (`catalog.transaction.openBatch`; provenance `{ buildRid, jobRid }`); a dataset already being written is a 409 and nothing is opened. `upstream` / `connecting` targets and other branches are refused (400) |
+| `GET /api/builds?datasetRid=&limit=` | Builds the caller can see, newest first; with a dataset, those targeting it |
+| `GET /api/builds/:rid` | The build and its jobs, by RID |
+| `POST /api/builds/:rid/cancel` | Aborts the unfinished jobs' transactions, then marks them and the build canceled |
+| `GET /api/jobs/:rid` | One job |
+| `GET /api/job-specs/current?datasetRid=&branch=` | What computes the dataset there, or null |
+
+Publishing has no endpoint: producers call `forge.jobSpecs.publish(principal, producerRid, branch, specs)` in-process — nothing does yet (checks will). Shared contract: `Forge.API`.
+
+Not yet: the worker (start, heartbeat, finish; running containers; the runner's parameter check), job ordering inside a build, staleness and `forceBuild`, retries, `abortOnFailure`, dataset branches other than main.
 
 ## Builds
 

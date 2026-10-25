@@ -24,6 +24,8 @@ import { CodeWorkspaceModule } from '@/services/CodeWorkspace/code-workspace.mod
 import { CodeWorkspaceController } from '@/services/CodeWorkspace/code-workspace.controller';
 import { GitController } from '@/services/CodeWorkspace/git/git.controller';
 import { CodeWorkspaceInternalController } from '@/services/CodeWorkspace/code-workspace.internal.controller';
+import { ForgeModule } from '@/services/Forge/forge.module';
+import { ForgeController } from '@/services/Forge/forge.controller';
 import { RealtimeModule } from '@/services/Realtime/realtime.module';
 import { AuditModule } from '@/services/Audit/audit.module';
 import { AuditController } from '@/services/Audit/audit.controller';
@@ -45,6 +47,7 @@ import { AuditController } from '@/services/Audit/audit.controller';
         CatalogModule,
         DataConnectionModule,
         CodeWorkspaceModule,
+        ForgeModule,
     ],
     controllers: [
         HealthController,
@@ -57,6 +60,7 @@ import { AuditController } from '@/services/Audit/audit.controller';
         DataConnectionController,
         CodeWorkspaceController,
         GitController,
+        ForgeController,
         AuditController,
         // /api/internal/… — service token only, for the workers
         CatalogInternalController,

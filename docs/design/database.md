@@ -17,6 +17,8 @@ workspace database (`quarry`)
 ├── keychain          credentials, encrypted at rest
 ├── catalog           datasets, branches, transactions, files
 ├── data_connection   sources, syncs, sync runs
+├── code_workspace    code workspaces
+├── forge             job specs, builds, jobs — see forge.md
 └── audit             access events, append-only — see audit.md
     (later: code_repository, ontology, …)
 
