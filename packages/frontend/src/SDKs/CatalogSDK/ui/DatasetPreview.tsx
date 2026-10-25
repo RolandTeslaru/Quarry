@@ -3,7 +3,7 @@ import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import type { Catalog } from '@quarry/shared/domain'
 import { CatalogSDK } from '../sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { TableViewer } from '@/components/TableViewer'
+import { TableViewer } from '@quarry/standard-ui/components/TableViewer'
 
 interface Props {
     rid: Catalog.Dataset.Rid

@@ -1,0 +1,17 @@
+/* Every webview's stylesheet: standard-ui (Tailwind and Quarry's tokens), built by the Tailwind CLI. */
+@import '@quarry/standard-ui/index.css';
+
+@source './';
+
+/* Inside VS Code: its font, Quarry's content surface (standard-ui's colours are made for it),
+   and none of the side padding VS Code gives every webview's body by default. */
+html, body, #root {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--vscode-font-family);
+    background: var(--surface);
+}

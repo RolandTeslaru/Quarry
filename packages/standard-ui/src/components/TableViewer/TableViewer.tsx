@@ -1,12 +1,17 @@
 import { HotkeysProvider } from '@blueprintjs/core'
-import { Cell, Column, ColumnHeaderCell, Table2 } from '@blueprintjs/table'
+import { Cell, Column, ColumnHeaderCell, RenderMode, Table2 } from '@blueprintjs/table'
 import tableStyles from '@blueprintjs/table/lib/css/table.css?inline'
-import type { Catalog } from '@quarry/shared/domain'
 
 const NUMERIC_TYPES = ['integer', 'long', 'double']
 
+/** A column as datasets type them — `string`, `long`, `decimal(10,2)`… */
+export interface TableViewerColumn {
+    readonly name: string
+    readonly type: string
+}
+
 interface Props {
-    columns: readonly Pick<Catalog.ColumnSchema.Column, 'name' | 'type'>[]
+    columns: readonly TableViewerColumn[]
     /** One value per column, in column order. */
     rows:    readonly (readonly unknown[])[]
 }
@@ -25,6 +30,9 @@ export function TableViewer({ columns, rows }: Props) {
                 defaultRowHeight={24}
                 defaultColumnWidth={180}
                 enableFocusedCell
+                // Draw the visible cells at once. Batched rendering spreads them over idle callbacks,
+                // which a webview (VS Code's panels) can starve — scrolled-to rows stayed blank.
+                renderMode={RenderMode.NONE}
                 cellRendererDependencies={[rows]}
                 className='h-full'
             >
@@ -49,7 +57,7 @@ export function TableViewer({ columns, rows }: Props) {
  * ColumnHeaderCell element itself, not a wrapper component: the table clones it
  * with the props that size and place it (style, index), and a wrapper would drop them.
  */
-function renderTypedHeader(column: Props['columns'][number]) {
+function renderTypedHeader(column: TableViewerColumn) {
     return (
         <ColumnHeaderCell
             nameRenderer={() => (

@@ -3,7 +3,7 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import type { CodeWorkspace } from '@quarry/shared/domain'
-import { TableViewer } from '@/components/TableViewer'
+import { TableViewer } from '@quarry/standard-ui/components/TableViewer'
 import { number } from '@/utils/format'
 
 /** A preview the page asked for: running while `result` is null. */

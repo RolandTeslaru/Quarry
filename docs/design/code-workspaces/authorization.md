@@ -81,9 +81,9 @@ A session token is `SessionTokens.mint`: signed with the same key as GoTrue's (`
 
 | Known gap | Consequence | Planned fix (iteration 2) |
 |---|---|---|
-| **Not scoped** | anything running in the container (the user's code, a teammate's previewed transform) can act as the user anywhere in Quarry for up to 12h | a separate audience, accepted only on this workspace's git routes and the two preview reads |
+| **Not scoped — accepted** (2026-10-25) | anything running in the container (the extension, the user's code, a teammate's previewed transform) can do anything the user can in Quarry, for up to 12h — never more: every call is Gatekeeper and RLS as them | none planned. The session acts as the user, like their browser does; the extension may call any Quarry API. Revisit if previews run code the user didn't write or review |
 | **`quarry_via` ignored** | requests with it audit as the plain user, not "via session" | the verifier turns `quarry_via` into a delegate principal |
-| **Readable in the container** | `~/.gitconfig` and `~/.quarry/session.json` (mode 600, but the user's own code runs as that user) | follows from scoping |
+| **Readable in the container** | `~/.gitconfig` and `~/.quarry/session.json` (mode 600, but the user's own code runs as that user) | accepted with the above |
 | **IDE proxy secret** | anyone with the URL reaches that IDE until the container is recreated | rotate on reopen; or put the IDE proxy behind Quarry's session cookie |
 | **Git not audited** | clones and pushes leave no access event | `@Audit` on `authorizeGit` |
 | **No container sandbox** | plain Docker isolation; user code shares the host kernel | gVisor (`runsc`) as the runtime — no image change |

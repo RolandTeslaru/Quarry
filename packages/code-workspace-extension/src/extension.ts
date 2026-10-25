@@ -1,8 +1,11 @@
 import * as vscode from 'vscode'
+import { pickTransformToBuild } from './features/build'
 import { registerCommands } from './features/commands'
+import { ComponentsView } from './features/components-view'
 import { ReferenceDiagnostics } from './features/diagnostics'
 import { ReferenceHover } from './features/hover'
 import { ReferenceLenses } from './features/lenses'
+import { PreviewView } from './features/preview-view'
 import { adoptQuarryTheme } from './features/theme'
 import { Quarry } from './quarry'
 
@@ -15,6 +18,7 @@ const PYTHON: vscode.DocumentSelector = { language: 'python' }
  */
 export function activate(context: vscode.ExtensionContext): void {
     const quarry = new Quarry()
+    const previewView = new PreviewView(context.extensionUri, quarry)
 
     context.subscriptions.push(
         quarry,
@@ -22,6 +26,10 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.languages.registerHoverProvider(PYTHON, new ReferenceHover(quarry)),
         new ReferenceDiagnostics(quarry),
         ...registerCommands(quarry),
+        vscode.window.registerWebviewViewProvider(PreviewView.ID, previewView, { webviewOptions: { retainContextWhenHidden: true } }),
+        vscode.commands.registerCommand('quarry.preview', (uri?: vscode.Uri) => previewView.preview(uri)),
+        vscode.commands.registerCommand('quarry.build', (uri?: vscode.Uri) => pickTransformToBuild(uri)),
+        vscode.window.registerWebviewViewProvider(ComponentsView.ID, new ComponentsView(context.extensionUri)),
     )
 
     void adoptQuarryTheme()

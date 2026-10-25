@@ -1,0 +1,30 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "lib": [
+            "ES2022",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        "jsx": "react-jsx",
+        "experimentalDecorators": true,
+        "types": [],
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "skipLibCheck": true,
+        "noEmit": true,
+        "paths": {
+            "@quarry/shared/*": [
+                "../../shared/*"
+            ]
+        }
+    },
+    "include": [
+        "./**/*",
+        "../src/domain/PreviewMessage.ts",
+        "../../standard-ui/src/components/TableViewer/inline-css.d.ts"
+    ]
+}

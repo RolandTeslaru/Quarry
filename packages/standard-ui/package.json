@@ -20,12 +20,15 @@
         "./SDKs/SDKManager": "./src/SDKs/SDKManager.ts",
         "./SDKs/core": "./src/SDKs/core/index.ts",
         "./components/Dither": "./src/components/Dither/index.ts",
+        "./components/TableViewer": "./src/components/TableViewer/index.ts",
         "./SDKs/DialogSDK": "./src/SDKs/DialogSDK/index.ts",
         "./SDKs/NotificationSDK": "./src/SDKs/NotificationSDK/index.ts",
         "./utils/cn": "./src/utils/cn.ts"
     },
     "dependencies": {
+        "@blueprintjs/core": "^6.21.0",
         "@blueprintjs/icons": "6.14.1",
+        "@blueprintjs/table": "^6.3.0",
         "@dnd-kit/core": "^6.3.1",
         "@fontsource-variable/geist": "^5.3.0",
         "@radix-ui/react-accordion": "^1.2.12",

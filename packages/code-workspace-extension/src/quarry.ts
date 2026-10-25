@@ -52,6 +52,11 @@ export class Quarry implements vscode.Disposable {
         this.changed.dispose()
     }
 
+    /** The session's token and where Quarry is — null until the setup has written them. */
+    public getSession(): SessionFile.Schema | null {
+        return this.session
+    }
+
     /** Whether the session has handed over its token yet. */
     public isConnected(): boolean {
         return this.api !== null
