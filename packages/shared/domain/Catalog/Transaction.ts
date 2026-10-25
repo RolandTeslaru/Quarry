@@ -27,7 +27,7 @@ export namespace Transaction {
         status:     Status,
         sequence:   z.number().int().nullable(),
         schema:     ColumnSchema.Schema.nullable(),
-        provenance: z.record(z.string(), z.unknown()),
+    provenance: z.record(z.string(), z.unknown()),
         startedBy:  User.Rid.nullable(),
         startedAt:  z.coerce.date(),
         finishedAt: z.coerce.date().nullable(),

@@ -37,15 +37,15 @@ export namespace JobSpec {
     export type Resources = z.infer<typeof Resources>
 
     export const Schema = z.object({
-        rid:         Rid,
-        producerRid: Resource.Rid,
-        branch:      Foundations.Branch,
-        logic:       Logic,
-        inputs:      z.record(z.string(), Dataset.Rid),     // by the producer's name for each
-        outputs:     z.record(z.string(), Dataset.Rid),
-        resources:   Resources,
-        publishedBy: User.Rid.nullable(),                   // null = the system
-        publishedAt: z.coerce.date(),
+        rid:               Rid,
+        producerRid:       Resource.Rid,
+        branch:            Foundations.Branch,
+        logic:             Logic,
+        inputDatasetRids:  Dataset.Rid.array(),          // a set; the runner matches them to the code's parameters
+        outputDatasetRids: Dataset.Rid.array().min(1),
+        resources:         Resources,
+        publishedBy:       User.Rid.nullable(),          // null = the system
+        publishedAt:       z.coerce.date(),
     })
     export type Schema = z.infer<typeof Schema>
 }

@@ -253,8 +253,8 @@ Every commit runs **checks** (continuous integration) before its code can build 
     "commit": "a1b2c3d4…",
     "transform": "sales_cleaning.datasets.orders.clean_orders"
   },
-  "inputs":  { "orders": "ri.catalog.main.dataset.6f2e…", "customers": "ri.catalog.main.dataset.91ab…" },
-  "outputs": { "out": "ri.catalog.main.dataset.c40d…" },
+  "inputDatasetRids":  ["ri.catalog.main.dataset.6f2e…", "ri.catalog.main.dataset.91ab…"],
+  "outputDatasetRids": ["ri.catalog.main.dataset.c40d…"],
   "resources": { "cpuCores": 4, "memoryGb": 16 },
   "publishedBy": "ri.identity.main.user.…",
   "publishedAt": "2026-10-25T18:00:00Z"

@@ -19,7 +19,10 @@ flowchart LR
 | **Build** | `ri.forge.main.build.…` | One request to bring datasets up to date, on a branch: a set of jobs in dependency order |
 | **Job** | `ri.forge.main.job.…` | One run of one spec: pinned input versions in, one transaction per output |
 
-None of them is a library resource. Shared types: `Forge` in `@quarry/shared/domain` (`Forge.JobSpec`); branches are `Foundations.Branch`.
+None of them is a library resource. Shared types: `Forge` in `@quarry/shared/domain` — `Forge.JobSpec`, `Forge.Build`, `Forge.Job`; branches are `Foundations.Branch`.
+
+- **A build** has a branch and its fallback branches, a **target** — `manual` (exactly these datasets; what a Build button does), `upstream` (these and every out-of-date ancestor) or `connecting` (only what lies between some inputs and the targets) — `forceBuild`, `abortOnFailure`, `retryCount`, and a status: `running` → `succeeded` / `failed` / `canceled`. Its jobs point at it; it doesn't list them.
+- **A job** runs one spec in one build: `waiting` for its upstream jobs → `running` → `succeeded` / `failed` / `canceled`. Its outputs' transactions are opened when the build resolves; its inputs are pinned (to transactions) when it starts. `attempt` counts retries.
 
 ## Job specs
 
@@ -33,18 +36,53 @@ A **job spec** (`Forge.JobSpec`, `ri.forge.main.job-spec.…`) is how to compute
 Building — clicking Build, a schedule — never publishes one; it runs the current spec.
 
 ```sql
-forge.job_spec           -- immutable: one row per publish, never updated
-  rid PRIMARY KEY, producer_rid, branch, logic, inputs, outputs, resources, published_by, published_at
+forge.job_spec                  -- immutable: one row per publish, never updated
+  rid PRIMARY KEY, producer_rid, branch, logic, resources, published_by, published_at
 
-forge.job_spec_output    -- the pointer: which spec computes this dataset on this branch
+forge.job_spec_input_dataset    -- what it reads
+  job_spec_rid → forge.job_spec, dataset_rid → catalog.dataset
+  PRIMARY KEY (job_spec_rid, dataset_rid)
+  INDEX (dataset_rid)                      -- what reads this dataset: lineage downstream
+
+forge.job_spec_output_dataset   -- what it writes
+  job_spec_rid → forge.job_spec, dataset_rid → catalog.dataset
+  PRIMARY KEY (job_spec_rid, dataset_rid)
+
+forge.current_job_spec          -- the pointer: which spec computes this dataset on this branch
   dataset_rid, branch, job_spec_rid → forge.job_spec
   PRIMARY KEY (dataset_rid, branch)
 ```
+
+Inputs and outputs are **sets of datasets**, as rows, not `jsonb`: the questions that matter start from a dataset or a version ("what reads this?", "what wrote this?"), and rows get foreign keys and plain indexes. No parameter names — Forge doesn't need them; only the runner does, and the code has them (below). As in Foundry, whose JobSpecs declare their inputs as "a set of InputSpecs".
+
+**Which input is which** comes from the code: the runner imports the pipeline at the spec's commit, finds the transform, and resolves each `Input` / `Output` ref — `orders=Input("/Sales/raw/orders")` → a RID. It then checks those RIDs are exactly the spec's sets. A path renamed or moved since checks resolves differently and **fails the job** ("`orders`: /Sales/raw/orders now resolves to a different dataset than when checks ran — push again") rather than reading the wrong data. Refs written as RIDs never drift.
 
 - **One producer per dataset per branch** is the pointer's primary key; a second producer claiming an output fails.
 - **Publishing** replaces the producer's pointers on that branch in one transaction: outputs it still has move to the new spec, outputs it dropped lose their pointer (the dataset stays; nothing produces it there), new outputs get one.
 - **Jobs reference the spec they ran**, so provenance stays exact after the pointer moves.
 - **Staleness**: an output is fresh when its latest version was built by its current spec from the inputs' current versions. Every commit publishes new specs, so every commit makes the workspace's outputs out of date.
+
+## Builds and jobs: tables
+
+```sql
+forge.build
+  rid PRIMARY KEY, branch, fallback_branches, target, force_build, abort_on_failure, retry_count,
+  status, created_by, created_at, finished_at
+
+forge.job
+  rid PRIMARY KEY, build_rid → forge.build, job_spec_rid → forge.job_spec,
+  status, attempt, failure, started_at, finished_at
+
+forge.job_input_transaction     -- the input versions it read, pinned when it starts
+  job_rid → forge.job, transaction_rid → catalog.transaction
+  PRIMARY KEY (job_rid, transaction_rid)
+  INDEX (transaction_rid)                  -- what read this version
+
+forge.job_output_transaction    -- the transactions it writes, opened when the build resolves
+  job_rid → forge.job, transaction_rid → catalog.transaction
+  PRIMARY KEY (job_rid, transaction_rid)
+  UNIQUE (transaction_rid)                 -- one writer per transaction
+```
 
 ## Builds
 
@@ -87,7 +125,7 @@ That's **version-aware lineage**: any version of a derived dataset names the exa
 | `catalog.transaction.produced_by` | The **resource** that wrote it — the Code Workspace for a transform's output, the Source for a sync's (a sync isn't a resource) |
 | `catalog.transaction_input (transaction_rid, input_transaction_rid)` | One row per input version read |
 
-The exact **run** isn't on the transaction: runs already point at what they wrote, in the producer's own tables — `data_connection.sync_run.transaction_rid`, and `forge.job_output (job_rid, transaction_rid)` for jobs (through which the commit). Catalog never reads its writers' tables; `produced_by` is a plain resource RID, resolved through the Library like any resource link.
+The exact **run** isn't on the transaction: runs already point at what they wrote, in the producer's own tables — `data_connection.sync_run.transaction_rid`, and `forge.job_output_transaction (job_rid, transaction_rid)` for jobs (through which the commit). Catalog never reads its writers' tables; `produced_by` is a plain resource RID, resolved through the Library like any resource link.
 
 A transaction points at the **job**, not the job spec: the spec is what should run, the job is what ran (that attempt, its pinned inputs, its logs). One spec has many jobs — rebuilds, retries, force builds; the spec is one hop away (job → spec).
 
