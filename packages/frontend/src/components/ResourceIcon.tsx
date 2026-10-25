@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Library } from '@quarry/shared/domain'
-import { CodeWorkspaceFrontIllustration, CodeWorkspaceIllustration, FolderIllustration, Icon } from '@quarry/standard-ui/icons'
+import { CodeWorkspaceFrontIllustration, CodeWorkspaceIllustration, FolderFlatIllustration, FolderFrontIllustration, FolderIllustration, Icon } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import { App } from '@/AppKit'
 import { codeWorkspaceFlatGlyph } from '@/apps/code-workspaces/definition'
@@ -27,6 +27,13 @@ const MARKS: Partial<Record<Library.Resource.Type, Partial<Record<ResourceIconSi
     },
 }
 
+/** Projects and folders: flat inline, simpler small, shaded large (Typology's icons). */
+const FOLDER_MARKS: Record<ResourceIconSize, Mark> = {
+    xs: (pixels, className) => <FolderFlatIllustration className={className} style={{ width: pixels, height: pixels }} />,
+    sm: (pixels, className) => <FolderFrontIllustration className={className} style={{ width: pixels, height: pixels }} />,
+    lg: (pixels, className) => <FolderIllustration className={className} style={{ width: pixels, height: pixels }} />,
+}
+
 interface Props {
     type:       Library.Resource.Type
     size?:      ResourceIconSize
@@ -35,7 +42,7 @@ interface Props {
 
 /**
  * A resource's mark, the same everywhere it's shown (rows, links, recents, the
- * tree, pickers, cards): a project or folder is the folder illustration; a type
+ * tree, pickers, cards): a project or folder is the folder, by size; a type
  * with its own mark at this size shows it (Code Workspaces: `</>`, then the
  * brick from the front, then isometric); anything else is the glyph of the app
  * that opens it — same icon, same colours as the app.
@@ -44,7 +51,7 @@ export function ResourceIcon({ type, size = 'xs', className }: Props) {
     const pixels = PIXELS[size]
 
     if (Library.Resource.CONTAINERS.includes(type))
-        return <FolderIllustration color='var(--color-amber-400)' className={cn('shrink-0', className)} style={{ width: pixels, height: pixels }} />
+        return FOLDER_MARKS[size](pixels, cn('shrink-0', className))
 
     const mark = MARKS[type]?.[size]
 

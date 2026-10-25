@@ -80,7 +80,7 @@ export function WorkspaceSidebar() {
                     <SidebarLink
                         key={app.id}
                         to={app.to}
-                        icon={<App.Glyph glyph={app.glyph} size={32} />}
+                        icon={<App.Glyph glyph={app.glyph} size={24} bare />}
                         label={app.label}
                         expanded={expanded}
                     />

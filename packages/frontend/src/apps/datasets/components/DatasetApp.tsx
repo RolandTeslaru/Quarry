@@ -75,7 +75,7 @@ export function DatasetApp({ rid }: Props) {
                 <ViewTabs />
 
                 <div className='flex items-start gap-2 px-4 py-3'>
-                    <App.Glyph glyph={datasetsApp.glyph} size={20} className='mt-px' />
+                    <App.Glyph glyph={datasetsApp.glyph} size={16} bare className='mt-0.5' />
                     <h2 className='text-sm font-semibold break-all'>{dataset?.name ?? ''}</h2>
                 </div>
 

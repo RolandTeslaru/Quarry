@@ -1,6 +1,6 @@
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { DropdownMenu } from '@quarry/standard-ui/foundations/dropdownMenu'
-import { FolderIllustration } from '@quarry/standard-ui/icons'
+import { FolderFlatIllustration } from '@quarry/standard-ui/icons'
 import type { Library } from '@quarry/shared/domain'
 import { LibrarySDK } from '../../../sdk'
 import { App } from '@/AppKit'
@@ -38,7 +38,7 @@ export function CreateBtn() {
             </DropdownMenu.Trigger>
             <DropdownMenu.Content align='end'>
                 <DropdownMenu.Item onSelect={() => LibrarySDK.dialogs.openCreateFolder({ parentRid: cwd })}>
-                    <FolderIllustration color='var(--color-amber-400)' className='size-4' />
+                    <FolderFlatIllustration className='size-4' />
                     Folder
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator />

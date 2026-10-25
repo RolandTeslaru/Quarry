@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Library } from '@quarry/shared/domain'
 import { Skeleton } from '@quarry/standard-ui/foundations/skeleton'
-import { FolderIllustration } from '@quarry/standard-ui/icons'
+import { FolderFlatIllustration } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import { LibrarySDK } from '../../../sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -146,7 +146,7 @@ function FolderItem({ resource, isLast, openPath }: TreeItemProps) {
             toggleLabel={expanded ? `Collapse ${resource.name}` : `Expand ${resource.name}`}
             label={(
                 <>
-                    <FolderIllustration color='var(--color-amber-400)' className='mr-1.5 size-4' />
+                    <FolderFlatIllustration className='mr-1.5 size-4' />
                     <span className='min-w-0 flex-1 truncate'>{resource.name}</span>
                 </>
             )}

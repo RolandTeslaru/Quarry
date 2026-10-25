@@ -1,6 +1,6 @@
 import { useMemo, type ComponentType, type CSSProperties } from 'react'
 import svgpath from 'svgpath'
-import { CodeWorkspaceIllustration, FolderIllustration, useIconPaths, type IconName } from '@quarry/standard-ui/icons'
+import { CodeWorkspaceIllustration, DataConnectionIllustration, FolderIllustration, useIconPaths, type IconName } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 
 /**
@@ -9,11 +9,10 @@ import { cn } from '@quarry/standard-ui/utils/cn'
  *   icon          a Blueprint icon drawn whole in `base` (holes included, as
  *                 Blueprint draws it), then any of its parts — the sub-paths of
  *                 its path, numbered in order — painted over in their own colour
- *   illustration  a shaded standard-ui illustration — the folder's shades all
- *                 mixed from `color`; the code workspace brick has its own
+ *   illustration  a shaded standard-ui illustration in its own colours — the
+ *                 folder, the code workspace brick, the data connection stack
  *
- * Classes are Tailwind palette utilities (`fill-sky-600`, `bg-sky-500/15`);
- * `color` is a palette variable (`var(--color-amber-400)`).
+ * Classes are Tailwind palette utilities (`fill-sky-600`, `bg-sky-500/15`).
  */
 export type GlyphDefinition =
     | {
@@ -24,16 +23,15 @@ export type GlyphDefinition =
     }
     | {
         illustration: keyof typeof ILLUSTRATIONS
-        /** The illustration's base colour, where it takes one (the folder). */
-        color?:       string
         tile:         string
         /** How much of the tile it fills (default 0.6, as icons) — more for a mark drawn edge to edge. */
         share?:       number
     }
 
-const ILLUSTRATIONS: Record<'folder' | 'codeWorkspace', ComponentType<{ color?: string; style?: CSSProperties }>> = {
-    folder:        FolderIllustration,
-    codeWorkspace: ({ style }) => <CodeWorkspaceIllustration style={style} />,
+const ILLUSTRATIONS: Record<'folder' | 'codeWorkspace' | 'dataConnection', ComponentType<{ style?: CSSProperties }>> = {
+    folder:         FolderIllustration,
+    codeWorkspace:  CodeWorkspaceIllustration,
+    dataConnection: DataConnectionIllustration,
 }
 
 interface Props {
@@ -80,7 +78,7 @@ interface GlyphIllustrationProps {
 function GlyphIllustration({ glyph, size }: GlyphIllustrationProps) {
     const Illustration = ILLUSTRATIONS[glyph.illustration]
 
-    return <Illustration color={glyph.color} style={{ width: size, height: size }} />
+    return <Illustration style={{ width: size, height: size }} />
 }
 
 interface GlyphIconProps {

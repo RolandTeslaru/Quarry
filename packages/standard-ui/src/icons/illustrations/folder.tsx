@@ -2,74 +2,92 @@ import { useId, type CSSProperties } from 'react'
 import { cn } from '../../utils/cn'
 
 export interface FolderIllustrationProps {
-    /** Base color — every shade is derived from this. Defaults to charcoal. */
-    color?: string
     className?: string
-    style?: CSSProperties
+    style?:     CSSProperties
 }
 
-// From PretzelGraph (standard-ui/src/icons/illustrations/folder.tsx).
-// Top/mid shading is constant; the deep bottom shades flip per theme so light
-// mode doesn't go muddy at the bottom (--folder-deep/-deepest/-line).
-export function FolderIllustration({ color = '#454c54', className, style }: FolderIllustrationProps) {
+// Typology's Library Explorer marks (typology-icons/library-explorer): an amber
+// folder with a sheet of paper inside. Gradient and filter ids are per instance
+// (useId), so several on a page don't share — or lose — each other's.
+
+/**
+ * The folder, shaded — large places (cards) and app marks (launchpad, header,
+ * home). Its view box is cropped to the folder (the drawing's 256 square has
+ * wide margins), so it fills its box.
+ */
+export function FolderIllustration({ className, style }: FolderIllustrationProps) {
     const id = useId()
+    const url = (name: string) => `url(#${name}${id})`
 
     return (
-        <svg
-            viewBox='0 0 600 600'
-            fill='none'
-            xmlns='http://www.w3.org/2000/svg'
-            className={cn(
-                'shrink-0 [--folder-deep:90%] [--folder-deepest:84%] [--folder-line:80%]',
-                'dark:[--folder-deep:75%] dark:[--folder-deepest:66%] dark:[--folder-line:60%]',
-                className,
-            )}
-            style={{ ['--folder-color' as string]: color, ...style }}
-        >
+        <svg viewBox='12 28 232 232' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden className={cn('shrink-0', className)} style={style}>
             <defs>
-                <linearGradient id={`folderBack${id}`} x1='300' y1='104' x2='300' y2='200' gradientUnits='userSpaceOnUse'>
-                    <stop offset='0' stopColor='color-mix(in srgb, var(--folder-color) 86%, black)' />
-                    <stop offset='1' stopColor='color-mix(in srgb, var(--folder-color) var(--folder-deep), black)' />
+                <linearGradient id={`back${id}`} x1='0' y1='0' x2='0' y2='1'>
+                    <stop offset='0' stopColor='#D39728' />
+                    <stop offset='1' stopColor='#C48D25' />
                 </linearGradient>
-                <linearGradient id={`folderBody${id}`} x1='300' y1='172' x2='300' y2='530' gradientUnits='userSpaceOnUse'>
-                    <stop offset='0' stopColor='color-mix(in srgb, var(--folder-color) 86%, black)' />
-                    <stop offset='0.16' stopColor='var(--folder-color)' />
-                    <stop offset='0.55' stopColor='color-mix(in srgb, var(--folder-color) 88%, black)' />
-                    <stop offset='1' stopColor='color-mix(in srgb, var(--folder-color) var(--folder-deep), black)' />
+                <linearGradient id={`front${id}`} x1='0' y1='0' x2='0' y2='1'>
+                    <stop offset='0' stopColor='#F6B947' />
+                    <stop offset='1' stopColor='#D89B28' />
                 </linearGradient>
-                <linearGradient id={`folderLip${id}`} x1='300' y1='470' x2='300' y2='535' gradientUnits='userSpaceOnUse'>
-                    <stop offset='0' stopColor='color-mix(in srgb, var(--folder-color) var(--folder-deep), black)' />
-                    <stop offset='1' stopColor='color-mix(in srgb, var(--folder-color) var(--folder-deepest), black)' />
+                <linearGradient id={`paper${id}`} x1='0' y1='0' x2='0' y2='1'>
+                    <stop offset='0' stopColor='#FFFFFF' />
+                    <stop offset='1' stopColor='#F1F2F4' />
                 </linearGradient>
-                <filter id={`folderShadow${id}`} x='-20%' y='-20%' width='140%' height='140%'>
-                    <feDropShadow dx='0' dy='6' stdDeviation='8' floodColor='#000000' floodOpacity='0.28' />
+                <filter id={`shadow${id}`} x='-20%' y='-20%' width='140%' height='150%'>
+                    <feDropShadow dx='0' dy='6' stdDeviation='7' floodColor='#000000' floodOpacity='0.22' />
                 </filter>
-                <linearGradient id={`folderHighlight${id}`} x1='300' y1='172' x2='300' y2='222' gradientUnits='userSpaceOnUse'>
-                    <stop offset='0' stopColor='#ffffff' stopOpacity='0.09' />
-                    <stop offset='1' stopColor='#ffffff' stopOpacity='0' />
-                </linearGradient>
+                <filter id={`blur${id}`} x='-10%' y='-100%' width='120%' height='300%'>
+                    <feGaussianBlur stdDeviation='2' />
+                </filter>
             </defs>
-
-            <g filter={`url(#folderShadow${id})`}>
-                <path
-                    d='M58 172 L58 122 Q58 104 76 104 L190 104 Q206 104 215 119 L239 142 Q251 153 272 153 L520 153 Q542 153 542 175 L542 240 L58 240 Z'
-                    fill={`url(#folderBack${id})`}
-                />
-                <path
-                    d='M40 480 L560 480 L560 505 Q560 535 530 535 L70 535 Q40 535 40 505 Z'
-                    fill={`url(#folderLip${id})`}
-                />
-                <line x1='55' y1='498' x2='545' y2='498' stroke='color-mix(in srgb, var(--folder-color) var(--folder-line), black)' strokeWidth='2' opacity='0.6' />
-                <line x1='55' y1='510' x2='545' y2='510' stroke='color-mix(in srgb, var(--folder-color) var(--folder-line), black)' strokeWidth='2' opacity='0.5' />
-                <path
-                    d='M40 194 Q40 172 62 172 L538 172 Q560 172 560 194 L560 500 Q560 510 552 510 L48 510 Q40 510 40 500 Z'
-                    fill={`url(#folderBody${id})`}
-                />
-                <path
-                    d='M40 194 Q40 172 62 172 L538 172 Q560 172 560 194 L560 215 L40 215 Z'
-                    fill={`url(#folderHighlight${id})`}
-                />
+            <g filter={url('shadow')}>
+                <path d='M22 72 Q22 56 38 56 H88 Q98 56 104 63 L111 71 Q117 78 127 78 H218 Q234 78 234 94 V130 H22 Z' fill={url('back')} />
+                <rect x='30' y='86' width='196' height='40' rx='6' fill={url('paper')} />
+                <rect x='22' y='99' width='212' height='6' fill='#000000' opacity='0.12' filter={url('blur')} />
+                <rect x='18' y='100' width='220' height='122' rx='16' fill={url('front')} />
+                <path d='M30 101.5 H226' stroke='#FFFFFF' strokeOpacity='0.35' strokeWidth='1.5' strokeLinecap='round' />
             </g>
+        </svg>
+    )
+}
+
+/** The folder, simpler — small places: dialog headers, recents. */
+export function FolderFrontIllustration({ className, style }: FolderIllustrationProps) {
+    const id = useId()
+    const url = (name: string) => `url(#${name}${id})`
+
+    return (
+        <svg viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden className={cn('shrink-0', className)} style={style}>
+            <defs>
+                <linearGradient id={`back${id}`} x1='0' y1='0' x2='0' y2='1'>
+                    <stop offset='0' stopColor='#D39728' />
+                    <stop offset='1' stopColor='#C48D25' />
+                </linearGradient>
+                <linearGradient id={`front${id}`} x1='0' y1='0' x2='0' y2='1'>
+                    <stop offset='0' stopColor='#F6B947' />
+                    <stop offset='1' stopColor='#D89B28' />
+                </linearGradient>
+                <filter id={`shadow${id}`} x='-20%' y='-20%' width='140%' height='150%'>
+                    <feDropShadow dx='0' dy='0.75' stdDeviation='0.8' floodColor='#000000' floodOpacity='0.22' />
+                </filter>
+            </defs>
+            <g filter={url('shadow')}>
+                <path d='M3 8.5 Q3 6 5.5 6 H11 Q12.3 6 13 7 L13.8 8 Q14.4 8.8 15.5 8.8 H26.5 Q29 8.8 29 11.3 V15 H3 Z' fill={url('back')} />
+                <rect x='4.5' y='10' width='23' height='5' rx='1' fill='#FFFFFF' />
+                <rect x='2.5' y='12' width='27' height='15' rx='2.5' fill={url('front')} />
+                <path d='M4 12.375 H28' stroke='#FFFFFF' strokeOpacity='0.35' strokeWidth='0.75' strokeLinecap='round' />
+            </g>
+        </svg>
+    )
+}
+
+/** The folder, flat — inline: rows, links, the tree, menus. */
+export function FolderFlatIllustration({ className, style }: FolderIllustrationProps) {
+    return (
+        <svg viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg' aria-hidden className={cn('shrink-0', className)} style={style}>
+            <path d='M2 6.5 Q2 4.5 4 4.5 H8.5 Q9.5 4.5 10.2 5.3 L11 6.3 Q11.5 7 12.5 7 H20 Q22 7 22 9 V12 H2 Z' fill='#D69A28' />
+            <rect x='1.5' y='9' width='21' height='11' rx='2' fill='#F5B02E' />
         </svg>
     )
 }

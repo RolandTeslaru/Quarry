@@ -5,14 +5,11 @@ export const dataConnectionApp: App.Definition = {
     id:           'data-connection',
     label:        'Data Connection',
     description:  'Connect external systems — databases today — and sync their tables into datasets, once or on a schedule.',
+    // The disc stack — launchpad, sidebar, header, home (Typology's icon).
     glyph: {
-        icon:  'database',
-        tile:  'bg-amber-500/15',
-        base:  'fill-amber-500',
-        parts: {
-            1: 'fill-amber-300',                             // the top
-            2: 'fill-amber-600',                             // the lower band
-        },
+        illustration: 'dataConnection',
+        tile:         'bg-amber-500/15',
+        share:        0.9,
     },
     to:           '/data-connection',
     inNavigation: false,

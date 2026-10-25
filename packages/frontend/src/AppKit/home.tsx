@@ -96,7 +96,7 @@ function Logo({ children }: LogoProps) {
 
     return (
         <div data-slot='app-home-logo' className='[grid-area:logo] self-center'>
-            {children ?? <Glyph glyph={app.glyph} size={88} className='shadow-sm' />}
+            {children ?? <Glyph glyph={app.glyph} size={72} bare />}
         </div>
     )
 }

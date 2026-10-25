@@ -67,7 +67,7 @@ function ProjectCard({ project }: ProjectCardProps) {
             className='surface group flex cursor-pointer flex-col gap-3 rounded-xl border p-4 text-left shadow-sm transition-shadow hover:shadow-md'
             onClick={() => setCwd(project.rid)}
         >
-            <FolderIllustration color='var(--color-amber-400)' className='size-12' />
+            <FolderIllustration className='size-12' />
 
             <div className='min-w-0'>
                 <h2 className='truncate font-semibold'>{project.name}</h2>

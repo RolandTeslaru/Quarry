@@ -43,7 +43,7 @@ function AppTile({ app, onOpen }: AppTileProps) {
             onClick={onOpen}
             className='flex flex-col items-center gap-2 rounded-md p-3 text-center text-xs text-foreground no-underline hover:bg-muted hover:text-foreground hover:no-underline'
         >
-            <App.Glyph glyph={app.glyph} size={36} />
+            <App.Glyph glyph={app.glyph} size={44} bare />
             <span className='font-medium'>{app.label}</span>
         </Link>
     )

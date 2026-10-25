@@ -7,7 +7,6 @@ export const libraryApp: App.Definition = {
     description:  "The workspace's files: projects and folders, and everything kept in them.",
     glyph: {
         illustration: 'folder',
-        color:        'var(--color-amber-400)',
         tile:         'bg-amber-400/15',
     },
     to:           '/library',

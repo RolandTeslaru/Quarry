@@ -20,7 +20,8 @@ Decided (2026-10-24):
 - **Outputs are created automatically**, as in Foundry.
 - **Preview writes nothing**; only builds write datasets.
 - **Default resources**: 1 CPU / 4 GB per transform, unless `with_resources` says otherwise.
-- **RIDs**: `ri.code-workspace.main.workspace.…` (a library resource of type `workspace`); builds and jobs in a `build` service — `ri.build.main.build.…`, `ri.build.main.job.…` (not resources).
+- **RIDs**: `ri.code-workspace.main.workspace.…` (a library resource of type `workspace`); builds and jobs in the **Forge** service — `ri.forge.main.build.…`, `ri.forge.main.job.…` (not resources).
+- **Forge** (decided 2026-10-25) is the service that runs builds — a platform service like Catalog, not part of Code Workspaces: anything can start a build (a Build button, Data Lineage, a schedule). Its name is a noun only; what it does is still **build** — a Build button, a Builds app, "built 2 hours ago" (never "forged", which reads as faked).
 - **Schedules are a resource** with their own app, **Scheduler**: a schedule targets datasets and replaces the cron on a sync ([§5](#5-builds); its own design doc to come).
 - **Sessions are one per user per workspace**: two people on one workspace each have their own container and clone, and share work by pushing.
 
@@ -284,7 +285,7 @@ Each output transaction records **what produced it**:
 
 ```
 /Sales/clean/orders  transaction #12
-  job:      ri.build.main.job.…
+  job:      ri.forge.main.job.…
   code:     workspace ri.code-workspace.main.workspace.… at commit a1b2c3d, function clean_orders
   inputs:   /Sales/raw/orders     transaction #40
             /Sales/raw/customers  transaction #7
@@ -299,7 +300,7 @@ That's **version-aware lineage**: any version of a derived dataset names the exa
 | `catalog.transaction.produced_by` | The **resource** that wrote it — the Code Workspace for a transform's output, the Source for a sync's (a sync isn't a resource) |
 | `catalog.transaction_input (transaction_rid, input_transaction_rid)` | One row per input version read |
 
-The exact **run** isn't on the transaction: runs already point at what they wrote, in the producer's own tables — `data_connection.sync_run.transaction_rid`, and `build.job_output (job_rid, transaction_rid)` for jobs (through which the commit). Catalog never reads its writers' tables; `produced_by` is a plain resource RID, resolved through the Library like any resource link.
+The exact **run** isn't on the transaction: runs already point at what they wrote, in the producer's own tables — `data_connection.sync_run.transaction_rid`, and `forge.job_output (job_rid, transaction_rid)` for jobs (through which the commit). Catalog never reads its writers' tables; `produced_by` is a plain resource RID, resolved through the Library like any resource link.
 
 As in Foundry's dataset About panel, the dataset viewer then shows:
 
