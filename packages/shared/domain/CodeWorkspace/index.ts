@@ -2,6 +2,7 @@ import * as WorkspaceMod from "./Workspace"
 import * as TemplateMod  from "./Template"
 import * as PreviewMod   from "./Preview"
 import * as ModuleFunctionPathMod from "./ModuleFunctionPath"
+import * as CommitMod   from "./Commit"
 import * as ApiMod       from "./api"
 
 /**
@@ -17,6 +18,7 @@ export namespace CodeWorkspace {
     export import Template = TemplateMod.Template
     export import Preview  = PreviewMod.Preview
     export import ModuleFunctionPath = ModuleFunctionPathMod.ModuleFunctionPath
+    export import Commit   = CommitMod.Commit
 
     export import API = ApiMod.API
 }

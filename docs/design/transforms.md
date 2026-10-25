@@ -21,7 +21,7 @@ Decided (2026-10-24):
 - **Preview writes nothing**; only builds write datasets.
 - **Default resources**: 1 CPU / 4 GB per transform, unless `with_resources` says otherwise.
 - **RIDs**: `ri.code-workspace.main.workspace.…` (a library resource of type `workspace`); builds and jobs in the **Forge** service — `ri.forge.main.build.…`, `ri.forge.main.job.…` (not resources).
-- **Forge** (decided 2026-10-25) is the service that runs builds — a platform service like Catalog, not part of Code Workspaces: anything can start a build (a Build button, Data Lineage, a schedule). Its name is a noun only; what it does is still **build** — a Build button, a Builds app, "built 2 hours ago" (never "forged", which reads as faked).
+- **Forge** (decided 2026-10-25, [forge.md](forge.md)) is the service that runs builds — a platform service like Catalog, not part of Code Workspaces: anything can start a build (a Build button, Data Lineage, a schedule). Its name is a noun only; what it does is still **build** — a Build button, a Builds app, "built 2 hours ago" (never "forged", which reads as faked).
 - **Schedules are a resource** with their own app, **Scheduler**: a schedule targets datasets and replaces the cron on a sync ([§5](#5-builds); its own design doc to come).
 - **Sessions are one per user per workspace**: two people on one workspace each have their own container and clone, and share work by pushing.
 
@@ -44,7 +44,7 @@ Decided (2026-10-24):
 | Thing | Library resource? | What it is |
 |---|---|---|
 | **Code Workspace** | **yes** — in a folder, grants, trash | A Git repository plus its environment (`pyproject.toml` + `uv.lock`). Holds any number of transforms |
-| **Transform spec** | no — belongs to its workspace | One transform at one commit: function, inputs, outputs, resources, environment. Published by checks |
+| **Job spec** | no — Forge's, published by a producer | How to compute some datasets: logic at one version (for a workspace: commit + transform), inputs, outputs, resources. Published by checks ([forge.md](forge.md#job-specs)) |
 | **Build** | no | One request to bring datasets up to date: a set of jobs in dependency order |
 | **Job** | no — belongs to its build | One transform run: reads pinned input versions, writes its outputs' transactions |
 | **Session** | no — belongs to a user and a workspace | The running container behind an open IDE ([§6](#6-sessions-the-ide-and-preview)) |
@@ -240,18 +240,24 @@ Every commit runs **checks** (continuous integration) before its code can build 
 3. **Resolve** library paths to RIDs, pinned in the spec — a later rename doesn't break the transform. **Create** missing outputs (a dataset at that path; needs write on the parent folder).
 4. **Validate** — one producer per dataset, no cycles, inputs exist and are readable, outputs writable.
 5. **Tests** — run the workspace's tests.
-6. **Publish** one spec per transform for that commit:
+6. **Publish** one job spec per transform for that branch and commit (`Forge.JobSpec`, [forge.md](forge.md#job-specs)):
 
 ```json
 {
-  "workspaceRid": "ri.code-workspace.main.workspace.…",
-  "commit": "a1b2c3d",
-  "module": "sales_cleaning.datasets.orders",
-  "function": "clean_orders",
+  "rid": "ri.forge.main.job-spec.…",
+  "producerRid": "ri.code-workspace.main.workspace.…",
+  "branch": "main",
+  "logic": {
+    "type": "code-workspace",
+    "workspaceRid": "ri.code-workspace.main.workspace.…",
+    "commit": "a1b2c3d4…",
+    "transform": "sales_cleaning.datasets.orders.clean_orders"
+  },
   "inputs":  { "orders": "ri.catalog.main.dataset.6f2e…", "customers": "ri.catalog.main.dataset.91ab…" },
   "outputs": { "out": "ri.catalog.main.dataset.c40d…" },
   "resources": { "cpuCores": 4, "memoryGb": 16 },
-  "environment": "sha256:…"
+  "publishedBy": "ri.identity.main.user.…",
+  "publishedAt": "2026-10-25T18:00:00Z"
 }
 ```
 
@@ -261,55 +267,7 @@ Checks act as a **delegate of the committer** (`Principal.onBehalfOf(committer, 
 
 ## 5. Builds
 
-A build brings target datasets up to date. It's started by hand ("Build" in the IDE or on a dataset) or by a schedule, and runs the **committed** code on **full** inputs.
-
-1. **Plan** — from the targets, walk lineage upstream within the build's scope (single / full / connecting); collect each dataset's producer (a transform spec at its workspace's latest good commit, or a sync).
-2. **Skip what's fresh** — a transform whose inputs haven't changed since its last successful job is skipped. Syncs always run (the external source's changes aren't visible).
-3. **Run** jobs in dependency order; independent ones in parallel. A failed job stops everything downstream of it; unrelated branches finish.
-
-### Build workers
-
-A **build worker** (a NestJS worker, like the data connection worker) takes jobs from a BullMQ queue. It **orchestrates**; it doesn't run Python itself:
-
-1. Pin every input to its latest committed transaction; open a `snapshot` transaction on every output (through `catalog.transaction`, as the delegate).
-2. **Start a container** from the spec's environment image, with its resource limits and a short-lived token scoped to those inputs and outputs.
-3. In the container, Python reads the input Parquet files, runs the function, and writes the output Parquet to object storage under each transaction's prefix.
-4. When the container exits cleanly, register the files and **commit** every output with its provenance; otherwise abort them all.
-5. Stream the container's logs into the job, and remove the container.
-
-Data lands where every write lands: **Parquet in object storage** (SeaweedFS), recorded by Catalog in **Postgres**. DuckDB is an engine inside transforms, never a store.
-
-### Provenance
-
-Each output transaction records **what produced it**:
-
-```
-/Sales/clean/orders  transaction #12
-  job:      ri.forge.main.job.…
-  code:     workspace ri.code-workspace.main.workspace.… at commit a1b2c3d, function clean_orders
-  inputs:   /Sales/raw/orders     transaction #40
-            /Sales/raw/customers  transaction #7
-```
-
-That's **version-aware lineage**: any version of a derived dataset names the exact code and the exact input versions that produced it, so it can be explained and rebuilt.
-
-**Stored in Catalog**, beside the transaction it describes (decided 2026-10-24); lineage queries are joins:
-
-| Column / table | Holds |
-|---|---|
-| `catalog.transaction.produced_by` | The **resource** that wrote it — the Code Workspace for a transform's output, the Source for a sync's (a sync isn't a resource) |
-| `catalog.transaction_input (transaction_rid, input_transaction_rid)` | One row per input version read |
-
-The exact **run** isn't on the transaction: runs already point at what they wrote, in the producer's own tables — `data_connection.sync_run.transaction_rid`, and `forge.job_output (job_rid, transaction_rid)` for jobs (through which the commit). Catalog never reads its writers' tables; `produced_by` is a plain resource RID, resolved through the Library like any resource link.
-
-As in Foundry's dataset About panel, the dataset viewer then shows:
-
-- **Updated … by** *user* — the actor of the latest committed transaction (the delegate's user: whoever pressed Build, or the schedule's owner).
-- **Created … by Quarry** — for an output created by checks. The dataset's creator is the system; the audit log still records the committer as the delegate behind it, and checks verified their write on the folder first.
-- **Updated via** *workspace* — `produced_by` of the latest transaction, linked.
-- **Inputs** — the datasets of the latest transaction's `transaction_input` rows.
-
-A job acts as a **delegate** — of whoever started the build, or the schedule's owner — so Gatekeeper decides what it may read and write, exactly as for sync runs ([gatekeeper.md](gatekeeper.md)).
+Builds are **Forge**'s — a platform service, not part of Code Workspaces: [forge.md](forge.md) (job specs, builds, build workers, provenance). From a workspace's side: checks publish one job spec per transform for each commit ([§4](#4-checks--what-a-commit-goes-through)); Build runs the current one.
 
 ---
 
