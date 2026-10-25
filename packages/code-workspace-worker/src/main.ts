@@ -4,7 +4,7 @@ import { waitForServer } from '@quarry/shared/server/internal-api';
 import { NestFactory } from '@nestjs/core';
 import { config } from './config';
 import { System } from '@quarry/shared/server/system';
-import { createGateway } from './gateway';
+import { createIDEProxy } from './ide-proxy';
 import { WorkerExceptionFilter } from './http/worker-exception.filter';
 import { SessionManager } from './session-manager';
 import { WorkerModule } from './worker.module';
@@ -25,11 +25,11 @@ async function bootstrap(): Promise<void> {
     await app.listen(config.port);
 
     // Its own server and port: the only one browsers reach, and it streams the IDE's bodies through untouched.
-    const gateway = createGateway(app.get(SessionManager)).listen(config.gatewayPort);
+    const ideProxy = createIDEProxy(app.get(SessionManager)).listen(config.ideProxyPort);
 
-    app.getHttpServer().on('close', () => gateway.close());
+    app.getHttpServer().on('close', () => ideProxy.close());
 
-    log.info('Code workspace worker listening', { port: config.port, gatewayPort: config.gatewayPort });
+    log.info('Code workspace worker listening', { port: config.port, ideProxyPort: config.ideProxyPort });
 }
 
 bootstrap().catch((error: unknown) => {

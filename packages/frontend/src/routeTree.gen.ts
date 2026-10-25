@@ -24,7 +24,7 @@ import { Route as PipelineBuilderRouteRouteImport } from './apps/pipeline-builde
 import { Route as playground_DotblueprintRouteImport } from './routes/playground_.blueprint'
 import { Route as playground_DotstandardRouteImport } from './routes/playground_.standard'
 import { Route as CodeWorkspacesIndexRouteImport } from './apps/code-workspaces/routes/index'
-import { Route as CodeWorkspacesRidRouteImport } from './apps/code-workspaces/routes/$rid'
+import { Route as CodeWorkspacesRidRouteRouteImport } from './apps/code-workspaces/routes/$rid/route'
 import { Route as DataConnectionIndexRouteImport } from './apps/data-connection/routes/index'
 import { Route as DatasetsIndexRouteImport } from './apps/datasets/routes/index'
 import { Route as DatasetsRidRouteImport } from './apps/datasets/routes/$rid'
@@ -34,6 +34,11 @@ import { Route as LibraryIndexRouteImport } from './apps/library/routes/index'
 import { Route as LibraryRidRouteImport } from './apps/library/routes/$rid'
 import { Route as MinimalDemoIndexRouteImport } from './apps/minimal-demo/routes/index'
 import { Route as PipelineBuilderIndexRouteImport } from './apps/pipeline-builder/routes/index'
+import { Route as CodeWorkspacesRidIndexRouteImport } from './apps/code-workspaces/routes/$rid/index'
+import { Route as CodeWorkspacesRidBranchesRouteImport } from './apps/code-workspaces/routes/$rid/branches'
+import { Route as CodeWorkspacesRidChecksRouteImport } from './apps/code-workspaces/routes/$rid/checks'
+import { Route as CodeWorkspacesRidPullRequestsRouteImport } from './apps/code-workspaces/routes/$rid/pull-requests'
+import { Route as CodeWorkspacesRidSettingsRouteImport } from './apps/code-workspaces/routes/$rid/settings'
 import { Route as DataConnectionSourcesDotridRouteImport } from './apps/data-connection/routes/sources.$rid'
 
 const indexRoute = indexRouteImport.update({
@@ -110,7 +115,7 @@ const CodeWorkspacesIndexRoute = CodeWorkspacesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => CodeWorkspacesRouteRoute,
 } as any)
-const CodeWorkspacesRidRoute = CodeWorkspacesRidRouteImport.update({
+const CodeWorkspacesRidRouteRoute = CodeWorkspacesRidRouteRouteImport.update({
   id: '/$rid',
   path: '/$rid',
   getParentRoute: () => CodeWorkspacesRouteRoute,
@@ -160,6 +165,34 @@ const PipelineBuilderIndexRoute = PipelineBuilderIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PipelineBuilderRouteRoute,
 } as any)
+const CodeWorkspacesRidIndexRoute = CodeWorkspacesRidIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CodeWorkspacesRidRouteRoute,
+} as any)
+const CodeWorkspacesRidBranchesRoute =
+  CodeWorkspacesRidBranchesRouteImport.update({
+    id: '/branches',
+    path: '/branches',
+    getParentRoute: () => CodeWorkspacesRidRouteRoute,
+  } as any)
+const CodeWorkspacesRidChecksRoute = CodeWorkspacesRidChecksRouteImport.update({
+  id: '/checks',
+  path: '/checks',
+  getParentRoute: () => CodeWorkspacesRidRouteRoute,
+} as any)
+const CodeWorkspacesRidPullRequestsRoute =
+  CodeWorkspacesRidPullRequestsRouteImport.update({
+    id: '/pull-requests',
+    path: '/pull-requests',
+    getParentRoute: () => CodeWorkspacesRidRouteRoute,
+  } as any)
+const CodeWorkspacesRidSettingsRoute =
+  CodeWorkspacesRidSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => CodeWorkspacesRidRouteRoute,
+  } as any)
 const DataConnectionSourcesDotridRoute =
   DataConnectionSourcesDotridRouteImport.update({
     id: '/sources/$rid',
@@ -181,7 +214,7 @@ export interface FileRoutesByFullPath {
   '/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
   '/playground/blueprint': typeof playground_DotblueprintRoute
   '/playground/standard': typeof playground_DotstandardRoute
-  '/code-workspaces/$rid': typeof CodeWorkspacesRidRoute
+  '/code-workspaces/$rid': typeof CodeWorkspacesRidRouteRouteWithChildren
   '/datasets/$rid': typeof DatasetsRidRoute
   '/library/$rid': typeof LibraryRidRoute
   '/code-workspaces/': typeof CodeWorkspacesIndexRoute
@@ -192,7 +225,12 @@ export interface FileRoutesByFullPath {
   '/library/': typeof LibraryIndexRoute
   '/minimal-demo/': typeof MinimalDemoIndexRoute
   '/pipeline-builder/': typeof PipelineBuilderIndexRoute
+  '/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
+  '/code-workspaces/$rid/checks': typeof CodeWorkspacesRidChecksRoute
+  '/code-workspaces/$rid/pull-requests': typeof CodeWorkspacesRidPullRequestsRoute
+  '/code-workspaces/$rid/settings': typeof CodeWorkspacesRidSettingsRoute
   '/data-connection/sources/$rid': typeof DataConnectionSourcesDotridRoute
+  '/code-workspaces/$rid/': typeof CodeWorkspacesRidIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof indexRoute
@@ -200,7 +238,6 @@ export interface FileRoutesByTo {
   '/playground': typeof playgroundRoute
   '/playground/blueprint': typeof playground_DotblueprintRoute
   '/playground/standard': typeof playground_DotstandardRoute
-  '/code-workspaces/$rid': typeof CodeWorkspacesRidRoute
   '/datasets/$rid': typeof DatasetsRidRoute
   '/library/$rid': typeof LibraryRidRoute
   '/code-workspaces': typeof CodeWorkspacesIndexRoute
@@ -211,7 +248,12 @@ export interface FileRoutesByTo {
   '/library': typeof LibraryIndexRoute
   '/minimal-demo': typeof MinimalDemoIndexRoute
   '/pipeline-builder': typeof PipelineBuilderIndexRoute
+  '/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
+  '/code-workspaces/$rid/checks': typeof CodeWorkspacesRidChecksRoute
+  '/code-workspaces/$rid/pull-requests': typeof CodeWorkspacesRidPullRequestsRoute
+  '/code-workspaces/$rid/settings': typeof CodeWorkspacesRidSettingsRoute
   '/data-connection/sources/$rid': typeof DataConnectionSourcesDotridRoute
+  '/code-workspaces/$rid': typeof CodeWorkspacesRidIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -229,7 +271,7 @@ export interface FileRoutesById {
   '/_workspace/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
   '/playground/blueprint': typeof playground_DotblueprintRoute
   '/playground/standard': typeof playground_DotstandardRoute
-  '/_workspace/code-workspaces/$rid': typeof CodeWorkspacesRidRoute
+  '/_workspace/code-workspaces/$rid': typeof CodeWorkspacesRidRouteRouteWithChildren
   '/_workspace/datasets/$rid': typeof DatasetsRidRoute
   '/_workspace/library/$rid': typeof LibraryRidRoute
   '/_workspace/code-workspaces/': typeof CodeWorkspacesIndexRoute
@@ -240,7 +282,12 @@ export interface FileRoutesById {
   '/_workspace/library/': typeof LibraryIndexRoute
   '/_workspace/minimal-demo/': typeof MinimalDemoIndexRoute
   '/_workspace/pipeline-builder/': typeof PipelineBuilderIndexRoute
+  '/_workspace/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
+  '/_workspace/code-workspaces/$rid/checks': typeof CodeWorkspacesRidChecksRoute
+  '/_workspace/code-workspaces/$rid/pull-requests': typeof CodeWorkspacesRidPullRequestsRoute
+  '/_workspace/code-workspaces/$rid/settings': typeof CodeWorkspacesRidSettingsRoute
   '/_workspace/data-connection/sources/$rid': typeof DataConnectionSourcesDotridRoute
+  '/_workspace/code-workspaces/$rid/': typeof CodeWorkspacesRidIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -269,7 +316,12 @@ export interface FileRouteTypes {
     | '/library/'
     | '/minimal-demo/'
     | '/pipeline-builder/'
+    | '/code-workspaces/$rid/branches'
+    | '/code-workspaces/$rid/checks'
+    | '/code-workspaces/$rid/pull-requests'
+    | '/code-workspaces/$rid/settings'
     | '/data-connection/sources/$rid'
+    | '/code-workspaces/$rid/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -277,7 +329,6 @@ export interface FileRouteTypes {
     | '/playground'
     | '/playground/blueprint'
     | '/playground/standard'
-    | '/code-workspaces/$rid'
     | '/datasets/$rid'
     | '/library/$rid'
     | '/code-workspaces'
@@ -288,7 +339,12 @@ export interface FileRouteTypes {
     | '/library'
     | '/minimal-demo'
     | '/pipeline-builder'
+    | '/code-workspaces/$rid/branches'
+    | '/code-workspaces/$rid/checks'
+    | '/code-workspaces/$rid/pull-requests'
+    | '/code-workspaces/$rid/settings'
     | '/data-connection/sources/$rid'
+    | '/code-workspaces/$rid'
   id:
     | '__root__'
     | '/'
@@ -316,7 +372,12 @@ export interface FileRouteTypes {
     | '/_workspace/library/'
     | '/_workspace/minimal-demo/'
     | '/_workspace/pipeline-builder/'
+    | '/_workspace/code-workspaces/$rid/branches'
+    | '/_workspace/code-workspaces/$rid/checks'
+    | '/_workspace/code-workspaces/$rid/pull-requests'
+    | '/_workspace/code-workspaces/$rid/settings'
     | '/_workspace/data-connection/sources/$rid'
+    | '/_workspace/code-workspaces/$rid/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -439,7 +500,7 @@ declare module '@tanstack/react-router' {
       id: '/_workspace/code-workspaces/$rid'
       path: '/$rid'
       fullPath: '/code-workspaces/$rid'
-      preLoaderRoute: typeof CodeWorkspacesRidRouteImport
+      preLoaderRoute: typeof CodeWorkspacesRidRouteRouteImport
       parentRoute: typeof CodeWorkspacesRouteRoute
     }
     '/_workspace/data-connection/': {
@@ -505,6 +566,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PipelineBuilderIndexRouteImport
       parentRoute: typeof PipelineBuilderRouteRoute
     }
+    '/_workspace/code-workspaces/$rid/': {
+      id: '/_workspace/code-workspaces/$rid/'
+      path: '/'
+      fullPath: '/code-workspaces/$rid/'
+      preLoaderRoute: typeof CodeWorkspacesRidIndexRouteImport
+      parentRoute: typeof CodeWorkspacesRidRouteRoute
+    }
+    '/_workspace/code-workspaces/$rid/branches': {
+      id: '/_workspace/code-workspaces/$rid/branches'
+      path: '/branches'
+      fullPath: '/code-workspaces/$rid/branches'
+      preLoaderRoute: typeof CodeWorkspacesRidBranchesRouteImport
+      parentRoute: typeof CodeWorkspacesRidRouteRoute
+    }
+    '/_workspace/code-workspaces/$rid/checks': {
+      id: '/_workspace/code-workspaces/$rid/checks'
+      path: '/checks'
+      fullPath: '/code-workspaces/$rid/checks'
+      preLoaderRoute: typeof CodeWorkspacesRidChecksRouteImport
+      parentRoute: typeof CodeWorkspacesRidRouteRoute
+    }
+    '/_workspace/code-workspaces/$rid/pull-requests': {
+      id: '/_workspace/code-workspaces/$rid/pull-requests'
+      path: '/pull-requests'
+      fullPath: '/code-workspaces/$rid/pull-requests'
+      preLoaderRoute: typeof CodeWorkspacesRidPullRequestsRouteImport
+      parentRoute: typeof CodeWorkspacesRidRouteRoute
+    }
+    '/_workspace/code-workspaces/$rid/settings': {
+      id: '/_workspace/code-workspaces/$rid/settings'
+      path: '/settings'
+      fullPath: '/code-workspaces/$rid/settings'
+      preLoaderRoute: typeof CodeWorkspacesRidSettingsRouteImport
+      parentRoute: typeof CodeWorkspacesRidRouteRoute
+    }
     '/_workspace/data-connection/sources/$rid': {
       id: '/_workspace/data-connection/sources/$rid'
       path: '/sources/$rid'
@@ -515,13 +611,35 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CodeWorkspacesRidRouteRouteChildren {
+  CodeWorkspacesRidBranchesRoute: typeof CodeWorkspacesRidBranchesRoute
+  CodeWorkspacesRidChecksRoute: typeof CodeWorkspacesRidChecksRoute
+  CodeWorkspacesRidPullRequestsRoute: typeof CodeWorkspacesRidPullRequestsRoute
+  CodeWorkspacesRidSettingsRoute: typeof CodeWorkspacesRidSettingsRoute
+  CodeWorkspacesRidIndexRoute: typeof CodeWorkspacesRidIndexRoute
+}
+
+const CodeWorkspacesRidRouteRouteChildren: CodeWorkspacesRidRouteRouteChildren =
+  {
+    CodeWorkspacesRidBranchesRoute: CodeWorkspacesRidBranchesRoute,
+    CodeWorkspacesRidChecksRoute: CodeWorkspacesRidChecksRoute,
+    CodeWorkspacesRidPullRequestsRoute: CodeWorkspacesRidPullRequestsRoute,
+    CodeWorkspacesRidSettingsRoute: CodeWorkspacesRidSettingsRoute,
+    CodeWorkspacesRidIndexRoute: CodeWorkspacesRidIndexRoute,
+  }
+
+const CodeWorkspacesRidRouteRouteWithChildren =
+  CodeWorkspacesRidRouteRoute._addFileChildren(
+    CodeWorkspacesRidRouteRouteChildren,
+  )
+
 interface CodeWorkspacesRouteRouteChildren {
-  CodeWorkspacesRidRoute: typeof CodeWorkspacesRidRoute
+  CodeWorkspacesRidRouteRoute: typeof CodeWorkspacesRidRouteRouteWithChildren
   CodeWorkspacesIndexRoute: typeof CodeWorkspacesIndexRoute
 }
 
 const CodeWorkspacesRouteRouteChildren: CodeWorkspacesRouteRouteChildren = {
-  CodeWorkspacesRidRoute: CodeWorkspacesRidRoute,
+  CodeWorkspacesRidRouteRoute: CodeWorkspacesRidRouteRouteWithChildren,
   CodeWorkspacesIndexRoute: CodeWorkspacesIndexRoute,
 }
 
