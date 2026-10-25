@@ -1,4 +1,4 @@
-import { Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { ConflictException, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { CodeWorkspace, type Identity } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { DockerDriver } from './docker-driver';
@@ -30,7 +30,7 @@ const LIST_TIMEOUT_MS = 60_000;
  * Code Workspace sessions (docs/design/transforms.md §6): one container per
  * user per workspace, from the runtime image, with a volume for the working
  * copy. Started on open, stopped when idle, started again on the next open.
- * The gateway serves each one's IDE at `/s/<secret>/`; previews run in it
+ * The IDE proxy serves each one's IDE at `/s/<secret>/`; previews run in it
  * with `docker exec`. Containers are labelled, so a restarted worker finds its
  * sessions again.
  */
@@ -92,7 +92,7 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
         return result;
     }
 
-    /** The running session a gateway request is for — and it was just used. */
+    /** The running session an IDE proxy request is for — and it was just used. */
     public touchBySecret(secret: string): { port: number } | null {
         const parsed = Session.Secret.safeParse(secret);
         const session = parsed.success ? this.bySecret[parsed.data] : undefined;
@@ -137,7 +137,7 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
 
         this.log.info('Session opened', { workspaceRid, userRid, container: session.container });
 
-        return `${config.gatewayUrl}/s/${session.secret}/?tkn=${session.secret}`;
+        return `${config.ideProxyUrl}/s/${session.secret}/?tkn=${session.secret}`;
     }
 
     private async create(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid): Promise<Session.Schema> {
@@ -176,7 +176,7 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
         const session = this.byKey[Session.getKey(workspaceRid, userRid)];
 
         if (!session?.port)
-            throw new Error('No open session: open the workspace first');
+            throw new ConflictException('No open session: open the workspace first');
 
         const credentials = await CodeWorkspace.API.Internal.getSessionCredentials(api, { workspaceRid, userRid });
 

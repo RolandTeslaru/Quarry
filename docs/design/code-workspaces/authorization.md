@@ -1,6 +1,6 @@
 # Authorization
 
-Code Workspaces follow [gatekeeper.md](../gatekeeper.md) (mechanics: [gatekeeper-and-rls.md](../gatekeeper-and-rls.md)): **row-level security decides plain reads and writes of rows**; `@SecurityGate` / `gatekeeper.assert` are for what RLS can't express — effects that aren't rows (a container, a queue job, a minted token, files on disk), actions stricter than a row's policy, and side effects before the guarded row.
+Code Workspaces follow [gatekeeper.md](../gatekeeper.md) (mechanics: [gatekeeper-and-rls.md](../gatekeeper-and-rls.md)): **row-level security decides plain reads and writes of rows**; `@SecurityGate` / `gatekeeper.assert` are for what RLS can't express — effects that aren't rows (a container, a call to the worker, a minted token, files on disk), actions stricter than a row's policy, and side effects before the guarded row.
 
 | Role (rank) | On a Code Workspace |
 |---|---|
@@ -20,14 +20,15 @@ A user's rank is the highest of their grants on the workspace or any ancestor (a
 | `POST /api/code-workspaces` | user | `assert write` on the **parent** (before anything) · RLS on the input's path (example) · RLS `write` on parent at insert | repository + rows |
 | `GET /api/code-workspaces/:rid` | user | RLS `discover` + liveness | the row |
 | `POST …/:rid/open` | user | `@RequireUserPrincipal` · RLS + liveness | row + audit `open` |
-| `POST …/:rid/session` | user | `@RequireUserPrincipal` → `@SecurityGate('read')` → `get` (404 if trashed) | queue → container |
-| `GET …/:rid/session/transforms` | user | same | queue → `docker exec` |
-| `POST …/:rid/session/preview` | user | same | queue → `docker exec` |
+| `POST …/:rid/session` | user | `@RequireUserPrincipal` → `@SecurityGate('read')` → `get` (404 if trashed) | worker → container |
+| `GET …/:rid/session/transforms` | user | same | worker → `docker exec` |
+| `POST …/:rid/session/preview` | user | same | worker → `docker exec` |
 | `POST /api/internal/code-workspaces/session-credentials` | **service token** (worker) | as a **delegate** of the user: `get` + `assert read` | a minted token |
 | `/api/git/<rid>.git/info/refs`, `git-upload-pack` | user (Bearer) | `get` + `assert read` | clone / fetch |
 | `/api/git/<rid>.git/git-receive-pack` (and its advertisement) | user (Bearer) | `get` + `assert write` | push |
 | `/api/git/…` anything else | — | 404 (no dumb protocol) | — |
-| Gateway `/s/<secret>/…` | the secret (capability) | the secret is a known, running session | VS Code |
+| IDE proxy `/s/<secret>/…` (`CODE_WORKSPACE_IDE_PROXY_PORT`) | the secret (capability) | the secret is a known, running session | VS Code |
+| Worker `/sessions/{open,transforms,preview}` (`CODE_WORKSPACE_WORKER_PORT`) | **service token** (the server) | `ServiceTokenGuard` — never published to browsers | the session |
 
 Inside a preview, the session token reaches two more endpoints as the user:
 
@@ -47,14 +48,14 @@ flowchart LR
     SG -- "discover, not read" --> F3["403"]
     SG -- ok --> G{"get(principal, rid)<br/>RLS + liveness"}
     G -- "trashed / gone" --> F4["404"]
-    G -- ok --> Q["queue → worker"]
+    G -- ok --> Q["CodeWorkspaceWorkerClient → worker"]
 ```
 
 `@RequireUserPrincipal` sits above `@SecurityGate`, so a non-user is refused before any permission lookup. The method then types its principal as `Principal.User` (it needs `userRid` for the job).
 
 ## Re-checked, not trusted
 
-The queue job carries only `workspaceRid` and `userRid` — no credential. The worker can't act on a session until the server has checked **again**, as the user (a delegate principal), and minted a token:
+The server's call to the worker carries only `workspaceRid` and `userRid` — no credential. The worker can't act on a session until the server has checked **again**, as the user (a delegate principal), and minted a token:
 
 ```mermaid
 sequenceDiagram
@@ -83,6 +84,6 @@ A session token is `SessionTokens.mint`: signed with the same key as GoTrue's (`
 | **Not scoped** | anything running in the container (the user's code, a teammate's previewed transform) can act as the user anywhere in Quarry for up to 12h | a separate audience, accepted only on this workspace's git routes and the two preview reads |
 | **`quarry_via` ignored** | requests with it audit as the plain user, not "via session" | the verifier turns `quarry_via` into a delegate principal |
 | **Readable in the container** | `~/.gitconfig` and `~/.quarry/session.json` (mode 600, but the user's own code runs as that user) | follows from scoping |
-| **Gateway secret** | anyone with the URL reaches that IDE until the container is recreated | rotate on reopen; or put the gateway behind Quarry's session cookie |
+| **IDE proxy secret** | anyone with the URL reaches that IDE until the container is recreated | rotate on reopen; or put the IDE proxy behind Quarry's session cookie |
 | **Git not audited** | clones and pushes leave no access event | `@Audit` on `authorizeGit` |
 | **No container sandbox** | plain Docker isolation; user code shares the host kernel | gVisor (`runsc`) as the runtime — no image change |

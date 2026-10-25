@@ -6,23 +6,14 @@ import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { RequireUserPrincipal } from '@/auth/require-user-principal';
 import { SessionTokens } from '@/auth/session-tokens';
-import { QueueManager } from '@/infra/queue';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { IdentityService } from '@/services/Identity/identity.service';
 import { LibraryService } from '@/services/Library/library.service';
 import { CodeWorkspaceRepository } from './code-workspace.repository';
 import { GitRepositories } from './git/repositories';
+import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client';
 import { TEMPLATES, TEMPLATES_WIRE, type TemplateParams, type WorkspaceTemplate } from './templates';
-
-/** A first open starts a container, clones and syncs the environment — minutes on a cold cache. */
-const SESSION_OPEN_TIMEOUT_MS = 300_000;
-
-/** Imports the working copy's pipeline. */
-const TRANSFORMS_TIMEOUT_MS = 60_000;
-
-/** Samples every input, then runs the transform. */
-const PREVIEW_TIMEOUT_MS = 300_000;
 
 /**
  * Code Workspaces — library resources, each a bare Git repository of
@@ -47,7 +38,7 @@ export class CodeWorkspaceService {
         private readonly library:         LibraryService,
         private readonly gitRepositories: GitRepositories,
         private readonly repository:      CodeWorkspaceRepository,
-        private readonly queueManager:    QueueManager,
+        private readonly worker:          CodeWorkspaceWorkerClient,
         private readonly sessionTokens:   SessionTokens,
     ) {}
 
@@ -140,13 +131,7 @@ export class CodeWorkspaceService {
     async openSession(principal: Principal.User, rid: CodeWorkspace.Rid): Promise<string> {
         await this.get(principal, rid);                     // 404 if it's gone or trashed
 
-        const result = await this.queueManager.requestOp(
-            CodeWorkspace.Queue.Session.Definition,
-            { op: 'open', workspaceRid: rid, userRid: principal.userRid },
-            SESSION_OPEN_TIMEOUT_MS,
-        );
-
-        return result.url;
+        return this.worker.openSession(rid, principal.userRid);
     }
 
     /** What the caller's working copy declares. Read on the workspace; the session must be open. */
@@ -155,13 +140,7 @@ export class CodeWorkspaceService {
     async getTransforms(principal: Principal.User, rid: CodeWorkspace.Rid): Promise<CodeWorkspace.Preview.Listing> {
         await this.get(principal, rid);                     // 404 if it's gone or trashed
 
-        const result = await this.queueManager.requestOp(
-            CodeWorkspace.Queue.Session.Definition,
-            { op: 'transforms', workspaceRid: rid, userRid: principal.userRid },
-            TRANSFORMS_TIMEOUT_MS,
-        );
-
-        return result.result;
+        return this.worker.getTransforms(rid, principal.userRid);
     }
 
     /** One transform of the caller's working copy, on samples of its inputs (read as the caller). Writes nothing. */
@@ -170,13 +149,7 @@ export class CodeWorkspaceService {
     async preview(principal: Principal.User, rid: CodeWorkspace.Rid, request: CodeWorkspace.API.Preview.Request): Promise<CodeWorkspace.Preview.Result> {
         await this.get(principal, rid);                     // 404 if it's gone or trashed
 
-        const result = await this.queueManager.requestOp(
-            CodeWorkspace.Queue.Session.Definition,
-            { op: 'preview', workspaceRid: rid, userRid: principal.userRid, transform: request.transform, rows: request.rows },
-            PREVIEW_TIMEOUT_MS,
-        );
-
-        return result.result;
+        return this.worker.preview(rid, principal.userRid, request);
     }
 
     /**

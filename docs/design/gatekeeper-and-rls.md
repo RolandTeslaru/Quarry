@@ -214,7 +214,7 @@ Real examples:
 | `DataConnectionService` `test`, `explore`, `previewTable` | `@SecurityGate('read')` | the effect is a queue job against an external system |
 | `DataConnectionService` sync `run` | `@SecurityGate('write')` on the source, plus `assert('write')` on the output dataset | two resources |
 | `CodeWorkspaceService.create` | `assert('write')` on the parent **first** | the git repository is created on disk before any row exists |
-| `CodeWorkspaceService.openSession`, `preview` | `@SecurityGate('read')` | a container and a queue job |
+| `CodeWorkspaceService.openSession`, `preview` | `@SecurityGate('read')` | a call to the code workspace worker, and a container |
 | `CodeWorkspaceService.authorizeGit` | `assert(push ? 'write' : 'read')` | the action depends on the git operation |
 
 Never put `@SecurityGate` on the same method as `@Transactional`. The gate belongs on the service, RLS belongs in the repository it calls, and the two layers stay separate.
@@ -262,7 +262,7 @@ sequenceDiagram
 
     U->>S: start a sync / open a session
     S->>S: checks as the user
-    S->>W: queue job { …rid, userRid } (no credential)
+    S->>W: a queue job or a call { …rid, userRid } (no credential)
     W->>S: internal call (service token)
     S->>S: Principal.onBehalfOf(userRid, 'sync:{id}')
     S->>P: quarry_user, app.user_rid = user, app.via = 'sync:{id}'

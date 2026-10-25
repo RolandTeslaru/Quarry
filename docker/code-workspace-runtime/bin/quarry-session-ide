@@ -1,6 +1,6 @@
 #!/bin/sh
 # The session's main process: VS Code in the browser, served under the session's
-# secret path (the code workspace worker's gateway forwards /s/<secret>/… here unchanged).
+# secret path (the code workspace worker's IDE proxy forwards /s/<secret>/… here unchanged).
 # The secret is also VS Code's connection token, so the port alone opens nothing.
 set -eu
 

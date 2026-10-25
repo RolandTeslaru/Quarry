@@ -8,7 +8,7 @@ export namespace Internal {
 
     /**
      * A session's credential, fetched by the worker each time it acts for one —
-     * never sent through the queue. The server checks the user may still read the
+     * never sent with the server's request. The server checks the user may still read the
      * workspace, then mints a token that acts as them for a few hours.
      */
     export namespace SessionCredentials {

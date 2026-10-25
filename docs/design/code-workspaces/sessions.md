@@ -18,7 +18,7 @@ A **session** is one user's container on one workspace — the computer behind t
 stateDiagram-v2
     [*] --> Starting: first open<br/>docker run
     Starting --> Running: VS Code answers,<br/>setup succeeds
-    Running --> Running: open again (setup re-runs,<br/>fresh token), gateway traffic,<br/>preview / transforms
+    Running --> Running: open again (setup re-runs,<br/>fresh token), IDE proxy traffic,<br/>preview / transforms
     Running --> Stopped: no activity for<br/>CODE_WORKSPACE_SESSION_IDLE_MINUTES (30)<br/>docker stop
     Stopped --> Running: next open<br/>docker start, setup
     Running --> Running: worker restarts —<br/>restored from labels
@@ -36,15 +36,13 @@ sequenceDiagram
     autonumber
     participant B as Browser
     participant S as Server (CodeWorkspaceService)
-    participant Q as Redis (code-workspace.session)
-    participant W as Worker (SessionManager)
+    participant W as Worker (SessionController → SessionManager)
     participant D as Docker
     participant C as Session container
 
     B->>S: POST /api/code-workspaces/:rid/session
     Note over S: @RequireUserPrincipal → @SecurityGate('read') → get (404 if trashed)
-    S->>Q: requestOp { op: 'open', workspaceRid, userRid } (waits ≤ 5 min)
-    Q->>W: job
+    S->>W: POST {worker}/sessions/open { workspaceRid, userRid }<br/>(service token, CodeWorkspaceWorkerClient, ≤ 5 min)
     W->>S: POST /api/internal/code-workspaces/session-credentials (service token)
     Note over S: as a delegate of the user: get + assert read,<br/>then mint a 12h token
     S-->>W: { token, user: { name, email } }
@@ -57,13 +55,12 @@ sequenceDiagram
     W->>C: wait until VS Code answers on /s/{secret}/
     W->>D: docker exec quarry-session-setup (token, URLs, author — by env name)
     Note over C: ~/.gitconfig: Authorization header for the git URL<br/>~/.quarry/session.json (600): token, serverUrl, appUrl<br/>first open: git clone, uv venv --system-site-packages<br/>every open: uv sync
-    W-->>Q: { op: 'open', url: {gateway}/s/{secret}/?tkn={secret} }
-    Q-->>S: result
+    W-->>S: { url: {ideProxy}/s/{secret}/?tkn={secret} }
     S-->>B: { url }
-    B->>B: the iframe loads url — see gateway.md
+    B->>B: the iframe loads url — see ide-proxy.md
 ```
 
-Two opens of the same session at once share one in-flight open (`SessionManager.opening`). Reopening a running session is ~0.1 s: no container work, only setup (which refreshes the token).
+Two opens of the same session at once share one in-flight open (`SessionManager.opening`). The worker down → the open fails at once with a 503 ("isn't reachable — is it running?"), not after a wait. Reopening a running session is ~0.1 s: no container work, only setup (which refreshes the token).
 
 ## The credential
 
@@ -88,4 +85,4 @@ On boot the worker lists every container labelled `quarry.code-workspace-session
 
 ## Idle stop
 
-Every minute, any running session whose `lastActivityAt` is older than the idle limit is stopped. Activity is: an open, a preview or transforms listing, and **every gateway request or WebSocket frame from the browser** (`SessionManager.touchBySecret`) — so an open IDE tab keeps its session alive; a closed one lets it stop.
+Every minute, any running session whose `lastActivityAt` is older than the idle limit is stopped. Activity is: an open, a preview or transforms listing, and **every IDE proxy request or WebSocket frame from the browser** (`SessionManager.touchBySecret`) — so an open IDE tab keeps its session alive; a closed one lets it stop.

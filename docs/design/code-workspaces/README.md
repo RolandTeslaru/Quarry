@@ -8,9 +8,9 @@ A **Code Workspace** is a Git repository of Python transforms plus its environme
 |---|---|
 | [creating.md](creating.md) | `POST /api/code-workspaces` → the template rendered, locked, committed, the row inserted |
 | [sessions.md](sessions.md) | A session's life: container, setup, credentials, idle stop, restore after a restart |
-| [gateway.md](gateway.md) | How the browser reaches VS Code: the secret path, the HTTP and WebSocket proxy |
+| [ide-proxy.md](ide-proxy.md) | How the browser reaches VS Code: the secret path, the HTTP and WebSocket proxy |
 | [authorization.md](authorization.md) | Every entry point and what Gatekeeper / RLS check there; tokens and their reach |
-| [preview.md](preview.md) | Running a transform: the button → queue → `docker exec` → samples → the panel |
+| [preview.md](preview.md) | Running a transform: the button → the worker's API → `docker exec` → samples → the panel |
 | [extension.md](extension.md) | The Quarry VS Code extension inside each session |
 
 ## The pieces
@@ -29,9 +29,10 @@ flowchart LR
         gk["Gatekeeper + RLS"]
     end
 
-    subgraph Worker["code-workspace-worker :4103"]
+    subgraph Worker["code-workspace-worker"]
+        wapi["API :4104<br/>/sessions (service token)"]
         sm["SessionManager"]
-        gw["Gateway /s/{secret}/"]
+        gw["IDE proxy :4103<br/>/s/{secret}/"]
         dd["DockerDriver<br/>(docker CLI)"]
     end
 
@@ -44,12 +45,11 @@ flowchart LR
 
     pg[("Postgres<br/>code_workspace.workspace,<br/>library, gatekeeper, audit")]
     bare[(".data/git<br/>bare repositories")]
-    redis[("Redis<br/>queue code-workspace.session")]
     s3[("SeaweedFS<br/>dataset Parquet")]
 
     page -- "REST /api/code-workspaces" --> cws
     cws --> gk
-    cws -- "request–reply" --> redis --> sm
+    cws -- "CodeWorkspaceWorkerClient<br/>HTTP" --> wapi --> sm
     sm -- "/api/internal/…/session-credentials" --> cws
     sm --> dd --> Session
     ide -- "HTTP + WebSocket" --> gw --> vsc
@@ -65,20 +65,20 @@ flowchart LR
 | Process | Package | Talks to |
 |---|---|---|
 | API server | `packages/server` (`services/CodeWorkspace`, `services/Library`, `services/Catalog`) | Postgres, Redis, object storage, the bare repositories on disk |
-| Code workspace worker | `packages/code-workspace-worker` | Docker, Redis, the server's `/api/internal` — no database |
+| Code workspace worker | `packages/code-workspace-worker` | Docker, the server's `/api/internal` — no database, no Redis. Serves its API (`CODE_WORKSPACE_WORKER_PORT`, 4104 — for the server only) and the IDE proxy (`CODE_WORKSPACE_IDE_PROXY_PORT`, 4103 — for browsers) |
 | Session container | `docker/code-workspace-runtime` (image `quarry/code-workspace-runtime:dev`) | The server, as the user (git, previews, the extension) |
-| Browser | `packages/frontend` (`apps/code-workspaces`, `SDKs/CodeWorkspaceSDK`) | The server (REST), the worker's gateway (the IDE iframe) |
+| Browser | `packages/frontend` (`apps/code-workspaces`, `SDKs/CodeWorkspaceSDK`) | The server (REST), the worker's IDE proxy (the IDE iframe) |
 
 **Where the code is**
 
 | Concern | Files |
 |---|---|
-| Domain (shared) | `shared/domain/CodeWorkspace/` — `Rid`, `Schema`, `Template`, `Preview`, `API`, `Queue` |
-| Resource, create, sessions, credentials | `server/src/services/CodeWorkspace/code-workspace.{service,repository,controller,internal.controller}.ts` |
+| Domain (shared) | `shared/domain/CodeWorkspace/` — `Rid`, `Schema`, `Template`, `Preview`, `API` (`API.Internal`: the server, for the worker; `API.Worker`: the worker, for the server) |
+| Resource, create, sessions, credentials | `server/src/services/CodeWorkspace/code-workspace.{service,repository,controller,internal.controller}.ts`, `worker/code-workspace-worker.client.ts` |
 | Git hosting | `server/src/services/CodeWorkspace/git/{repositories,git.controller,http-backend}.ts` |
 | Templates | `server/src/services/CodeWorkspace/templates/` |
 | Session tokens | `server/src/auth/session-tokens.ts` |
-| Sessions, gateway, Docker | `code-workspace-worker/src/{session-manager,gateway,docker-driver,config}.ts`, `src/domain/Session.ts` |
+| Sessions, IDE proxy, Docker | `code-workspace-worker/src/{session-manager,ide-proxy,docker-driver,config}.ts`, `src/http/` (the API: controller, service-token guard, error filter), `src/domain/Session.ts` |
 | Runtime image | `docker/code-workspace-runtime/` (Dockerfile, `bin/quarry-session-ide`, `bin/quarry-session-setup`) |
 | Python library | `transforms-python/src/quarry/transforms/` |
 | VS Code extension | `code-workspace-extension/` |

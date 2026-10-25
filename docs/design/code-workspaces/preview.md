@@ -7,7 +7,7 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    participant P as Page (WorkspaceApp)
+    participant P as Page (routes/$rid/route.tsx)
     participant S as Server
     participant W as Worker (SessionManager)
     participant C as Session container
@@ -17,7 +17,7 @@ sequenceDiagram
 
     P->>S: POST /api/code-workspaces/:rid/session/preview { transform, rows: 1000 }
     Note over S: @RequireUserPrincipal → @SecurityGate('read') → get
-    S->>W: requestOp { op: 'preview', workspaceRid, userRid, transform, rows } (≤ 5 min)
+    S->>W: POST {worker}/sessions/preview { workspaceRid, userRid, transform, rows } (≤ 5 min)
     W->>S: session-credentials → a fresh token (re-checked: read)
     W->>C: docker exec -w /workspace/repo .venv/bin/python -m quarry.transforms.preview {transform} --rows 1000<br/>env: QUARRY_TOKEN, QUARRY_SERVER_URL (by name)
     C->>R: start
@@ -35,7 +35,7 @@ sequenceDiagram
     R-->>C: one JSON object on stdout (exit 0, or 1 with { error })
     C-->>W: stdout
     W->>W: CodeWorkspace.Preview.Result.parse
-    W-->>S: { op: 'preview', result }
+    W-->>S: the result
     S-->>P: result
     P->>P: PreviewPanel — a tab per output (TableViewer), logs, or the traceback
 ```
@@ -52,7 +52,7 @@ sequenceDiagram
 6. **Check** every output was written.
 7. **Print** `{ transform, inputs: { name: { rid, sequence } }, outputs: { name: { columns, rows (≤ 1000), rowCount } }, logs }`. Column types are mapped from Arrow to Quarry's (`integer`, `long`, `double`, `boolean`, `date`, `timestamp`, `decimal(p,s)`, `binary`, `string`).
 
-A transform that **raises** (or a pipeline that doesn't import) prints `{ error: { message, traceback } }` and exits 1. That's an **answer**, not a failed request: the panel shows the message and traceback. A failed *request* (no session, the worker down, a timeout) is a toast.
+A transform that **raises** (or a pipeline that doesn't import) prints `{ error: { message, traceback } }` and exits 1. That's an **answer**, not a failed request: the panel shows the message and traceback. A failed *request* is a toast: no open session (409), the worker down or too slow (503), the worker failing (424, with its reason).
 
 `--list` prints the declared transforms instead — what the header's picker shows (`GET …/session/transforms`, re-read whenever the picker opens).
 
@@ -74,6 +74,6 @@ Sessions can't read storage themselves — they hold no storage credentials, and
 
 | Step | Limit |
 |---|---|
-| Server waiting for the worker (`requestOp`) | open 5 min · preview 5 min · transforms 1 min |
+| Server waiting for the worker (`CodeWorkspaceWorkerClient`) | open 5 min · preview 5 min · transforms 1 min |
 | Worker waiting for `docker exec` | setup 5 min · preview 5 min · list 1 min |
 | Runner's HTTP calls to Quarry | 120 s each |

@@ -20,6 +20,7 @@
         "@nestjs/websockets": "^11.2.7",
         "@quarry/integrations": "*",
         "@quarry/shared": "*",
+        "axios": "^1.13.4",
         "bullmq": "^5.67.2",
         "busboy": "^1.6.0",
         "dotenv": "^17.3.1",

@@ -7,6 +7,7 @@ import { Preview as PreviewD } from "../Preview"
 import { Template as TemplateD } from "../Template"
 import { Workspace as WorkspaceD } from "../Workspace"
 import * as InternalMod from "./internal"
+import * as WorkerMod from "./worker"
 
 /** Code Workspaces' HTTP surface — mirrors code-workspace.controller. */
 export namespace API {
@@ -119,4 +120,7 @@ export namespace API {
 
     /** Code-workspace-worker-only endpoints (`/api/internal/…`). */
     export import Internal = InternalMod.Internal
+
+    /** The code workspace worker's own endpoints — the server calls them. */
+    export import Worker = WorkerMod.Worker
 }

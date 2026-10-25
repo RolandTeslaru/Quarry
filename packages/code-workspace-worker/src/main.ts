@@ -1,11 +1,11 @@
 // load-env first: reflect-metadata and the env every other module reads.
 import './load-env';
 import { waitForServer } from '@quarry/shared/server/internal-api';
-import type { Server } from 'node:http';
 import { NestFactory } from '@nestjs/core';
 import { config } from './config';
 import { System } from '@quarry/shared/server/system';
-import { attachGateway } from './gateway';
+import { createGateway } from './gateway';
+import { WorkerExceptionFilter } from './http/worker-exception.filter';
 import { SessionManager } from './session-manager';
 import { WorkerModule } from './worker.module';
 
@@ -17,15 +17,19 @@ async function bootstrap(): Promise<void> {
     // Session credentials come from the server's /internal API.
     await waitForServer();
 
-    // No body parsing: the gateway streams the IDE's request bodies through untouched.
-    const app = await NestFactory.create(WorkerModule, { bodyParser: false });
+    const app = await NestFactory.create(WorkerModule);
 
-    app.use(attachGateway(app.getHttpServer() as Server, app.get(SessionManager)));
+    app.useGlobalFilters(new WorkerExceptionFilter());
     app.enableShutdownHooks();
 
     await app.listen(config.port);
 
-    log.info('Code workspace worker listening', { port: config.port });
+    // Its own server and port: the only one browsers reach, and it streams the IDE's bodies through untouched.
+    const gateway = createGateway(app.get(SessionManager)).listen(config.gatewayPort);
+
+    app.getHttpServer().on('close', () => gateway.close());
+
+    log.info('Code workspace worker listening', { port: config.port, gatewayPort: config.gatewayPort });
 }
 
 bootstrap().catch((error: unknown) => {
