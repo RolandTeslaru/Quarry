@@ -55,6 +55,10 @@ package = false
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[tool.basedpyright]
+# "strict" flags every unannotated parameter; "standard" flags real mistakes.
+typeCheckingMode = "standard"
 `;
 }
 
@@ -86,7 +90,7 @@ pipeline.discover_transforms(datasets)
 function example(params: TemplateParams): string {
     if (!params.example)
         return `import polars as pl
-from quarry.transforms import Input, Output, transform
+from quarry.transforms import Input, Output, TransformInput, TransformOutput, transform
 
 
 # An example: copies a dataset unchanged. Uncomment it, name an input dataset
@@ -96,21 +100,21 @@ from quarry.transforms import Input, Output, transform
 #     source=Input("/Project/folder/input"),
 #     out=Output("/Project/folder/output"),
 # )
-# def example(source, out):
+# def example(source: TransformInput, out: TransformOutput):
 #     df = source.polars()
 #
 #     out.write_table(df)
 `;
 
     return `import polars as pl
-from quarry.transforms import Input, Output, transform
+from quarry.transforms import Input, Output, TransformInput, TransformOutput, transform
 
 
 @transform.using(
     source=Input(${pythonString(params.example.inputPath)}),
     out=Output(${pythonString(params.example.outputPath)}),
 )
-def example(source, out):
+def example(source: TransformInput, out: TransformOutput):
     """Copies the input unchanged. Replace the body with your logic, then Preview."""
     df = source.polars()
 

@@ -3,7 +3,7 @@
 # quarry.transforms and its engines installed system-wide. A workspace's own
 # .venv sees them (--system-site-packages), so its lock lists only what it adds.
 #
-#   docker build -f docker/code-workspace-runtime/Dockerfile -t quarry/code-workspace-runtime:dev .
+#   npm run build:code-workspace-runtime     (packages the Quarry extension first, then builds this)
 #
 # Versions are pinned to releases at least two weeks old.
 
@@ -51,9 +51,14 @@ RUN python3 -c "import json; p='/opt/openvscode-server/product.json'; product=js
 USER quarry
 WORKDIR /workspace
 
+# The Quarry extension (packages/code-workspace-extension), packaged before this build.
+COPY --chown=quarry:quarry packages/code-workspace-extension/dist/quarry-code-workspace.vsix /tmp/quarry.vsix
+
 RUN /opt/openvscode-server/bin/openvscode-server \
         --install-extension "${PYTHON_EXTENSION}" \
-        --install-extension "${BASEDPYRIGHT_EXTENSION}"
+        --install-extension "${BASEDPYRIGHT_EXTENSION}" \
+        --install-extension /tmp/quarry.vsix \
+    && rm /tmp/quarry.vsix
 
 # The session's uv cache lives on its volume, so re-syncing after a restart is fast.
 ENV UV_CACHE_DIR=/workspace/.cache/uv \

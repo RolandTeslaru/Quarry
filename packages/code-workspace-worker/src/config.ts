@@ -6,6 +6,7 @@ import { z } from 'zod';
 const Env = z.object({
     CODE_WORKSPACE_WORKER_PORT:          z.coerce.number().int().positive().default(4103),
     CODE_WORKSPACE_GATEWAY_URL:          z.url(),
+    CODE_WORKSPACE_APP_URL:              z.url().default('http://127.0.0.1:5173'),
     CODE_WORKSPACE_RUNTIME_IMAGE:        z.string().min(1).default('quarry/code-workspace-runtime:dev'),
     CODE_WORKSPACE_SESSION_SERVER_URL:   z.url().default('http://host.docker.internal:4000'),
     CODE_WORKSPACE_SESSION_IDLE_MINUTES: z.coerce.number().positive().default(30),
@@ -27,6 +28,8 @@ function load() {
         port:       env.CODE_WORKSPACE_WORKER_PORT,
         /** Where browsers reach the gateway. */
         gatewayUrl: env.CODE_WORKSPACE_GATEWAY_URL.replace(/\/$/, ''),
+        /** Where browsers reach Quarry itself — the extension's "open in Quarry" links. */
+        appUrl:     env.CODE_WORKSPACE_APP_URL.replace(/\/$/, ''),
 
         sessions: {
             image:     env.CODE_WORKSPACE_RUNTIME_IMAGE,

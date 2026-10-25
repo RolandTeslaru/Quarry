@@ -1,0 +1,59 @@
+{
+    "name": "quarry-code-workspace",
+    "displayName": "Quarry",
+    "description": "Quarry in the Code Workspaces IDE: Quarry's colour themes, what transforms' dataset references point to, and opening them in Quarry.",
+    "publisher": "quarry",
+    "version": "0.1.0",
+    "private": true,
+    "license": "UNLICENSED",
+    "engines": {
+        "vscode": "^1.109.0"
+    },
+    "main": "./dist/extension.js",
+    "activationEvents": [
+        "onStartupFinished",
+        "onLanguage:python"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "quarry.openInQuarry",
+                "title": "Open in Quarry",
+                "category": "Quarry"
+            },
+            {
+                "command": "quarry.useRid",
+                "title": "Use the RID instead of the path",
+                "category": "Quarry"
+            }
+        ],
+        "themes": [
+            {
+                "label": "Quarry Light",
+                "uiTheme": "vs",
+                "path": "./themes/quarry-light.json"
+            },
+            {
+                "label": "Quarry Dark",
+                "uiTheme": "vs-dark",
+                "path": "./themes/quarry-dark.json"
+            }
+        ]
+    },
+    "scripts": {
+        "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --outfile=dist/extension.js",
+        "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --out dist/quarry-code-workspace.vsix",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@quarry/shared": "*",
+        "axios": "^1.13.4",
+        "zod": "^4.3.6"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "@types/vscode": "1.109.0",
+        "@vscode/vsce": "4.0.0",
+        "esbuild": "0.28.2"
+    }
+}

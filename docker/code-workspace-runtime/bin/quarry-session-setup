@@ -1,12 +1,21 @@
 #!/bin/sh
 # Run by the code workspace worker (docker exec) every time the session is opened, with a
-# freshly minted token: points git at the workspace's repository with it, clones
-# on first open, and syncs the workspace's .venv with its lock.
+# freshly minted token: points git at the workspace's repository with it, hands it to
+# the Quarry extension, clones on first open, and syncs the workspace's .venv with its lock.
 #
-#   QUARRY_TOKEN, QUARRY_GIT_URL, QUARRY_USER_NAME, QUARRY_USER_EMAIL
+#   QUARRY_TOKEN, QUARRY_GIT_URL, QUARRY_SERVER_URL, QUARRY_APP_URL, QUARRY_USER_NAME, QUARRY_USER_EMAIL
 set -eu
 
-: "${QUARRY_TOKEN:?}" "${QUARRY_GIT_URL:?}" "${QUARRY_USER_NAME:?}" "${QUARRY_USER_EMAIL:?}"
+: "${QUARRY_TOKEN:?}" "${QUARRY_GIT_URL:?}" "${QUARRY_SERVER_URL:?}" "${QUARRY_APP_URL:?}" "${QUARRY_USER_NAME:?}" "${QUARRY_USER_EMAIL:?}"
+
+# For the Quarry extension (it watches this file): the session's token and where Quarry is.
+# Only this user can read it.
+mkdir -p "${HOME}/.quarry"
+umask 077
+python3 -c 'import json, os; print(json.dumps({"token": os.environ["QUARRY_TOKEN"], "serverUrl": os.environ["QUARRY_SERVER_URL"], "appUrl": os.environ["QUARRY_APP_URL"]}))' \
+    > "${HOME}/.quarry/session.json.tmp"
+mv "${HOME}/.quarry/session.json.tmp" "${HOME}/.quarry/session.json"
+umask 022
 
 # Rewritten each open: the token in it is the session's current one.
 git config --global --replace-all "http.${QUARRY_GIT_URL}.extraHeader" "Authorization: Bearer ${QUARRY_TOKEN}"

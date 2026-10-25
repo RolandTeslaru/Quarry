@@ -1,0 +1,5 @@
+# The .vsix carries only the bundle (dist/extension.js), the manifest and the themes.
+**
+!dist/extension.js
+!package.json
+!themes/**

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal, overload
 
 import duckdb
 import polars as pl
@@ -23,6 +23,12 @@ class TransformInput:
     def path(self) -> str:
         """The directory of this version's Parquet files — for any other engine."""
         return str(self._directory)
+
+    @overload
+    def polars(self, lazy: Literal[False] = False) -> pl.DataFrame: ...
+
+    @overload
+    def polars(self, lazy: Literal[True]) -> pl.LazyFrame: ...
 
     def polars(self, lazy: bool = False) -> pl.DataFrame | pl.LazyFrame:
         frame = pl.scan_parquet(self._files())

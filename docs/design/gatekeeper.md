@@ -1,6 +1,6 @@
 # Gatekeeper — Authorization
 
-_Draft, 2026-10-13. Tables and triggers are in [database.md](database.md) (§3 `identity`, §4 `library`, §5 `gatekeeper`). Foundry background: [research notes](../research/palantir-foundry-ontology.md)._
+_Draft, 2026-10-13. Tables and triggers are in [database.md](database.md) (§3 `identity`, §4 `library`, §5 `gatekeeper`). Foundry background: [research notes](../research/palantir-foundry-ontology.md). How the checks run at runtime, Gatekeeper and RLS together: [gatekeeper-and-rls.md](gatekeeper-and-rls.md)._
 
 Gatekeeper answers one question for every service: **may this principal do this action on this resource?** It's modelled on Foundry's split — authentication by one service (Multipass there, GoTrue here), authorization by a central permission service that every other service asks before acting.
 

@@ -1,7 +1,8 @@
-# The runtime image needs only its own files and the transforms library.
+# The runtime image needs only its own files, the transforms library and the packaged Quarry extension.
 *
 !docker/code-workspace-runtime/
 !packages/transforms-python/
+!packages/code-workspace-extension/dist/quarry-code-workspace.vsix
 packages/transforms-python/.venv/
 packages/transforms-python/**/__pycache__/
 packages/transforms-python/.pytest_cache/
