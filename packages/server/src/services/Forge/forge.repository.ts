@@ -244,22 +244,6 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         return row ? ForgeDB.Job.toDomain(row) : null;
     }
 
-    /** The output transactions of the build's unfinished jobs — what canceling aborts. */
-    @Transactional()
-    public async listUnfinishedOutputs(principal: Principal, buildRid: Forge.Build.Rid): Promise<Pick<Catalog.Transaction.Schema, 'rid' | 'datasetRid'>[]> {
-        const jobs = await this.trx
-            .selectFrom('forge.job')
-            .select('outputs')
-            .where('build_rid', '=', buildRid)
-            .where('status', 'in', [...Forge.Job.UNFINISHED])
-            .execute();
-
-        return jobs.flatMap((job) => Object.entries(job.outputs).map(([datasetRid, rid]) => ({
-            rid,
-            datasetRid: Catalog.Dataset.Rid.parse(datasetRid),
-        })));
-    }
-
     // ── running jobs (the relay, ForgeAgents) ───────────────────────────
 
     /**

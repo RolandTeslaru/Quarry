@@ -103,17 +103,22 @@ export class ForgeService {
         return found;
     }
 
-    /** Aborts the unfinished jobs' transactions, then marks them and the build canceled (RLS: write on every target). */
+    /**
+     * Marks the build and its unfinished jobs canceled, then aborts those jobs'
+     * transactions. Needs write on every target — asserted first: under RLS alone
+     * a viewer's cancel would match no rows and read as "finished meanwhile".
+     */
     public async cancelBuild(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.API.CancelBuild.Response> {
         const { build } = await this.getBuild(principal, rid);
+
+        for (const datasetRid of build.target.datasetRids)
+            await this.gatekeeper.assert(principal, 'write', datasetRid);
 
         if (build.status !== 'running')
             throw new ConflictException(`Build is ${build.status}`);
 
-        const outputs = await this.repository.listUnfinishedOutputs(principal, rid);
-
-        await this.catalog.transaction.abortBatch(principal, outputs);
-
+        // Mark first: a canceled job's late finish is refused (finish needs it running), so an
+        // agent can't complete it once its outputs are being released.
         const canceled = await this.repository.cancelBuild(principal, rid);
 
         if (!canceled)
@@ -121,9 +126,11 @@ export class ForgeService {
 
         for (const job of canceled)
             this.realtime.emitEvent({
-                ...Forge.Event.create('forge:job:updated', { job: job }),
+                ...Forge.Event.create('forge:job:updated', { job }),
                 channel: Forge.Event.getChannel(job.buildRid),
             });
+
+        await this.catalog.transaction.abortBatch(principal, canceled.flatMap(Forge.Job.getOutputTransactions));
 
         this.log.info(`Canceled ${rid}`);
 

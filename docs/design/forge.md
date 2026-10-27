@@ -223,7 +223,7 @@ sequenceDiagram
 - **succeeded** — commit all the job's output transactions together (`catalog.transaction.commitBatch`, planned: a job's outputs update together or not at all), job `succeeded`; load the plan and the jobs' statuses, `D2.getReady` → each ready child goes `waiting → scheduled` (a conditional update, so two parents finishing at once schedule it once), relayed after the commit; nothing left waiting, scheduled, queued or running → build `succeeded`.
 - **failed** — attempts left (`retryCount`)? `attempt + 1`, `scheduled` again (a new BullMQ id, `<rid>_<attempt>`), same open transactions. Otherwise abort its transactions, job `failed`; `D2.getDescendants` → abort theirs and cancel them (with `abortOnFailure`, cancel everything still waiting); nothing left running → build `failed`.
 
-**Canceling** — built: abort the unfinished jobs' transactions, mark them and the build `canceled`. With agents, a running job's next heartbeat reply says stop and the agent kills its container.
+**Canceling** — built: needs write on every target (asserted first — under RLS alone a viewer's cancel would match no rows). **Mark first**: the build and its unfinished jobs go `canceled`, then their transactions are aborted — in that order so a running job can't still finish once its outputs are being released (finish needs the job `running`; a late one gets 409, which the agent takes as "canceled while it ran"). Failing a build does the same. With agents, a running job's next heartbeat reply says stop and the agent kills its container.
 
 **Reaping** — planned: a `running` job not heard from in about 2 minutes is treated as failed (its agent died).
 
@@ -361,7 +361,7 @@ The dataset viewer then shows, as in Foundry's About panel: **Updated … by** t
 | `POST /api/builds` | A manual build on main — [§4](#creating-it--built), phases 1–4 |
 | `GET /api/builds?datasetRid=&limit=` | Builds the caller can see, newest first; with a dataset, those targeting it |
 | `GET /api/builds/:rid` | The build (with its plan) and its jobs, by RID |
-| `POST /api/builds/:rid/cancel` | Aborts the unfinished jobs' transactions, then marks them and the build canceled |
+| `POST /api/builds/:rid/cancel` | Write on every target; marks the build and its unfinished jobs canceled, then aborts their transactions |
 | `GET /api/jobs/:rid` | One job |
 | `GET /api/job-specs/current?datasetRid=&branch=` | What computes the dataset there, or null |
 
@@ -375,7 +375,7 @@ Publishing has no endpoint: producers call `forge.jobSpecs.publish(principal, pr
 
 - **aborts the job's output transactions** (`catalog.transaction.abortBatch`) — nothing was written, and committing would publish empty snapshots; committing comes with the compute. A repeated finish redoes this cleanup (and failing the build): both skip what's already done, so a cleanup that failed is finished by the agent's retry;
 - on success, schedules each child whose parents have all succeeded (`Forge.Build.Plan.getReadyChildren`) and relays it;
-- on failure, aborts and cancels the rest of the build and fails it (descendants only, later);
+- on failure, cancels the rest of the build and fails it, then aborts their outputs (descendants only, later); the finished job's own event goes out first, so events follow the order of the commits;
 - no job left unfinished → the build succeeded (or failed).
 
 | ForgeAgent API | What |

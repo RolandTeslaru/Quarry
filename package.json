@@ -13,6 +13,7 @@
         "dev:code-workspace": "npm run dev --workspace=packages/code-workspace-worker",
         "dev:forge-agent": "npm run dev --workspace=packages/forge-agent",
         "migrate": "npm run migrate --workspace=packages/server",
+        "test": "npm run test --workspace=packages/shared --workspace=packages/server",
         "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/integrations --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/forge-agent --workspace=packages/code-workspace-extension --workspace=packages/standard-ui --workspace=packages/frontend",
         "build": "npm run build --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/forge-agent --workspace=packages/frontend",
         "build:code-workspace-runtime": "npm run package --workspace=packages/code-workspace-extension && docker build -f docker/code-workspace-runtime/Dockerfile -t quarry/code-workspace-runtime:dev .",

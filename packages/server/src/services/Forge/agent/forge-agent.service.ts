@@ -61,6 +61,14 @@ export class ForgeAgentService {
         const finished = await this.repository.finishJob(AGENT, rid, outcome);
         const job = finished?.job ?? await this._getRepeatedFinish(rid, outcome);
 
+        // Announced in the order they were committed: this job (and the children it scheduled), then what failing cancels.
+        if (finished)
+            for (const changed of [finished.job, ...finished.scheduled])
+                this.realtime.emitEvent({
+                    ...Forge.Event.create('forge:job:updated', { job: changed }),
+                    channel: Forge.Event.getChannel(changed.buildRid),
+                });
+
         // No compute yet: nothing was written, so the outputs are aborted rather than committed.
         await this.catalog.transaction.abortBatch(AGENT, Forge.Job.getOutputTransactions(job));
 
@@ -69,12 +77,6 @@ export class ForgeAgentService {
 
         if (!finished)
             return { job };
-
-        for (const changed of [finished.job, ...finished.scheduled])
-            this.realtime.emitEvent({
-                ...Forge.Event.create('forge:job:updated', { job: changed }),
-                channel: Forge.Event.getChannel(changed.buildRid),
-            });
 
         this.log.info(`Finished ${rid}: ${outcome.status}, ${finished.scheduled.length} job(s) scheduled`);
 
@@ -96,18 +98,17 @@ export class ForgeAgentService {
         throw new ConflictException(`Job ${rid} attempt ${outcome.attempt} isn't running (it's ${job.status}, attempt ${job.attempt})`);
     }
 
-    /** Aborts the build's unfinished jobs' transactions, then cancels them and fails the build. */
+    /** Cancels the build's unfinished jobs and fails the build, then aborts those jobs' transactions. */
     private async _failBuild(buildRid: Forge.Build.Rid): Promise<void> {
-        const outputs = await this.repository.listUnfinishedOutputs(AGENT, buildRid);
-
-        await this.catalog.transaction.abortBatch(AGENT, outputs);
-
+        // Mark first, as canceling does: a canceled job's late finish is refused.
         const canceled = await this.repository.failBuild(AGENT, buildRid);
 
         for (const job of canceled)
             this.realtime.emitEvent({
-                ...Forge.Event.create('forge:job:updated', { job: job }),
+                ...Forge.Event.create('forge:job:updated', { job }),
                 channel: Forge.Event.getChannel(job.buildRid),
             });
+
+        await this.catalog.transaction.abortBatch(AGENT, canceled.flatMap(Forge.Job.getOutputTransactions));
     }
 }

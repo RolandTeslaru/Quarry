@@ -46,11 +46,32 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
             return { status: 'skipped' };
         }
 
-        await Agent.finish(forgeApi, message.jobRid, { attempt: message.attempt, status: 'succeeded' });
+        const finished = await this._finish(message, 'succeeded');
+
+        if (!finished)
+            return { status: 'skipped' };
 
         this.log.info(`Finished ${message.jobRid}: succeeded`);
 
         return { status: 'succeeded' };
+    }
+
+    /** False if the server refused it: the job was canceled while it ran (its build canceled or failed). */
+    private async _finish(message: Forge.Queue.RunJob.Job, status: 'succeeded' | 'failed'): Promise<boolean> {
+        try {
+            await Agent.finish(forgeApi, message.jobRid, { attempt: message.attempt, status });
+
+            return true;
+        }
+        catch (error) {
+            if (isAxiosError(error) && error.response?.status === 409) {
+                this.log.info(`${message.jobRid} was canceled while it ran — its outcome is dropped`);
+
+                return false;
+            }
+
+            throw error;
+        }
     }
 
     /** Null if the server says this attempt isn't waiting to start — a duplicate message, or a canceled build. */
