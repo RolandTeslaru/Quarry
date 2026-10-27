@@ -27,8 +27,11 @@ Needs the dev Postgres and Redis (`npm run infra`). **Vitest** (5.0.4) with **un
 - **Database `quarry_test`** on the dev Postgres — dropped, created and migrated at the start of every run (`test/support/global-setup.ts`). The migrations are living files, so it's rebuilt rather than reused; a run takes a few seconds.
 - **Git root `$TMPDIR/quarry-test-git`** — Code Workspaces' bare repositories (`QUARRY_GIT_ROOT`), emptied at the start of every run; the dev ones (`.data/git`) are never touched.
 - **Redis database 15** — BullMQ's keys are per database, so test jobs never reach dev queues or a running ForgeAgent. Flushed at the start of every run. (Pub/sub isn't per database: a test's realtime events go to the dev Redis's channels, with random build RIDs nobody listens on.)
+- **The dev bucket (`S3_BUCKET`)** — Data Connection tests write a run's files under random dataset RIDs, as the worker would; `DataConnectionHarness.stop()` deletes every prefix it wrote.
+- **A throwaway database per run of `source-probes`** — `quarry_test_source_<random>` on the dev Postgres, the "external" system the worker connects to; created with its tables in `beforeAll`, dropped in `afterAll`.
 - **Each test makes its own data** — its own project, datasets and specs — so tests don't depend on each other; files run one after another (one database).
-- `test/support/env.ts` points every test process at both before any module reads its env.
+- `test/support/env.ts` points every test process at both before any module reads its env — and `CODE_WORKSPACE_WORKER_URL` at a closed port, so no test reaches a running Code Workspace worker.
+- **Two runs at once** (two terminals, two agents) would drop each other's database: give one its own with `QUARRY_TEST_DATABASE=quarry_test_2 QUARRY_TEST_REDIS_DATABASE=14 QUARRY_TEST_GIT_ROOT=/tmp/quarry-test-git-2 npm test`.
 
 ## Writing integration tests
 
@@ -36,17 +39,23 @@ Needs the dev Postgres and Redis (`npm run infra`). **Vitest** (5.0.4) with **un
 
 Failures the code can't produce on demand (a relay crash, Redis losing a message) are simulated directly: `setStatus`, `backdateQueued`, removing a BullMQ job.
 
+`test/support/data-connection-fixtures.ts` — `DataConnectionHarness`, the same idea for Data Connection: users, projects, Postgres credentials and sources, syncs (append by default, snapshot on request). **The test plays the Data Connection worker**: `startRun`, then `writeCopy` (uploads what a copy would under the run's prefix — not real Parquet: the server only lists keys) and `completeRun`, or `run.fail`; `backdateHeartbeat` for a worker that died. A crash between two writes is simulated with a temporary Postgres trigger (`refuseSucceeding` in `publishing.test.ts`).
+
+A test that pins down a **known bug** is `it.fails`: it passes while the bug is there and turns red once it's fixed — then make it a plain `it`.
+
 Conventions: test through public service methods, not private helpers; no `sleep` — drive the steps, or poll with a timeout; one behaviour per test, named as a sentence.
 
 **Check a new test can fail.** Break the rule it guards and run it: when written, the diamond test caught readiness changed from "every parent" to "some parent", and the start-once test caught `start` accepting a running job — each failed alone, the rest passed.
 
+Data Connection's, checked the same way (each mutation failed only the tests named): complete/fail only while running (the two fail tests — a second complete is also refused by Catalog's own open-transaction check); the `sync_run_one_running` index (the second-start test); heartbeat only on a running run; the reaper only for stale heartbeats; the state from the last *successful* run (both state tests); registering only the run's own prefix; run history needs read, not discover; a run uses the credential as its delegate, not the system; a failed run is announced (the two event tests).
+
 ## What's covered
 
-`npm test` from the root runs both packages: **158 tests**, about 17 s.
+`npm test` from the root runs both packages: **286 tests** (and 1 expected failure — a known bug, below), about 45 s.
 
-**`@quarry/shared`** (74 unit tests, next to the code; Vitest without SWC — no decorators): `Build.Plan` (`getParents`, `getReadyChildren` on a diamond, schema), `Build.Target`, `Job` (`getOutputTransactions`, unfinished statuses), `Queue.RunJob` (job ids — no `:`, one per attempt), `Forge.Event` (channel round trip, `create` without channel), `Realtime.Event.defineFactory`, `Branch`, `Commit`, `ModuleFunctionPath`, `Rid`, `Check.Config` (quarry-ci.yml's rules) and `Check.Manifest`. Its `tsconfig.json` excludes `*.test.ts`, so `tsc -b` never emits tests into `dist`; `tsconfig.test.json` typechecks them.
+**`@quarry/shared`** (93 unit tests, next to the code; Vitest without SWC — no decorators): `Build.Plan` (`getParents`, `getReadyChildren` on a diamond, schema), `Build.Target`, `Job` (`getOutputTransactions`, unfinished statuses), `Queue.RunJob` (job ids — no `:`, one per attempt), `Forge.Event` (channel round trip, `create` without channel), `DataConnection.Event` (the same, per source), `DataConnection.Sync.Schedule` (five-field cron or null), `DataConnection.Queue.Sync` (one deduplication id per sync, triggers), `Realtime.Event.defineFactory`, `Branch`, `CodeWorkspace.Git` (`Commit`, `Heads`, `getMovedHeads`), `ModuleFunctionPath`, `Rid`, `Check.Config` (quarry-ci.yml's rules) and `Check.Manifest`. Its `tsconfig.json` excludes `*.test.ts`, so `tsc -b` never emits tests into `dist`; `tsconfig.test.json` typechecks them.
 
-**`packages/server`** (84 integration and end-to-end tests):
+**`packages/server`** (198 integration and end-to-end tests, and 1 expected failure):
 
 | File | Covers |
 |---|---|
@@ -57,8 +66,17 @@ Conventions: test through public service methods, not private helpers; no `sleep
 | `test/forge/agent-api` | start once; start from `scheduled`; idempotent finish; the attempt as fencing token; outputs aborted |
 | `test/forge/relay` | the fast path; the sweep re-sends scheduled and stale queued jobs (restarting the clock), leaves recent and running ones alone |
 | `test/forge/events` | the exact event sequence of a two-job build; failure and cancel events; one channel per build |
-| `test/code-workspace/check-runs` | `getMovedHeads`; runs queued per moved branch as the pusher, superseding the branch's unfinished runs (not finished ones, not other branches); reader vs writer; **real pushes over HTTP** with a session token (git CLI against a server on a random port): the pushed head only, several branches, nothing for a rejected push, a fetch or a deleted branch, a viewer's push refused (403) |
+| `test/code-workspace/check-runs` | runs queued per moved branch as the pusher, superseding the branch's unfinished runs (not finished ones, not other branches); reader vs writer; **real pushes over HTTP** with a session token (git CLI against a server on a random port): the pushed head only, several branches, nothing for a rejected push, a fetch or a deleted branch, a viewer's push refused (403) |
+| `test/code-workspace/check-dispatch` | dispatch, reading the real `code-workspace.run-check` queue in the test Redis: claims with steps laid out and the RID as job id, **one running per workspace** (the next once it finishes; the unique index refusing a second), workspaces in parallel, Redis down gives the run back, quarry-ci.yml missing / unparsable / invalid fails at Parse unsent, superseded runs never sent, coalesced calls; the worker's reports (the test plays it): start once, step reports at their place, log tail, bad step index, finish with a valid / invalid / missing manifest, failure skips the rest, no second finish, a canceled run's reports refused; the sweep: untaken after 2 min sent again when Redis lost it, not duplicated when it's still waiting, silent after 35 min failed and its workspace freed, recent ones left alone |
 | `test/catalog/transaction-batches` | `openBatch` (order, all or none, duplicates, trashed datasets), `abortBatch` (skips committed, idempotent, only through its own dataset) |
+| `test/data-connection/run-lifecycle` | start (a running run, the transaction open — append for incremental, snapshot for a full copy; scheduled runs act for no one; a missing sync skipped); one run per sync (a second start 409, nothing recorded; the next starts once it's done); heartbeat (renews a running run, leaves a finished one); complete and fail only while running (duplicate or late ones 409, the first outcome kept); the reaper (stale runs failed and aborted, live and finished ones left, the sync freed) |
+| `test/data-connection/publishing` | complete → a committed version with the copy's files, row counts and schema; only Parquet under the run's own prefix; incremental runs add, full copies replace; the state moves from run to run, and a failed or reaped run moves nothing; together or not at all — a commit refused mid-run (output trashed) commits nothing and the worker's fail aborts, a duplicate complete changes nothing, **and the known bug** (below) |
+| `test/data-connection/syncs` | create (its dataset in the folder asked, the parsed config; a bad config 400 with no dataset; a taken name 409); a job scheduler only for scheduled syncs; listing per source; run now (queued as the presser, once however often pressed; another source's sync or a trashed output 404); a run while one is running — queued, then refused at start (409); the schedules the system worker mirrors — each once, no manual ones |
+| `test/data-connection/sources` | the definitions on offer; create (in the folder, naming its credential; unknown type or no credential 400; unknown settings dropped; the default output a project or folder, not a dataset); get, require, list; trashed = gone; open records an audit `open` in its app — nothing for a missing source; users only (a delegate 403) |
+| `test/data-connection/permissions` | as admin, editor, viewer, discoverer and no grant: seeing, opening and listing sources; probing them (test, explore, preview: 403 for a discoverer, 404 with no grant); creating sources and syncs (no dataset left behind when refused); listing syncs; run now; run history (403 for a discoverer, not an empty list). No grant always gets the same 404 as a source that doesn't exist |
+| `test/data-connection/credentials` | the credential handed only to someone with read on it (403 discover, 404 no grant), encrypted; a source can't name one its creator can't read; a run acting for someone who can't read it is refused and recorded failed, no transaction left open; neither the values nor the blob appear in any user-facing response (sources, syncs, runs, Keychain) |
+| `test/data-connection/events` | `data-connection:run:updated` on the source's channel, in order (running → succeeded / failed), across consecutive runs; failed and reaped runs notify whoever the run acted for (the sync's creator for a schedule); nothing for a refused start; each source's runs on its own channel |
+| `test/e2e/source-probes.e2e` | **a real Data Connection worker process** (request–reply over Redis) against a throwaway Postgres database: test passes, explore lists the tables across schemas, preview returns typed columns and rows, each probe audited; a missing table, a wrong password (424 with the reason, no password in it) and an unreachable host fail cleanly |
 | `test/e2e/forge-agent.e2e` | **a real ForgeAgent process** against the server over HTTP on a random port: a one-job build and a diamond run to the end in dependency order; canceling against a running agent (no canceled job turns succeeded); a late finish of a canceled job refused |
 
 The end-to-end file lives in the server package for now (it drives the server and spawns `packages/forge-agent`); it moves to `tests/e2e/` at the root when more packages take part. It boots the agent with ts-node (~3 s) and was stable over repeated runs.
@@ -69,9 +87,15 @@ The end-to-end file lives in the server package for now (it drives the server an
 - When a job failed, its own `failed` event went out **after** the `canceled` events it caused. Events now follow the order of the commits.
 - Canceling (and failing a build) aborted outputs **before** marking jobs canceled, so a running job could still finish in between — with compute, a build reported succeeded whose outputs a cancel had just aborted. Now they're marked first; a late finish gets 409, and the agent drops that outcome.
 
+**What the Data Connection tests found** (not fixed — reported; the service wasn't changed):
+
+- **A crash between commit and marking the run succeeded leaves the data committed and the run running** — the reaper then fails it, and the next incremental run starts before rows that were already committed (an append sync loads them twice). Pinned by the `it.fails` test in `publishing.test.ts`; see [data-connection.md §7](data-connection.md#7-open-questions).
+- **Explore lists Postgres's own catalogs** — 142 `pg_catalog` and 69 `information_schema` tables beside the source's real ones. Noted in [data-connection.md §7](data-connection.md#7-open-questions).
+
 ## Next
 
 - The realtime gateway's authorization through a real socket (a build's channel for members who can and can't see it).
 - End to end with compute, once ForgeAgents run containers: committed outputs, inputs pinned at start.
-- Data Connection, Catalog uploads and the Library — untested so far.
+- Catalog uploads and the Library — untested so far.
+- Data Connection: a real sync run end to end (the worker copying with DuckDB to the bucket, then complete).
 - CI: Testcontainers (throwaway Postgres and Redis per run) instead of the dev ones.

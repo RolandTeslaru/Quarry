@@ -8,38 +8,22 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { sql } from 'kysely';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import { ApiModule } from '@/api.module';
 import type { Principal } from '@/auth/principal';
 import { SessionTokens } from '@/auth/session-tokens';
 import { db } from '@/db/pool';
-import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/repository/code-workspace.repository';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
-import { getMovedHeads } from '@/services/CodeWorkspace/checks/code-workspace-checks';
-import { GitRepositories, type Heads } from '@/services/CodeWorkspace/git/repositories';
+import { CheckDispatcher } from '@/services/CodeWorkspace/checks/check-dispatcher';
+import { createWorkspace } from '../support/code-workspace-fixtures';
 import { ForgeHarness } from '../support/forge-fixtures';
 
 const run = promisify(execFile);
 
 const MAIN = Foundations.Branch.parse('main');
 const FEATURE = Foundations.Branch.parse('feature/orders');
-const sha = (character: string) => CodeWorkspace.Commit.parse(character.repeat(40));
-
-describe('getMovedHeads', () => {
-
-    it('keeps new and moved branches, at their new heads', () => {
-        expect(getMovedHeads({ [MAIN]: sha('a') }, { [MAIN]: sha('b'), [FEATURE]: sha('c') })).toEqual({ [MAIN]: sha('b'), [FEATURE]: sha('c') });
-    });
-
-    it('drops unchanged and deleted branches', () => {
-        expect(getMovedHeads({ [MAIN]: sha('a'), [FEATURE]: sha('c') }, { [MAIN]: sha('a') })).toEqual({});
-    });
-
-    it('treats every branch as new on a first push', () => {
-        expect(getMovedHeads({}, { [MAIN]: sha('a') })).toEqual({ [MAIN]: sha('a') });
-    });
-});
+const sha = (character: string) => CodeWorkspace.Git.Commit.parse(character.repeat(40));
 
 /**
  * Check runs queued by pushes (docs/design/code-workspaces/checks.md §1): one per
@@ -56,6 +40,9 @@ describe('check runs', () => {
     beforeAll(async () => {
         harness = await ForgeHarness.start();
         service = harness.get(CodeWorkspaceService);
+
+        // Queueing only: dispatching them is check-dispatch.test's.
+        vi.spyOn(harness.get(CheckDispatcher), 'trigger').mockImplementation(() => undefined);
         admin = await harness.createUser();
     });
 
@@ -159,6 +146,7 @@ describe('check runs', () => {
             server = await NestFactory.create<NestExpressApplication>(ApiModule, { logger: false });
             server.setGlobalPrefix('api');
             server.useWebSocketAdapter(new WsAdapter(server));
+            vi.spyOn(server.get(CheckDispatcher), 'trigger').mockImplementation(() => undefined);
             await server.listen(0, '127.0.0.1');
 
             const { port } = server.getHttpServer().address() as AddressInfo;
@@ -193,7 +181,7 @@ describe('check runs', () => {
                     await git('add', file);
                     await git('commit', '--quiet', '--message', `Change ${file}`);
 
-                    return CodeWorkspace.Commit.parse(await git('rev-parse', 'HEAD'));
+                    return CodeWorkspace.Git.Commit.parse(await git('rev-parse', 'HEAD'));
                 },
             };
         }
@@ -296,30 +284,7 @@ interface Git {
     readonly directory: string;
     readonly git:       (...args: string[]) => Promise<string>;
     /** Changes a file and commits it; the new commit. */
-    readonly commit:    (file: string) => Promise<CodeWorkspace.Commit>;
-}
-
-/** A workspace in a new project: its row, and a bare repository whose main holds one commit. No check queued. */
-async function createWorkspace(harness: ForgeHarness, principal: Principal.User): Promise<{ rid: CodeWorkspace.Rid; projectRid: CodeWorkspace.Schema['parentRid']; heads: Heads }> {
-    const { projectRid } = await harness.createDatasets(principal, []);
-    const rid = CodeWorkspace.createRid();
-    const repositories = harness.get(GitRepositories);
-
-    await repositories.create(rid, {
-        author:   { name: 'Test', email: 'test@test.quarry' },
-        message:  'Initial commit',
-        populate: (directory) => fs.writeFile(path.join(directory, 'README.md'), '# Test\n'),
-    });
-
-    await harness.get(CodeWorkspaceRepository).workspace.create(principal, {
-        rid,
-        name:        `Workspace ${rid.slice(-8)}`,
-        description: null,
-        parentRid:   projectRid,
-        templateId:  'python-transforms',
-    });
-
-    return { rid, projectRid, heads: await repositories.getHeads(rid) };
+    readonly commit:    (file: string) => Promise<CodeWorkspace.Git.Commit>;
 }
 
 /** As the worker will, once it takes the run. */

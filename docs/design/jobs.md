@@ -128,6 +128,8 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
 | `catalog.dataset-updated` | `Catalog.Queue.DatasetUpdated` | none yet (layer 2: builds; layer 3: reindex) | outbox relay | `transactionRid` | — | — |
 | `forge.run-job` | `Forge.Queue.RunJob` | **forge-agent** | the server's `ForgeRelayService` (after a commit that schedules jobs, and its sweep) | `<jobRid>_<attempt>` | — (a retry is a new attempt) | — |
 | `forge.relay-sweep` | `Forge.Queue.RelaySweep` | **system-worker** → `POST /api/internal/forge/relay-sweep` | repeatable | singleton | — | every minute |
+| `code-workspace.run-check` | `CodeWorkspace.Queue.RunCheck` | **server** (check dispatch) → **code-workspace-worker** | one-off | job id = check run RID | — | per claimed check run; concurrency = `CODE_WORKSPACE_CHECK_SLOTS` |
+| `code-workspace.check-sweep` | `CodeWorkspace.Queue.CheckSweep` | **system-worker** → `POST /api/internal/code-workspaces/check-runs/sweep` | repeatable | singleton | — | every minute |
 
 Library has no queue in layer 1. Its first will be `library.purge` — when trashed resources pass their retention, ask each owning service to purge its subtype rows and storage, then delete the library row.
 

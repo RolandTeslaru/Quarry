@@ -27,7 +27,7 @@ export namespace CodeWorkspaceDB {
             rid:           CodeWorkspace.CheckRun.Rid,
             workspace_rid: CodeWorkspace.Rid,
             branch:        Foundations.Branch,
-            commit:        CodeWorkspace.Commit,
+            commit:        CodeWorkspace.Git.Commit,
             status:        CodeWorkspace.CheckRun.Status,
             steps:         CodeWorkspace.CheckRun.Step.Schema.array(),
             published:     z.boolean(),
@@ -35,6 +35,7 @@ export namespace CodeWorkspaceDB {
             pushed_by:     Identity.User.Rid.nullable(),
             created_at:    z.date(),
             started_at:    z.date().nullable(),
+            reported_at:   z.date().nullable(),
             finished_at:   z.date().nullable(),
         });
         export type Row = z.infer<typeof Row>;
@@ -51,13 +52,14 @@ export namespace CodeWorkspaceDB {
             pushedBy:     row.pushed_by,
             createdAt:    row.created_at,
             startedAt:    row.started_at,
+            reportedAt:   row.reported_at,
             finishedAt:   row.finished_at,
         });
     }
 
     export interface Tables {
         'code_workspace.workspace': Table<typeof Workspace.Row, 'type'>;
-        'code_workspace.check_run': Table<typeof CheckRun.Row, 'status' | 'steps' | 'published' | 'failure' | 'created_at' | 'started_at' | 'finished_at'>;
+        'code_workspace.check_run': Table<typeof CheckRun.Row, 'status' | 'steps' | 'published' | 'failure' | 'created_at' | 'started_at' | 'reported_at' | 'finished_at'>;
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();

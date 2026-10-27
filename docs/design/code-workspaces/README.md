@@ -66,7 +66,7 @@ flowchart LR
 | Process | Package | Talks to |
 |---|---|---|
 | API server | `packages/server` (`services/CodeWorkspace`, `services/Library`, `services/Catalog`) | Postgres, Redis, object storage, the bare repositories on disk |
-| Code workspace worker | `packages/code-workspace-worker` | Docker, the server's `/api/internal` — no database, no Redis. Serves its API (`CODE_WORKSPACE_WORKER_PORT`, 4104 — for the server only) and the IDE proxy (`CODE_WORKSPACE_IDE_PROXY_PORT`, 4103 — for browsers) |
+| Code workspace worker | `packages/code-workspace-worker` | Docker, the server's `/api/internal`, Redis (it takes check runs from `code-workspace.run-check`) — no database. Serves its API (`CODE_WORKSPACE_WORKER_PORT`, 4104 — for the server only) and the IDE proxy (`CODE_WORKSPACE_IDE_PROXY_PORT`, 4103 — for browsers) |
 | Session container | `docker/code-workspace-runtime` (image `quarry/code-workspace-runtime:dev`) | The server, as the user (git, previews, the extension) |
 | Browser | `packages/frontend` (`apps/code-workspaces`, `SDKs/CodeWorkspaceSDK`) | The server (REST), the worker's IDE proxy (the IDE iframe) |
 

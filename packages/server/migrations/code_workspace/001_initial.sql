@@ -35,7 +35,8 @@ CREATE TABLE code_workspace.check_run (
     failure        jsonb,                           -- { step, message }
     pushed_by      identity.user_rid REFERENCES identity.user(rid),   -- whom it acts as; null = the system
     created_at     timestamptz NOT NULL DEFAULT now(),
-    started_at     timestamptz,                     -- the worker took it
+    started_at     timestamptz,                     -- claimed by dispatch, sent to the worker
+    reported_at    timestamptz,                     -- the worker's last report; null until it takes the run
     finished_at    timestamptz,
     CHECK ((status IN ('succeeded', 'failed', 'canceled')) = (finished_at IS NOT NULL)),
     CHECK (status NOT IN ('running', 'succeeded', 'failed') OR started_at IS NOT NULL),
@@ -44,7 +45,8 @@ CREATE TABLE code_workspace.check_run (
 );
 
 CREATE INDEX check_run_branch ON code_workspace.check_run (workspace_rid, branch, created_at DESC);   -- the Checks tab, superseding
-CREATE INDEX check_run_queued ON code_workspace.check_run (created_at) WHERE status = 'queued';      -- what the sweep re-sends
+CREATE INDEX check_run_queued ON code_workspace.check_run (created_at) WHERE status = 'queued';      -- what dispatch sends next
+CREATE UNIQUE INDEX check_run_one_running ON code_workspace.check_run (workspace_rid) WHERE status = 'running';   -- one at a time per workspace
 
 -- Row-level security (gatekeeper/001_initial.sql explains the setup).
 ALTER TABLE code_workspace.workspace ENABLE ROW LEVEL SECURITY;

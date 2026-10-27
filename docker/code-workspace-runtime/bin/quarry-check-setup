@@ -1,0 +1,20 @@
+#!/bin/sh
+# Run by the code workspace worker (docker exec) once, in a check run's throwaway container:
+# points git at the workspace's repository with the run's token (the pusher's), checks out the
+# run's commit, and makes the venv the steps run in (quarry.transforms from the image).
+#
+#   QUARRY_TOKEN, QUARRY_GIT_URL, QUARRY_COMMIT
+set -eu
+
+: "${QUARRY_TOKEN:?}" "${QUARRY_GIT_URL:?}" "${QUARRY_COMMIT:?}"
+
+git config --global --replace-all "http.${QUARRY_GIT_URL}.extraHeader" "Authorization: Bearer ${QUARRY_TOKEN}"
+git config --global advice.detachedHead false
+
+mkdir -p /workspace/repo
+cd /workspace/repo
+
+git clone --quiet --no-checkout "${QUARRY_GIT_URL}" .
+git checkout --quiet --detach "${QUARRY_COMMIT}"
+
+uv venv --quiet --system-site-packages .venv

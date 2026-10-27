@@ -4,7 +4,7 @@ import { Dataset } from "../Catalog/Dataset"
 import { Resource } from "../Library/Resource"
 import { User } from "../Identity/User"
 import { Workspace } from "../CodeWorkspace/Workspace"
-import { Commit } from "../CodeWorkspace/Commit"
+import { Git } from "../CodeWorkspace/Git"
 import { ModuleFunctionPath } from "../CodeWorkspace/ModuleFunctionPath"
 
 /**
@@ -24,7 +24,7 @@ export namespace JobSpec {
         z.object({
             type:         z.literal("code-workspace"),
             workspaceRid: Workspace.Rid,
-            commit:       Commit,
+            commit:       Git.Commit,
             transform:    ModuleFunctionPath.Schema,
         }),
     ])

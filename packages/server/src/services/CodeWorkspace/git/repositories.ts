@@ -11,20 +11,12 @@ import { resolveEnvPath } from '@/load-env';
 
 const run = promisify(execFile);
 
-/** Every Code Workspace's history is on this branch until branches exist (docs/design/transforms.md §8). */
-export const DEFAULT_BRANCH = 'main';
+/** Larger committed files aren't read (quarry-ci.yml is a few lines). */
+const MAX_FILE_BYTES = 1024 * 1024;
 
-/** Each branch's head commit. */
-export type Heads = Record<Foundations.Branch, CodeWorkspace.Commit>;
-
-/** Who a commit is by — the committing user. */
-export interface Author {
-    readonly name:  string;
-    readonly email: string;
-}
-
+/** A new repository's first commit — the rendered template, by the creating user. */
 export interface InitialCommit {
-    readonly author:   Author;
+    readonly author:   CodeWorkspace.Git.Author;
     readonly message:  string;
     /** Writes the first commit's files into an empty working directory. */
     readonly populate: (directory: string) => Promise<void>;
@@ -54,14 +46,14 @@ export class GitRepositories {
         try {
             await fs.mkdir(this.root, { recursive: true });
 
-            await git(['init', '--bare', `--initial-branch=${DEFAULT_BRANCH}`, repository]);
+            await git(['init', '--bare', `--initial-branch=${CodeWorkspace.Git.DEFAULT_BRANCH}`, repository]);
             await git(['-C', repository, 'config', 'http.receivepack', 'true']);       // pushes over HTTP
 
-            await git(['init', `--initial-branch=${DEFAULT_BRANCH}`, workdir]);
+            await git(['init', `--initial-branch=${CodeWorkspace.Git.DEFAULT_BRANCH}`, workdir]);
             await commit.populate(workdir);
             await git(['-C', workdir, 'add', '--all']);
             await git(['-C', workdir, 'commit', '--message', commit.message], authorEnv(commit.author));
-            await git(['-C', workdir, 'push', repository, DEFAULT_BRANCH]);
+            await git(['-C', workdir, 'push', repository, CodeWorkspace.Git.DEFAULT_BRANCH]);
 
             this.log.info(`Created repository for ${rid}`);
         }
@@ -76,21 +68,36 @@ export class GitRepositories {
     }
 
     /** Where every branch points now: `git for-each-ref refs/heads`. */
-    public async getHeads(rid: CodeWorkspace.Rid): Promise<Heads> {
+    public async getHeads(rid: CodeWorkspace.Rid): Promise<CodeWorkspace.Git.Heads> {
         const { stdout } = await run('git', ['-C', this.getPath(rid), 'for-each-ref', '--format=%(objectname) %(refname:short)', 'refs/heads']);
-        const heads: Heads = {};
+        const heads: CodeWorkspace.Git.Heads = {};
 
         for (const line of stdout.split('\n').filter(Boolean)) {
             const [commit, name] = line.split(' ');
             const branch = Foundations.Branch.safeParse(name);
 
             if (branch.success)
-                heads[branch.data] = CodeWorkspace.Commit.parse(commit);
+                heads[branch.data] = CodeWorkspace.Git.Commit.parse(commit);
             else
                 this.log.warning(`Ignoring branch ${JSON.stringify(name)} of ${rid}: not a name Quarry branches by`);
         }
 
         return heads;
+    }
+
+    /** A file as committed, or null if the commit hasn't got it. */
+    public async readFile(rid: CodeWorkspace.Rid, commit: CodeWorkspace.Git.Commit, file: string): Promise<string | null> {
+        try {
+            const { stdout } = await run('git', ['-C', this.getPath(rid), 'show', `${commit}:${file}`], { maxBuffer: MAX_FILE_BYTES });
+
+            return stdout;
+        }
+        catch (error) {
+            if (/does not exist|exists on disk, but not in/.test((error as { stderr?: string }).stderr ?? ''))
+                return null;
+
+            throw error;
+        }
     }
 
     public async remove(rid: CodeWorkspace.Rid): Promise<void> {
@@ -102,7 +109,7 @@ async function git(args: string[], env: NodeJS.ProcessEnv = {}): Promise<void> {
     await run('git', args, { env: { ...process.env, ...env } });
 }
 
-function authorEnv(author: Author): NodeJS.ProcessEnv {
+function authorEnv(author: CodeWorkspace.Git.Author): NodeJS.ProcessEnv {
     return {
         GIT_AUTHOR_NAME:     author.name,
         GIT_AUTHOR_EMAIL:    author.email,
