@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
-import { CodeWorkspace, Library, type Platform } from '@quarry/shared/domain';
+import { CodeWorkspace, Foundations, Identity, Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { defineDatabase } from '@/db/pool';
 import { Repository, Transactional } from '@/db/repository';
@@ -29,8 +29,42 @@ export namespace CodeWorkspaceDB {
         });
     }
 
+    export namespace CheckRun {
+        export const Row = z.object({
+            rid:           CodeWorkspace.CheckRun.Rid,
+            workspace_rid: CodeWorkspace.Rid,
+            branch:        Foundations.Branch,
+            commit:        CodeWorkspace.Commit,
+            status:        CodeWorkspace.CheckRun.Status,
+            steps:         CodeWorkspace.CheckRun.Step.Schema.array(),
+            published:     z.boolean(),
+            failure:       CodeWorkspace.CheckRun.Failure.nullable(),
+            pushed_by:     Identity.User.Rid.nullable(),
+            created_at:    z.date(),
+            started_at:    z.date().nullable(),
+            finished_at:   z.date().nullable(),
+        });
+        export type Row = z.infer<typeof Row>;
+
+        export const toDomain = (row: Row) => CodeWorkspace.CheckRun.Schema.parse({
+            rid:          row.rid,
+            workspaceRid: row.workspace_rid,
+            branch:       row.branch,
+            commit:       row.commit,
+            status:       row.status,
+            steps:        row.steps,
+            published:    row.published,
+            failure:      row.failure,
+            pushedBy:     row.pushed_by,
+            createdAt:    row.created_at,
+            startedAt:    row.started_at,
+            finishedAt:   row.finished_at,
+        });
+    }
+
     export interface Tables {
         'code_workspace.workspace': Table<typeof Workspace.Row, 'type'>;
+        'code_workspace.check_run': Table<typeof CheckRun.Row, 'status' | 'steps' | 'published' | 'failure' | 'created_at' | 'started_at' | 'finished_at'>;
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();
