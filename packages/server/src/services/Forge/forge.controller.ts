@@ -20,7 +20,7 @@ export class ForgeController {
         @CurrentPrincipal() principal: Principal.User,
         @Body(new ZodPipe(API.CreateBuild.Request)) body: API.CreateBuild.Request,
     ): Promise<API.CreateBuild.Response> {
-        return this.forge.createBuild(principal, body);
+        return this.forge.initializeBuild(principal, body);
     }
 
     @Get('builds')

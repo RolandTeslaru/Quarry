@@ -58,6 +58,7 @@ export namespace ForgeDB {
             branch:            Foundations.Branch,
             fallback_branches: Foundations.Branch.array(),
             target:            Forge.Build.Target,
+            plan:              Forge.Build.Plan.Schema,
             force_build:       z.boolean(),
             abort_on_failure:  z.boolean(),
             retry_count:       z.number().int(),
@@ -73,6 +74,7 @@ export namespace ForgeDB {
             branch:           row.branch,
             fallbackBranches: row.fallback_branches,
             target:           row.target,
+            plan:             row.plan,
             forceBuild:       row.force_build,
             abortOnFailure:   row.abort_on_failure,
             retryCount:       row.retry_count,
@@ -91,34 +93,25 @@ export namespace ForgeDB {
             status:       Forge.Job.Status,
             attempt:      z.number().int(),
             failure:      z.object({ message: z.string() }).nullable(),
+            inputs:       z.record(Catalog.Dataset.Rid, Catalog.Transaction.Rid).nullable(),
+            outputs:      z.record(Catalog.Dataset.Rid, Catalog.Transaction.Rid),
             started_at:   z.date().nullable(),
             finished_at:  z.date().nullable(),
         });
         export type Row = z.infer<typeof Row>;
 
-        /** Inputs are pinned when the job starts — none yet means not started. */
-        export const toDomain = (row: Row, inputs: JobTransaction.Row[], outputs: JobTransaction.Row[]) => Forge.Job.Schema.parse({
-            rid:                   row.rid,
-            buildRid:              row.build_rid,
-            jobSpecRid:            row.job_spec_rid,
-            status:                row.status,
-            attempt:               row.attempt,
-            inputTransactionRids:  row.started_at ? inputs.map((input) => input.transaction_rid) : null,
-            outputTransactionRids: outputs.map((output) => output.transaction_rid),
-            failure:               row.failure,
-            startedAt:             row.started_at,
-            finishedAt:            row.finished_at,
+        export const toDomain = (row: Row) => Forge.Job.Schema.parse({
+            rid:        row.rid,
+            buildRid:   row.build_rid,
+            jobSpecRid: row.job_spec_rid,
+            status:     row.status,
+            attempt:    row.attempt,
+            inputs:     row.inputs,
+            outputs:    row.outputs,
+            failure:    row.failure,
+            startedAt:  row.started_at,
+            finishedAt: row.finished_at,
         });
-    }
-
-    /** A job's input or output transaction — the two tables have the same shape. */
-    export namespace JobTransaction {
-        export const Row = z.object({
-            job_rid:         Forge.Job.Rid,
-            transaction_rid: Catalog.Transaction.Rid,
-            dataset_rid:     Catalog.Dataset.Rid,
-        });
-        export type Row = z.infer<typeof Row>;
     }
 
     export interface Tables {
@@ -127,9 +120,7 @@ export namespace ForgeDB {
         'forge.job_spec_output_dataset': Table<typeof JobSpecDataset.Row>;
         'forge.current_job_spec':        Table<typeof CurrentJobSpec.Row>;
         'forge.build':                   Table<typeof Build.Row, 'fallback_branches' | 'force_build' | 'abort_on_failure' | 'retry_count' | 'status' | 'created_at' | 'finished_at'>;
-        'forge.job':                     Table<typeof Job.Row, 'status' | 'attempt' | 'failure' | 'started_at' | 'finished_at'>;
-        'forge.job_input_transaction':   Table<typeof JobTransaction.Row>;
-        'forge.job_output_transaction':  Table<typeof JobTransaction.Row>;
+        'forge.job':                     Table<typeof Job.Row, 'status' | 'attempt' | 'failure' | 'inputs' | 'started_at' | 'finished_at'>;
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();

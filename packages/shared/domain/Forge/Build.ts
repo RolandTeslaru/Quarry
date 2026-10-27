@@ -2,6 +2,7 @@ import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { Dataset } from "../Catalog/Dataset"
 import { User } from "../Identity/User"
+import { JobSpec } from "./JobSpec"
 
 /** One request to bring datasets up to date on a branch: the jobs it resolved to, run in dependency order. */
 export namespace Build {
@@ -22,6 +23,21 @@ export namespace Build {
     ])
     export type Target = z.infer<typeof Target>
 
+    /**
+     * What a build runs, as an adjacency list: every job spec it resolved to
+     * (one job each) mapped to its children — the specs that read its outputs
+     * and wait for it — and the roots, which wait for nothing. Fixed when the
+     * build is created.
+     */
+    export namespace Plan {
+
+        export const Schema = z.object({
+            roots:    JobSpec.Rid.array().min(1),
+            children: z.record(JobSpec.Rid, JobSpec.Rid.array()),   // every node; a leaf has none
+        })
+        export type Schema = z.infer<typeof Schema>
+    }
+
     export const Status = z.enum(["running", "succeeded", "failed", "canceled"])
     export type  Status = z.infer<typeof Status>
 
@@ -30,6 +46,7 @@ export namespace Build {
         branch:           Foundations.Branch,
         fallbackBranches: Foundations.Branch.array(),   // where to find job specs and inputs the branch hasn't got, in order
         target:           Target,
+        plan:             Plan.Schema,
         forceBuild:       z.boolean(),                  // build fresh outputs too
         abortOnFailure:   z.boolean(),                  // a failed job cancels the rest, not just its downstream
         retryCount:       z.number().int().nonnegative(),

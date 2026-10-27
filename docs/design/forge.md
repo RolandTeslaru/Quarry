@@ -1,134 +1,342 @@
 # Forge — Builds
 
-_Draft, 2026-10-25. **Built 2026-10-26 (server only)**: job specs, creating, listing and canceling builds — see [What runs today](#what-runs-today); no worker runs jobs yet. Split from [transforms.md](transforms.md) §5. What a build writes: [catalog.md](catalog.md); permissions: [gatekeeper.md](gatekeeper.md); queues: [jobs.md](jobs.md). Foundry background: its [Builds](https://www.palantir.com/docs/foundry/data-integration/builds/) docs._
+_Draft, 2026-10-25. **Built 2026-10-26, server only**: publishing job specs, creating, listing and canceling manual builds ([§8](#8-what-runs-today)). Nothing runs a job yet — the ForgeAgent, the relay and finishing jobs are planned (marked below). Split from [transforms.md](transforms.md) §5. Related: what a build writes, [catalog.md](catalog.md); permissions, [gatekeeper.md](gatekeeper.md); queues, [jobs.md](jobs.md). Foundry background: its [Builds](https://www.palantir.com/docs/foundry/data-integration/builds/) docs._
 
-**Forge** is the service that computes new versions of datasets. It's a platform service, like Catalog — not part of Code Workspaces: producers (a workspace's checks, later Pipeline Builder) publish **job specs**, and anything can start a **build** of them (a Build button, Data Lineage, a schedule). The name is a noun only: what it does is **build** — "built 2 hours ago", never "forged".
+**Forge** computes new versions of datasets. It's a platform service like Catalog, not part of Code Workspaces: **producers** (a workspace's checks, later Pipeline Builder and syncs) publish **job specs**; anything can start a **build** of them (a Build button, Data Lineage, a schedule). The name is a noun only — what it does is **build**: "built 2 hours ago", never "forged".
+
+## 1. Model
+
+| Thing | RID | What it is | Changes? |
+|---|---|---|---|
+| **Job spec** | `ri.forge.main.job-spec.…` | How to compute some datasets: a producer's logic at one version, its input datasets, its output datasets | immutable — a new version is a new spec |
+| **Build** | `ri.forge.main.build.…` | One request to bring datasets up to date on a branch: its target, its **plan**, its status | status only |
+| **Job** | `ri.forge.main.job.…` | One run of one spec within one build: pinned input versions in, one transaction per output | status, attempt, times |
+
+None is a library resource. Shared types: `Forge.JobSpec`, `Forge.Build` (with `Forge.Build.Plan`), `Forge.Job`, `Forge.API` in `@quarry/shared/domain`; branches are `Foundations.Branch`.
+
+- **Producers publish, builds run.** A Code Workspace publishes one spec per transform on every commit (checks), per branch; Pipeline Builder will publish one per pipeline on deploy. Clicking Build or a schedule firing never publishes — it runs the current spec.
+- **One producer per dataset per branch.** A dataset has at most one *current* spec on a branch; many over time (history), different ones on different branches.
+- **The plan** is the build's graph, as an adjacency list over job specs: `{ roots, children }`. A spec is a child of every spec in the build whose output it reads; roots wait for nothing. Fixed when the build is created.
+- **One job per node** of the plan. A spec writing several datasets is one job that writes them all together — building one of them rebuilds its siblings.
+- **Targets** (`Forge.Build.Target`): `manual` — exactly the targets' specs, no walking upstream (a Build button; the only one built); `upstream` — the targets and every out-of-date ancestor; `connecting` — only what lies between some inputs and the targets.
+
+**Statuses.**
+
+```
+build   running ──▶ succeeded | failed | canceled
+
+job     waiting ──▶ scheduled ──▶ queued ──▶ running ──▶ succeeded | failed
+           └────────────┴────────────┴──────────┴─────▶ canceled
+
+        waiting     parents not finished (the default)
+        scheduled   may run now; not yet in Redis                          (planned)
+        queued      in Redis, waiting for an agent                         (planned)
+        running     an agent took it; its container runs
+        canceled    stopped before finishing: the build was canceled, or a parent failed
+
+        Airflow's names for the same steps: a task is scheduled when its upstream is done, queued once handed to the executor.
+```
+
+## 2. Components
+
+The **server orchestrates** — it decides what runs when. **ForgeAgents execute** — one per machine, starting and watching that machine's containers. **Each job runs in its own container**, which does the compute. In between, the **job table** in Postgres and a **queue** in Redis carry "run this job".
+
+**Outbox or Redis queue? Both, one after the other — and the outbox is the job table itself.** The server decides a job may run by setting it `scheduled`, in the same database transaction as everything else (creating the build, finishing a parent). Then the **relay** — `ForgeRelay`, on the server — pushes `scheduled` jobs into the BullMQ queue (Redis) and sets them `queued`. Agents consume the queue. The message can't disagree with the state, because it *is* the state: `scheduled` is the outbox's "not sent yet", `queued` its "sent". Postgres stays the source of truth and Redis only delivers (jobs.md §1: events cross from Postgres to Redis only through an outbox). No separate `forge.outbox` table: the message is exactly "run this job", one per job — unlike Catalog's `dataset.updated`, an event about a commit, which keeps `catalog.outbox`.
+
+**The relay runs two ways.** Right after each commit that schedules jobs, `ForgeService` calls it (the fast path: a job reaches Redis within milliseconds), best effort — if the push fails, the request still succeeds, because the build was created. And every 60 s the system worker calls it through an internal endpoint (the sweep: it finds only jobs the fast path failed to deliver — a crash between the commit and the push, Redis down). The push always comes *after* the commit, never inside the transaction. Fast normally, safe always; the server still never consumes a queue.
+
+What it solves — the dual write between Postgres and Redis: a commit whose enqueue never happened (a crash in between, Redis down) would leave a job scheduled forever; an enqueue whose commit rolled back would run a job on uncommitted inputs. What it doesn't: a duplicate push (the relay crashed before setting `queued`, or the fast path and the sweep raced) — the BullMQ job id is `<job rid>:<attempt>`, so it's ignored, and `start` moves a job to `running` once; an agent dying with a job — the lease (heartbeats, reaper); Redis losing data it already acknowledged — Redis persistence (AOF).
 
 ```mermaid
-flowchart LR
-    checks["Code Workspace checks<br/>(per commit)"] -- publish --> spec["Job specs<br/>forge.job_spec"]
-    pb["Pipeline Builder<br/>(later, on deploy)"] -. publish .-> spec
-    button["Build button · Data Lineage · schedule"] -- start --> build["Build"]
-    build -- reads --> spec
-    build --> job["Jobs"] -- "transactions" --> catalog[("Catalog datasets")]
+flowchart TB
+    trigger["Build button · Data Lineage · schedule"] -- "POST /api/builds" --> api
+
+    subgraph server["Server (the API) — orchestrator"]
+        api["ForgeService<br/>create · advance · cancel"]
+        pg[("Postgres · forge schema<br/>job_spec · build (+ plan) · job")]
+        api --> pg
+    end
+
+    pg -- "scheduled jobs" --> relay["ForgeRelay<br/>after each commit · every 60 s (system worker)"]
+    relay -- "run job X" --> redis[("Redis · BullMQ<br/>forge.run-job")]
+    redis --> agent
+
+    subgraph machine["Each compute machine"]
+        agent["ForgeAgent<br/>slots · start · heartbeat · logs · finish"]
+        agent -- "docker run" --> c1["job container"]
+        agent --> c2["job container"]
+    end
+
+    agent -- "start · heartbeat · finish (ForgeAgent API)" --> api
+    c1 -- "code (Git) · inputs · output files<br/>scoped token" --> api
+    api -- "transactions" --> catalog[("Catalog<br/>datasets, object storage")]
 ```
 
-| Thing | RID | What it is |
+| Component | Does | How many |
 |---|---|---|
-| **Job spec** | `ri.forge.main.job-spec.…` | How to compute some datasets: a producer's logic at one version, inputs, outputs. Immutable |
-| **Build** | `ri.forge.main.build.…` | One request to bring datasets up to date, on a branch: a set of jobs in dependency order |
-| **Job** | `ri.forge.main.job.…` | One run of one spec: pinned input versions in, one transaction per output |
+| **Server** — `ForgeService` | Creates builds (collect the plan, validate, lock the outputs, persist), advances them when a job finishes (commit its outputs, ask D2 which jobs are now ready, mark them scheduled, relay them), cancels them, fails silent jobs (reaper) | the API |
+| **Relay** — `ForgeRelay` on the server | Pushes `scheduled` jobs into BullMQ (job id `<rid>:<attempt>`), *then* marks them `queued` — in that order, so a crash in between leaves the job `scheduled` and it's pushed again. Called by `ForgeService` right after its commits, and every 60 s by the system worker (internal endpoint) as the safety net | — |
+| **Queue** — BullMQ on Redis | Delivers "run job X" to one agent: one queue, `forge.run-job` | — |
+| **ForgeAgent** | Takes a job when it has a free slot, calls `start`, starts the container with the spec's resources, heartbeats, streams logs, waits for the exit, calls `finish`; kills the container on cancel. Never moves data | one per machine |
+| **Job container** | The runner for the spec's logic type: fetches the code at the commit, reads the inputs, runs the function, uploads and registers the output files, exits 0 or 1 | one per job, removed after |
+| **Catalog** | Datasets, their transactions and files — what jobs read and write | — |
 
-None of them is a library resource. Shared types: `Forge` in `@quarry/shared/domain` — `Forge.JobSpec`, `Forge.Build`, `Forge.Job`; branches are `Foundations.Branch`.
+**Why an agent per machine.** The agent doesn't compute; it stands in for a machine, the way Jenkins and Buildkite agents or Kubernetes' kubelet do. With plain Docker, containers run on the machine whose Docker daemon starts them, and Docker's API should stay local (exposed over the network it's root on the host). Each agent pulls a job only when its machine has room, so the queue does the placing — no central scheduler. Start with one machine; add machines (each with its agent) when one isn't enough. With Kubernetes, one or two agents submit Kubernetes Jobs and the cluster places them; nothing else changes.
 
-- **A build** has a branch and its fallback branches, a **target** — `manual` (exactly these datasets; what a Build button does), `upstream` (these and every out-of-date ancestor) or `connecting` (only what lies between some inputs and the targets) — `forceBuild`, `abortOnFailure`, `retryCount`, and a status: `running` → `succeeded` / `failed` / `canceled`. Its jobs point at it; it doesn't list them.
-- **A job** runs one spec in one build: `waiting` for its upstream jobs → `running` → `succeeded` / `failed` / `canceled`. Its outputs' transactions are opened when the build resolves; its inputs are pinned (to transactions) when it starts. `attempt` counts retries.
-
-## Job specs
-
-A **job spec** (`Forge.JobSpec`, `ri.forge.main.job-spec.…`) is how to compute some datasets: a producer's logic at one version, its inputs and its outputs. Producers publish them; builds only read them. Not a library resource.
-
-| Producer | Publishes | Specs |
-|---|---|---|
-| Code Workspace | checks, on every commit, per branch | one per transform |
-| Pipeline Builder (later) | deploy | one per pipeline |
-
-Building — clicking Build, a schedule — never publishes one; it runs the current spec.
-
-```sql
-forge.job_spec                  -- immutable: one row per publish, never updated
-  rid PRIMARY KEY, producer_rid, branch, logic, resources, published_by, published_at
-
-forge.job_spec_input_dataset    -- what it reads
-  job_spec_rid → forge.job_spec, dataset_rid → library.resource
-  PRIMARY KEY (job_spec_rid, dataset_rid)
-  INDEX (dataset_rid)                      -- what reads this dataset: lineage downstream
-
-forge.job_spec_output_dataset   -- what it writes
-  job_spec_rid → forge.job_spec, dataset_rid → library.resource
-  PRIMARY KEY (job_spec_rid, dataset_rid)
-
-forge.current_job_spec          -- the pointer: which spec computes this dataset on this branch
-  dataset_rid, branch, job_spec_rid → forge.job_spec
-  PRIMARY KEY (dataset_rid, branch)
-```
-
-Inputs and outputs are **sets of datasets**, as rows, not `jsonb`: the questions that matter start from a dataset or a version ("what reads this?", "what wrote this?"), and rows get foreign keys and plain indexes. No parameter names — Forge doesn't need them; only the runner does, and the code has them (below). As in Foundry, whose JobSpecs declare their inputs as "a set of InputSpecs".
-
-**Which input is which** comes from the code: the runner imports the pipeline at the spec's commit, finds the transform, and resolves each `Input` / `Output` ref — `orders=Input("/Sales/raw/orders")` → a RID. It then checks those RIDs are exactly the spec's sets. A path renamed or moved since checks resolves differently and **fails the job** ("`orders`: /Sales/raw/orders now resolves to a different dataset than when checks ran — push again") rather than reading the wrong data. Refs written as RIDs never drift.
-
-- **One producer per dataset per branch** is the pointer's primary key; a second producer claiming an output fails.
-- **Publishing** replaces the producer's pointers on that branch in one transaction: outputs it still has move to the new spec, outputs it dropped lose their pointer (the dataset stays; nothing produces it there), new outputs get one.
-- **Jobs reference the spec they ran**, so provenance stays exact after the pointer moves.
-- **Staleness**: an output is fresh when its latest version was built by its current spec from the inputs' current versions. Every commit publishes new specs, so every commit makes the workspace's outputs out of date.
-
-## Builds and jobs: tables
-
-```sql
-forge.build
-  rid PRIMARY KEY, branch, fallback_branches, target, force_build, abort_on_failure, retry_count,
-  status, created_by, created_at, finished_at
-
-forge.job
-  rid PRIMARY KEY, build_rid → forge.build, job_spec_rid → forge.job_spec,
-  status, attempt, failure, started_at, finished_at
-
-forge.job_input_transaction     -- the input versions it read, pinned when it starts
-  job_rid → forge.job, transaction_rid, dataset_rid → library.resource
-  PRIMARY KEY (job_rid, transaction_rid)
-  INDEX (transaction_rid)                  -- what read this version
-
-forge.job_output_transaction    -- the transactions it writes, opened when the build resolves
-  job_rid → forge.job, transaction_rid, dataset_rid → library.resource
-  PRIMARY KEY (job_rid, transaction_rid)
-  UNIQUE (transaction_rid)                 -- one writer per transaction
-  UNIQUE (job_rid, dataset_rid)
-```
-
-Datasets and producers are other services' resources, so their columns reference `library.resource` (database.md rule 3); transactions are Catalog's and have no FK. The job tables also keep each transaction's **dataset**: Forge can't join `catalog` (rule 2), and cancelling has to abort each transaction through its dataset. Migration: `server/migrations/forge/001_initial.sql`.
-
-**Row-level security.** A job spec is its producer's: seen with discover on the producer, published with write on it — plus read on each input and write on each output; moving the pointer is write on the dataset. A build is seen by whoever can discover one of its targets, and created or changed (canceled) by whoever can write all of them; its jobs and their transactions follow the build.
-
-## What runs today
-
-Server only (`server/src/services/Forge/`); nothing runs a job yet, so a created build **waits** — its jobs stay `waiting`, holding their outputs' open transactions (no other writer gets in) until the build is canceled.
+**The ForgeAgent API** — planned. ForgeAgents never connect to Postgres; only the server does (AGENTS.md). They talk to the server through their own API, meant for ForgeAgents only: `/api/forge-agent/…`, contract `Forge.API.ForgeAgent` in `@quarry/shared`, `ForgeAgentController` on the server.
 
 | Endpoint | What |
 |---|---|
-| `POST /api/builds` | A **manual** build on **main**: each target's current spec (the branch, then its fallbacks) becomes one job — a spec writing several targets is one job; write on every output and read on every input are asserted; an input not built here must have data. Opens a snapshot transaction on every output, all in one database transaction (`catalog.transaction.openBatch`; provenance `{ buildRid, jobRid }`); a dataset already being written is a 409 and nothing is opened. `upstream` / `connecting` targets and other branches are refused (400) |
-| `GET /api/builds?datasetRid=&limit=` | Builds the caller can see, newest first; with a dataset, those targeting it |
-| `GET /api/builds/:rid` | The build and its jobs, by RID |
-| `POST /api/builds/:rid/cancel` | Aborts the unfinished jobs' transactions, then marks them and the build canceled |
-| `GET /api/jobs/:rid` | One job |
-| `GET /api/job-specs/current?datasetRid=&branch=` | What computes the dataset there, or null |
+| `POST /api/forge-agent/jobs/:rid/start` | take the job (`scheduled` or `queued` → `running`, once per attempt), pin its inputs; returns `start.json` and the job's scoped token |
+| `POST /api/forge-agent/jobs/:rid/heartbeat` | still running; the reply says carry on or stop |
+| `POST /api/forge-agent/jobs/:rid/finish` | succeeded or failed (with a message); idempotent per attempt |
 
-Publishing has no endpoint: producers call `forge.jobSpecs.publish(principal, producerRid, branch, specs)` in-process — nothing does yet (checks will). Shared contract: `Forge.API`.
+It's authenticated with a **ForgeAgent token**, separate from the internal service token the other workers use, and accepted on these routes only: agents run on machines next to user code, so what a leaked agent token can do is limited to claiming, heartbeating and finishing jobs. Why not let agents use the database directly: a database credential on every compute host would expose everything if a container escaped; agents would eat Postgres connections; every migration would have to reach every machine. The industry went the same way — Kubernetes' kubelets talk only to the API server, never etcd; Airflow 3 moved task execution from direct metadata-database access to a Task Execution API; CI runners talk to their controller's API.
 
-Not yet: the worker (start, heartbeat, finish; running containers; the runner's parameter check), job ordering inside a build, staleness and `forceBuild`, retries, `abortOnFailure`, dataset branches other than main.
 
-## Builds
+## 3. Schema
 
-A build brings target datasets up to date. It's started by hand ("Build" in the IDE or on a dataset) or by a schedule, and runs the **committed** code on **full** inputs.
+Migration: `server/migrations/forge/001_initial.sql`. Datasets and producers are other services' resources, so their columns reference `library.resource` (database.md rule 3); transactions are Catalog's and have no FK. A job's transactions are kept keyed by dataset: Forge can't join `catalog` (rule 2), and aborting a transaction goes through its dataset.
 
-1. **Plan** — from the targets, walk lineage upstream within the build's scope (single / full / connecting); collect each dataset's current job spec on the build's branch ([job specs](#job-specs)).
-2. **Skip what's fresh** — a transform whose inputs haven't changed since its last successful job is skipped. Syncs always run (the external source's changes aren't visible).
-3. **Run** jobs in dependency order; independent ones in parallel. A failed job stops everything downstream of it; unrelated branches finish.
+```sql
+-- ── job specs ──────────────────────────────────────────────── built ──
 
-## Build workers
+forge.job_spec                       -- immutable: one row per publish
+  rid           job_spec_rid  PRIMARY KEY
+  producer_rid  → library.resource      -- the workspace (later: pipeline, sync)
+  branch        text
+  logic         jsonb                   -- Forge.JobSpec.Logic: what to run, per producer
+  resources     jsonb                   -- { cpuCores, memoryGb }
+  published_by  → identity.user, NULL = the system
+  published_at  timestamptz
+  INDEX (producer_rid, branch)
 
-A **build worker** (a NestJS worker, like the data connection worker) takes jobs from a BullMQ queue. It **orchestrates**; it doesn't run Python itself:
+forge.job_spec_input_dataset         -- what it reads
+  job_spec_rid  → forge.job_spec
+  dataset_rid   → library.resource
+  PRIMARY KEY (job_spec_rid, dataset_rid)
+  INDEX (dataset_rid)                   -- what reads this dataset
 
-1. Pin every input to its latest committed transaction; open a `snapshot` transaction on every output (through `catalog.transaction`, as the delegate).
-2. **Start a container** from the spec's environment image, with its resource limits and a short-lived token scoped to those inputs and outputs.
-3. In the container, Python reads the input Parquet files, runs the function, and writes the output Parquet to object storage under each transaction's prefix.
-4. When the container exits cleanly, register the files and **commit** every output with its provenance; otherwise abort them all.
-5. Stream the container's logs into the job, and remove the container.
+forge.job_spec_output_dataset        -- what it writes
+  job_spec_rid  → forge.job_spec
+  dataset_rid   → library.resource
+  PRIMARY KEY (job_spec_rid, dataset_rid)
 
-Data lands where every write lands: **Parquet in object storage** (SeaweedFS), recorded by Catalog in **Postgres**. DuckDB is an engine inside transforms, never a store.
+forge.current_job_spec               -- the pointer; replaced on every publish
+  dataset_rid   → library.resource
+  branch        text
+  job_spec_rid  → forge.job_spec
+  PRIMARY KEY (dataset_rid, branch)     -- one producer per dataset per branch
 
-## Provenance
+-- ── builds and jobs ─────────────────── built, except columns marked (P) ──
 
-Each output transaction records **what produced it**:
+forge.build
+  rid               build_rid  PRIMARY KEY
+  branch            text
+  fallback_branches text[]
+  target            jsonb               -- Forge.Build.Target
+  plan              jsonb               -- Forge.Build.Plan: { roots, children }, written once
+  force_build       boolean
+  abort_on_failure  boolean
+  retry_count       integer
+  status            text                -- running | succeeded | failed | canceled
+  created_by        → identity.user, NULL = the system
+  created_at        timestamptz
+  finished_at       timestamptz         -- NULL while running
+  INDEX GIN (target -> 'datasetRids')   -- builds of this dataset
+  INDEX (created_at DESC)
+
+forge.job                            -- (P) = planned, with the ForgeAgent
+  rid           job_rid  PRIMARY KEY
+  build_rid     → forge.build
+  job_spec_rid  → forge.job_spec
+  status        text                    -- waiting | scheduled (P) | queued (P) | running | succeeded | failed | canceled
+  attempt       integer                 -- 1, then each retry
+  failure       jsonb                   -- { message }
+  inputs        jsonb                   -- { <dataset rid>: <transaction rid> }: the version of each input it read, pinned when it starts
+  outputs       jsonb                   -- { <dataset rid>: <transaction rid> }: each output's transaction, opened when the build is created
+  scheduled_at  timestamptz         (P) -- may run from here: roots at initialization, children when their last parent finishes
+  queued_at     timestamptz         (P) -- handed to Redis by the relay
+  started_at    timestamptz
+  heartbeat_at  timestamptz         (P) -- not indexed, so heartbeats stay HOT updates
+  log_key       text                (P) -- the job's log in object storage
+  finished_at   timestamptz
+  UNIQUE (build_rid, job_spec_rid)      -- one job per node of the plan
+  INDEX (rid) WHERE status = 'scheduled'                         (P) -- what the relay sends
+```
+
+**Why the plan is a column, not an edges table.** It's written once and never updated, and every question about it — which jobs are ready, what to cancel, drawing the graph — is about one build, so it's loaded whole and handed to D2 in the shape D2 uses. An edges table would only pay off for edge queries across builds; lineage uses specs, not job edges.
+
+**Why a job's transactions are `jsonb` on the job, but a spec's datasets are rows.** A job's inputs and outputs are only ever read with the job (to start it, cancel it, show it); the reverse questions have other answers — what wrote a version is on the transaction itself (its provenance names the job), and staleness goes from a dataset's latest transaction to its job. Keyed by dataset, each says which version of *this* dataset. A spec's datasets are different: they're queried across specs, starting from a dataset — "what reads this dataset?" (lineage downstream), "what does this spec read?" walked recursively (upstream builds) — and each row is checked on publish (read on an input, write on an output); rows give that foreign keys, plain indexes and per-row policies. No parameter names: Forge needs sets of datasets; only the runner needs to know which is which, and the code says (§5).
+
+**Row-level security.** A job spec is its producer's: seen with discover on the producer, published with write on it — plus read on each input and write on each output; moving the pointer is write on the dataset. A build is seen by whoever can discover one of its targets, and created or canceled by whoever can write all of them; its jobs follow the build.
+
+## 4. A build, end to end
+
+### Creating it — built
+
+`POST /api/builds` → `ForgeService.initializeBuild` (the build and its jobs), in phases:
+
+1. **Collect the plan.** Each target's current spec — on the build's branch, then its fallbacks; a target nothing produces is a 409. A spec writing several targets is one node. The plan's `children` link a spec to every spec in the build reading its outputs; specs with no parent are the `roots`. No roots means a cycle (409). Manual only, main only for now (400 otherwise).
+2. **Validate.** Write on every output (siblings too), read on every input; an input not built in this build must already have data.
+3. **Lock the outputs.** One snapshot transaction on every output of every spec, all in one database transaction (`catalog.transaction.openBatch`, provenance `{ buildRid, jobRid }`) — or none: a dataset already being written is a 409. No other writer gets in until the build finishes.
+4. **Persist.** The build (with its plan), one job per node (`waiting`), their output transactions — one database transaction. If this fails, the transactions from 3 are aborted.
+5. **Schedule the roots** _(planned)_ — the same database transaction marks the roots `scheduled`; after the commit `ForgeService` calls the relay, which pushes them to Redis and marks them `queued`.
+
+### Running it — planned
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Server
+    participant PG as Postgres
+    participant R as ForgeRelay
+    participant Q as Redis (BullMQ)
+    participant A as ForgeAgent
+    participant C as Job container
+
+    S->>PG: build + jobs · roots scheduled (one transaction)
+    S->>R: relay (after the commit)
+    R->>Q: run job A (id A:1)
+    R->>PG: A queued
+    Q->>A: job A (when a slot is free)
+    A->>S: start A
+    S->>PG: pin inputs · A running
+    S-->>A: start.json (spec, pinned inputs, output transactions) · scoped token
+    A->>C: docker run (image, cpu, memory, token)
+    loop every 30 s
+        A->>S: heartbeat A
+        S-->>A: carry on (or stop, if canceled)
+    end
+    C->>S: fetch code · read inputs · upload and register output files
+    C-->>A: exit 0
+    A->>S: finish A succeeded
+    S->>PG: commit A's outputs · A succeeded · D2 ready children scheduled
+    S->>R: relay (after the commit)
+    Note over R,Q: the relay delivers B and C, and so on until every job is done
+```
+
+**Starting** (`POST /api/forge-agent/jobs/:rid/start`): accepted once per attempt, from `scheduled` **or** `queued` (`UPDATE … SET status = 'running' WHERE rid = … AND attempt = … AND status IN ('scheduled', 'queued')`) — the relay pushes before it marks `queued`, so if it crashed in between, the job reaches an agent while still `scheduled`; `queued` is bookkeeping and may be skipped, `running` is what decides ownership. A duplicate message finds the job past both and gets a 409. Then the server pins each input to its newest committed version — for an input built in this build, the version its parent just committed — records them in the job's `inputs`, marks the job `running`, and returns `start.json` with a short-lived token scoped to the job's inputs and outputs.
+
+**Finishing** (`POST /api/forge-agent/jobs/:rid/finish`), in one database transaction:
+
+- **succeeded** — commit all the job's output transactions together (`catalog.transaction.commitBatch`, planned: a job's outputs update together or not at all), job `succeeded`; load the plan and the jobs' statuses, `D2.getReady` → each ready child goes `waiting → scheduled` (a conditional update, so two parents finishing at once schedule it once), relayed after the commit; nothing left waiting, scheduled, queued or running → build `succeeded`.
+- **failed** — attempts left (`retryCount`)? `attempt + 1`, `scheduled` again (a new BullMQ id, `<rid>:<attempt>`), same open transactions. Otherwise abort its transactions, job `failed`; `D2.getDescendants` → abort theirs and cancel them (with `abortOnFailure`, cancel everything still waiting); nothing left running → build `failed`.
+
+**Canceling** — built: abort the unfinished jobs' transactions, mark them and the build `canceled`. With agents, a running job's next heartbeat reply says stop and the agent kills its container.
+
+**Reaping** — planned: a `running` job not heard from in about 2 minutes is treated as failed (its agent died).
+
+The data never passes through the server's orchestration or the agent: the container registers its files on the open transactions; `finish` only commits them; a child reads its parents' outputs because its inputs are pinned to the newest committed versions when it starts.
+
+### A job's state, and what each crash leaves — planned
+
+Every arrow is one write to `forge.job`, by the component named on it. The dotted boxes are what a crash at that point leaves behind, and what repairs it.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+
+    [*] --> waiting: server · initializeBuild (not a root)
+    [*] --> scheduled: server · initializeBuild (a root)
+    waiting --> scheduled: server · last parent's finish
+    scheduled --> queued: relay · after pushing it to Redis
+    scheduled --> running: agent's start · relay crashed before marking queued
+    queued --> running: agent's start (pins inputs)
+    running --> succeeded: agent's finish (commit outputs)
+    running --> scheduled: finish failed or reaper · retry left · attempt + 1
+    running --> failed: finish failed or reaper · no retry left
+    waiting --> canceled: cancel or a parent failed
+    scheduled --> canceled: cancel
+    queued --> canceled: cancel
+    running --> canceled: cancel · heartbeat reply says stop
+    succeeded --> [*]
+    failed --> [*]
+    canceled --> [*]
+```
+
+| Crash | Postgres says | Redis has | What repairs it |
+|---|---|---|---|
+| server, before `initializeBuild` commits | nothing | nothing | the request failed; its open transactions are aborted |
+| server, after the commit, before the relay pushes | `scheduled` | nothing | the 60 s sweep pushes it |
+| relay, after the push, before marking `queued` | `scheduled` | `rid:attempt` | an agent may start it anyway — `start` accepts `scheduled`; the sweep's re-push is ignored (same id) |
+| Redis loses the message after it was marked `queued` | `queued` | nothing | Redis persistence (AOF); the job otherwise waits (a later sweep could re-push long-`queued` jobs) |
+| agent, after `start`, while the container runs | `running` | done | heartbeats stop → the reaper: retry (`attempt + 1`, `scheduled`) or `failed` |
+| the container (non-zero exit, out of memory) | `running` | done | the agent reports `finish(failed)` → retry or `failed` |
+| agent, after the container exited, before `finish` arrives | `running` | done | the agent retries `finish` when it can; if it died, the reaper fails or retries the job — the outputs stay uncommitted |
+| server, during `finish` | `running` (rolled back) | done | the agent retries `finish`; it's idempotent per attempt |
+| a stale agent's late `finish`, after a retry began | `running`, a newer `attempt` | — | rejected: `start` and `finish` only count for the current attempt (the fencing token) |
+
+`attempt` counts executions, not deliveries: only a retry raises it. Duplicate pushes, a crashed relay and refused duplicate messages leave it alone.
+
+
+## 5. ForgeAgents and job containers — planned
+
+### Which agent runs a job
+
+Every machine does the same work — "pull this image, run it with these limits" — so all agents share the one queue. **Load balancing is pull-based**: each agent has **slots** (a fixed concurrency to start, resource-aware later) and pulls a job only when one is free — busy machines stop taking work, idle ones take more. Different kinds of machine (GPU, big memory) would get their own queues, picked from the spec's `resources`; not planned yet. (Spark is another layer: it spreads one job's work across machines; Forge spreads jobs.)
+
+### Handing a job to its container
+
+Instructions and a token, never data:
+
+```
+docker run
+  --cpus 1 --memory 4g                                  ← the spec's resources
+  -e QUARRY_SERVER_URL=…  -e QUARRY_TOKEN=…             ← short-lived, scoped to this job
+  -e QUARRY_JOB_RID=ri.forge.main.job.…
+  -v /tmp/forge/<job>/start.json:/job/start.json:ro     ← what `start` returned
+  <the environment image for the spec>
+  python -m quarry.transforms.run /job/start.json
+```
+
+The container: (1) fetches the code at the spec's commit over Git; (2) imports the pipeline, finds the transform, and checks its `Input` / `Output` refs resolve to exactly the spec's datasets — a path renamed or moved since checks **fails the job** ("push again") rather than reading the wrong data; refs written as RIDs never drift; (3) reads the inputs at their pinned versions; (4) runs the function; (5) uploads the output files and registers them on their transactions; (6) exits 0, or 1 with the error printed.
+
+### Knowing a job finished
+
+The agent waits on the container (`docker wait`):
+
+| Outcome | Agent |
+|---|---|
+| exit 0 | `finish(succeeded)` |
+| non-zero | `finish(failed, message)` — from the last log lines; `State.OOMKilled` tells "out of memory" (137) from a crash |
+| past the maximum run time | kills the container, reports a timeout |
+| canceled (the heartbeat reply says stop) | `docker stop` (SIGTERM, then SIGKILL after a grace period), reports it canceled |
+| the agent itself dies | nothing — heartbeats stop and the reaper fails the job |
+
+Then it archives the logs, removes the container and frees the slot. What happens next is the server's call.
+
+### Heartbeats and logs
+
+The industry's usual answer to "a worker died without saying so" (Airflow's zombie tasks, Spark's executor heartbeats, Temporal's heartbeat timeouts, Kubernetes' node leases) and to job logs (Airflow's remote logging, Foundry's live logs):
+
+- **Heartbeat** — about every 30 s while the container runs: `POST /api/forge-agent/jobs/:rid/heartbeat` sets `heartbeat_at = now()`. One tiny write per running job per 30 s; not indexed, so a HOT update. The reply carries cancellation. Same as `sync_run.heartbeat_at` today.
+- **Logs** — the job writes to stdout; the agent streams it while it runs (live in the Builds app) and archives it to object storage (`log_key`) when the container exits. Postgres holds only where it is.
+
+### Environments
+
+A container starts from an **environment image**: a Quarry-owned base (Python, `quarry.transforms`, the runner — later a CUDA variant) plus a layer installing the workspace's `uv.lock`, keyed by the lock's hash, built once by checks and shared by every spec with the same lock. The code isn't in the image; the container fetches it. A `code-workspace` spec's `logic` names its environment (to add). Pipeline Builder and syncs have no user environment: their runner image is Quarry's own, and the job records which version ran it.
+
+## 6. D2 — the graph, kept apart — planned
+
+As PretzelGraph's S2 engine is apart from what runs on it, the graph algorithm knows nothing about specs, datasets or containers:
+
+```ts
+D2.buildGraph(plan)              → D2.Graph { roots, children, parents }   // Kahn's algorithm: a cycle throws
+D2.getReady(graph, statuses)     → nodes whose parents all succeeded and that haven't started   // "AND", the only policy
+D2.getDescendants(graph, node)   → what to cancel when a node fails
+```
+
+Forge uses it with durable state (statuses in Postgres, advanced by "job finished"). A later in-memory runner — microtasks and hooks, S2-style — can use the same D2 for short runs in one process, such as a Pipeline Builder pipeline's own steps while its single job runs:
+
+| Level | Nodes | Runs for | Runner |
+|---|---|---|---|
+| Build | job specs — a job each, in containers | minutes to hours, across machines | durable (Forge) |
+| Inside one job | a pipeline's steps | seconds to minutes, one process | in-memory |
+
+## 7. Provenance
+
+Each output transaction records what produced it:
 
 ```
 /Sales/clean/orders  transaction #12
@@ -138,26 +346,25 @@ Each output transaction records **what produced it**:
             /Sales/raw/customers  transaction #7
 ```
 
-That's **version-aware lineage**: any version of a derived dataset names the exact code and the exact input versions that produced it, so it can be explained and rebuilt.
+Version-aware lineage: any version of a derived dataset names the exact code and input versions that produced it. A transaction points at the **job** (what ran — that attempt, its pinned inputs, its logs), not the job spec (what should run); the spec is one hop away. Jobs record the versions they read and wrote (`forge.job.inputs`, `outputs`); Catalog never reads Forge's tables.
 
-**Stored in Catalog**, beside the transaction it describes (decided 2026-10-24); lineage queries are joins:
+Planned in Catalog (decided 2026-10-24): `catalog.transaction.produced_by` (the resource that wrote it — the workspace) and `catalog.transaction_input`. **Not like this yet:** the transaction has a free-form `provenance jsonb`; syncs write `{ syncRid, syncRunRid }`, builds `{ buildRid, jobRid }`.
 
-| Column / table | Holds |
+The dataset viewer then shows, as in Foundry's About panel: **Updated … by** the user who started the build (or the schedule's owner); **Updated via** the workspace; **Inputs**, the input versions. A job acts as a **delegate** of whoever started the build, so Gatekeeper decides what it may read and write, as for sync runs.
+
+## 8. What runs today
+
+`server/src/services/Forge/`: `ForgeService` (builds), `JobSpecs` (`forge.jobSpecs`, for producers), one `ForgeRepository` for the schema, `forge.db.ts`. A created build **waits**: its jobs stay `waiting`, holding their outputs' transactions, until it's canceled.
+
+| Endpoint | What |
 |---|---|
-| `catalog.transaction.produced_by` | The **resource** that wrote it — the Code Workspace for a transform's output, the Source for a sync's (a sync isn't a resource) |
-| `catalog.transaction_input (transaction_rid, input_transaction_rid)` | One row per input version read |
+| `POST /api/builds` | A manual build on main — [§4](#creating-it--built), phases 1–4 |
+| `GET /api/builds?datasetRid=&limit=` | Builds the caller can see, newest first; with a dataset, those targeting it |
+| `GET /api/builds/:rid` | The build (with its plan) and its jobs, by RID |
+| `POST /api/builds/:rid/cancel` | Aborts the unfinished jobs' transactions, then marks them and the build canceled |
+| `GET /api/jobs/:rid` | One job |
+| `GET /api/job-specs/current?datasetRid=&branch=` | What computes the dataset there, or null |
 
-The exact **run** isn't on the transaction: runs already point at what they wrote, in the producer's own tables — `data_connection.sync_run.transaction_rid`, and `forge.job_output_transaction (job_rid, transaction_rid)` for jobs (through which the commit). Catalog never reads its writers' tables; `produced_by` is a plain resource RID, resolved through the Library like any resource link.
+Publishing has no endpoint: producers call `forge.jobSpecs.publish(principal, producerRid, branch, specs)` in-process — nothing does yet (checks will).
 
-A transaction points at the **job**, not the job spec: the spec is what should run, the job is what ran (that attempt, its pinned inputs, its logs). One spec has many jobs — rebuilds, retries, force builds; the spec is one hop away (job → spec).
-
-**Not like this yet in the code:** `catalog.transaction` has a free-form `provenance jsonb` instead of `produced_by` and `transaction_input`; syncs write `{ syncRid, syncRunRid }` into it. Until that changes, a job would write `{ jobRid }` the same way.
-
-As in Foundry's dataset About panel, the dataset viewer then shows:
-
-- **Updated … by** *user* — the actor of the latest committed transaction (the delegate's user: whoever pressed Build, or the schedule's owner).
-- **Created … by Quarry** — for an output created by checks. The dataset's creator is the system; the audit log still records the committer as the delegate behind it, and checks verified their write on the folder first.
-- **Updated via** *workspace* — `produced_by` of the latest transaction, linked.
-- **Inputs** — the datasets of the latest transaction's `transaction_input` rows.
-
-A job acts as a **delegate** — of whoever started the build, or the schedule's owner — so Gatekeeper decides what it may read and write, exactly as for sync runs ([gatekeeper.md](gatekeeper.md)).
+**Next, with the ForgeAgent:** the ForgeAgent API (`Forge.API.ForgeAgent`, its token); `scheduled` and `queued` (with `scheduled_at`, `queued_at`), `heartbeat_at`, `log_key`; `ForgeRelay` and its 60 s sweep; `start` / `heartbeat` / `finish` and the reaper; `catalog.transaction.commitBatch`; D2; the agent and the runner (`quarry.transforms.run`); `environment` on code-workspace specs. **Later:** upstream and connecting builds (a recursive query collecting the plan), staleness and `forceBuild`, dataset branches other than main, syncs publishing job specs, the Scheduler.

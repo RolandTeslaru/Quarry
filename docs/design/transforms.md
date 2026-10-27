@@ -34,7 +34,7 @@ Decided (2026-10-24):
    - The **Quarry extension** (`packages/code-workspace-extension`, preinstalled in the runtime image):
      - **Preview and Build** in the editor title. Preview runs the runner itself, in the container, and shows the result in a Preview tab in the bottom panel (a React webview with standard-ui's `TableViewer`) — [code-workspaces/preview.md](code-workspaces/preview.md). Build picks a transform; builds aren't wired up yet.
      - Above each `Input(…)` / `Output(…)` a lens says what it points to (click: open it in Quarry), "Use RID" swaps a path for its RID (keeping the path as a comment), a hover card, and warnings for inputs that don't resolve. It calls Quarry with the session's token, which the setup writes to `~/.quarry/session.json` (mode 600) on every open. It also adopts Quarry's theme (`features/theme.ts`). Next on the same extension: a Quarry menu bar, a Preview lens on `@transform`.
-2. **Checks and a Build button** — checks on push, the build worker, outputs created and written with provenance. Builds are single-scope (this transform, not its upstream).
+2. **Checks and a Build button** — checks on push, the ForgeAgents, outputs created and written with provenance. Builds are single-scope (this transform, not its upstream).
 3. **Scheduler** — schedules as resources targeting datasets, full / connecting scope; sync crons move into schedules.
 
 ---
@@ -44,7 +44,7 @@ Decided (2026-10-24):
 | Thing | Library resource? | What it is |
 |---|---|---|
 | **Code Workspace** | **yes** — in a folder, grants, trash | A Git repository plus its environment (`pyproject.toml` + `uv.lock`). Holds any number of transforms |
-| **Job spec** | no — Forge's, published by a producer | How to compute some datasets: logic at one version (for a workspace: commit + transform), inputs, outputs, resources. Published by checks ([forge.md](forge.md#job-specs)) |
+| **Job spec** | no — Forge's, published by a producer | How to compute some datasets: logic at one version (for a workspace: commit + transform), inputs, outputs, resources. Published by checks ([forge.md](forge.md#1-model)) |
 | **Build** | no | One request to bring datasets up to date: a set of jobs in dependency order |
 | **Job** | no — belongs to its build | One transform run: reads pinned input versions, writes its outputs' transactions |
 | **Session** | no — belongs to a user and a workspace | The running container behind an open IDE ([§6](#6-sessions-the-ide-and-preview)) |
@@ -169,7 +169,7 @@ A shared service, not part of a session: sessions only hold a clone, and checks 
 ```
 session (clone) ──git over HTTP──▶ Quarry server ──▶ git http-backend ──▶ bare repositories (a volume)
                                      │ Gatekeeper: read = clone / fetch, write = push
-build worker ──fetch <commit>────────┘ a push enqueues checks for the new commit
+ForgeAgent ──fetch <commit>──────────┘ a push enqueues checks for the new commit
 ```
 
 - **Smart HTTP** at `/git/<workspace rid>.git`: the server authenticates the request (the session's scoped token, or a user token for a local clone), checks Gatekeeper on the workspace, then hands it to `git http-backend`.
@@ -240,7 +240,7 @@ Every commit runs **checks** (continuous integration) before its code can build 
 3. **Resolve** library paths to RIDs, pinned in the spec — a later rename doesn't break the transform. **Create** missing outputs (a dataset at that path; needs write on the parent folder).
 4. **Validate** — one producer per dataset, no cycles, inputs exist and are readable, outputs writable.
 5. **Tests** — run the workspace's tests.
-6. **Publish** one job spec per transform for that branch and commit (`Forge.JobSpec`, [forge.md](forge.md#job-specs)):
+6. **Publish** one job spec per transform for that branch and commit (`Forge.JobSpec`, [forge.md](forge.md#1-model)):
 
 ```json
 {
@@ -267,7 +267,7 @@ Checks act as a **delegate of the committer** (`Principal.onBehalfOf(committer, 
 
 ## 5. Builds
 
-Builds are **Forge**'s — a platform service, not part of Code Workspaces: [forge.md](forge.md) (job specs, builds, build workers, provenance). From a workspace's side: checks publish one job spec per transform for each commit ([§4](#4-checks--what-a-commit-goes-through)); Build runs the current one.
+Builds are **Forge**'s — a platform service, not part of Code Workspaces: [forge.md](forge.md) (job specs, builds, ForgeAgents, provenance). From a workspace's side: checks publish one job spec per transform for each commit ([§4](#4-checks--what-a-commit-goes-through)); Build runs the current one.
 
 ---
 

@@ -1,10 +1,11 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
+import { Dataset } from "../Catalog/Dataset"
 import { Transaction } from "../Catalog/Transaction"
 import { Build } from "./Build"
 import { JobSpec } from "./JobSpec"
 
-/** One run of one job spec within a build: pinned input versions in, one transaction per output. */
+/** One run of one job spec within a build: a pinned version of each input in, one transaction per output. */
 export namespace Job {
 
     /** A RID, but not a library resource. */
@@ -22,8 +23,8 @@ export namespace Job {
         jobSpecRid:            JobSpec.Rid,
         status:                Status,
         attempt:               z.number().int().positive(),         // 1, then each retry
-        inputTransactionRids:  Transaction.Rid.array().nullable(),  // the versions it read, pinned when it starts
-        outputTransactionRids: Transaction.Rid.array(),             // opened when the build resolves
+        inputs:                z.record(Dataset.Rid, Transaction.Rid).nullable(),   // the version of each input it read, pinned when it starts
+        outputs:               z.record(Dataset.Rid, Transaction.Rid),              // each output's transaction, opened when the build is created
         failure:               z.object({ message: z.string() }).nullable(),
         startedAt:             z.coerce.date().nullable(),
         finishedAt:            z.coerce.date().nullable(),
