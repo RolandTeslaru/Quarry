@@ -137,14 +137,23 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
             })
             .execute();
 
+        const scheduledAt = new Date();
+
+        // Roots may run at once; the rest wait for their parents.
         await this.trx
             .insertInto('forge.job')
-            .values(jobs.map((job) => ({
-                rid:          job.rid,
-                build_rid:    build.rid,
-                job_spec_rid: job.jobSpecRid,
-                outputs:      json(job.outputs),
-            })))
+            .values(jobs.map((job) => {
+                const isRoot = build.plan.roots.includes(job.jobSpecRid);
+
+                return {
+                    rid:          job.rid,
+                    build_rid:    build.rid,
+                    job_spec_rid: job.jobSpecRid,
+                    outputs:      json(job.outputs),
+                    status:       isRoot ? 'scheduled' as const : 'waiting' as const,
+                    scheduled_at: isRoot ? scheduledAt : null,
+                };
+            }))
             .execute();
 
         const created = await this.getBuild(principal, build.rid);
@@ -196,9 +205,9 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         return rows.map(ForgeDB.Build.toDomain);
     }
 
-    /** The build and its unfinished jobs, canceled. False if it had already finished. */
+    /** The build and its unfinished jobs, canceled. Null if it had already finished; otherwise the canceled jobs. */
     @Transactional()
-    public async cancelBuild(principal: Principal, rid: Forge.Build.Rid): Promise<boolean> {
+    public async cancelBuild(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.Job.Schema[] | null> {
         const finishedAt = new Date();
 
         const result = await this.trx
@@ -209,16 +218,17 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
             .executeTakeFirst();
 
         if (Number(result.numUpdatedRows) === 0)
-            return false;
+            return null;
 
-        await this.trx
+        const canceled = await this.trx
             .updateTable('forge.job')
             .set({ status: 'canceled', finished_at: finishedAt })
             .where('build_rid', '=', rid)
-            .where('status', 'in', ['waiting', 'running'])
+            .where('status', 'in', [...Forge.Job.UNFINISHED])
+            .returningAll()
             .execute();
 
-        return true;
+        return canceled.map(ForgeDB.Job.toDomain);
     }
 
     // ── jobs ────────────────────────────────────────────────────────────
@@ -241,7 +251,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
             .selectFrom('forge.job')
             .select('outputs')
             .where('build_rid', '=', buildRid)
-            .where('status', 'in', ['waiting', 'running'])
+            .where('status', 'in', [...Forge.Job.UNFINISHED])
             .execute();
 
         return jobs.flatMap((job) => Object.entries(job.outputs).map(([datasetRid, rid]) => ({
@@ -250,7 +260,181 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         })));
     }
 
+    // ── running jobs (the relay, ForgeAgents) ───────────────────────────
+
+    /** Scheduled → queued, after the relay pushed it. Null if the job was already past `scheduled`. */
+    @Transactional()
+    public async markQueued(principal: Principal, job: Forge.Queue.RunJob.Job): Promise<Forge.Job.Schema | null> {
+        const row = await this.trx
+            .updateTable('forge.job')
+            .set({ status: 'queued', queued_at: new Date() })
+            .where('rid', '=', job.jobRid)
+            .where('attempt', '=', job.attempt)
+            .where('status', '=', 'scheduled')
+            .returningAll()
+            .executeTakeFirst();
+
+        return row ? ForgeDB.Job.toDomain(row) : null;
+    }
+
+    /**
+     * A ForgeAgent takes the job: `scheduled` or `queued` → `running`, once per
+     * attempt (`scheduled` too: the relay may have pushed and crashed before marking
+     * it queued), and gets its spec — in one transaction, so a job is never left
+     * running without its agent knowing what to run. Null if this attempt isn't
+     * waiting to start.
+     */
+    @Transactional()
+    public async startJob(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Start.Response | null> {
+        const now = new Date();
+
+        const row = await this.trx
+            .updateTable('forge.job')
+            .set({ status: 'running', started_at: now, heartbeat_at: now })
+            .where('rid', '=', rid)
+            .where('attempt', '=', attempt)
+            .where('status', 'in', ['scheduled', 'queued'])
+            .returningAll()
+            .executeTakeFirst();
+
+        if (!row)
+            return null;
+
+        // The FK guarantees it exists; getJobSpec joins this transaction, so a failure here undoes the start.
+        const jobSpec = await this.getJobSpec(principal, row.job_spec_rid);
+
+        if (!jobSpec)
+            throw new Error(`Job ${rid} has no job spec ${row.job_spec_rid}`);
+
+        return { job: ForgeDB.Job.toDomain(row), jobSpec };
+    }
+
+    /** The attempt is still running: renew its lease. Null if it isn't running (any more). */
+    @Transactional()
+    public async heartbeatJob(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.Job.Schema | null> {
+        const row = await this.trx
+            .updateTable('forge.job')
+            .set({ heartbeat_at: new Date() })
+            .where('rid', '=', rid)
+            .where('attempt', '=', attempt)
+            .where('status', '=', 'running')
+            .returningAll()
+            .executeTakeFirst();
+
+        return row ? ForgeDB.Job.toDomain(row) : null;
+    }
+
+    /**
+     * Records how the running attempt ended, then advances its build: on success,
+     * each child whose parents have all succeeded goes `waiting → scheduled`;
+     * nothing left unfinished → the build is done. Null if this attempt wasn't
+     * running. Returns the jobs it scheduled, for the relay.
+     */
+    @Transactional()
+    public async finishJob(
+        principal: Principal,
+        rid:       Forge.Job.Rid,
+        outcome:   Forge.API.Agent.Finish.Request,
+    ): Promise<{ job: Forge.Job.Schema; scheduled: Forge.Job.Schema[] } | null> {
+        const row = await this.trx
+            .updateTable('forge.job')
+            .set({ status: outcome.status, failure: outcome.failure ? json(outcome.failure) : null, finished_at: new Date() })
+            .where('rid', '=', rid)
+            .where('attempt', '=', outcome.attempt)
+            .where('status', '=', 'running')
+            .returningAll()
+            .executeTakeFirst();
+
+        if (!row)
+            return null;
+
+        const scheduled = outcome.status === 'succeeded'
+            ? await this._scheduleReadyChildren(row)
+            : [];
+
+        await this._finishBuildIfDone(row.build_rid);
+
+        return { job: ForgeDB.Job.toDomain(row), scheduled };
+    }
+
+    /** A job failed: its build's unfinished jobs are canceled and the build failed (descendants only, later). Returns the canceled jobs. */
+    @Transactional()
+    public async failBuild(principal: Principal, buildRid: Forge.Build.Rid): Promise<Forge.Job.Schema[]> {
+        const finishedAt = new Date();
+
+        const canceled = await this.trx
+            .updateTable('forge.job')
+            .set({ status: 'canceled', finished_at: finishedAt })
+            .where('build_rid', '=', buildRid)
+            .where('status', 'in', [...Forge.Job.UNFINISHED])
+            .returningAll()
+            .execute();
+
+        await this.trx
+            .updateTable('forge.build')
+            .set({ status: 'failed', finished_at: finishedAt })
+            .where('rid', '=', buildRid)
+            .where('status', '=', 'running')
+            .execute();
+
+        return canceled.map(ForgeDB.Job.toDomain);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────
+
+    /** The finished job's children whose parents have all succeeded: `waiting → scheduled` (once, whoever finishes last). */
+    private async _scheduleReadyChildren(finished: ForgeDB.Job.Row): Promise<Forge.Job.Schema[]> {
+        const build = await this.trx
+            .selectFrom('forge.build')
+            .select('plan')
+            .where('rid', '=', finished.build_rid)
+            .executeTakeFirstOrThrow();
+
+        const jobs = await this.trx
+            .selectFrom('forge.job')
+            .select(['job_spec_rid', 'status'])
+            .where('build_rid', '=', finished.build_rid)
+            .execute();
+
+        const succeeded = new Set(jobs.filter((job) => job.status === 'succeeded').map((job) => job.job_spec_rid));
+        const ready = Forge.Build.Plan.getReadyChildren(build.plan, finished.job_spec_rid, succeeded);
+
+        if (ready.length === 0)
+            return [];
+
+        const rows = await this.trx
+            .updateTable('forge.job')
+            .set({ status: 'scheduled', scheduled_at: new Date() })
+            .where('build_rid', '=', finished.build_rid)
+            .where('job_spec_rid', 'in', ready)
+            .where('status', '=', 'waiting')
+            .returningAll()
+            .execute();
+
+        return rows.map(ForgeDB.Job.toDomain);
+    }
+
+    /** No job left unfinished → the build succeeded, or failed if one of them did. */
+    private async _finishBuildIfDone(buildRid: Forge.Build.Rid): Promise<void> {
+        const jobs = await this.trx
+            .selectFrom('forge.job')
+            .select('status')
+            .where('build_rid', '=', buildRid)
+            .execute();
+
+        if (jobs.some((job) => Forge.Job.UNFINISHED.includes(job.status)))
+            return;
+
+        await this.trx
+            .updateTable('forge.build')
+            .set({
+                status:      jobs.some((job) => job.status === 'failed') ? 'failed' : 'succeeded',
+                finished_at: new Date(),
+            })
+            .where('rid', '=', buildRid)
+            .where('status', '=', 'running')
+            .execute();
+    }
 
     /** The spec, its datasets, and a pointer from each output. */
     private async _insertJobSpec(

@@ -32,6 +32,31 @@ export namespace Realtime {
             export type Schema = z.infer<typeof Schema>
         }
         export type Forbidden = z.infer<typeof Forbidden.Schema>
+
+        /**
+         * A domain's typed `create(type, rest)`, from its union (after PretzelGraph's
+         * defineEventFactory): `rest` is exactly that member's own fields. The event
+         * comes back without its channel — the publisher adds where it goes:
+         *
+         *   realtime.emitEvent({ ...Forge.Event.create("forge:job:updated", { job }), channel })
+         *
+         * The schema only drives the types; nothing is parsed.
+         */
+        export function defineFactory<S extends z.ZodType<z.infer<typeof Base>>>(_schema: S) {
+
+            type Member = z.infer<S>
+
+            type OfType<T extends Member["type"]> = Extract<Member, { type: T }>
+
+            type Rest<T extends Member["type"]> = Omit<OfType<T>, "channel" | "type">
+
+            /** Members with no fields of their own take no second argument. */
+            type RestArg<T extends Member["type"]> = {} extends Rest<T> ? [rest?: Rest<T>] : [rest: Rest<T>]
+
+            return function create<T extends Member["type"]>(type: T, ...[rest]: RestArg<T>): Omit<OfType<T>, "channel"> {
+                return { ...rest, type } as Omit<OfType<T>, "channel">
+            }
+        }
     }
     export type Event = z.infer<typeof Event.Base>
 

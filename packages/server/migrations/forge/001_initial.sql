@@ -81,17 +81,23 @@ CREATE TABLE forge.job (
     rid           forge.job_rid PRIMARY KEY,
     build_rid     forge.build_rid NOT NULL REFERENCES forge.build(rid) ON DELETE CASCADE,
     job_spec_rid  forge.job_spec_rid NOT NULL REFERENCES forge.job_spec(rid) ON DELETE RESTRICT,
-    status        text NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'running', 'succeeded', 'failed', 'canceled')),
+    status        text NOT NULL DEFAULT 'waiting'
+                  CHECK (status IN ('waiting', 'scheduled', 'queued', 'running', 'succeeded', 'failed', 'canceled')),
     attempt       integer NOT NULL DEFAULT 1 CHECK (attempt >= 1),
     failure       jsonb,                          -- { message }
     inputs        jsonb,                          -- { <dataset rid>: <transaction rid> }: the versions it read, pinned when it starts
     outputs       jsonb NOT NULL,                 -- { <dataset rid>: <transaction rid> }: opened when the build is created
-    started_at    timestamptz,
+    scheduled_at  timestamptz,                    -- may run from here: a root at initialization, a child when its last parent finished
+    queued_at     timestamptz,                    -- handed to Redis by the relay
+    started_at    timestamptz,                    -- a ForgeAgent took it
+    heartbeat_at  timestamptz,                    -- not indexed, so heartbeats stay HOT updates
     finished_at   timestamptz,
-    CHECK ((status IN ('waiting', 'running')) = (finished_at IS NULL)),
-    CHECK ((status = 'waiting') = (started_at IS NULL) OR status = 'canceled'),
+    CHECK ((status IN ('succeeded', 'failed', 'canceled')) = (finished_at IS NOT NULL)),
+    CHECK (status NOT IN ('running', 'succeeded', 'failed') OR started_at IS NOT NULL),
     UNIQUE (build_rid, job_spec_rid)                -- one job per node of the plan
 );
+
+CREATE INDEX job_scheduled ON forge.job (rid) WHERE status = 'scheduled';   -- what the relay sends
 
 -- ── row-level security (gatekeeper/001_initial.sql explains the setup) ─────
 --

@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Catalog, Forge, Foundations } from '@quarry/shared/domain';
+import { Forge, Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import type { Principal } from '@/auth/principal';
 import { CatalogService } from '@/services/Catalog/catalog.service';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
+import { RealtimeService } from '@/services/Realtime/realtime.service';
+import { ForgeRelayService } from './relay/forge-relay.service';
 import { ForgeRepository, type NewJob } from './forge.repository';
 import { JobSpecs } from './job-specs';
 
@@ -19,9 +21,10 @@ interface CollectedPlan {
  * Forge's one entry point for other services: builds here, job specs under
  * `jobSpecs` (publish, getCurrent).
  *
- * Creating a build: collect its plan, validate it, lock its outputs (a
- * snapshot transaction on each, so no other writer gets in), persist it.
- * Nothing runs the jobs yet: they wait until the build is canceled.
+ * Initializing a build: collect its plan, validate it, lock its outputs (a
+ * snapshot transaction on each, so no other writer gets in), persist it with
+ * its roots scheduled, relay them to the queue. Running the jobs is the
+ * ForgeAgents' side: agent/ForgeAgentService.
  */
 @Injectable()
 export class ForgeService {
@@ -33,6 +36,8 @@ export class ForgeService {
         public readonly jobSpecs:    JobSpecs,
         private readonly catalog:    CatalogService,
         private readonly repository: ForgeRepository,
+        private readonly relay:      ForgeRelayService,
+        private readonly realtime:   RealtimeService,
     ) {}
 
     /** Needs write on every output and read on every input. */
@@ -65,10 +70,20 @@ export class ForgeService {
 
             this.log.info(`Created ${buildRid}: ${jobs.length} job(s)`);
 
-            return created;
+            // 5. After the commit: announce the jobs, hand the roots to the queue.
+            for (const job of Object.values(created.jobs))
+                this.realtime.emitEvent({
+                    ...Forge.Event.create('forge:job:updated', { job: job }),
+                    channel: Forge.Event.getChannel(job.buildRid),
+                });
+
+            await this.relay.relay(Object.values(created.jobs).filter((job) => job.status === 'scheduled'));
+
+            return this.getBuild(principal, buildRid);
         }
         catch (error) {
-            await this._abort(principal, jobs.flatMap((job) => this._getOutputTransactions(job)));
+            // Cleanup on a failure path: if this fails too, Catalog's storage GC aborts them later.
+            await this.catalog.transaction.abortBatch(principal, jobs.flatMap(Forge.Job.getOutputTransactions)).catch(() => undefined);
 
             throw error;
         }
@@ -97,12 +112,18 @@ export class ForgeService {
 
         const outputs = await this.repository.listUnfinishedOutputs(principal, rid);
 
-        await this._abort(principal, outputs);
+        await this.catalog.transaction.abortBatch(principal, outputs);
 
         const canceled = await this.repository.cancelBuild(principal, rid);
 
         if (!canceled)
             throw new ConflictException('Build finished meanwhile');
+
+        for (const job of canceled)
+            this.realtime.emitEvent({
+                ...Forge.Event.create('forge:job:updated', { job: job }),
+                channel: Forge.Event.getChannel(job.buildRid),
+            });
 
         this.log.info(`Canceled ${rid}`);
 
@@ -241,27 +262,5 @@ export class ForgeService {
             throw new Error(`No job for ${jobSpecRid}`);
 
         return jobRid;
-    }
-
-    /** A new job's output transactions, as Catalog addresses them. */
-    private _getOutputTransactions(job: NewJob): Pick<Catalog.Transaction.Schema, 'rid' | 'datasetRid'>[] {
-        return Object.entries(job.outputs).map(([datasetRid, rid]) => ({
-            rid,
-            datasetRid: Catalog.Dataset.Rid.parse(datasetRid),
-        }));
-    }
-
-    /** Best effort: a transaction left open is aborted by Catalog's storage GC later. */
-    private async _abort(principal: Principal, transactions: Pick<Catalog.Transaction.Schema, 'rid' | 'datasetRid'>[]): Promise<void> {
-        for (const transaction of transactions)
-            try {
-                await this.catalog.transaction.abort(principal, transaction.datasetRid, transaction.rid);
-            }
-            catch (error) {
-                this.log.warning('Could not abort a transaction', {
-                    transactionRid: transaction.rid,
-                    error:          error instanceof Error ? error.message : String(error),
-                });
-            }
     }
 }

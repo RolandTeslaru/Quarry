@@ -25,3 +25,12 @@ export const INTERNAL = Symbol.for('quarry.auth.internal');
  * acts as the system and builds whatever principal the work needs itself.
  */
 export const Internal = () => SetMetadata(INTERNAL, true);
+
+export const FORGE_AGENT = Symbol.for('quarry.auth.forge-agent');
+
+/**
+ * ForgeAgent-only route or controller: AuthGuard accepts the ForgeAgent token
+ * (FORGE_AGENT_TOKEN) and nothing else — not the service token, not a user's JWT.
+ * Agents run next to user code, so their token opens these routes only.
+ */
+export const ForgeAgentOnly = () => SetMetadata(FORGE_AGENT, true);

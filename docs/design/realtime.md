@@ -27,7 +27,17 @@ export namespace Event {
     export const sourceOf   = (channel) => Source.Rid | null      // read back, for authorization
     export namespace RunUpdated { … type: z.literal("data-connection:run:updated"), run: SyncRun.Schema }
     export const Schema = z.discriminatedUnion("type", [RunUpdated.Schema])
+    export const create = Realtime.Event.defineFactory(Schema)   // typed create(type, rest), without the channel
 }
+```
+
+Events are built with the domain's `create` and addressed by the publisher, as in PretzelGraph (`defineEventFactory`): `create(type, rest)` checks `rest` against exactly that member of the union, and leaves the channel out — only the publisher knows where the event goes.
+
+```ts
+this.realtime.emitEvent({
+    ...DataConnection.Event.create("data-connection:run:updated", { run }),
+    channel: DataConnection.Event.getChannel(sourceRid),
+})
 ```
 
 **A channel names what it's about** — a resource's RID, or a user's — so the gateway can decide who may listen. Event types are `'<domain>:<entity>:<verb>'`.
@@ -36,6 +46,7 @@ export namespace Event {
 |---|---|---|
 | `data-connection:source:<sourceRid>` | anyone with **discover** on the source (Gatekeeper) | `data-connection:run:updated` — a run started, succeeded or failed, as it is now |
 | `identity:user:<userRid>` | **only that user** | `identity:notification` — `{ level, title, description }`, shown as a toast anywhere in the workspace |
+| `forge:build:<buildRid>` | anyone who can **see the build** — discover on one of its targets (Forge decides: RLS on `forge.build`, resolved by the gateway through `ModuleRef` to avoid a module cycle) | `forge:job:updated` — any change to one of its jobs (scheduled, queued, started, finished, canceled), the job as it is now (`Forge.Event.Job.Updated`) |
 
 Any other channel is refused.
 

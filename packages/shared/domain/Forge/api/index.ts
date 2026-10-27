@@ -5,6 +5,7 @@ import { Dataset as DatasetD } from "../../Catalog/Dataset"
 import { Build as BuildD } from "../Build"
 import { Job as JobD } from "../Job"
 import { JobSpec as JobSpecD } from "../JobSpec"
+import * as AgentMod from "./agent"
 
 const MAIN = Branch.parse("main")
 
@@ -102,4 +103,7 @@ export namespace API {
         const { data } = await api.get("/api/job-specs/current", { params: query })
         return GetCurrentJobSpec.Response.parse(data)
     }
+
+    /** ForgeAgents' own endpoints (`/api/forge-agent/…`). */
+    export import Agent = AgentMod.Agent
 }

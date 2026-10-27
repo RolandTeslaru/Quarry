@@ -1,6 +1,6 @@
 # Forge — Builds
 
-_Draft, 2026-10-25. **Built 2026-10-26, server only**: publishing job specs, creating, listing and canceling manual builds ([§8](#8-what-runs-today)). Nothing runs a job yet — the ForgeAgent, the relay and finishing jobs are planned (marked below). Split from [transforms.md](transforms.md) §5. Related: what a build writes, [catalog.md](catalog.md); permissions, [gatekeeper.md](gatekeeper.md); queues, [jobs.md](jobs.md). Foundry background: its [Builds](https://www.palantir.com/docs/foundry/data-integration/builds/) docs._
+_Draft, 2026-10-25. **Built 2026-10-26–27**: publishing job specs; initializing, listing and canceling manual builds; the relay, the ForgeAgent API and a ForgeAgent scaffold that starts and finishes jobs without compute ([§8](#8-what-runs-today)). Nothing runs a job yet — the ForgeAgent, the relay and finishing jobs are planned (marked below). Split from [transforms.md](transforms.md) §5. Related: what a build writes, [catalog.md](catalog.md); permissions, [gatekeeper.md](gatekeeper.md); queues, [jobs.md](jobs.md). Foundry background: its [Builds](https://www.palantir.com/docs/foundry/data-integration/builds/) docs._
 
 **Forge** computes new versions of datasets. It's a platform service like Catalog, not part of Code Workspaces: **producers** (a workspace's checks, later Pipeline Builder and syncs) publish **job specs**; anything can start a **build** of them (a Build button, Data Lineage, a schedule). The name is a noun only — what it does is **build**: "built 2 hours ago", never "forged".
 
@@ -29,8 +29,8 @@ job     waiting ──▶ scheduled ──▶ queued ──▶ running ──▶
            └────────────┴────────────┴──────────┴─────▶ canceled
 
         waiting     parents not finished (the default)
-        scheduled   may run now; not yet in Redis                          (planned)
-        queued      in Redis, waiting for an agent                         (planned)
+        scheduled   may run now; not yet in Redis
+        queued      in Redis, waiting for an agent
         running     an agent took it; its container runs
         canceled    stopped before finishing: the build was canceled, or a parent failed
 
@@ -41,9 +41,9 @@ job     waiting ──▶ scheduled ──▶ queued ──▶ running ──▶
 
 The **server orchestrates** — it decides what runs when. **ForgeAgents execute** — one per machine, starting and watching that machine's containers. **Each job runs in its own container**, which does the compute. In between, the **job table** in Postgres and a **queue** in Redis carry "run this job".
 
-**Outbox or Redis queue? Both, one after the other — and the outbox is the job table itself.** The server decides a job may run by setting it `scheduled`, in the same database transaction as everything else (creating the build, finishing a parent). Then the **relay** — `ForgeRelay`, on the server — pushes `scheduled` jobs into the BullMQ queue (Redis) and sets them `queued`. Agents consume the queue. The message can't disagree with the state, because it *is* the state: `scheduled` is the outbox's "not sent yet", `queued` its "sent". Postgres stays the source of truth and Redis only delivers (jobs.md §1: events cross from Postgres to Redis only through an outbox). No separate `forge.outbox` table: the message is exactly "run this job", one per job — unlike Catalog's `dataset.updated`, an event about a commit, which keeps `catalog.outbox`.
+**Outbox or Redis queue? Both, one after the other — and the outbox is the job table itself.** The server decides a job may run by setting it `scheduled`, in the same database transaction as everything else (creating the build, finishing a parent). Then the **relay** — `ForgeRelayService`, on the server — pushes `scheduled` jobs into the BullMQ queue (Redis) and sets them `queued`. Agents consume the queue. The message can't disagree with the state, because it *is* the state: `scheduled` is the outbox's "not sent yet", `queued` its "sent". Postgres stays the source of truth and Redis only delivers (jobs.md §1: events cross from Postgres to Redis only through an outbox). No separate `forge.outbox` table: the message is exactly "run this job", one per job — unlike Catalog's `dataset.updated`, an event about a commit, which keeps `catalog.outbox`.
 
-**The relay runs two ways.** Right after each commit that schedules jobs, `ForgeService` calls it (the fast path: a job reaches Redis within milliseconds), best effort — if the push fails, the request still succeeds, because the build was created. And every 60 s the system worker calls it through an internal endpoint (the sweep: it finds only jobs the fast path failed to deliver — a crash between the commit and the push, Redis down). The push always comes *after* the commit, never inside the transaction. Fast normally, safe always; the server still never consumes a queue.
+**The relay runs two ways.** Right after each commit that schedules jobs, `ForgeService` calls it (the fast path: a job reaches Redis within milliseconds), best effort — if the push fails, the request still succeeds, because the build was created. And every 60 s the system worker calls it through an internal endpoint — the sweep, **planned, not built yet** (decided 2026-10-27). It re-sends jobs the fast path failed to deliver (`scheduled`: a crash between the commit and the push, Redis down) **and jobs `queued` for over ~2 minutes that no agent started** — Redis runs without persistence (disposable by design, jobs.md), so a Redis restart loses the messages of queued jobs. Re-sending is safe: a message that still exists has the same BullMQ id and is ignored, and `start` runs an attempt once. The sweep, not Redis persistence, is what makes delivery reliable; AOF stays optional. The push always comes *after* the commit, never inside the transaction. Fast normally, safe always; the server still never consumes a queue.
 
 What it solves — the dual write between Postgres and Redis: a commit whose enqueue never happened (a crash in between, Redis down) would leave a job scheduled forever; an enqueue whose commit rolled back would run a job on uncommitted inputs. What it doesn't: a duplicate push (the relay crashed before setting `queued`, or the fast path and the sweep raced) — the BullMQ job id is `<job rid>:<attempt>`, so it's ignored, and `start` moves a job to `running` once; an agent dying with a job — the lease (heartbeats, reaper); Redis losing data it already acknowledged — Redis persistence (AOF).
 
@@ -57,7 +57,7 @@ flowchart TB
         api --> pg
     end
 
-    pg -- "scheduled jobs" --> relay["ForgeRelay<br/>after each commit · every 60 s (system worker)"]
+    pg -- "scheduled jobs" --> relay["ForgeRelayService<br/>after each commit · every 60 s (system worker)"]
     relay -- "run job X" --> redis[("Redis · BullMQ<br/>forge.run-job")]
     redis --> agent
 
@@ -75,7 +75,7 @@ flowchart TB
 | Component | Does | How many |
 |---|---|---|
 | **Server** — `ForgeService` | Creates builds (collect the plan, validate, lock the outputs, persist), advances them when a job finishes (commit its outputs, ask D2 which jobs are now ready, mark them scheduled, relay them), cancels them, fails silent jobs (reaper) | the API |
-| **Relay** — `ForgeRelay` on the server | Pushes `scheduled` jobs into BullMQ (job id `<rid>:<attempt>`), *then* marks them `queued` — in that order, so a crash in between leaves the job `scheduled` and it's pushed again. Called by `ForgeService` right after its commits, and every 60 s by the system worker (internal endpoint) as the safety net | — |
+| **Relay** — `ForgeRelayService` on the server | Pushes `scheduled` jobs into BullMQ (job id `<rid>_<attempt>`), *then* marks them `queued` — in that order, so a crash in between leaves the job `scheduled` and it's pushed again. Called by `ForgeService` right after its commits, and every 60 s by the system worker (internal endpoint) as the safety net | — |
 | **Queue** — BullMQ on Redis | Delivers "run job X" to one agent: one queue, `forge.run-job` | — |
 | **ForgeAgent** | Takes a job when it has a free slot, calls `start`, starts the container with the spec's resources, heartbeats, streams logs, waits for the exit, calls `finish`; kills the container on cancel. Never moves data | one per machine |
 | **Job container** | The runner for the spec's logic type: fetches the code at the commit, reads the inputs, runs the function, uploads and registers the output files, exits 0 or 1 | one per job, removed after |
@@ -83,7 +83,7 @@ flowchart TB
 
 **Why an agent per machine.** The agent doesn't compute; it stands in for a machine, the way Jenkins and Buildkite agents or Kubernetes' kubelet do. With plain Docker, containers run on the machine whose Docker daemon starts them, and Docker's API should stay local (exposed over the network it's root on the host). Each agent pulls a job only when its machine has room, so the queue does the placing — no central scheduler. Start with one machine; add machines (each with its agent) when one isn't enough. With Kubernetes, one or two agents submit Kubernetes Jobs and the cluster places them; nothing else changes.
 
-**The ForgeAgent API** — planned. ForgeAgents never connect to Postgres; only the server does (AGENTS.md). They talk to the server through their own API, meant for ForgeAgents only: `/api/forge-agent/…`, contract `Forge.API.ForgeAgent` in `@quarry/shared`, `ForgeAgentController` on the server.
+**The ForgeAgent API** — built. ForgeAgents never connect to Postgres; only the server does (AGENTS.md). They talk to the server through their own API, meant for ForgeAgents only: `/api/forge-agent/…`, contract `Forge.API.Agent` in `@quarry/shared`, `ForgeAgentController` on the server.
 
 | Endpoint | What |
 |---|---|
@@ -91,7 +91,7 @@ flowchart TB
 | `POST /api/forge-agent/jobs/:rid/heartbeat` | still running; the reply says carry on or stop |
 | `POST /api/forge-agent/jobs/:rid/finish` | succeeded or failed (with a message); idempotent per attempt |
 
-It's authenticated with a **ForgeAgent token**, separate from the internal service token the other workers use, and accepted on these routes only: agents run on machines next to user code, so what a leaked agent token can do is limited to claiming, heartbeating and finishing jobs. Why not let agents use the database directly: a database credential on every compute host would expose everything if a container escaped; agents would eat Postgres connections; every migration would have to reach every machine. The industry went the same way — Kubernetes' kubelets talk only to the API server, never etcd; Airflow 3 moved task execution from direct metadata-database access to a Task Execution API; CI runners talk to their controller's API.
+It's authenticated with the **ForgeAgent token** (`FORGE_AGENT_TOKEN`, checked by `AuthGuard` on `@ForgeAgentOnly()` routes), separate from the internal service token the other workers use, and accepted on these routes only: agents run on machines next to user code, so what a leaked agent token can do is limited to claiming, heartbeating and finishing jobs. Why not let agents use the database directly: a database credential on every compute host would expose everything if a container escaped; agents would eat Postgres connections; every migration would have to reach every machine. The industry went the same way — Kubernetes' kubelets talk only to the API server, never etcd; Airflow 3 moved task execution from direct metadata-database access to a Task Execution API; CI runners talk to their controller's API.
 
 
 ## 3. Schema
@@ -146,23 +146,23 @@ forge.build
   INDEX GIN (target -> 'datasetRids')   -- builds of this dataset
   INDEX (created_at DESC)
 
-forge.job                            -- (P) = planned, with the ForgeAgent
+forge.job                            -- (P) = planned
   rid           job_rid  PRIMARY KEY
   build_rid     → forge.build
   job_spec_rid  → forge.job_spec
-  status        text                    -- waiting | scheduled (P) | queued (P) | running | succeeded | failed | canceled
+  status        text                    -- waiting | scheduled | queued | running | succeeded | failed | canceled
   attempt       integer                 -- 1, then each retry
   failure       jsonb                   -- { message }
   inputs        jsonb                   -- { <dataset rid>: <transaction rid> }: the version of each input it read, pinned when it starts
   outputs       jsonb                   -- { <dataset rid>: <transaction rid> }: each output's transaction, opened when the build is created
-  scheduled_at  timestamptz         (P) -- may run from here: roots at initialization, children when their last parent finishes
-  queued_at     timestamptz         (P) -- handed to Redis by the relay
+  scheduled_at  timestamptz             -- may run from here: roots at initialization, children when their last parent finishes
+  queued_at     timestamptz             -- handed to Redis by the relay
   started_at    timestamptz
-  heartbeat_at  timestamptz         (P) -- not indexed, so heartbeats stay HOT updates
+  heartbeat_at  timestamptz             -- not indexed, so heartbeats stay HOT updates
   log_key       text                (P) -- the job's log in object storage
   finished_at   timestamptz
   UNIQUE (build_rid, job_spec_rid)      -- one job per node of the plan
-  INDEX (rid) WHERE status = 'scheduled'                         (P) -- what the relay sends
+  INDEX (rid) WHERE status = 'scheduled'                             -- what the relay sends
 ```
 
 **Why the plan is a column, not an edges table.** It's written once and never updated, and every question about it — which jobs are ready, what to cancel, drawing the graph — is about one build, so it's loaded whole and handed to D2 in the shape D2 uses. An edges table would only pay off for edge queries across builds; lineage uses specs, not job edges.
@@ -181,23 +181,23 @@ forge.job                            -- (P) = planned, with the ForgeAgent
 2. **Validate.** Write on every output (siblings too), read on every input; an input not built in this build must already have data.
 3. **Lock the outputs.** One snapshot transaction on every output of every spec, all in one database transaction (`catalog.transaction.openBatch`, provenance `{ buildRid, jobRid }`) — or none: a dataset already being written is a 409. No other writer gets in until the build finishes.
 4. **Persist.** The build (with its plan), one job per node (`waiting`), their output transactions — one database transaction. If this fails, the transactions from 3 are aborted.
-5. **Schedule the roots** _(planned)_ — the same database transaction marks the roots `scheduled`; after the commit `ForgeService` calls the relay, which pushes them to Redis and marks them `queued`.
+5. **Schedule the roots** — the same database transaction marks the roots `scheduled`; after the commit `ForgeService` calls the relay, which pushes them to Redis and marks them `queued`.
 
-### Running it — planned
+### Running it — the flow built; compute, commits, retries and the reaper planned
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant S as Server
     participant PG as Postgres
-    participant R as ForgeRelay
+    participant R as ForgeRelayService
     participant Q as Redis (BullMQ)
     participant A as ForgeAgent
     participant C as Job container
 
     S->>PG: build + jobs · roots scheduled (one transaction)
     S->>R: relay (after the commit)
-    R->>Q: run job A (id A:1)
+    R->>Q: run job A (id A_1)
     R->>PG: A queued
     Q->>A: job A (when a slot is free)
     A->>S: start A
@@ -221,7 +221,7 @@ sequenceDiagram
 **Finishing** (`POST /api/forge-agent/jobs/:rid/finish`), in one database transaction:
 
 - **succeeded** — commit all the job's output transactions together (`catalog.transaction.commitBatch`, planned: a job's outputs update together or not at all), job `succeeded`; load the plan and the jobs' statuses, `D2.getReady` → each ready child goes `waiting → scheduled` (a conditional update, so two parents finishing at once schedule it once), relayed after the commit; nothing left waiting, scheduled, queued or running → build `succeeded`.
-- **failed** — attempts left (`retryCount`)? `attempt + 1`, `scheduled` again (a new BullMQ id, `<rid>:<attempt>`), same open transactions. Otherwise abort its transactions, job `failed`; `D2.getDescendants` → abort theirs and cancel them (with `abortOnFailure`, cancel everything still waiting); nothing left running → build `failed`.
+- **failed** — attempts left (`retryCount`)? `attempt + 1`, `scheduled` again (a new BullMQ id, `<rid>_<attempt>`), same open transactions. Otherwise abort its transactions, job `failed`; `D2.getDescendants` → abort theirs and cancel them (with `abortOnFailure`, cancel everything still waiting); nothing left running → build `failed`.
 
 **Canceling** — built: abort the unfinished jobs' transactions, mark them and the build `canceled`. With agents, a running job's next heartbeat reply says stop and the agent kills its container.
 
@@ -259,8 +259,8 @@ stateDiagram-v2
 |---|---|---|---|
 | server, before `initializeBuild` commits | nothing | nothing | the request failed; its open transactions are aborted |
 | server, after the commit, before the relay pushes | `scheduled` | nothing | the 60 s sweep pushes it |
-| relay, after the push, before marking `queued` | `scheduled` | `rid:attempt` | an agent may start it anyway — `start` accepts `scheduled`; the sweep's re-push is ignored (same id) |
-| Redis loses the message after it was marked `queued` | `queued` | nothing | Redis persistence (AOF); the job otherwise waits (a later sweep could re-push long-`queued` jobs) |
+| relay, after the push, before marking `queued` | `scheduled` | `rid_attempt` | an agent may start it anyway — `start` accepts `scheduled`; the sweep's re-push is ignored (same id) |
+| Redis loses the message after it was marked `queued` — any Redis restart, as it has no persistence | `queued` | nothing | the sweep re-sends jobs `queued` for over ~2 minutes (planned); until it exists, such a job waits and its build must be canceled and rerun |
 | agent, after `start`, while the container runs | `running` | done | heartbeats stop → the reaper: retry (`attempt + 1`, `scheduled`) or `failed` |
 | the container (non-zero exit, out of memory) | `running` | done | the agent reports `finish(failed)` → retry or `failed` |
 | agent, after the container exited, before `finish` arrives | `running` | done | the agent retries `finish` when it can; if it died, the reaper fails or retries the job — the outputs stay uncommitted |
@@ -367,4 +367,23 @@ The dataset viewer then shows, as in Foundry's About panel: **Updated … by** t
 
 Publishing has no endpoint: producers call `forge.jobSpecs.publish(principal, producerRid, branch, specs)` in-process — nothing does yet (checks will).
 
-**Next, with the ForgeAgent:** the ForgeAgent API (`Forge.API.ForgeAgent`, its token); `scheduled` and `queued` (with `scheduled_at`, `queued_at`), `heartbeat_at`, `log_key`; `ForgeRelay` and its 60 s sweep; `start` / `heartbeat` / `finish` and the reaper; `catalog.transaction.commitBatch`; D2; the agent and the runner (`quarry.transforms.run`); `environment` on code-workspace specs. **Later:** upstream and connecting builds (a recursive query collecting the plan), staleness and `forceBuild`, dataset branches other than main, syncs publishing job specs, the Scheduler.
+**Live updates** (`Forge.Event`, realtime.md). Every change to a job is announced on its build's channel, `forge:build:<buildRid>`, as `forge:job:updated` with the job as it is now (`Forge.Event.Job.Updated`) — emitted by the server, whoever changed the row, right after the commit: initializing (all jobs), the relay (queued), `start`, `finish` (the job and the children it scheduled), failing and canceling (the canceled jobs). Not heartbeats. It's a nudge for the UI, not the record: a lost event only means a later refetch, and nothing acts on these events but pages. ForgeAgents never publish. Subscribing needs to see the build (discover on one of its targets).
+
+**Server layout** (`server/src/services/Forge/`): `forge.service.ts` — `ForgeService`, what users and other services do (initialize, list, get, cancel builds; `jobSpecs`); `agent/` — `ForgeAgentController` and `ForgeAgentService`, what ForgeAgents do (start, heartbeat, finish, advancing and failing builds); `relay/forge-relay.service.ts` — `ForgeRelayService`; `forge.repository.ts`, `forge.db.ts`, `job-specs.ts`. Each service emits its job events and aborts its transactions inline: `realtime.emitEvent({ ...Forge.Event.create('forge:job:updated', { job }), channel: Forge.Event.getChannel(job.buildRid) })`, `catalog.transaction.abortBatch(principal, Forge.Job.getOutputTransactions(job))`.
+
+**ForgeAgent scaffold** (`packages/forge-agent`, `npm run dev:forge-agent`, health on `FORGE_AGENT_PORT`, default 4105). Initializing a build schedules its roots and `ForgeRelayService` pushes them to `forge.run-job` (BullMQ id `<rid>_<attempt>`), then marks them queued. The agent's `RunJobProcessor` (concurrency `FORGE_AGENT_SLOTS`, default 2) calls `start`, logs the job, sends one heartbeat and calls `finish(succeeded)` — **no compute**. `finish` then:
+
+- **aborts the job's output transactions** (`catalog.transaction.abortBatch`) — nothing was written, and committing would publish empty snapshots; committing comes with the compute. A repeated finish redoes this cleanup (and failing the build): both skip what's already done, so a cleanup that failed is finished by the agent's retry;
+- on success, schedules each child whose parents have all succeeded (`Forge.Build.Plan.getReadyChildren`) and relays it;
+- on failure, aborts and cancels the rest of the build and fails it (descendants only, later);
+- no job left unfinished → the build succeeded (or failed).
+
+| ForgeAgent API | What |
+|---|---|
+| `POST /api/forge-agent/jobs/:rid/start` | `scheduled` or `queued` → `running`, once per attempt (409 otherwise); returns the job and its spec. Inputs aren't pinned yet |
+| `POST /api/forge-agent/jobs/:rid/heartbeat` | renews `heartbeat_at`; `stop` once the job isn't running |
+| `POST /api/forge-agent/jobs/:rid/finish` | records the outcome and advances the build; a repeat of a recorded outcome is accepted, another attempt's is a 409 |
+
+Verified 2026-10-27 with the agent running — events: `A:scheduled → B:waiting → A:queued → A:running → A:succeeded → B:scheduled → B:queued → B:running → B:succeeded`; through `/socket`, the build's channel accepted and an unknown build's refused. Also: a two-spec build (B reads A's output) ran A, then B; both went scheduled → queued → running → succeeded; the build succeeded; the outputs were aborted and the datasets left at sequence 0; a repeated finish was accepted, a wrong attempt and a second start refused (409).
+
+**Next:** the compute (the runner, containers, staging inputs and outputs, pinning inputs at `start`); committing outputs (`catalog.transaction.commitBatch`); `log_key` and logs; the relay's 60 s sweep (scheduled jobs, and queued ones no agent started in ~2 minutes); the reaper; retries; canceling descendants only, and D2; `environment` on code-workspace specs. **Later:** upstream and connecting builds (a recursive query collecting the plan), staleness and `forceBuild`, dataset branches other than main, syncs publishing job specs, the Scheduler.

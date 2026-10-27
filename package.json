@@ -6,14 +6,15 @@
         "packages/*"
     ],
     "scripts": {
-        "dev": "concurrently -n server,dc,system,cw,web -c cyan,magenta,yellow,blue,green \"npm:dev:server\" \"npm:dev:data-connection\" \"npm:dev:system\" \"npm:dev:code-workspace\" \"npm:dev:frontend\"",
+        "dev": "concurrently -n server,dc,system,cw,forge,web -c cyan,magenta,yellow,blue,red,green \"npm:dev:server\" \"npm:dev:data-connection\" \"npm:dev:system\" \"npm:dev:code-workspace\" \"npm:dev:forge-agent\" \"npm:dev:frontend\"",
         "dev:server": "npm run dev:api --workspace=packages/server",
         "dev:data-connection": "npm run dev --workspace=packages/data-connection-worker",
         "dev:system": "npm run dev --workspace=packages/system-worker",
         "dev:code-workspace": "npm run dev --workspace=packages/code-workspace-worker",
+        "dev:forge-agent": "npm run dev --workspace=packages/forge-agent",
         "migrate": "npm run migrate --workspace=packages/server",
-        "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/integrations --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/code-workspace-extension --workspace=packages/standard-ui --workspace=packages/frontend",
-        "build": "npm run build --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/frontend",
+        "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/integrations --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/forge-agent --workspace=packages/code-workspace-extension --workspace=packages/standard-ui --workspace=packages/frontend",
+        "build": "npm run build --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/forge-agent --workspace=packages/frontend",
         "build:code-workspace-runtime": "npm run package --workspace=packages/code-workspace-extension && docker build -f docker/code-workspace-runtime/Dockerfile -t quarry/code-workspace-runtime:dev .",
         "infra": "docker compose up -d postgres redis gotrue seaweedfs seaweedfs-init",
         "dev:frontend": "npm run dev --workspace=packages/frontend"

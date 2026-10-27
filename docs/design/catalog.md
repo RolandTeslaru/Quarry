@@ -70,7 +70,7 @@ Each source's columns are mapped onto these; unmappable types become `string` (w
 | | `catalog.*` | `catalog.transaction.*` |
 |---|---|---|
 | Deals with | the dataset as a resource | changing its contents |
-| Methods | `createDataset`, `get`, `view` | `open`, `openBatch`, `registerChanges`, `commit`, `abort`, `storagePrefix` |
+| Methods | `createDataset`, `get`, `view` | `open`, `openBatch`, `registerChanges`, `commit`, `abort`, `abortBatch`, `storagePrefix` |
 | Called by | the API (users), other services | writers — the sync runner, the sync reaper, and `catalog.storage` |
 | Spans | one request | a job: open, minutes of uploading, commit |
 
@@ -134,6 +134,7 @@ sequenceDiagram
 
 - **`open`** inserts the transaction (`started_by` from the principal). `provenance` is free-form JSON recording who wrote it — a sync run writes `{ syncRid, syncRunRid }`.
 - **`openBatch`** opens one transaction on each of several datasets in one database transaction — all or none; a dataset already being written is a 409 naming it. Datasets are inside the payload, so it checks their liveness itself. A build opens its outputs with it ([forge.md](forge.md)).
+- **`abortBatch`** aborts the open ones among several transactions (each addressed through its dataset) in one database transaction; finished ones are skipped, so it's safe to repeat. Builds abort their outputs with it.
 - **`registerChanges`** records the transaction's changes: `add` a stored file at a logical path, or `remove` a logical path. Called once or many times.
 - **`commit`**, in one Postgres transaction: lock the branch row (serialises commits), take `last_sequence + 1`, mark the transaction committed with its schema, insert a `dataset.updated` outbox row, `pg_notify`. Returns the sequence.
 - **`abort`** marks the transaction aborted. A no-op if it's already finished — failure paths race (runner catch block, sync reaper).

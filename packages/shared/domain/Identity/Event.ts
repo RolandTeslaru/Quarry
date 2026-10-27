@@ -44,5 +44,8 @@ export namespace Event {
     export const Schema = z.discriminatedUnion("type", [
         Notification.Schema,
     ])
+
+    /** A typed event without its channel — the publisher adds it. */
+    export const create = Realtime.Event.defineFactory(Schema)
 }
 export type Event = z.infer<typeof Event.Schema>

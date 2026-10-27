@@ -153,6 +153,27 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
     }
 
     /**
+     * Aborts the open ones among these transactions, in one database transaction;
+     * finished ones are left alone (no-op), so it's safe to repeat. Each is
+     * addressed through its dataset, which may be trashed.
+     */
+    @Transactional()
+    public async abortBatch(principal: Principal, transactions: { rid: Catalog.Transaction.Rid; datasetRid: Catalog.Dataset.Rid }[]): Promise<void> {
+        if (transactions.length === 0)
+            return;
+
+        await this.trx
+            .updateTable('catalog.transaction')
+            .set({ status: 'aborted', finished_at: new Date() })
+            .where((eb) => eb.or(transactions.map((transaction) => eb.and([
+                eb('rid', '=', transaction.rid),
+                eb('dataset_rid', '=', transaction.datasetRid),
+            ]))))
+            .where('status', '=', 'open')
+            .execute();
+    }
+
+    /**
      * No-op if already finished — abort is called from failure paths that may race.
      * The dataset may be trashed: aborting is how a writer cleans up after one.
      */

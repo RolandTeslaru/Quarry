@@ -94,6 +94,11 @@ export class DatasetTransactions {
         return row.sequence!;
     }
 
+    /** Aborts the open ones among these, in one database transaction; finished ones are skipped, so it's safe to repeat. */
+    public async abortBatch(principal: Principal, transactions: Pick<Catalog.Transaction.Schema, 'rid' | 'datasetRid'>[]): Promise<void> {
+        await this.repository.abortBatch(principal, transactions);
+    }
+
     /** Works on a trashed dataset — aborting is how a writer cleans up after one. */
     async abort(principal: Principal, datasetRid: Catalog.Dataset.Rid, transactionRid: Catalog.Transaction.Rid): Promise<void> {
         await this.repository.abort(principal, datasetRid, transactionRid);

@@ -36,6 +36,16 @@ export namespace Build {
             children: z.record(JobSpec.Rid, JobSpec.Rid.array()),   // every node; a leaf has none
         })
         export type Schema = z.infer<typeof Schema>
+
+        /** The nodes the node waits for. */
+        export const getParents = (plan: Schema, node: JobSpec.Rid): JobSpec.Rid[] =>
+            Object.entries(plan.children)
+                .filter(([, children]) => children.includes(node))
+                .map(([parent]) => JobSpec.Rid.parse(parent))
+
+        /** The finished node's children whose parents have all succeeded — they may run now. */
+        export const getReadyChildren = (plan: Schema, finished: JobSpec.Rid, succeeded: Set<JobSpec.Rid>): JobSpec.Rid[] =>
+            (plan.children[finished] ?? []).filter((child) => getParents(plan, child).every((parent) => succeeded.has(parent)))
     }
 
     export const Status = z.enum(["running", "succeeded", "failed", "canceled"])

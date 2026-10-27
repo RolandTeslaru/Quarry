@@ -456,10 +456,9 @@ export namespace DataConnectionService {
             if (!run)
                 return;
 
-            this.realtime.emitEvent<DataConnection.Event.RunUpdated>({
+            this.realtime.emitEvent({
+                ...DataConnection.Event.create('data-connection:run:updated', { run: DataConnectionDB.SyncRun.toDomain(run) }),
                 channel: DataConnection.Event.getChannel(sync.source_rid),
-                type:    'data-connection:run:updated',
-                run:     DataConnectionDB.SyncRun.toDomain(run),
             });
         }
 
@@ -470,12 +469,13 @@ export namespace DataConnectionService {
             if (!userRid)
                 return;
 
-            this.realtime.emitEvent<Identity.Event.Notification>({
-                channel:     Identity.Event.getChannel(userRid),
-                type:        'identity:notification',
-                level:       'error',
-                title:       `Sync "${sync.name}" failed`,
-                description: message,
+            this.realtime.emitEvent({
+                ...Identity.Event.create('identity:notification', {
+                    level:       'error',
+                    title:       `Sync "${sync.name}" failed`,
+                    description: message,
+                }),
+                channel: Identity.Event.getChannel(userRid),
             });
         }
 

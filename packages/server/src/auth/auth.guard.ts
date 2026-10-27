@@ -9,11 +9,11 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { requireEnv } from '@/db/table';
 import { TokenVerifier } from './token-verifier';
-import { INTERNAL, PUBLIC } from './current-principal';
+import { FORGE_AGENT, INTERNAL, PUBLIC } from './current-principal';
 
 /**
- * Authentication: the service token on /internal endpoints, a member's GoTrue
- * JWT everywhere else (TokenVerifier).
+ * Authentication: the service token on /internal endpoints, the ForgeAgent token
+ * on /forge-agent endpoints, a member's GoTrue JWT everywhere else (TokenVerifier).
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -35,8 +35,16 @@ export class AuthGuard implements CanActivate {
 
         // Worker endpoints: the service token only. A user's JWT never opens them, and the token opens nothing else.
         if (this.reflector.getAllAndOverride<boolean>(INTERNAL, [context.getHandler(), context.getClass()])) {
-            if (!this.isServiceToken(token))
+            if (!this.isToken(token, 'QUARRY_INTERNAL_TOKEN'))
                 throw new UnauthorizedException('Invalid service token');
+
+            return true;
+        }
+
+        // ForgeAgent endpoints: the ForgeAgent token only, which opens nothing else.
+        if (this.reflector.getAllAndOverride<boolean>(FORGE_AGENT, [context.getHandler(), context.getClass()])) {
+            if (!this.isToken(token, 'FORGE_AGENT_TOKEN'))
+                throw new UnauthorizedException('Invalid ForgeAgent token');
 
             return true;
         }
@@ -46,8 +54,8 @@ export class AuthGuard implements CanActivate {
         return true;
     }
 
-    private isServiceToken(token: string): boolean {
-        const expected = Buffer.from(requireEnv('QUARRY_INTERNAL_TOKEN'));
+    private isToken(token: string, name: 'QUARRY_INTERNAL_TOKEN' | 'FORGE_AGENT_TOKEN'): boolean {
+        const expected = Buffer.from(requireEnv(name));
         const given = Buffer.from(token);
 
         return given.length === expected.length && timingSafeEqual(given, expected);
