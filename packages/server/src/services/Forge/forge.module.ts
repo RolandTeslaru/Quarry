@@ -9,11 +9,11 @@ import { JobSpecs } from './job-specs';
 /**
  * Providers only; controllers are registered by api.module. Other services
  * use ForgeService only (publishing job specs: forge.jobSpecs); ForgeAgentService
- * is exported for ForgeAgentController alone.
+ * and ForgeRelayService are exported for their controllers alone.
  */
 @Module({
     imports:   [CatalogModule],
     providers: [ForgeService, JobSpecs, ForgeRepository, ForgeRelayService, ForgeAgentService],
-    exports:   [ForgeService, ForgeAgentService],
+    exports:   [ForgeService, ForgeAgentService, ForgeRelayService],
 })
 export class ForgeModule {}

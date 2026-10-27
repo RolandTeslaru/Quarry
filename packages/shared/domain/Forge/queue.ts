@@ -28,4 +28,21 @@ export namespace Queue {
 
         export const getJobId = (job: Job): string => `${job.jobRid}_${job.attempt}`
     }
+
+    /**
+     * Re-sends jobs the relay's fast path didn't deliver: scheduled ones, and ones
+     * queued long ago that no ForgeAgent started (Redis has no persistence, so a
+     * restart loses them). Singleton, system worker, every minute.
+     */
+    export namespace RelaySweep {
+        export const Result = z.object({ relayed: z.number().int() })
+        export type  Result = z.infer<typeof Result>
+
+        export const Definition = Foundations.Queue.define({
+            name:    "forge.relay-sweep",
+            job:     z.object({}),
+            result:  Result,
+            options: { removeOnComplete: 50, removeOnFail: 50 },
+        })
+    }
 }

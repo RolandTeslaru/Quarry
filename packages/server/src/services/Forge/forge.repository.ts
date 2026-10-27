@@ -262,7 +262,33 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
     // ── running jobs (the relay, ForgeAgents) ───────────────────────────
 
-    /** Scheduled → queued, after the relay pushed it. Null if the job was already past `scheduled`. */
+    /**
+     * What the relay's sweep sends again: jobs still scheduled (the fast path
+     * didn't deliver them), and jobs queued longer than `staleQueuedMinutes` that
+     * no ForgeAgent started (Redis lost them — it has no persistence).
+     */
+    @Transactional('service')
+    public async listJobsToRelay(principal: Principal.Service, staleQueuedMinutes: number): Promise<Forge.Job.Schema[]> {
+        const rows = await this.trx
+            .selectFrom('forge.job')
+            .selectAll()
+            .where((eb) => eb.or([
+                eb('status', '=', 'scheduled'),
+                eb.and([
+                    eb('status', '=', 'queued'),
+                    eb('queued_at', '<', sql<Date>`now() - make_interval(mins => ${staleQueuedMinutes})`),
+                ]),
+            ]))
+            .execute();
+
+        return rows.map(ForgeDB.Job.toDomain);
+    }
+
+    /**
+     * After the relay pushed it: scheduled → queued, or — re-pushed by the sweep
+     * because Redis lost it — queued again from now, so it isn't stale any more.
+     * Null if the job was already past both (started meanwhile).
+     */
     @Transactional()
     public async markQueued(principal: Principal, job: Forge.Queue.RunJob.Job): Promise<Forge.Job.Schema | null> {
         const row = await this.trx
@@ -270,7 +296,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
             .set({ status: 'queued', queued_at: new Date() })
             .where('rid', '=', job.jobRid)
             .where('attempt', '=', job.attempt)
-            .where('status', '=', 'scheduled')
+            .where('status', 'in', ['scheduled', 'queued'])
             .returningAll()
             .executeTakeFirst();
 

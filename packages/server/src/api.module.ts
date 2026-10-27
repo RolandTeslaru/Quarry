@@ -27,6 +27,7 @@ import { CodeWorkspaceInternalController } from '@/services/CodeWorkspace/code-w
 import { ForgeModule } from '@/services/Forge/forge.module';
 import { ForgeController } from '@/services/Forge/forge.controller';
 import { ForgeAgentController } from '@/services/Forge/agent/forge-agent.controller';
+import { ForgeInternalController } from '@/services/Forge/forge.internal.controller';
 import { RealtimeModule } from '@/services/Realtime/realtime.module';
 import { AuditModule } from '@/services/Audit/audit.module';
 import { AuditController } from '@/services/Audit/audit.controller';
@@ -67,6 +68,7 @@ import { AuditController } from '@/services/Audit/audit.controller';
         CatalogInternalController,
         DataConnectionInternalController,
         CodeWorkspaceInternalController,
+        ForgeInternalController,
         // /api/forge-agent/… — the ForgeAgent token only
         ForgeAgentController,
     ],

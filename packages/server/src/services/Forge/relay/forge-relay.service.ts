@@ -8,9 +8,10 @@ import { ForgeRepository } from '../forge.repository';
 
 /**
  * Hands scheduled jobs to the queue (Redis), then marks them queued — the job
- * table is the outbox. Called after the commit that scheduled them, never
- * inside it, and best effort: a job left scheduled is sent again (the sweep,
- * later); a repeated push is ignored (the BullMQ job id is `<rid>_<attempt>`).
+ * table is the outbox. Two ways: `relay` right after the commit that scheduled
+ * them (the fast path, best effort), and `sweep` every minute, triggered by the
+ * system worker, for whatever the fast path didn't deliver. A repeated push is
+ * ignored: the BullMQ job id is `<rid>_<attempt>`.
  */
 @Injectable()
 export class ForgeRelayService {
@@ -22,6 +23,22 @@ export class ForgeRelayService {
         private readonly repository: ForgeRepository,
         private readonly realtime:   RealtimeService,
     ) {}
+
+    /**
+     * Sends again what the fast path didn't deliver: jobs still scheduled, and
+     * jobs queued over `staleQueuedMinutes` ago that no ForgeAgent started — Redis
+     * runs without persistence, so a restart loses its messages. Returns how many.
+     */
+    public async sweep(staleQueuedMinutes: number): Promise<number> {
+        const jobs = await this.repository.listJobsToRelay(Principal.SELF('forge.relay.sweep'), staleQueuedMinutes);
+
+        if (jobs.length > 0)
+            this.log.info(`Sweep: relaying ${jobs.length} job(s)`);
+
+        await this.relay(jobs);
+
+        return jobs.length;
+    }
 
     public async relay(jobs: Pick<Forge.Job.Schema, 'rid' | 'attempt'>[]): Promise<void> {
         for (const job of jobs) {

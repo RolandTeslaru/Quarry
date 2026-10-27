@@ -1,8 +1,9 @@
 import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { Controller, Get, Module, ServiceUnavailableException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import { Catalog, DataConnection } from '@quarry/shared/domain';
+import { Catalog, DataConnection, Forge } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
+import { ForgeRelaySweepProcessor } from './processors/forge-relay-sweep.processor';
 import { OutboxRelayProcessor } from './processors/outbox-relay.processor';
 import { StorageGcProcessor } from './processors/storage-gc.processor';
 import { SyncReaperProcessor } from './processors/sync-reaper.processor';
@@ -33,7 +34,7 @@ export class HealthController {
 
 /**
  * The system worker: housekeeping on a schedule — outbox relay, storage GC,
- * stuck-run reaper, sync schedule reconcile. No database: each job's Postgres
+ * stuck-run reaper, sync schedule reconcile, Forge's relay sweep. No database: each job's Postgres
  * part is a server /internal endpoint.
  */
 @Module({
@@ -45,9 +46,10 @@ export class HealthController {
             { name: Catalog.Queue.DatasetUpdated.Definition.name },          // produced: relayed outbox events
             { name: DataConnection.Queue.SyncReaper.Definition.name },
             { name: DataConnection.Queue.Sync.Definition.name },             // produced: cron schedulers only
+            { name: Forge.Queue.RelaySweep.Definition.name },
         ),
     ],
     controllers: [HealthController],
-    providers:   [OutboxRelayProcessor, StorageGcProcessor, SyncReaperProcessor, Schedules],
+    providers:   [OutboxRelayProcessor, StorageGcProcessor, SyncReaperProcessor, ForgeRelaySweepProcessor, Schedules],
 })
 export class WorkerModule {}

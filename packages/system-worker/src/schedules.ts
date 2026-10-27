@@ -1,7 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, type OnApplicationBootstrap } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import { Catalog, DataConnection } from '@quarry/shared/domain';
+import { Catalog, DataConnection, Forge } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { api } from '@quarry/shared/server/internal-api';
 
@@ -21,6 +21,7 @@ export class Schedules implements OnApplicationBootstrap {
         @InjectQueue(Catalog.Queue.StorageGc.Definition.name)         private readonly storageGc:   Queue,
         @InjectQueue(DataConnection.Queue.SyncReaper.Definition.name) private readonly syncReaper:  Queue,
         @InjectQueue(DataConnection.Queue.Sync.Definition.name)       private readonly sync:        Queue,
+        @InjectQueue(Forge.Queue.RelaySweep.Definition.name)          private readonly forgeRelay:  Queue,
     ) {}
 
     async onApplicationBootstrap(): Promise<void> {
@@ -28,6 +29,7 @@ export class Schedules implements OnApplicationBootstrap {
             [this.outboxRelay, Catalog.Queue.OutboxRelay.Definition,       5_000],           // every 5 s
             [this.storageGc,   Catalog.Queue.StorageGc.Definition,         60 * 60_000],     // hourly
             [this.syncReaper,  DataConnection.Queue.SyncReaper.Definition, 2 * 60_000],      // every 2 min
+            [this.forgeRelay,  Forge.Queue.RelaySweep.Definition,          60_000],          // every minute
         ];
 
         for (const [queue, queueDefinition, ms] of every)
