@@ -4,6 +4,7 @@ import type { App } from '@/AppKit'
 import { codeWorkspacesApp } from '@/apps/code-workspaces/definition'
 import { dataConnectionApp } from '@/apps/data-connection/definition'
 import { datasetsApp } from '@/apps/datasets/definition'
+import { forgeApp } from '@/apps/forge/definition'
 import { keychainApp } from '@/apps/keychain/definition'
 import { layoutDemoApp } from '@/apps/layout-demo/definition'
 import { libraryApp } from '@/apps/library/definition'
@@ -21,6 +22,7 @@ export const APPS: App.Definition[] = [
     datasetsApp,
     pipelineBuilderApp,
     codeWorkspacesApp,
+    forgeApp,
     keychainApp,
     // Test apps for the shell and AppKit; no backend.
     layoutDemoApp,

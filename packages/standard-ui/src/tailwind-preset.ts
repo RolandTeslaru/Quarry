@@ -184,6 +184,7 @@ const preset: Config = {
                     foreground: 'var(--popover-foreground)',
                 },
                 'popover-border': 'var(--popover-border)',
+                rail: 'var(--rail)',
                 card: {
                     DEFAULT: 'var(--card)',
                     foreground: 'var(--card-foreground)',

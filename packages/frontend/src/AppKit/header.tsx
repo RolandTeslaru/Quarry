@@ -9,7 +9,7 @@ function HeaderRoot({ className, ...props }: ComponentProps<'header'>) {
     return (
         <header
             data-slot='app-header'
-            className={cn('surface flex h-14 items-center gap-3 border-b pr-3 [grid-area:header]', className)}
+            className={cn('surface-panel flex h-14 items-center gap-3 border-b pr-3 [grid-area:header]', className)}
             {...props}
         />
     )

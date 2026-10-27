@@ -59,6 +59,15 @@ export namespace API {
         export type  Response = z.infer<typeof Response>
     }
 
+    /**
+     * Replaces the caller's session with a fresh container from the current runtime image — the working copy
+     * (its volume) stays: the IDE's new URL.
+     */
+    export namespace RestartSession {
+        export const Response = z.object({ url: z.url() })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export async function listTemplates(api: AxiosInstance): Promise<ListTemplates.Response> {
         const { data } = await api.get("/api/code-workspaces/templates")
         return ListTemplates.Response.parse(data)
@@ -87,6 +96,11 @@ export namespace API {
     export async function openSession(api: AxiosInstance, rid: WorkspaceD.Rid): Promise<OpenSession.Response> {
         const { data } = await api.post(`/api/code-workspaces/${rid}/session`)
         return OpenSession.Response.parse(data)
+    }
+
+    export async function restartSession(api: AxiosInstance, rid: WorkspaceD.Rid): Promise<RestartSession.Response> {
+        const { data } = await api.post(`/api/code-workspaces/${rid}/session/restart`)
+        return RestartSession.Response.parse(data)
     }
 
     /** Code-workspace-worker-only endpoints (`/api/internal/…`). */

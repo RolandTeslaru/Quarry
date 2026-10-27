@@ -16,6 +16,18 @@
     border-color: var(--border);
 }
 
+/* An app's layers: content sits lowest, panels (header, sidebars) one step up, cards (`surface`)
+   above both. All the same white in light mode; dark mode steps them apart. */
+@utility surface-panel {
+    background-color: var(--surface-panel);
+    border-color: var(--border);
+}
+
+@utility surface-content {
+    background-color: var(--surface-content);
+    border-color: var(--border);
+}
+
 @utility surface-elevated {
     background-color: color-mix(
         in srgb,
@@ -71,6 +83,8 @@ code {
     --foreground: #2c1810;
 
     --surface: #ffffff;
+    --surface-panel: #ffffff;
+    --surface-content: #ffffff;
     --surface-elevated: #ffffff;
     --surface-elevated-sidebar: #ffffff;
     /* Behind an app home's dither: the surface in light mode, near black in dark. */
@@ -143,33 +157,51 @@ code {
 }
 
 .dark {
-    --background: #1c2127;
+    /* Blueprint's dark scale: every dark surface, line and text comes from these, so nothing
+       neutral grey sits next to the blue-greys. Each step up is one layer closer. */
+    --dark-gray-0: #111418;
+    --dark-gray-1: #1c2127;
+    --dark-gray-2: #252a31;
+    --dark-gray-3: #2f343c;
+    --dark-gray-4: #383e47;
+    --dark-gray-5: #404854;
+    --gray-2: #738091;
+    --gray-3: #8f99a8;
+    --light-gray-1: #abb3bf;
+    --light-gray-5: #f6f7f9;
 
-    --foreground: theme(--color-white);
+    --background: var(--dark-gray-1);
 
-    --surface: #2f343c;
-    --surface-elevated: rgb(24 24 25);
-    --surface-elevated-sidebar: rgb(42 42 44);
-    --backdrop: theme(--color-neutral-950);
+    --foreground: var(--light-gray-5);
+
+    --surface: var(--dark-gray-3);
+    --surface-panel: var(--dark-gray-2);
+    --surface-content: var(--dark-gray-1);
+    --surface-elevated: var(--dark-gray-2);
+    --surface-elevated-sidebar: var(--dark-gray-1);
+    /* The shell's outermost layer: the workspace rail, darker than any page. */
+    --rail: var(--dark-gray-0);
+    --backdrop: var(--dark-gray-0);
     --material-opacity-content: 94%;
     --material-opacity-sidebar: 70%;
 
     --card: var(--surface);
 
-    --card-foreground: theme(--color-white);
-    --popover: #2f343c;
-    --popover-foreground: theme(--color-neutral-100);
-    --popover-border: rgb(71, 71, 71);
+    --card-foreground: var(--light-gray-5);
+    --popover: var(--dark-gray-3);
+    --popover-foreground: var(--light-gray-5);
+    --popover-border: var(--dark-gray-5);
 
-    --primary: theme(--color-sky-700);
+    --primary: #2d72d2;
     --primary-foreground: theme(--color-white);
-    --primary-accent: theme(--color-sky-600);
-    --primary-hover: theme(--color-sky-800);
+    --primary-accent: #4c90f0;
+    --primary-hover: #215db0;
 
-    --secondary: color-mix(in oklch, theme(--color-neutral-500) 30%, transparent);
-    --secondary-foreground: theme(--color-white);
-    --muted: theme(--color-neutral-800);
-    --muted-foreground: theme(--color-neutral-400);
+    --secondary: color-mix(in srgb, var(--gray-3) 20%, transparent);
+    --secondary-foreground: var(--light-gray-5);
+    /* Translucent, so a hover reads the same on every layer. */
+    --muted: color-mix(in srgb, var(--gray-3) 15%, transparent);
+    --muted-foreground: var(--light-gray-1);
 
     --success-background: theme(--color-emerald-950);
     --success-foreground: theme(--color-emerald-400);
@@ -179,18 +211,19 @@ code {
     --info-foreground: theme(--color-blue-400);
     --error-background: theme(--color-red-950);
     --error-foreground: theme(--color-red-400);
-    --accent: theme(--color-neutral-700);
-    --accent-foreground: theme(--color-white);
+    --accent: var(--dark-gray-5);
+    --accent-foreground: var(--light-gray-5);
     --destructive: theme(--color-red-500);
-    --border: rgba(255, 255, 255, 0.112);
-    --separator: rgb(58 58 60);
+    --border: color-mix(in srgb, var(--light-gray-1) 15%, transparent);
+    /* Panels part on a dark line, as in Palantir's apps, not a light one. */
+    --separator: var(--dark-gray-0);
 
-    --input: rgba(29, 29, 29, 0.453);
-    --input-border: rgba(254, 254, 254, 0.152);
+    --input: color-mix(in srgb, var(--dark-gray-0) 30%, transparent);
+    --input-border: color-mix(in srgb, var(--light-gray-1) 20%, transparent);
     --input-shadow: 0 -1px 1px rgb(255 255 255 / 0.3);
-    --ring: color-mix(in oklch, theme(--color-sky-400) 55%, transparent);
-    --canvas-dot: oklch(0.35 0.015 264);
-    --placeholder-foreground: oklch(0.6 0.01 264);
+    --ring: color-mix(in oklch, #4c90f0 55%, transparent);
+    --canvas-dot: var(--dark-gray-5);
+    --placeholder-foreground: var(--gray-2);
 }
 
 @theme inline {

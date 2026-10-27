@@ -13,6 +13,7 @@ export namespace Application {
         "keychain",
         "pipeline-builder",
         "code-workspaces",
+        "forge",
         "layout-demo",                                   // test apps: the shell's layouts
         "minimal-demo",
     ])

@@ -5,29 +5,28 @@ import { CodeWorkspaceSDK } from '../sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
 
 interface Props {
-    rid: CodeWorkspace.Rid
+    rid:         CodeWorkspace.Rid
+    /** The session is being replaced: the editor in it is about to go. */
+    restarting?: boolean
 }
 
 /**
  * The user's IDE on the workspace — VS Code in the browser — once their
  * session is up. Starting one clones and installs the environment: a minute,
  * the first time. Shares the session query with whoever else reads it (the
- * page's Reconnect refetches it, and the editor reloads).
+ * page's Reconnect refetches it, and the editor reloads; its Restart replaces it).
  */
-export function IDESessionFrame({ rid }: Props) {
+export function IDESessionFrame({ rid, restarting = false }: Props) {
     const [, [sessionRequest]] = CodeWorkspaceSDK.useWith(
         () => null,
         query => [query.session(rid)],
     )
 
-    if (sessionRequest.isPending) {
-        return (
-            <div className='flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground'>
-                <Spinner className='size-6' role='status' aria-label='Starting the session' />
-                Starting your session — the first time takes a minute.
-            </div>
-        )
-    }
+    if (sessionRequest.isPending)
+        return <SessionStarting label='Starting your session — the first time takes a minute.' />
+
+    if (restarting)
+        return <SessionStarting label='Restarting your session on a fresh container — your files stay.' />
 
     if (sessionRequest.error || !sessionRequest.data) {
         return (
@@ -47,5 +46,18 @@ export function IDESessionFrame({ rid }: Props) {
             className='size-full border-0'
             allow='clipboard-read; clipboard-write'
         />
+    )
+}
+
+interface SessionStartingProps {
+    label: string
+}
+
+function SessionStarting({ label }: SessionStartingProps) {
+    return (
+        <div className='flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground'>
+            <Spinner className='size-6' role='status' aria-label={label} />
+            {label}
+        </div>
     )
 }

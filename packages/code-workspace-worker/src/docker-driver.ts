@@ -72,6 +72,11 @@ export class DockerDriver {
         await this.command(['stop', name]);
     }
 
+    /** Stops and deletes the container; its named volumes stay. */
+    public async remove(name: string): Promise<void> {
+        await this.command(['rm', '--force', name]);
+    }
+
     /** Where the container's port is published on this host. */
     public async getHostPort(name: string, containerPort: number): Promise<number> {
         const output = await this.command(['port', name, String(containerPort)]);

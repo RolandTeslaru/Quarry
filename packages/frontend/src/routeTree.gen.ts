@@ -16,6 +16,7 @@ import { Route as playgroundRouteImport } from './routes/playground'
 import { Route as CodeWorkspacesRouteRouteImport } from './apps/code-workspaces/routes/route'
 import { Route as DataConnectionRouteRouteImport } from './apps/data-connection/routes/route'
 import { Route as DatasetsRouteRouteImport } from './apps/datasets/routes/route'
+import { Route as ForgeRouteRouteImport } from './apps/forge/routes/route'
 import { Route as KeychainRouteRouteImport } from './apps/keychain/routes/route'
 import { Route as LayoutDemoRouteRouteImport } from './apps/layout-demo/routes/route'
 import { Route as LibraryRouteRouteImport } from './apps/library/routes/route'
@@ -28,6 +29,7 @@ import { Route as CodeWorkspacesRidRouteRouteImport } from './apps/code-workspac
 import { Route as DataConnectionIndexRouteImport } from './apps/data-connection/routes/index'
 import { Route as DatasetsIndexRouteImport } from './apps/datasets/routes/index'
 import { Route as DatasetsRidRouteImport } from './apps/datasets/routes/$rid'
+import { Route as ForgeIndexRouteImport } from './apps/forge/routes/index'
 import { Route as KeychainIndexRouteImport } from './apps/keychain/routes/index'
 import { Route as LayoutDemoIndexRouteImport } from './apps/layout-demo/routes/index'
 import { Route as LibraryIndexRouteImport } from './apps/library/routes/index'
@@ -73,6 +75,11 @@ const DataConnectionRouteRoute = DataConnectionRouteRouteImport.update({
 const DatasetsRouteRoute = DatasetsRouteRouteImport.update({
   id: '/datasets',
   path: '/datasets',
+  getParentRoute: () => workspaceRoute,
+} as any)
+const ForgeRouteRoute = ForgeRouteRouteImport.update({
+  id: '/forge',
+  path: '/forge',
   getParentRoute: () => workspaceRoute,
 } as any)
 const KeychainRouteRoute = KeychainRouteRouteImport.update({
@@ -134,6 +141,11 @@ const DatasetsRidRoute = DatasetsRidRouteImport.update({
   id: '/$rid',
   path: '/$rid',
   getParentRoute: () => DatasetsRouteRoute,
+} as any)
+const ForgeIndexRoute = ForgeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ForgeRouteRoute,
 } as any)
 const KeychainIndexRoute = KeychainIndexRouteImport.update({
   id: '/',
@@ -207,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/code-workspaces': typeof CodeWorkspacesRouteRouteWithChildren
   '/data-connection': typeof DataConnectionRouteRouteWithChildren
   '/datasets': typeof DatasetsRouteRouteWithChildren
+  '/forge': typeof ForgeRouteRouteWithChildren
   '/keychain': typeof KeychainRouteRouteWithChildren
   '/layout-demo': typeof LayoutDemoRouteRouteWithChildren
   '/library': typeof LibraryRouteRouteWithChildren
@@ -220,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/code-workspaces/': typeof CodeWorkspacesIndexRoute
   '/data-connection/': typeof DataConnectionIndexRoute
   '/datasets/': typeof DatasetsIndexRoute
+  '/forge/': typeof ForgeIndexRoute
   '/keychain/': typeof KeychainIndexRoute
   '/layout-demo/': typeof LayoutDemoIndexRoute
   '/library/': typeof LibraryIndexRoute
@@ -243,6 +257,7 @@ export interface FileRoutesByTo {
   '/code-workspaces': typeof CodeWorkspacesIndexRoute
   '/data-connection': typeof DataConnectionIndexRoute
   '/datasets': typeof DatasetsIndexRoute
+  '/forge': typeof ForgeIndexRoute
   '/keychain': typeof KeychainIndexRoute
   '/layout-demo': typeof LayoutDemoIndexRoute
   '/library': typeof LibraryIndexRoute
@@ -264,6 +279,7 @@ export interface FileRoutesById {
   '/_workspace/code-workspaces': typeof CodeWorkspacesRouteRouteWithChildren
   '/_workspace/data-connection': typeof DataConnectionRouteRouteWithChildren
   '/_workspace/datasets': typeof DatasetsRouteRouteWithChildren
+  '/_workspace/forge': typeof ForgeRouteRouteWithChildren
   '/_workspace/keychain': typeof KeychainRouteRouteWithChildren
   '/_workspace/layout-demo': typeof LayoutDemoRouteRouteWithChildren
   '/_workspace/library': typeof LibraryRouteRouteWithChildren
@@ -277,6 +293,7 @@ export interface FileRoutesById {
   '/_workspace/code-workspaces/': typeof CodeWorkspacesIndexRoute
   '/_workspace/data-connection/': typeof DataConnectionIndexRoute
   '/_workspace/datasets/': typeof DatasetsIndexRoute
+  '/_workspace/forge/': typeof ForgeIndexRoute
   '/_workspace/keychain/': typeof KeychainIndexRoute
   '/_workspace/layout-demo/': typeof LayoutDemoIndexRoute
   '/_workspace/library/': typeof LibraryIndexRoute
@@ -298,6 +315,7 @@ export interface FileRouteTypes {
     | '/code-workspaces'
     | '/data-connection'
     | '/datasets'
+    | '/forge'
     | '/keychain'
     | '/layout-demo'
     | '/library'
@@ -311,6 +329,7 @@ export interface FileRouteTypes {
     | '/code-workspaces/'
     | '/data-connection/'
     | '/datasets/'
+    | '/forge/'
     | '/keychain/'
     | '/layout-demo/'
     | '/library/'
@@ -334,6 +353,7 @@ export interface FileRouteTypes {
     | '/code-workspaces'
     | '/data-connection'
     | '/datasets'
+    | '/forge'
     | '/keychain'
     | '/layout-demo'
     | '/library'
@@ -354,6 +374,7 @@ export interface FileRouteTypes {
     | '/_workspace/code-workspaces'
     | '/_workspace/data-connection'
     | '/_workspace/datasets'
+    | '/_workspace/forge'
     | '/_workspace/keychain'
     | '/_workspace/layout-demo'
     | '/_workspace/library'
@@ -367,6 +388,7 @@ export interface FileRouteTypes {
     | '/_workspace/code-workspaces/'
     | '/_workspace/data-connection/'
     | '/_workspace/datasets/'
+    | '/_workspace/forge/'
     | '/_workspace/keychain/'
     | '/_workspace/layout-demo/'
     | '/_workspace/library/'
@@ -438,6 +460,13 @@ declare module '@tanstack/react-router' {
       path: '/datasets'
       fullPath: '/datasets'
       preLoaderRoute: typeof DatasetsRouteRouteImport
+      parentRoute: typeof workspaceRoute
+    }
+    '/_workspace/forge': {
+      id: '/_workspace/forge'
+      path: '/forge'
+      fullPath: '/forge'
+      preLoaderRoute: typeof ForgeRouteRouteImport
       parentRoute: typeof workspaceRoute
     }
     '/_workspace/keychain': {
@@ -523,6 +552,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/datasets/$rid'
       preLoaderRoute: typeof DatasetsRidRouteImport
       parentRoute: typeof DatasetsRouteRoute
+    }
+    '/_workspace/forge/': {
+      id: '/_workspace/forge/'
+      path: '/'
+      fullPath: '/forge/'
+      preLoaderRoute: typeof ForgeIndexRouteImport
+      parentRoute: typeof ForgeRouteRoute
     }
     '/_workspace/keychain/': {
       id: '/_workspace/keychain/'
@@ -673,6 +709,18 @@ const DatasetsRouteRouteWithChildren = DatasetsRouteRoute._addFileChildren(
   DatasetsRouteRouteChildren,
 )
 
+interface ForgeRouteRouteChildren {
+  ForgeIndexRoute: typeof ForgeIndexRoute
+}
+
+const ForgeRouteRouteChildren: ForgeRouteRouteChildren = {
+  ForgeIndexRoute: ForgeIndexRoute,
+}
+
+const ForgeRouteRouteWithChildren = ForgeRouteRoute._addFileChildren(
+  ForgeRouteRouteChildren,
+)
+
 interface KeychainRouteRouteChildren {
   KeychainIndexRoute: typeof KeychainIndexRoute
 }
@@ -737,6 +785,7 @@ interface workspaceRouteChildren {
   CodeWorkspacesRouteRoute: typeof CodeWorkspacesRouteRouteWithChildren
   DataConnectionRouteRoute: typeof DataConnectionRouteRouteWithChildren
   DatasetsRouteRoute: typeof DatasetsRouteRouteWithChildren
+  ForgeRouteRoute: typeof ForgeRouteRouteWithChildren
   KeychainRouteRoute: typeof KeychainRouteRouteWithChildren
   LayoutDemoRouteRoute: typeof LayoutDemoRouteRouteWithChildren
   LibraryRouteRoute: typeof LibraryRouteRouteWithChildren
@@ -748,6 +797,7 @@ const workspaceRouteChildren: workspaceRouteChildren = {
   CodeWorkspacesRouteRoute: CodeWorkspacesRouteRouteWithChildren,
   DataConnectionRouteRoute: DataConnectionRouteRouteWithChildren,
   DatasetsRouteRoute: DatasetsRouteRouteWithChildren,
+  ForgeRouteRoute: ForgeRouteRouteWithChildren,
   KeychainRouteRoute: KeychainRouteRouteWithChildren,
   LayoutDemoRouteRoute: LayoutDemoRouteRouteWithChildren,
   LibraryRouteRoute: LibraryRouteRouteWithChildren,

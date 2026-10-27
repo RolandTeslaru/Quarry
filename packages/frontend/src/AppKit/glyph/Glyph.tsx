@@ -1,6 +1,6 @@
 import { useMemo, type ComponentType, type CSSProperties } from 'react'
 import svgpath from 'svgpath'
-import { CodeWorkspaceIllustration, DataConnectionIllustration, FolderIllustration, useIconPaths, type IconName } from '@quarry/standard-ui/icons'
+import { AnvilIllustration, CodeWorkspaceIllustration, DataConnectionIllustration, FolderIllustration, useIconPaths, type IconName } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 
 /**
@@ -9,8 +9,9 @@ import { cn } from '@quarry/standard-ui/utils/cn'
  *   icon          a Blueprint icon drawn whole in `base` (holes included, as
  *                 Blueprint draws it), then any of its parts — the sub-paths of
  *                 its path, numbered in order — painted over in their own colour
- *   illustration  a shaded standard-ui illustration in its own colours — the
- *                 folder, the code workspace brick, the data connection stack
+ *   illustration  a standard-ui illustration — shaded in its own colours (the
+ *                 folder, the code workspace brick, the data connection stack),
+ *                 or flat and painted in `base` (the anvil)
  *
  * Classes are Tailwind palette utilities (`fill-sky-600`, `bg-sky-500/15`).
  */
@@ -24,14 +25,17 @@ export type GlyphDefinition =
     | {
         illustration: keyof typeof ILLUSTRATIONS
         tile:         string
+        /** The colour of a flat, one-colour illustration (the anvil); shaded ones keep their own. */
+        base?:        string
         /** How much of the tile it fills (default 0.6, as icons) — more for a mark drawn edge to edge. */
         share?:       number
     }
 
-const ILLUSTRATIONS: Record<'folder' | 'codeWorkspace' | 'dataConnection', ComponentType<{ style?: CSSProperties }>> = {
+const ILLUSTRATIONS: Record<'folder' | 'codeWorkspace' | 'dataConnection' | 'anvil', ComponentType<{ className?: string, style?: CSSProperties }>> = {
     folder:         FolderIllustration,
     codeWorkspace:  CodeWorkspaceIllustration,
     dataConnection: DataConnectionIllustration,
+    anvil:          AnvilIllustration,
 }
 
 interface Props {
@@ -78,7 +82,7 @@ interface GlyphIllustrationProps {
 function GlyphIllustration({ glyph, size }: GlyphIllustrationProps) {
     const Illustration = ILLUSTRATIONS[glyph.illustration]
 
-    return <Illustration style={{ width: size, height: size }} />
+    return <Illustration className={glyph.base} style={{ width: size, height: size }} />
 }
 
 interface GlyphIconProps {

@@ -56,7 +56,7 @@ function LeftNavRoot({ className, ...props }: ComponentProps<'nav'>) {
     return (
         <nav
             data-slot='app-left-nav'
-            className={cn('surface flex w-14 flex-col items-center gap-1 border-r py-2 [grid-area:nav]', className)}
+            className={cn('surface-panel flex w-14 flex-col items-center gap-1 border-r py-2 [grid-area:nav]', className)}
             {...props}
         />
     )
@@ -102,7 +102,7 @@ export function LeftSidebar({ className, ...props }: ComponentProps<'aside'>) {
     return (
         <aside
             data-slot='app-left-sidebar'
-            className={cn('surface min-h-0 w-72 overflow-y-auto border-r [grid-area:left]', className)}
+            className={cn('surface-panel min-h-0 w-72 overflow-y-auto border-r [grid-area:left]', className)}
             {...props}
         />
     )
@@ -113,18 +113,18 @@ export function RightSidebar({ className, ...props }: ComponentProps<'aside'>) {
     return (
         <aside
             data-slot='app-right-sidebar'
-            className={cn('surface min-h-0 w-80 overflow-y-auto border-l [grid-area:right]', className)}
+            className={cn('surface-panel min-h-0 w-80 overflow-y-auto border-l [grid-area:right]', className)}
             {...props}
         />
     )
 }
 
-/** The main view, on the same surface as the header and sidebars. Scrolls on its own; they stay put. */
+/** The main view, a layer below the header and sidebars. Scrolls on its own; they stay put. */
 function ContentRoot({ className, ...props }: ComponentProps<'main'>) {
     return (
         <main
             data-slot='app-content'
-            className={cn('surface flex min-h-0 min-w-0 flex-col overflow-auto [grid-area:content]', className)}
+            className={cn('surface-content flex min-h-0 min-w-0 flex-col overflow-auto [grid-area:content]', className)}
             {...props}
         />
     )
@@ -135,7 +135,7 @@ function ContentToolbar({ className, ...props }: ComponentProps<'div'>) {
     return (
         <div
             data-slot='app-content-toolbar'
-            className={cn('surface sticky top-0 z-10 flex h-10 shrink-0 items-center gap-2 border-b px-4', className)}
+            className={cn('surface-panel sticky top-0 z-10 flex h-10 shrink-0 items-center gap-2 border-b px-4', className)}
             {...props}
         />
     )

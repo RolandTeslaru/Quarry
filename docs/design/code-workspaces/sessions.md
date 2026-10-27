@@ -22,10 +22,12 @@ stateDiagram-v2
     Running --> Stopped: no activity for<br/>CODE_WORKSPACE_SESSION_IDLE_MINUTES (30)<br/>docker stop
     Stopped --> Running: next open<br/>docker start, setup
     Running --> Running: worker restarts —<br/>restored from labels
+    Running --> Running: Restart (IDE menu) —<br/>docker rm, docker run, setup
+    Stopped --> Running: Restart (IDE menu) —<br/>docker rm, docker run, setup
     Stopped --> Stopped: worker restarts —<br/>restored as stopped
 ```
 
-A stopped session keeps its container and volume, so uncommitted files are there on the next open. Nothing removes containers or volumes yet (trashing a workspace doesn't either).
+A stopped session keeps its container and volume, so uncommitted files are there on the next open. Only a Restart removes a container (below); nothing removes volumes yet (trashing a workspace doesn't either).
 
 ## Opening one
 
@@ -61,6 +63,16 @@ sequenceDiagram
 ```
 
 Two opens of the same session at once share one in-flight open (`SessionManager.opening`). The worker down → the open fails at once with a 503 ("isn't reachable — is it running?"), not after a wait. Reopening a running session is ~0.1 s: no container work, only setup (which refreshes the token).
+
+## Restarting one
+
+`POST /api/code-workspaces/:rid/session/restart` → the IDE's new URL — the page's **IDE → Restart**. It replaces the session's container with a fresh one from the current `CODE_WORKSPACE_RUNTIME_IMAGE`, the way to pick up a rebuilt runtime image (the Quarry extension and its themes included) or to recover a wedged container. Same checks as an open (read on the workspace), then the worker's `POST /sessions/restart`:
+
+1. Waits for any open in flight; opens arriving during the restart join it (`SessionManager.opening`).
+2. `docker rm --force` the container and forgets the session. The volume stays — the working copy, uncommitted files and uv's cache.
+3. Opens as for a first open: `docker run` with a new secret (so a new URL), then setup — no clone, the repository is already on the volume; `uv sync` only.
+
+The page shows "Restarting your session" in place of the editor meanwhile, then loads the new URL (the session query takes it).
 
 ## The credential
 

@@ -8,6 +8,7 @@ import { App } from '@/AppKit'
 import { CodeWorkspaceSDK } from '@/SDKs/CodeWorkspaceSDK/sdk'
 import { IDESessionFrame } from '@/SDKs/CodeWorkspaceSDK/ui/IDESessionFrame'
 import { ResourceBreadcrumbs } from '@/components/ResourceBreadcrumbs'
+import { useTask } from '@/hooks/useTask'
 import { orNotFound } from '@/utils/loader'
 import { WORKSPACE_TABS, type WorkspaceTab } from '../../constants'
 import { codeWorkspacesApp } from '../../definition'
@@ -52,7 +53,8 @@ interface WorkspaceLayoutProps {
  * here; so is the user's session — VS Code in the browser — which stays
  * mounted on every tab and is only hidden away from Code, so the editor never
  * reloads (previews run in it — the Quarry extension's ▶ Preview). The other
- * tabs render into the outlet. The IDE menu reconnects the session.
+ * tabs render into the outlet. The IDE menu reconnects the session, or restarts
+ * it on a fresh container (after a runtime image rebuild).
  */
 function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
     const tab = useWorkspaceTab(rid)
@@ -61,6 +63,10 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
         () => null,
         query => [query.session(rid)],
     )
+
+    const [restart, withRestart] = useTask()
+
+    const sessionBusy = sessionRequest.isFetching || restart.pending
 
     return (
         <>
@@ -79,9 +85,17 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
                             <Menubar.Trigger>IDE</Menubar.Trigger>
                             <Menubar.Content>
                                 {/* Starts the session again if it stopped, and reloads the editor with it. */}
-                                <Menubar.Item disabled={sessionRequest.isFetching} onSelect={() => void sessionRequest.refetch()}>
+                                <Menubar.Item disabled={sessionBusy} onSelect={() => void sessionRequest.refetch()}>
                                     <Icon name='refresh' />
                                     {sessionRequest.isFetching ? 'Reconnecting…' : 'Reconnect'}
+                                </Menubar.Item>
+                                {/* A fresh container from the current runtime image; the working copy stays. */}
+                                <Menubar.Item
+                                    disabled={sessionBusy}
+                                    onSelect={withRestart(() => CodeWorkspaceSDK.actions.session.restart(rid))}
+                                >
+                                    <Icon name='power' />
+                                    {restart.pending ? 'Restarting…' : 'Restart'}
                                 </Menubar.Item>
                             </Menubar.Content>
                         </Menubar.Menu>
@@ -107,7 +121,7 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
 
             <App.Content className='overflow-hidden'>
                 <div className={cn('min-h-0 flex-1', tab !== 'code' && 'hidden')}>
-                    <IDESessionFrame rid={rid} />
+                    <IDESessionFrame rid={rid} restarting={restart.pending} />
                 </div>
 
                 <Outlet />

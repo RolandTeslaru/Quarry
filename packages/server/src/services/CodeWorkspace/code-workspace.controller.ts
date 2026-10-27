@@ -50,6 +50,13 @@ export class CodeWorkspaceController {
         return { url: await this.service.openSession(principal, rid) };
     }
 
+    /** The caller's session: a fresh container from the current runtime image, the working copy kept; the IDE's URL. */
+    @Post(':rid/session/restart')
+    @HttpCode(200)
+    async restartSession(@CurrentPrincipal() principal: Principal.User, @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid): Promise<API.RestartSession.Response> {
+        return { url: await this.service.restartSession(principal, rid) };
+    }
+
     @Get(':rid')
     async get(@CurrentPrincipal() principal: Principal.User, @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid): Promise<API.Get.Response> {
         return { workspace: await this.service.get(principal, rid) };

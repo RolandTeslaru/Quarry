@@ -67,6 +67,26 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
         return opening;
     }
 
+    /**
+     * Replaces the session's container with a fresh one from the current runtime image — after an
+     * image rebuild, or when the container is wedged. The volume (the working copy) stays. Waits for
+     * opens in flight; opens arriving meanwhile wait for the restart.
+     */
+    public async restart(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid): Promise<string> {
+        const key = Session.getKey(workspaceRid, userRid);
+
+        let opening: Promise<string> | undefined;
+
+        while ((opening = this.opening[key]))
+            await opening.catch(() => undefined);
+
+        const restarting = (this.opening[key] = this.restartNow(workspaceRid, userRid).finally(() => {
+            delete this.opening[key];
+        }));
+
+        return restarting;
+    }
+
     /** The running session an IDE proxy request is for — and it was just used. */
     public touchBySecret(secret: string): { port: number } | null {
         const parsed = Session.Secret.safeParse(secret);
@@ -113,6 +133,20 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
         this.log.info('Session opened', { workspaceRid, userRid, container: session.container });
 
         return `${config.ideProxyUrl}/s/${session.secret}/?tkn=${session.secret}`;
+    }
+
+    private async restartNow(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid): Promise<string> {
+        const session = this.byKey[Session.getKey(workspaceRid, userRid)];
+
+        if (session) {
+            await this.dockerDriver.remove(session.container);
+
+            this.unregister(session);
+
+            this.log.info('Session removed for a restart', { workspaceRid, userRid, container: session.container });
+        }
+
+        return this.openNow(workspaceRid, userRid);
     }
 
     private async create(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid): Promise<Session.Schema> {
@@ -188,6 +222,11 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
     private register(session: Session.Schema): void {
         this.byKey[Session.getKey(session.workspaceRid, session.userRid)] = session;
         this.bySecret[session.secret] = session;
+    }
+
+    private unregister(session: Session.Schema): void {
+        delete this.byKey[Session.getKey(session.workspaceRid, session.userRid)];
+        delete this.bySecret[session.secret];
     }
 
     private getGitUrl(workspaceRid: CodeWorkspace.Rid): string {

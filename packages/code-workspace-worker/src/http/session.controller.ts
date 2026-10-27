@@ -7,7 +7,7 @@ import Worker = CodeWorkspace.API.Worker;
 
 /**
  * Session requests from the server, made after its permission checks: open a
- * session. Mirrors CodeWorkspace.API.Worker in @quarry/shared.
+ * session, restart one. Mirrors CodeWorkspace.API.Worker in @quarry/shared.
  */
 @UseGuards(ServiceTokenGuard)
 @Controller('sessions')
@@ -21,5 +21,13 @@ export class SessionController {
         const request = Worker.OpenSession.Request.parse(body);
 
         return { url: await this.sessionManager.open(request.workspaceRid, request.userRid) };
+    }
+
+    @Post('restart')
+    @HttpCode(200)
+    public async restartSession(@Body() body: unknown): Promise<Worker.RestartSession.Response> {
+        const request = Worker.RestartSession.Request.parse(body);
+
+        return { url: await this.sessionManager.restart(request.workspaceRid, request.userRid) };
     }
 }

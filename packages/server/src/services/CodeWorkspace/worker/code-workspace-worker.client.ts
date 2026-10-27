@@ -5,7 +5,7 @@ import { requireEnv } from '@/db/table';
 
 import Worker = CodeWorkspace.API.Worker;
 
-/** A first open starts a container, clones and syncs the environment — minutes on a cold cache. */
+/** A first open (or a restart) starts a container, clones and syncs the environment — minutes on a cold cache. */
 const SESSION_OPEN_TIMEOUT_MS = 300_000;
 
 
@@ -29,6 +29,12 @@ export class CodeWorkspaceWorkerClient {
 
     public async openSession(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid): Promise<string> {
         const { url } = await this.call(() => Worker.openSession(this.worker, { workspaceRid, userRid }, SESSION_OPEN_TIMEOUT_MS));
+
+        return url;
+    }
+
+    public async restartSession(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid): Promise<string> {
+        const { url } = await this.call(() => Worker.restartSession(this.worker, { workspaceRid, userRid }, SESSION_OPEN_TIMEOUT_MS));
 
         return url;
     }

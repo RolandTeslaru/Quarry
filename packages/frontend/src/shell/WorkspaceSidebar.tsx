@@ -54,6 +54,8 @@ export function WorkspaceSidebar() {
                 // Always dark: `.dark` here switches the palette for the sidebar only, whatever the theme.
                 // Opaque, so the page behind doesn't lighten it in light mode.
                 'dark surface-elevated-sidebar [--material-opacity:100%]',
+                // In dark mode the page is already dark, so the sidebar goes a step darker to stay set apart.
+                '[.dark_&]:bg-rail',
                 'group sticky top-0 flex h-screen w-58 shrink-0 flex-col overflow-hidden',
                 'border-r border-r-separator px-2 pb-3 text-foreground',
                 'transition-[width] duration-200 ease-out motion-reduce:transition-none',

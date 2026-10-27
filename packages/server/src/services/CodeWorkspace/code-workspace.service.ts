@@ -135,6 +135,18 @@ export class CodeWorkspaceService {
     }
 
     /**
+     * The caller's session replaced by a fresh container from the current runtime image (its working copy
+     * stays), and the URL its IDE is served at. Read on the workspace, as for opening it.
+     */
+    @RequireUserPrincipal('Only users have sessions')
+    @SecurityGate('read')
+    async restartSession(principal: Principal.User, rid: CodeWorkspace.Rid): Promise<string> {
+        await this.get(principal, rid);                     // 404 if it's gone or trashed
+
+        return this.worker.restartSession(rid, principal.userRid);
+    }
+
+    /**
      * For the code workspace worker, each time it acts for a session: the user must still
      * read the workspace — checked as them — then a token that acts as them.
      */
