@@ -13,6 +13,9 @@ const Env = z.object({
     CODE_WORKSPACE_SESSION_IDLE_MINUTES: z.coerce.number().positive().default(30),
     CODE_WORKSPACE_SESSION_MEMORY:       z.string().regex(/^\d+[kmg]$/i, 'a size like 4g').default('4g'),
     CODE_WORKSPACE_SESSION_CPUS:         z.coerce.number().positive().default(2),
+    CODE_WORKSPACE_CHECK_SLOTS:          z.coerce.number().int().positive().default(2),
+    CODE_WORKSPACE_CHECK_MEMORY:         z.string().regex(/^\d+[kmg]$/i, 'a size like 4g').default('4g'),
+    CODE_WORKSPACE_CHECK_CPUS:           z.coerce.number().positive().default(2),
 });
 
 /** Read once, at startup: a bad value stops the boot with what's wrong, rather than misbehaving later. */
@@ -42,6 +45,13 @@ function load() {
             idleMs:    env.CODE_WORKSPACE_SESSION_IDLE_MINUTES * 60_000,
             memory:    env.CODE_WORKSPACE_SESSION_MEMORY,
             cpus:      env.CODE_WORKSPACE_SESSION_CPUS,
+        },
+
+        checks: {
+            /** Check runs at once on this machine; more get 503 and wait for the next dispatch. */
+            slots:  env.CODE_WORKSPACE_CHECK_SLOTS,
+            memory: env.CODE_WORKSPACE_CHECK_MEMORY,
+            cpus:   env.CODE_WORKSPACE_CHECK_CPUS,
         },
     };
 }

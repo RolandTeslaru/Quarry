@@ -2,9 +2,10 @@ import * as WorkspaceMod from "./Workspace"
 import * as TemplateMod  from "./Template"
 import * as PreviewMod   from "./Preview"
 import * as ModuleFunctionPathMod from "./ModuleFunctionPath"
-import * as CommitMod   from "./Commit"
+import * as GitMod      from "./Git"
 import * as CheckRunMod from "./CheckRun"
 import * as CheckMod    from "./Check"
+import * as QueueMod    from "./queue"
 import * as ApiMod       from "./api"
 
 /**
@@ -20,9 +21,10 @@ export namespace CodeWorkspace {
     export import Template = TemplateMod.Template
     export import Preview  = PreviewMod.Preview
     export import ModuleFunctionPath = ModuleFunctionPathMod.ModuleFunctionPath
-    export import Commit   = CommitMod.Commit
+    export import Git      = GitMod.Git
     export import CheckRun = CheckRunMod.CheckRun
     export import Check    = CheckMod.Check
+    export import Queue    = QueueMod.Queue
 
     export import API = ApiMod.API
 }

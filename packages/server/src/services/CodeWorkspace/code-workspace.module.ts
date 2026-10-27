@@ -6,6 +6,7 @@ import { CodeWorkspaceService } from './code-workspace.service';
 import { CodeWorkspaceRepository } from './repository/code-workspace.repository';
 import { WorkspaceRepository } from './repository/workspace.repository';
 import { CodeWorkspaceChecks } from './checks/code-workspace-checks';
+import { CheckDispatcher } from './checks/check-dispatcher';
 import { CheckRunRepository } from './repository/check-run.repository';
 import { GitRepositories } from './git/repositories';
 import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client';
@@ -19,7 +20,7 @@ import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client
  */
 @Module({
     imports:   [IdentityModule, LibraryModule],
-    providers: [CodeWorkspaceService, CodeWorkspaceRepository, WorkspaceRepository, CheckRunRepository, CodeWorkspaceChecks, GitRepositories, CodeWorkspaceWorkerClient, SessionTokens],
+    providers: [CodeWorkspaceService, CodeWorkspaceRepository, WorkspaceRepository, CheckRunRepository, CodeWorkspaceChecks, CheckDispatcher, GitRepositories, CodeWorkspaceWorkerClient, SessionTokens],
     exports:   [CodeWorkspaceService],
 })
 export class CodeWorkspaceModule {}

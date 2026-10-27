@@ -2,7 +2,7 @@ import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { User } from "../Identity/User"
 import { Workspace } from "./Workspace"
-import { Commit } from "./Commit"
+import { Git } from "./Git"
 
 /**
  * CI for one pushed branch head: the steps of its quarry-ci.yml, then — if
@@ -54,15 +54,22 @@ export namespace CheckRun {
         rid:          Rid,
         workspaceRid: Workspace.Rid,
         branch:       Foundations.Branch,
-        commit:       Commit,
+        commit:       Git.Commit,
         status:       Status,
         steps:        Step.Schema.array(),
         published:    z.boolean(),                      // its commit became the branch's job specs
         failure:      Failure.nullable(),
         pushedBy:     User.Rid.nullable(),              // whom it acts as; null = the system
         createdAt:    z.coerce.date(),
-        startedAt:    z.coerce.date().nullable(),
+        startedAt:    z.coerce.date().nullable(),        // claimed by dispatch, sent to the worker
+        reportedAt:   z.coerce.date().nullable(),        // the worker's last report; null until it takes the run
         finishedAt:   z.coerce.date().nullable(),
     })
     export type Schema = z.infer<typeof Schema>
+
+    /** A check step's state as the worker reports it. */
+    export const REPORTED_STEP_STATUSES = ["running", "succeeded", "failed"] as const
+
+    /** Where the worker's step `index` (the file's steps, from 0) is in `steps`: after Parse. */
+    export const getStepPosition = (index: number): number => index + 1
 }

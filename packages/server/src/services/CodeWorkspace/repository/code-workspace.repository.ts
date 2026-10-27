@@ -14,7 +14,12 @@ import { WorkspaceRepository } from './workspace.repository';
 export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database) {
 
     public readonly workspace: Pick<WorkspaceRepository, 'create' | 'get' | 'open' | 'list'>;
-    public readonly checkRun:  Pick<CheckRunRepository, 'queue' | 'list'>;
+    public readonly checkRun:  Pick<CheckRunRepository,
+        | 'queue' | 'list' | 'get'
+        | 'getNextQueued' | 'claim' | 'failUnclaimed' | 'release'          // dispatch
+        | 'start' | 'reportStep' | 'finish'                                 // the worker
+        | 'listUntaken' | 'failSilent'                                   // the sweep
+    >;
 
     constructor(
         _workspace: WorkspaceRepository,

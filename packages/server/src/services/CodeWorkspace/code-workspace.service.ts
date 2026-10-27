@@ -11,8 +11,8 @@ import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { IdentityService } from '@/services/Identity/identity.service';
 import { LibraryService } from '@/services/Library/library.service';
 import { CodeWorkspaceRepository } from './repository/code-workspace.repository';
-import { CodeWorkspaceChecks, getMovedHeads } from './checks/code-workspace-checks';
-import { GitRepositories, type Heads } from './git/repositories';
+import { CodeWorkspaceChecks } from './checks/code-workspace-checks';
+import { GitRepositories } from './git/repositories';
 import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client';
 import { TEMPLATES, TEMPLATES_WIRE, type TemplateParams, type WorkspaceTemplate } from './templates';
 
@@ -181,7 +181,7 @@ export class CodeWorkspaceService {
     }
 
     /** Where the workspace's branches point — read before a push, to see what it moved. */
-    async getHeads(rid: CodeWorkspace.Rid): Promise<Heads> {
+    async getHeads(rid: CodeWorkspace.Rid): Promise<CodeWorkspace.Git.Heads> {
         return this.gitRepositories.getHeads(rid);
     }
 
@@ -189,9 +189,9 @@ export class CodeWorkspaceService {
      * After a push: a check run for every branch it created or moved, as the pusher.
      * Never throws — the push has already succeeded; a run that isn't queued is logged.
      */
-    async pushed(principal: Principal.User, rid: CodeWorkspace.Rid, before: Heads): Promise<void> {
+    async pushed(principal: Principal.User, rid: CodeWorkspace.Rid, before: CodeWorkspace.Git.Heads): Promise<void> {
         try {
-            const moved = getMovedHeads(before, await this.gitRepositories.getHeads(rid));
+            const moved = CodeWorkspace.Git.getMovedHeads(before, await this.gitRepositories.getHeads(rid));
 
             if (Object.keys(moved).length > 0)
                 await this.checks.pushed(principal, rid, moved);

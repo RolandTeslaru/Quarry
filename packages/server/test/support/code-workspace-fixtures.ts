@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
-import { GitRepositories, type Heads } from '@/services/CodeWorkspace/git/repositories';
+import { GitRepositories } from '@/services/CodeWorkspace/git/repositories';
 import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/repository/code-workspace.repository';
 import type { ForgeHarness } from './forge-fixtures';
 
@@ -24,7 +24,7 @@ export const QUARRY_CI = `steps:
 export interface TestWorkspace {
     readonly rid:        CodeWorkspace.Rid;
     readonly projectRid: CodeWorkspace.Schema['parentRid'];
-    readonly heads:      Heads;
+    readonly heads:      CodeWorkspace.Git.Heads;
 }
 
 /**
@@ -67,7 +67,7 @@ export async function commitFiles(
     rid:     CodeWorkspace.Rid,
     files:   Record<string, string>,
     branch:  Foundations.Branch = MAIN,
-): Promise<CodeWorkspace.Commit> {
+): Promise<CodeWorkspace.Git.Commit> {
     const repository = harness.get(GitRepositories).getPath(rid);
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'quarry-test-commit-'));
     const git = (...args: string[]) => run('git', ['-c', 'user.name=Test', '-c', 'user.email=test@test.quarry', '-C', directory, ...args])
@@ -84,7 +84,7 @@ export async function commitFiles(
         await git('commit', '--quiet', '--allow-empty', '--message', `Change ${Object.keys(files).join(', ') || 'nothing'}`);
         await git('push', '--quiet', 'origin', `HEAD:refs/heads/${branch}`);
 
-        return CodeWorkspace.Commit.parse(await git('rev-parse', 'HEAD'));
+        return CodeWorkspace.Git.Commit.parse(await git('rev-parse', 'HEAD'));
     }
     finally {
         await fs.rm(directory, { recursive: true, force: true });

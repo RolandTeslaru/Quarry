@@ -26,11 +26,13 @@ export interface RunOptions {
     readonly labels:  Record<string, string>;
     /** Passed by name only — the values reach docker through its own environment, never its argument list. */
     readonly env:     Record<string, string>;
-    readonly volume:  { readonly name: string; readonly target: string };
+    readonly volume?: { readonly name: string; readonly target: string };
     /** Published on 127.0.0.1 only, on a free port. */
-    readonly port:    number;
+    readonly port?:   number;
     readonly memory:  string;
     readonly cpus:    number;
+    /** Instead of the image's command. */
+    readonly command?: string[];
 }
 
 export interface ExecOptions {
@@ -52,14 +54,15 @@ export class DockerDriver {
         for (const key of Object.keys(options.env))
             args.push('--env', key);
 
-        args.push(
-            '--add-host', 'host.docker.internal:host-gateway',        // the server, as sessions reach it
-            '--publish', `127.0.0.1::${options.port}`,
-            '--volume', `${options.volume.name}:${options.volume.target}`,
-            '--memory', options.memory,
-            '--cpus', String(options.cpus),
-            options.image,
-        );
+        args.push('--add-host', 'host.docker.internal:host-gateway');      // the server, as containers reach it
+
+        if (options.port)
+            args.push('--publish', `127.0.0.1::${options.port}`);
+
+        if (options.volume)
+            args.push('--volume', `${options.volume.name}:${options.volume.target}`);
+
+        args.push('--memory', options.memory, '--cpus', String(options.cpus), options.image, ...(options.command ?? []));
 
         await this.command(args, { env: options.env });
     }
