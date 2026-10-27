@@ -1,10 +1,11 @@
+import { promises as fs } from 'node:fs';
 import { Client } from 'pg';
-import { TEST_DATABASE, useTestEnv, withDatabase } from './test-env';
+import { TEST_DATABASE, TEST_GIT_ROOT, useTestEnv, withDatabase } from './test-env';
 
 /**
  * Once per run: a fresh test database, migrated to the current schema (the
- * migrations are living files, so it's rebuilt rather than reused), and an
- * empty test Redis database.
+ * migrations are living files, so it's rebuilt rather than reused), an
+ * empty test Redis database, and no test Git repositories.
  */
 export default async function setup(): Promise<void> {
     const databaseUrl = useTestEnv();
@@ -26,4 +27,6 @@ export default async function setup(): Promise<void> {
 
     await redis.flushdb();
     await redis.quit();
+
+    await fs.rm(TEST_GIT_ROOT, { recursive: true, force: true });
 }

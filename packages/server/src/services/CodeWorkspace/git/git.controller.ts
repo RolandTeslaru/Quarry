@@ -13,6 +13,7 @@ const SMART_PATHS = ['info/refs', 'git-upload-pack', 'git-receive-pack'];
  * Git over HTTP for Code Workspaces: `/api/git/<workspace rid>.git`. Sessions
  * clone and push here with the user's token (`http.extraHeader`); Gatekeeper
  * decides — read to fetch, write to push — then `git http-backend` serves it.
+ * A push that moves branches queues their checks (docs/design/code-workspaces/checks.md).
  */
 @Controller('git')
 export class GitController {
@@ -35,10 +36,14 @@ export class GitController {
 
         const projectRoot = await this.service.authorizeGit(principal, rid, isPush(request, rest) ? 'push' : 'fetch');
 
+        // The push itself, not its advertisement: compare the heads around it to see what it moved.
+        const before = rest === 'git-receive-pack' ? await this.service.getHeads(rid) : null;
+
         await serveGit(request, response, {
             projectRoot,
             pathInfo:   `/${rid}.git/${rest}`,
             remoteUser: principal.userRid,
+            afterServe: before ? () => this.service.pushed(principal, rid, before) : undefined,   // never throws
         });
     }
 }

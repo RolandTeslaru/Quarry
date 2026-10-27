@@ -25,6 +25,7 @@ Needs the dev Postgres and Redis (`npm run infra`). **Vitest** (5.0.4) with **un
 ## Isolation
 
 - **Database `quarry_test`** on the dev Postgres — dropped, created and migrated at the start of every run (`test/support/global-setup.ts`). The migrations are living files, so it's rebuilt rather than reused; a run takes a few seconds.
+- **Git root `$TMPDIR/quarry-test-git`** — Code Workspaces' bare repositories (`QUARRY_GIT_ROOT`), emptied at the start of every run; the dev ones (`.data/git`) are never touched.
 - **Redis database 15** — BullMQ's keys are per database, so test jobs never reach dev queues or a running ForgeAgent. Flushed at the start of every run. (Pub/sub isn't per database: a test's realtime events go to the dev Redis's channels, with random build RIDs nobody listens on.)
 - **Each test makes its own data** — its own project, datasets and specs — so tests don't depend on each other; files run one after another (one database).
 - `test/support/env.ts` points every test process at both before any module reads its env.
@@ -41,11 +42,11 @@ Conventions: test through public service methods, not private helpers; no `sleep
 
 ## What's covered
 
-`npm test` from the root runs both packages: **125 tests**, about 10 s.
+`npm test` from the root runs both packages: **158 tests**, about 17 s.
 
-**`@quarry/shared`** (57 unit tests, next to the code; Vitest without SWC — no decorators): `Build.Plan` (`getParents`, `getReadyChildren` on a diamond, schema), `Build.Target`, `Job` (`getOutputTransactions`, unfinished statuses), `Queue.RunJob` (job ids — no `:`, one per attempt), `Forge.Event` (channel round trip, `create` without channel), `Realtime.Event.defineFactory`, `Branch`, `Commit`, `ModuleFunctionPath`, `Rid`. Its `tsconfig.json` excludes `*.test.ts`, so `tsc -b` never emits tests into `dist`; `tsconfig.test.json` typechecks them.
+**`@quarry/shared`** (74 unit tests, next to the code; Vitest without SWC — no decorators): `Build.Plan` (`getParents`, `getReadyChildren` on a diamond, schema), `Build.Target`, `Job` (`getOutputTransactions`, unfinished statuses), `Queue.RunJob` (job ids — no `:`, one per attempt), `Forge.Event` (channel round trip, `create` without channel), `Realtime.Event.defineFactory`, `Branch`, `Commit`, `ModuleFunctionPath`, `Rid`, `Check.Config` (quarry-ci.yml's rules) and `Check.Manifest`. Its `tsconfig.json` excludes `*.test.ts`, so `tsc -b` never emits tests into `dist`; `tsconfig.test.json` typechecks them.
 
-**`packages/server`** (68 integration and end-to-end tests):
+**`packages/server`** (84 integration and end-to-end tests):
 
 | File | Covers |
 |---|---|
@@ -56,6 +57,7 @@ Conventions: test through public service methods, not private helpers; no `sleep
 | `test/forge/agent-api` | start once; start from `scheduled`; idempotent finish; the attempt as fencing token; outputs aborted |
 | `test/forge/relay` | the fast path; the sweep re-sends scheduled and stale queued jobs (restarting the clock), leaves recent and running ones alone |
 | `test/forge/events` | the exact event sequence of a two-job build; failure and cancel events; one channel per build |
+| `test/code-workspace/check-runs` | `getMovedHeads`; runs queued per moved branch as the pusher, superseding the branch's unfinished runs (not finished ones, not other branches); reader vs writer; **real pushes over HTTP** with a session token (git CLI against a server on a random port): the pushed head only, several branches, nothing for a rejected push, a fetch or a deleted branch, a viewer's push refused (403) |
 | `test/catalog/transaction-batches` | `openBatch` (order, all or none, duplicates, trashed datasets), `abortBatch` (skips committed, idempotent, only through its own dataset) |
 | `test/e2e/forge-agent.e2e` | **a real ForgeAgent process** against the server over HTTP on a random port: a one-job build and a diamond run to the end in dependency order; canceling against a running agent (no canceled job turns succeeded); a late finish of a canceled job refused |
 

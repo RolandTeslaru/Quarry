@@ -4,7 +4,7 @@ import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
-import { CodeWorkspace } from '@quarry/shared/domain';
+import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { requireEnv } from '@/db/table';
 import { resolveEnvPath } from '@/load-env';
@@ -13,6 +13,9 @@ const run = promisify(execFile);
 
 /** Every Code Workspace's history is on this branch until branches exist (docs/design/transforms.md §8). */
 export const DEFAULT_BRANCH = 'main';
+
+/** Each branch's head commit. */
+export type Heads = Record<Foundations.Branch, CodeWorkspace.Commit>;
 
 /** Who a commit is by — the committing user. */
 export interface Author {
@@ -30,7 +33,7 @@ export interface InitialCommit {
 /**
  * The bare Git repositories behind Code Workspaces, one per workspace, under
  * QUARRY_GIT_ROOT (named by RID). Sessions clone and push them over HTTP
- * (git http-backend, behind the server); this class only creates and removes them.
+ * (git http-backend, behind the server); this class creates, reads and removes them.
  */
 @Injectable()
 export class GitRepositories {
@@ -70,6 +73,24 @@ export class GitRepositories {
         finally {
             await fs.rm(workdir, { recursive: true, force: true });
         }
+    }
+
+    /** Where every branch points now: `git for-each-ref refs/heads`. */
+    public async getHeads(rid: CodeWorkspace.Rid): Promise<Heads> {
+        const { stdout } = await run('git', ['-C', this.getPath(rid), 'for-each-ref', '--format=%(objectname) %(refname:short)', 'refs/heads']);
+        const heads: Heads = {};
+
+        for (const line of stdout.split('\n').filter(Boolean)) {
+            const [commit, name] = line.split(' ');
+            const branch = Foundations.Branch.safeParse(name);
+
+            if (branch.success)
+                heads[branch.data] = CodeWorkspace.Commit.parse(commit);
+            else
+                this.log.warning(`Ignoring branch ${JSON.stringify(name)} of ${rid}: not a name Quarry branches by`);
+        }
+
+        return heads;
     }
 
     public async remove(rid: CodeWorkspace.Rid): Promise<void> {

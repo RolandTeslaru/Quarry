@@ -11,7 +11,8 @@ import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { IdentityService } from '@/services/Identity/identity.service';
 import { LibraryService } from '@/services/Library/library.service';
 import { CodeWorkspaceRepository } from './code-workspace.repository';
-import { GitRepositories } from './git/repositories';
+import { CodeWorkspaceChecks, getMovedHeads } from './checks/code-workspace-checks';
+import { GitRepositories, type Heads } from './git/repositories';
 import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client';
 import { TEMPLATES, TEMPLATES_WIRE, type TemplateParams, type WorkspaceTemplate } from './templates';
 
@@ -40,6 +41,7 @@ export class CodeWorkspaceService {
         private readonly repository:      CodeWorkspaceRepository,
         private readonly worker:          CodeWorkspaceWorkerClient,
         private readonly sessionTokens:   SessionTokens,
+        public readonly checks:           CodeWorkspaceChecks,
     ) {}
 
     /** Every template the deployment declares. */
@@ -92,6 +94,8 @@ export class CodeWorkspaceService {
             });
 
             this.log.info(`Created ${rid} from ${template.id}`);
+
+            await this.pushed(principal, rid, {});                  // the template's commit: checked like any push
 
             return workspace;
         }
@@ -174,6 +178,27 @@ export class CodeWorkspaceService {
         await this.gatekeeper.assert(principal, operation === 'push' ? 'write' : 'read', rid);
 
         return this.gitRepositories.root;
+    }
+
+    /** Where the workspace's branches point — read before a push, to see what it moved. */
+    async getHeads(rid: CodeWorkspace.Rid): Promise<Heads> {
+        return this.gitRepositories.getHeads(rid);
+    }
+
+    /**
+     * After a push: a check run for every branch it created or moved, as the pusher.
+     * Never throws — the push has already succeeded; a run that isn't queued is logged.
+     */
+    async pushed(principal: Principal.User, rid: CodeWorkspace.Rid, before: Heads): Promise<void> {
+        try {
+            const moved = getMovedHeads(before, await this.gitRepositories.getHeads(rid));
+
+            if (Object.keys(moved).length > 0)
+                await this.checks.pushed(principal, rid, moved);
+        }
+        catch (error) {
+            this.log.error(`Couldn't queue checks for a push to ${rid}`, { error });
+        }
     }
 
     /** Names from the workspace's; the example's paths from the library (the input must be visible to the user). */

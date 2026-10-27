@@ -14,6 +14,8 @@ export interface BackendRequest {
     readonly pathInfo:    string;
     /** Recorded by Git as the pusher (the user's RID). */
     readonly remoteUser:  string;
+    /** Runs after Git is done, before the response ends — so the client's command returns only after it. */
+    readonly afterServe?: () => Promise<void>;
 }
 
 /**
@@ -73,12 +75,14 @@ export function serveGit(request: Request, response: Response, backend: BackendR
 
         child.on('error', reject);
 
-        child.on('close', code => {
+        child.on('close', async code => {
             if (!headersSent && !response.headersSent)
                 response.status(500);
 
             if (code !== 0)
                 log.warning('git http-backend exited', { code, path: backend.pathInfo });
+
+            await backend.afterServe?.();
 
             response.end();
             resolve();

@@ -11,6 +11,7 @@ import type { IdentityDB } from '@/services/Identity/identity.db';
 import { LibraryDB } from '@/services/Library/library.db';
 import { EnsureResource } from '@/services/Library/ensure-resource';
 import { ResourceRepository } from '@/services/Library/resource.repository';
+import type { Heads } from './git/repositories';
 
 /** The `code_workspace` schema: Code Workspaces. */
 export namespace CodeWorkspaceDB {
@@ -68,6 +69,12 @@ export namespace CodeWorkspaceDB {
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();
+}
+
+export interface QueuedCheckRuns {
+    readonly queued:   CodeWorkspace.CheckRun.Schema[];
+    /** The same branches' earlier runs, superseded. */
+    readonly canceled: CodeWorkspace.CheckRun.Schema[];
 }
 
 @Injectable()
@@ -130,6 +137,60 @@ export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database
             await this.audit.recordOpen(principal, { rid, type: 'workspace', application });   // joins this transaction
 
         return workspace;
+    }
+
+    /**
+     * A queued check run per pushed head; the branch's unfinished runs canceled
+     * first, so only the newest head is ever checked. Write on the workspace (RLS).
+     */
+    @Transactional('user')
+    async queueCheckRuns(principal: Principal.User, rid: CodeWorkspace.Rid, heads: Heads): Promise<QueuedCheckRuns> {
+        const branches = Object.keys(heads) as Foundations.Branch[];
+
+        if (branches.length === 0)
+            return { queued: [], canceled: [] };
+
+        const canceled = await this.trx
+            .updateTable('code_workspace.check_run')
+            .set({ status: 'canceled', finished_at: new Date() })
+            .where('workspace_rid', '=', rid)
+            .where('branch', 'in', branches)
+            .where('status', 'in', CodeWorkspace.CheckRun.UNFINISHED)
+            .returningAll()
+            .execute();
+
+        const queued = await this.trx
+            .insertInto('code_workspace.check_run')
+            .values(branches.map(branch => ({
+                rid:           CodeWorkspace.CheckRun.createRid(),
+                workspace_rid: rid,
+                branch,
+                commit:        heads[branch],
+                pushed_by:     principal.userRid,
+            })))
+            .returningAll()
+            .execute();
+
+        return {
+            queued:   queued.map(CodeWorkspaceDB.CheckRun.toDomain),
+            canceled: canceled.map(CodeWorkspaceDB.CheckRun.toDomain),
+        };
+    }
+
+    /** A workspace's check runs, newest first — one branch's, or all. Read on the workspace (RLS). */
+    @Transactional()
+    async listCheckRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CodeWorkspace.CheckRun.Schema[]> {
+        let query = this.trx
+            .selectFrom('code_workspace.check_run')
+            .selectAll()
+            .where('workspace_rid', '=', rid);
+
+        if (branch)
+            query = query.where('branch', '=', branch);
+
+        const rows = await query.orderBy('created_at', 'desc').orderBy('rid', 'desc').execute();
+
+        return rows.map(CodeWorkspaceDB.CheckRun.toDomain);
     }
 
     /** Every live workspace the user can discover (RLS), across projects. */

@@ -1,6 +1,6 @@
 # Checks (CI)
 
-_Spec, written 2026-10-27. Built so far: step 1 of the build order (the domain and the table). Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
+_Spec, written 2026-10-27. Built so far: steps 1–2 of the build order (the domain and the table; pushes queue runs). Nothing runs them yet. Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
 
 A **check run** is CI for one commit of a Code Workspace: it runs the steps the repository declares in `quarry-ci.yml`, then — if they all pass — **publishes the workspace's job specs** for that branch, pinned to that commit. It's the only thing that publishes them: a build reads specs, it never makes them ([forge.md](../forge.md)). No passing check, nothing to build.
 
@@ -54,16 +54,20 @@ sequenceDiagram
 `git.controller.ts`, around `serveGit`, for a `POST git-receive-pack` only:
 
 ```ts
-const before = await this.repositories.getHeads(rid);           // git for-each-ref refs/heads
-await serveGit(request, response, { … });
-const after = await this.repositories.getHeads(rid);
+// git.controller.ts
+const before = rest === 'git-receive-pack' ? await this.service.getHeads(rid) : null;   // git for-each-ref refs/heads
 
-const moved = getMovedHeads(before, after);                     // Record<Branch, Commit>: new or changed, not deleted
-if (Object.keys(moved).length > 0)
-    await this.checks.pushed(principal, rid, moved);
+await serveGit(request, response, {
+    …,
+    afterServe: before ? () => this.service.pushed(principal, rid, before) : undefined,
+});
+
+// CodeWorkspaceService.pushed: the heads again, getMovedHeads(before, after) → checks.pushed(principal, rid, moved)
 ```
 
-- `git http-backend` has finished when `serveGit` resolves, so `after` is what the push did. A rejected push (non-fast-forward, say) moves nothing.
+- `afterServe` runs once `git http-backend` has exited and **before the response ends**: when the user's `git push` returns, its runs are queued. A rejected push (non-fast-forward, say) moves nothing.
+- `pushed` never throws — the push already succeeded; a run that couldn't be queued is logged.
+- `CodeWorkspaceChecks.pushed` → `CodeWorkspaceRepository.queueCheckRuns`, as the pusher, one transaction: cancel the branches' `queued`/`running` runs, insert a `queued` run per head.
 - **Deleted branches** run nothing. Their specs stay until branch deletion is designed (open question).
 - **The template's first commit** doesn't pass through the controller (`repositories.ts` pushes straight to the bare repository); creating a workspace calls `checks.pushed` for `main` itself.
 - **Push on commit**: `docker/code-workspace-runtime/configuration-defaults.json` gets `"git.postCommitCommand": "push"`. `git commit` in the terminal still needs a `git push` — ordinary Git.
@@ -198,7 +202,7 @@ Domain: `CodeWorkspace.CheckRun` (`Rid`, `Status`, `Step`, `Schema`), `CodeWorks
 ## Build order
 
 1. Domain and table — `CheckRun`, `Check.Config`, `Check.Manifest`; `code_workspace.check_run` in `code_workspace/001_initial.sql` (a living file until launch). **Built 2026-10-27.**
-2. Push detection + `postCommitCommand` — `GitController`, `repositories.getHeads`, runs inserted `queued` (nothing runs them yet).
+2. Push detection + `postCommitCommand` — `GitController`, `repositories.getHeads`, runs inserted `queued` (nothing runs them yet). **Built 2026-10-27.**
 3. The worker's runner — `check.controller.ts`, `check-runner.ts`, `quarry-check-setup`, the internal endpoints, the sweep.
 4. `quarry.transforms.manifest` and the template's `quarry-ci.yml` (with `ruff` added to the template's dev dependencies).
 5. Validate and publish — `CodeWorkspaceChecks.finish`.
