@@ -3,8 +3,10 @@ import { SessionTokens } from '@/auth/session-tokens';
 import { IdentityModule } from '@/services/Identity/identity.module';
 import { LibraryModule } from '@/services/Library/library.module';
 import { CodeWorkspaceService } from './code-workspace.service';
-import { CodeWorkspaceRepository } from './code-workspace.repository';
+import { CodeWorkspaceRepository } from './repository/code-workspace.repository';
+import { WorkspaceRepository } from './repository/workspace.repository';
 import { CodeWorkspaceChecks } from './checks/code-workspace-checks';
+import { CheckRunRepository } from './repository/check-run.repository';
 import { GitRepositories } from './git/repositories';
 import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client';
 
@@ -17,7 +19,7 @@ import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client
  */
 @Module({
     imports:   [IdentityModule, LibraryModule],
-    providers: [CodeWorkspaceService, CodeWorkspaceRepository, CodeWorkspaceChecks, GitRepositories, CodeWorkspaceWorkerClient, SessionTokens],
+    providers: [CodeWorkspaceService, CodeWorkspaceRepository, WorkspaceRepository, CheckRunRepository, CodeWorkspaceChecks, GitRepositories, CodeWorkspaceWorkerClient, SessionTokens],
     exports:   [CodeWorkspaceService],
 })
 export class CodeWorkspaceModule {}

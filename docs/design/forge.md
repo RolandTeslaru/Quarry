@@ -269,6 +269,8 @@ stateDiagram-v2
 
 `attempt` counts executions, not deliveries: only a retry raises it. Duplicate pushes, a crashed relay and refused duplicate messages leave it alone.
 
+**Lock order: jobs, then the build.** Every transaction that changes both (`finishJob`, `failBuild`, `cancelBuild`) updates job rows before the build row. In the opposite order, a cancel racing the agent finishing a build's last job deadlocks (Postgres aborts one, 40P01 → a 500); in this order one waits for the other, and the loser gets its 409.
+
 
 ## 5. ForgeAgents and job containers — planned
 
@@ -354,7 +356,7 @@ The dataset viewer then shows, as in Foundry's About panel: **Updated … by** t
 
 ## 8. What runs today
 
-`server/src/services/Forge/`: `ForgeService` (builds), `JobSpecs` (`forge.jobSpecs`, for producers), one `ForgeRepository` for the schema, `forge.db.ts`. A created build **waits**: its jobs stay `waiting`, holding their outputs' transactions, until it's canceled.
+`server/src/services/Forge/`: `ForgeService` (builds), `JobSpecs` (`forge.jobSpecs`, for producers), `repository/` — the `ForgeRepository` facade over `BuildRepository`, `JobRepository` and `JobSpecRepository` — and `forge.db.ts`. A created build **waits**: its jobs stay `waiting`, holding their outputs' transactions, until it's canceled.
 
 | Endpoint | What |
 |---|---|
@@ -369,7 +371,7 @@ Publishing has no endpoint: producers call `forge.jobSpecs.publish(principal, pr
 
 **Live updates** (`Forge.Event`, realtime.md). Every change to a job is announced on its build's channel, `forge:build:<buildRid>`, as `forge:job:updated` with the job as it is now (`Forge.Event.Job.Updated`) — emitted by the server, whoever changed the row, right after the commit: initializing (all jobs), the relay (queued), `start`, `finish` (the job and the children it scheduled), failing and canceling (the canceled jobs). Not heartbeats. It's a nudge for the UI, not the record: a lost event only means a later refetch, and nothing acts on these events but pages. ForgeAgents never publish. Subscribing needs to see the build (discover on one of its targets).
 
-**Server layout** (`server/src/services/Forge/`): `forge.service.ts` — `ForgeService`, what users and other services do (initialize, list, get, cancel builds; `jobSpecs`); `agent/` — `ForgeAgentController` and `ForgeAgentService`, what ForgeAgents do (start, heartbeat, finish, advancing and failing builds); `relay/forge-relay.service.ts` — `ForgeRelayService`; `forge.repository.ts`, `forge.db.ts`, `job-specs.ts`. Each service emits its job events and aborts its transactions inline: `realtime.emitEvent({ ...Forge.Event.create('forge:job:updated', { job }), channel: Forge.Event.getChannel(job.buildRid) })`, `catalog.transaction.abortBatch(principal, Forge.Job.getOutputTransactions(job))`.
+**Server layout** (`server/src/services/Forge/`): `forge.service.ts` — `ForgeService`, what users and other services do (initialize, list, get, cancel builds; `jobSpecs`); `agent/` — `ForgeAgentController` and `ForgeAgentService`, what ForgeAgents do (start, heartbeat, finish, advancing and failing builds); `relay/forge-relay.service.ts` — `ForgeRelayService`; `repository/` — `forge.repository.ts`, the facade (`initializeBuild`, `cancelBuild`, `failBuild`, `startJob`, `finishJob`: the writes that commit builds and jobs together) over `build.repository.ts`, `job.repository.ts`, `job-spec.repository.ts`; `forge.db.ts`, `job-specs.ts`. Each service emits its job events and aborts its transactions inline: `realtime.emitEvent({ ...Forge.Event.create('forge:job:updated', { job }), channel: Forge.Event.getChannel(job.buildRid) })`, `catalog.transaction.abortBatch(principal, Forge.Job.getOutputTransactions(job))`.
 
 **ForgeAgent scaffold** (`packages/forge-agent`, `npm run dev:forge-agent`, health on `FORGE_AGENT_PORT`, default 4105). Initializing a build schedules its roots and `ForgeRelayService` pushes them to `forge.run-job` (BullMQ id `<rid>_<attempt>`), then marks them queued. The agent's `RunJobProcessor` (concurrency `FORGE_AGENT_SLOTS`, default 2) calls `start`, logs the job, sends one heartbeat and calls `finish(succeeded)` — **no compute**. `finish` then:
 
@@ -387,5 +389,7 @@ Publishing has no endpoint: producers call `forge.jobSpecs.publish(principal, pr
 Relay sweep verified 2026-10-27: a job set back to `scheduled` with no message in Redis, and a job `queued` 5 minutes ago whose message was deleted — one sweep relayed both (`{ relayed: 2 }`), a ForgeAgent then ran them and the build succeeded; the agent token is refused on the sweep endpoint (401).
 
 Verified 2026-10-27 with the agent running — events: `A:scheduled → B:waiting → A:queued → A:running → A:succeeded → B:scheduled → B:queued → B:running → B:succeeded`; through `/socket`, the build's channel accepted and an unknown build's refused. Also: a two-spec build (B reads A's output) ran A, then B; both went scheduled → queued → running → succeeded; the build succeeded; the outputs were aborted and the datasets left at sequence 0; a repeated finish was accepted, a wrong attempt and a second start refused (409).
+
+**Unverified (noted 2026-10-27, during the repository split — not yet checked against the design):** two sibling jobs finishing at once may leave their build stuck. `finishJob` reads the build's jobs, then schedules children and ends the build; under READ COMMITTED with no lock, each transaction may still see the other job as `running`, so neither ends the build, and a child of both is never scheduled. A candidate fix is locking the build row (`select … for update`) at the start of `finishJob` and `failBuild`, as Catalog's commit locks the branch.
 
 **Next:** the compute (the runner, containers, staging inputs and outputs, pinning inputs at `start`); committing outputs (`catalog.transaction.commitBatch`); `log_key` and logs; the reaper; running the relay once when the server boots (instant recovery after a crash, rather than within a minute); retries; canceling descendants only, and D2; `environment` on code-workspace specs. **Later:** upstream and connecting builds (a recursive query collecting the plan), staleness and `forceBuild`, dataset branches other than main, syncs publishing job specs, the Scheduler.

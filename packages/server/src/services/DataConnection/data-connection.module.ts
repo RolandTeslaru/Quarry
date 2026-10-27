@@ -3,7 +3,10 @@ import { LibraryModule } from '@/services/Library/library.module';
 import { CatalogModule } from '@/services/Catalog/catalog.module';
 import { KeychainModule } from '@/services/Keychain/keychain.module';
 import { DataConnectionService } from './data-connection.service';
-import { DataConnectionRepository } from './data-connection.repository';
+import { DataConnectionRepository } from './repository/data-connection.repository';
+import { SourceRepository } from './repository/source.repository';
+import { SyncRepository } from './repository/sync.repository';
+import { SyncRunRepository } from './repository/sync-run.repository';
 
 /**
  * Data Connection in the server: sources and syncs, and the run lifecycle the
@@ -13,7 +16,7 @@ import { DataConnectionRepository } from './data-connection.repository';
  */
 @Module({
     imports:   [LibraryModule, CatalogModule, KeychainModule],
-    providers: [DataConnectionService, DataConnectionService.Sources, DataConnectionService.Syncs, DataConnectionService.Runs, DataConnectionRepository],
+    providers: [DataConnectionService, DataConnectionService.Sources, DataConnectionService.Syncs, DataConnectionService.Runs, DataConnectionRepository, SourceRepository, SyncRepository, SyncRunRepository],
     exports:   [DataConnectionService, DataConnectionRepository],
 })
 export class DataConnectionModule {}

@@ -14,7 +14,7 @@ import { ApiModule } from '@/api.module';
 import type { Principal } from '@/auth/principal';
 import { SessionTokens } from '@/auth/session-tokens';
 import { db } from '@/db/pool';
-import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/code-workspace.repository';
+import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/repository/code-workspace.repository';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
 import { getMovedHeads } from '@/services/CodeWorkspace/checks/code-workspace-checks';
 import { GitRepositories, type Heads } from '@/services/CodeWorkspace/git/repositories';
@@ -311,7 +311,7 @@ async function createWorkspace(harness: ForgeHarness, principal: Principal.User)
         populate: (directory) => fs.writeFile(path.join(directory, 'README.md'), '# Test\n'),
     });
 
-    await harness.get(CodeWorkspaceRepository).create(principal, {
+    await harness.get(CodeWorkspaceRepository).workspace.create(principal, {
         rid,
         name:        `Workspace ${rid.slice(-8)}`,
         description: null,

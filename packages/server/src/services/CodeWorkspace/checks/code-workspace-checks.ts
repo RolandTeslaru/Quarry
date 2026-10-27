@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { CodeWorkspace, type Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import type { Principal } from '@/auth/principal';
-import { CodeWorkspaceRepository, type QueuedCheckRuns } from '../code-workspace.repository';
+import { CodeWorkspaceRepository } from '../repository/code-workspace.repository';
+import type { QueuedCheckRuns } from '../repository/check-run.repository';
 import type { Heads } from '../git/repositories';
 
 /**
@@ -19,7 +20,7 @@ export class CodeWorkspaceChecks {
 
     /** Branches moved by a push (or the template's first commit): a queued run for each new head. */
     public async pushed(principal: Principal.User, rid: CodeWorkspace.Rid, moved: Heads): Promise<QueuedCheckRuns> {
-        const runs = await this.repository.queueCheckRuns(principal, rid, moved);
+        const runs = await this.repository.checkRun.queue(principal, rid, moved);
 
         for (const run of runs.queued)
             this.log.info(`Queued ${run.rid}: ${run.branch} at ${run.commit.slice(0, 7)}`, { workspace: rid });
@@ -31,7 +32,7 @@ export class CodeWorkspaceChecks {
     }
 
     public async listCheckRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CodeWorkspace.CheckRun.Schema[]> {
-        return this.repository.listCheckRuns(principal, rid, branch);
+        return this.repository.checkRun.list(principal, rid, branch);
     }
 }
 

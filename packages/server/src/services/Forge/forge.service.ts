@@ -6,7 +6,8 @@ import { CatalogService } from '@/services/Catalog/catalog.service';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
 import { ForgeRelayService } from './relay/forge-relay.service';
-import { ForgeRepository, type NewJob } from './forge.repository';
+import { ForgeRepository } from './repository/forge.repository';
+import type { NewJob } from './repository/job.repository';
 import { JobSpecs } from './job-specs';
 
 const MAIN = Foundations.Branch.parse('main');
@@ -53,7 +54,7 @@ export class ForgeService {
         const jobs = await this._lockOutputs(principal, buildRid, collected);
 
         try {
-            const created = await this.repository.initializeBuild(
+            const createdJobs = await this.repository.initializeBuild(
                 principal,
                 {
                     rid:              buildRid,
@@ -71,13 +72,13 @@ export class ForgeService {
             this.log.info(`Created ${buildRid}: ${jobs.length} job(s)`);
 
             // 5. After the commit: announce the jobs, hand the roots to the queue.
-            for (const job of Object.values(created.jobs))
+            for (const job of createdJobs)
                 this.realtime.emitEvent({
                     ...Forge.Event.create('forge:job:updated', { job: job }),
                     channel: Forge.Event.getChannel(job.buildRid),
                 });
 
-            await this.relay.relay(Object.values(created.jobs).filter((job) => job.status === 'scheduled'));
+            await this.relay.relay(createdJobs.filter((job) => job.status === 'scheduled'));
 
             return this.getBuild(principal, buildRid);
         }
@@ -91,16 +92,22 @@ export class ForgeService {
 
     /** Builds the principal can see (RLS: discover on a target), newest first. */
     public async listBuilds(principal: Principal, query: Forge.API.ListBuilds.Query): Promise<Forge.Build.Schema[]> {
-        return this.repository.listBuilds(principal, query);
+        return this.repository.build.list(principal, query);
     }
 
+    /** The build and its jobs — two reads, no shared snapshot needed: a job that moves in between shows up via realtime. */
     public async getBuild(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.API.GetBuild.Response> {
-        const found = await this.repository.getBuild(principal, rid);
+        const build = await this.repository.build.get(principal, rid);
 
-        if (!found)
+        if (!build)
             throw new NotFoundException('Not found');
 
-        return found;
+        const jobs = await this.repository.job.listForBuild(principal, rid);
+
+        return {
+            build,
+            jobs: Object.fromEntries(jobs.map((job) => [job.rid, job])),
+        };
     }
 
     /**
@@ -138,7 +145,7 @@ export class ForgeService {
     }
 
     public async getJob(principal: Principal, rid: Forge.Job.Rid): Promise<Forge.Job.Schema> {
-        const job = await this.repository.getJob(principal, rid);
+        const job = await this.repository.job.get(principal, rid);
 
         if (!job)
             throw new NotFoundException('Not found');

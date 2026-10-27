@@ -5,7 +5,7 @@ import { Principal } from '@/auth/principal';
 import { CatalogService } from '@/services/Catalog/catalog.service';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
 import { ForgeRelayService } from '../relay/forge-relay.service';
-import { ForgeRepository } from '../forge.repository';
+import { ForgeRepository } from '../repository/forge.repository';
 
 /** ForgeAgents act through the server as the system: they carry no user. */
 const AGENT = Principal.SELF('forge.agent');
@@ -45,7 +45,7 @@ export class ForgeAgentService {
 
     /** Renews the attempt's lease. `stop` once it isn't running — its build was canceled or failed. */
     public async heartbeatJob(rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Heartbeat.Response> {
-        const job = await this.repository.heartbeatJob(AGENT, rid, attempt);
+        const job = await this.repository.job.heartbeat(AGENT, rid, attempt);
 
         return { action: job ? 'continue' : 'stop' };
     }
@@ -87,7 +87,7 @@ export class ForgeAgentService {
 
     /** A finish that matched no running attempt: fine if it repeats the outcome already recorded, a 409 otherwise. */
     private async _getRepeatedFinish(rid: Forge.Job.Rid, outcome: Forge.API.Agent.Finish.Request): Promise<Forge.Job.Schema> {
-        const job = await this.repository.getJob(AGENT, rid);
+        const job = await this.repository.job.get(AGENT, rid);
 
         if (!job)
             throw new NotFoundException('Not found');

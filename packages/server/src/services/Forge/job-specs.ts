@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import type { Catalog, Forge, Foundations, Library } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
-import { ForgeRepository, type PublishedJobSpec } from './forge.repository';
+import { ForgeRepository } from './repository/forge.repository';
+import type { PublishedJobSpec } from './repository/job-spec.repository';
 
 /**
  * Publishing job specs and reading the current one. Reached as `forge.jobSpecs`
@@ -20,7 +21,7 @@ export class JobSpecs {
         branch:      Foundations.Branch,
         specs:       PublishedJobSpec[],
     ): Promise<Forge.JobSpec.Schema[]> {
-        return this.repository.publishJobSpecs(principal, producerRid, branch, specs);
+        return this.repository.jobSpec.publish(principal, producerRid, branch, specs);
     }
 
     /** What computes the dataset: the first of `branches` with a spec for it wins. */
@@ -29,6 +30,6 @@ export class JobSpecs {
         datasetRid: Catalog.Dataset.Rid,
         branches:   Foundations.Branch[],
     ): Promise<Forge.JobSpec.Schema | null> {
-        return this.repository.getCurrentJobSpec(principal, datasetRid, branches);
+        return this.repository.jobSpec.getCurrent(principal, datasetRid, branches);
     }
 }

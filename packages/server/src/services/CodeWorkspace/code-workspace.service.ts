@@ -10,7 +10,7 @@ import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { IdentityService } from '@/services/Identity/identity.service';
 import { LibraryService } from '@/services/Library/library.service';
-import { CodeWorkspaceRepository } from './code-workspace.repository';
+import { CodeWorkspaceRepository } from './repository/code-workspace.repository';
 import { CodeWorkspaceChecks, getMovedHeads } from './checks/code-workspace-checks';
 import { GitRepositories, type Heads } from './git/repositories';
 import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client';
@@ -61,7 +61,7 @@ export class CodeWorkspaceService {
 
     /** Workspaces the principal can discover (RLS), across projects. */
     async list(principal: Principal): Promise<CodeWorkspace.Schema[]> {
-        return this.repository.list(principal);
+        return this.repository.workspace.list(principal);
     }
 
     /**
@@ -85,7 +85,7 @@ export class CodeWorkspaceService {
         });
 
         try {
-            const workspace = await this.repository.create(principal, {
+            const workspace = await this.repository.workspace.create(principal, {
                 rid,
                 name:        request.name,
                 description: request.description,
@@ -107,7 +107,7 @@ export class CodeWorkspaceService {
     }
 
     async get(principal: Principal, rid: CodeWorkspace.Rid): Promise<CodeWorkspace.Schema> {
-        const workspace = await this.repository.get(principal, rid);
+        const workspace = await this.repository.workspace.get(principal, rid);
 
         if (!workspace)
             throw new NotFoundException('Not found');
@@ -118,7 +118,7 @@ export class CodeWorkspaceService {
     /** An app opening the workspace's page — the open recorded with the read (audit). Only users open pages. */
     @RequireUserPrincipal('Only users open pages')
     async open(principal: Principal.User, rid: CodeWorkspace.Rid, application: Platform.Application.Id): Promise<CodeWorkspace.Schema> {
-        const workspace = await this.repository.open(principal, rid, application);
+        const workspace = await this.repository.workspace.open(principal, rid, application);
 
         if (!workspace)
             throw new NotFoundException('Not found');

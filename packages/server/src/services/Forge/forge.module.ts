@@ -3,7 +3,10 @@ import { CatalogModule } from '@/services/Catalog/catalog.module';
 import { ForgeService } from './forge.service';
 import { ForgeRelayService } from './relay/forge-relay.service';
 import { ForgeAgentService } from './agent/forge-agent.service';
-import { ForgeRepository } from './forge.repository';
+import { ForgeRepository } from './repository/forge.repository';
+import { BuildRepository } from './repository/build.repository';
+import { JobRepository } from './repository/job.repository';
+import { JobSpecRepository } from './repository/job-spec.repository';
 import { JobSpecs } from './job-specs';
 
 /**
@@ -13,7 +16,7 @@ import { JobSpecs } from './job-specs';
  */
 @Module({
     imports:   [CatalogModule],
-    providers: [ForgeService, JobSpecs, ForgeRepository, ForgeRelayService, ForgeAgentService],
+    providers: [ForgeService, JobSpecs, ForgeRepository, BuildRepository, JobRepository, JobSpecRepository, ForgeRelayService, ForgeAgentService],
     exports:   [ForgeService, ForgeAgentService, ForgeRelayService],
 })
 export class ForgeModule {}

@@ -14,7 +14,8 @@ import { LibraryService } from '@/services/Library/library.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { Audit } from '@/services/Audit/audit.decorator';
 import { AuditService } from '@/services/Audit/audit.service';
-import { DataConnectionDB, DataConnectionRepository } from './data-connection.repository';
+import { DataConnectionDB } from './data-connection.db';
+import { DataConnectionRepository } from './repository/data-connection.repository';
 
 /** How long the server waits for the Data Connection worker to answer a source probe. */
 const PROBE_TIMEOUT_MS = 15_000;

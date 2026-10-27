@@ -313,8 +313,13 @@ services/DataConnection/
 │                                           /api/internal/syncs/scheduled
 ├── data-connection.service.ts      sources, syncs, probes (request–reply to the Data Connection worker); the run lifecycle
 │                                   and housekeeping the workers drive through /internal
-├── data-connection.module.ts       DataConnectionService + DataConnectionRepository; no runtimes; imports Keychain
-└── data-connection.repository.ts   DataConnectionDB (rows) + one DataConnectionRepository: .source · .sync · .run
+├── data-connection.module.ts       DataConnectionService + the repositories; no runtimes; imports Keychain
+├── data-connection.db.ts           DataConnectionDB: Source/Sync/SyncRun rows, Tables
+└── repository/
+    ├── data-connection.repository.ts   the facade: .source · .sync · .run (each a Pick of what's safe on its own)
+    ├── source.repository.ts            create (library row + source), get, open, list
+    ├── sync.repository.ts              create, get, listForSource, listScheduled
+    └── sync-run.repository.ts          start, attachTransaction, heartbeat, succeed, fail, latestState, list, stuck
 ```
 
 | Tables | `data_connection.source` · `data_connection.sync` · `data_connection.sync_run` |
@@ -344,7 +349,7 @@ The server only *produces* `sync` jobs (run now, and the cron schedulers it upse
 | `catalog.transaction` | Catalog | 〃 | 〃 |
 | `catalog.transaction_change` | Catalog | 〃 | 〃 |
 | `catalog.outbox` | Catalog | 〃 | 〃 |
-| `data_connection.source` | DataConnection | `services/DataConnection/data-connection.repository.ts` (`DataConnectionDB`) | `migrations/data_connection/` |
+| `data_connection.source` | DataConnection | `services/DataConnection/data-connection.db.ts` | `migrations/data_connection/` |
 | `data_connection.sync` | DataConnection | 〃 | 〃 |
 | `data_connection.sync_run` | DataConnection | 〃 | 〃 |
 | `auth.*` | GoTrue | — not ours | GoTrue's own |
@@ -525,6 +530,7 @@ flowchart LR
 | Names say what they hold: `rid`, `parentRid`, `datasetRid`, `sourceRid` — never `…Id` for a RID | Review |
 | A `@Transactional` call inside another joins it — same principal only; another service's repository only when its module exports it, to share a transaction | Runtime throw on a different principal; DI (unexported providers don't resolve) |
 | A repository touches only its own schema (+ foundation reads) | `Repository(CatalogDB)` typing |
+| A schema with several entities has a `repository/` folder: one repository per entity, and a facade (`ForgeRepository`) that services use. The facade exposes, as a `Pick`, only the sub-repository methods that are a complete state change on their own (or reads); a write that must commit with another is a facade method, so the sub-repositories' calls join one transaction. Reads that may disagree for a moment are combined in the service | `test/architecture/repositories.test.ts` (sub-repositories imported only by their facade and module); `Pick` typing |
 | Services import other services' **public services**, never their repositories or `.db.ts` | Lint (`eslint-plugin-boundaries` or `dependency-cruiser`) |
 | Pass the caller's principal service → service → repository; background work for a user is a delegate; `Principal.SELF` only for system work | Review; greppable reasons |
 

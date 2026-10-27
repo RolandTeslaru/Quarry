@@ -4,7 +4,7 @@ import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { QueueManager } from '@/infra/queue';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
-import { ForgeRepository } from '../forge.repository';
+import { ForgeRepository } from '../repository/forge.repository';
 
 /**
  * Hands scheduled jobs to the queue (Redis), then marks them queued — the job
@@ -30,7 +30,7 @@ export class ForgeRelayService {
      * runs without persistence, so a restart loses its messages. Returns how many.
      */
     public async sweep(staleQueuedMinutes: number): Promise<number> {
-        const jobs = await this.repository.listJobsToRelay(Principal.SELF('forge.relay.sweep'), staleQueuedMinutes);
+        const jobs = await this.repository.job.listToRelay(Principal.SELF('forge.relay.sweep'), staleQueuedMinutes);
 
         if (jobs.length > 0)
             this.log.info(`Sweep: relaying ${jobs.length} job(s)`);
@@ -48,7 +48,7 @@ export class ForgeRelayService {
                 // Push first, then mark: a crash in between leaves it scheduled, so it's pushed again.
                 await this.queues.add(Forge.Queue.RunJob.Definition, message, { jobId: Forge.Queue.RunJob.getJobId(message) });
 
-                const queued = await this.repository.markQueued(Principal.SELF('forge.relay'), message);
+                const queued = await this.repository.job.markQueued(Principal.SELF('forge.relay'), message);
 
                 if (queued)
                     this.realtime.emitEvent({
