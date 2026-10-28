@@ -30,7 +30,7 @@ export namespace Event {
 
     export namespace Job {
 
-        /** Any change to a job — scheduled, queued, started, finished, canceled: the job as it is now. */
+        /** Any change to a job — scheduled, started, finished, canceled: the job as it is now. */
         export namespace Updated {
             export const Schema = Base.extend({
                 type: z.literal("forge:job:updated"),

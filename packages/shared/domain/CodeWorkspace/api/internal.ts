@@ -32,13 +32,13 @@ export namespace Internal {
         return SessionCredentials.Response.parse(data)
     }
 
-    /** A check run, as the worker runs it (docs/design/code-workspaces/checks.md §3). Each answers 409 once the run isn't the worker's to run — canceled, or taken back. */
+    /** A check run, as the worker runs it (docs/design/code-workspaces/checks.md §3). Each answers 409 once the run isn't the worker's to run — canceled, or already taken. */
     export namespace CheckRun {
 
         export const Response = z.object({ checkRun: CheckRunD.Schema })
         export type  Response = z.infer<typeof Response>
 
-        /** Taking a dispatched run — once: what to run, and a token acting as the pusher. */
+        /** Taking a scheduled run — once: what to run, and a token acting as the pusher. */
         export namespace Start {
             export const Response = z.object({
                 checkRun: CheckRunD.Schema,
@@ -69,12 +69,11 @@ export namespace Internal {
             export type Request = z.input<typeof Request>
         }
 
-        /** The system worker's timer: send again what no worker took, fail silent runs, dispatch. */
+        /** The system worker's timer: fail silent runs, schedule what's waiting. */
         export namespace Sweep {
             export const Response = z.object({
-                resent:     z.number().int(),
-                failed:     z.number().int(),
-                dispatched: z.number().int(),
+                failed:    z.number().int(),
+                scheduled: z.number().int(),
             })
             export type Response = z.infer<typeof Response>
         }

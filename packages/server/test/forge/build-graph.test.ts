@@ -33,15 +33,15 @@ describe('a build of several dependent datasets', () => {
 
         expect(build.plan.roots).toEqual([specs.A.rid]);
         expect(build.plan.children).toEqual({ [specs.A.rid]: [specs.B.rid], [specs.B.rid]: [specs.C.rid], [specs.C.rid]: [] });
-        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'queued', B: 'waiting', C: 'waiting' });
+        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'scheduled', B: 'waiting', C: 'waiting' });
 
         let { jobs } = await harness.jobsBySpec(user, build.rid, specs);
         await harness.run(jobs.A);
-        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'succeeded', B: 'queued', C: 'waiting' });
+        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'succeeded', B: 'scheduled', C: 'waiting' });
 
         ({ jobs } = await harness.jobsBySpec(user, build.rid, specs));
         await harness.run(jobs.B);
-        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'succeeded', B: 'succeeded', C: 'queued' });
+        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'succeeded', B: 'succeeded', C: 'scheduled' });
 
         ({ jobs } = await harness.jobsBySpec(user, build.rid, specs));
         await harness.run(jobs.C);
@@ -69,7 +69,7 @@ describe('a build of several dependent datasets', () => {
 
         let { jobs } = await harness.jobsBySpec(user, build.rid, specs);
         await harness.run(jobs.A);
-        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'succeeded', B: 'queued', C: 'queued', D: 'waiting' });
+        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'succeeded', B: 'scheduled', C: 'scheduled', D: 'waiting' });
 
         ({ jobs } = await harness.jobsBySpec(user, build.rid, specs));
         await harness.run(jobs.B);
@@ -77,7 +77,7 @@ describe('a build of several dependent datasets', () => {
 
         ({ jobs } = await harness.jobsBySpec(user, build.rid, specs));
         await harness.run(jobs.C);
-        expect((await harness.statuses(user, build.rid, specs)).D).toBe('queued');
+        expect((await harness.statuses(user, build.rid, specs)).D).toBe('scheduled');
 
         ({ jobs } = await harness.jobsBySpec(user, build.rid, specs));
         await harness.run(jobs.D);
@@ -96,13 +96,13 @@ describe('a build of several dependent datasets', () => {
         const { build } = await harness.build(user, [datasets.a, datasets.b, datasets.c, datasets.d]);
 
         expect([...build.plan.roots].sort()).toEqual([specs.A.rid, specs.B.rid, specs.C.rid].sort());
-        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'queued', B: 'queued', C: 'queued', D: 'waiting' });
+        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'scheduled', B: 'scheduled', C: 'scheduled', D: 'waiting' });
 
         // Each root is in the queue for a ForgeAgent.
         const { jobs } = await harness.jobsBySpec(user, build.rid, specs);
 
         for (const name of ['A', 'B', 'C'])
-            expect(await harness.runJobs.getJob(`${jobs[name].rid}_1`)).toBeDefined();
+            expect(await harness.runJobQueue.getJob(`${jobs[name].rid}_1`)).toBeDefined();
     });
 
     it('runs a spec with several outputs as one job, and its readers after it', async () => {
@@ -128,7 +128,7 @@ describe('a build of several dependent datasets', () => {
 
         const { jobs } = await harness.jobsBySpec(user, build.rid, specs);
         await harness.run(jobs.A);
-        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'succeeded', B: 'queued', C: 'queued' });
+        expect(await harness.statuses(user, build.rid, specs)).toEqual({ A: 'succeeded', B: 'scheduled', C: 'scheduled' });
     });
 
     it('cancels the rest when a job fails, and aborts their outputs', async () => {

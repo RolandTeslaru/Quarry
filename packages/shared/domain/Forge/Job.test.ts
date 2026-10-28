@@ -17,7 +17,7 @@ describe("Job", () => {
     })
 
     it("counts every status before an end as unfinished", () => {
-        expect([...Job.UNFINISHED].sort()).toEqual(["queued", "running", "scheduled", "waiting"])
+        expect([...Job.UNFINISHED].sort()).toEqual(["running", "scheduled", "waiting"])
         expect(Job.Status.options.filter((status) => !Job.UNFINISHED.includes(status)).sort()).toEqual(["canceled", "failed", "succeeded"])
     })
 })

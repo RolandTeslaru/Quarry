@@ -5,7 +5,7 @@ import type { Principal } from '@/auth/principal';
 import { CatalogService } from '@/services/Catalog/catalog.service';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
-import { ForgeRelayService } from './relay/forge-relay.service';
+import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
 import { ForgeRepository } from './repository/forge.repository';
 import type { NewJob } from './repository/job.repository';
 import { JobSpecs } from './job-specs';
@@ -24,7 +24,7 @@ interface CollectedPlan {
  *
  * Initializing a build: collect its plan, validate it, lock its outputs (a
  * snapshot transaction on each, so no other writer gets in), persist it with
- * its roots scheduled, relay them to the queue. Running the jobs is the
+ * its roots scheduled (their messages in the outbox), relay them. Running the jobs is the
  * ForgeAgents' side: agent/ForgeAgentService.
  */
 @Injectable()
@@ -37,8 +37,9 @@ export class ForgeService {
         public readonly jobSpecs:    JobSpecs,
         private readonly catalog:    CatalogService,
         private readonly repository: ForgeRepository,
-        private readonly relay:      ForgeRelayService,
         private readonly realtime:   RealtimeService,
+        @InjectDurableQueue(Forge.DurableQueue.RunJob)
+        private readonly runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
     ) {}
 
     /** Needs write on every output and read on every input. */
@@ -71,14 +72,14 @@ export class ForgeService {
 
             this.log.info(`Created ${buildRid}: ${jobs.length} job(s)`);
 
-            // 5. After the commit: announce the jobs, hand the roots to the queue.
+            // 5. After the commit: announce the jobs, relay the roots' messages.
             for (const job of createdJobs)
                 this.realtime.emitEvent({
                     ...Forge.Event.create('forge:job:updated', { job: job }),
                     channel: Forge.Event.getChannel(job.buildRid),
                 });
 
-            await this.relay.relay(createdJobs.filter((job) => job.status === 'scheduled'));
+            await this.runJobQueue.relay();
 
             return this.getBuild(principal, buildRid);
         }

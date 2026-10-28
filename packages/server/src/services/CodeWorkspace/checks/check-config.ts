@@ -36,7 +36,7 @@ export async function readCheckConfig(
     return { config: parsed.data };
 }
 
-/** A claimed run's steps: Parse (done), the file's (waiting), Validate & publish (waiting). */
+/** A scheduled run's steps: Parse (done), the file's (waiting), Validate & publish (waiting). */
 export function layOutSteps(config: CodeWorkspace.Check.Config.Schema, now: Date = new Date()): CheckRun.Step.Schema[] {
     return [
         { ...getStep(CheckRun.PARSE_STEP, 'succeeded'), startedAt: now, finishedAt: now },

@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { sql } from 'kysely';
 import { Forge } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
@@ -10,9 +9,8 @@ import { ForgeDB } from '../forge.db';
 export type NewJob = Pick<Forge.Job.Schema, 'rid' | 'jobSpecRid' | 'outputs'>;
 
 /**
- * forge.job — also the outbox: a job's `scheduled`/`queued` status is what the
- * relay's sweep resends after a crash. Writes that also touch the build belong
- * on ForgeRepository.
+ * forge.job. Writes that also touch the build, or a job's message (the durable
+ * queue's outbox), belong on ForgeRepository.
  */
 @Injectable()
 export class JobRepository extends Repository(ForgeDB.database) {
@@ -61,28 +59,6 @@ export class JobRepository extends Repository(ForgeDB.database) {
         return rows.map(ForgeDB.Job.toDomain);
     }
 
-    /**
-     * What the relay's sweep sends again: jobs still scheduled (the fast path
-     * didn't deliver them), and jobs queued longer than `staleQueuedMinutes` that
-     * no ForgeAgent started (Redis lost them — it has no persistence).
-     */
-    @Transactional('service')
-    public async listToRelay(principal: Principal.Service, staleQueuedMinutes: number): Promise<Forge.Job.Schema[]> {
-        const rows = await this.trx
-            .selectFrom('forge.job')
-            .selectAll()
-            .where((eb) => eb.or([
-                eb('status', '=', 'scheduled'),
-                eb.and([
-                    eb('status', '=', 'queued'),
-                    eb('queued_at', '<', sql<Date>`now() - make_interval(mins => ${staleQueuedMinutes})`),
-                ]),
-            ]))
-            .execute();
-
-        return rows.map(ForgeDB.Job.toDomain);
-    }
-
     /** The build's `waiting` jobs for these specs → `scheduled` (once, whoever gets there first). */
     @Transactional()
     public async schedule(principal: Principal, buildRid: Forge.Build.Rid, jobSpecRids: Forge.JobSpec.Rid[]): Promise<Forge.Job.Schema[]> {
@@ -101,30 +77,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
         return rows.map(ForgeDB.Job.toDomain);
     }
 
-    /**
-     * After the relay pushed it: scheduled → queued, or — re-pushed by the sweep
-     * because Redis lost it — queued again from now, so it isn't stale any more.
-     * Null if the job was already past both (started meanwhile).
-     */
-    @Transactional()
-    public async markQueued(principal: Principal, job: Forge.Queue.RunJob.Job): Promise<Forge.Job.Schema | null> {
-        const row = await this.trx
-            .updateTable('forge.job')
-            .set({ status: 'queued', queued_at: new Date() })
-            .where('rid', '=', job.jobRid)
-            .where('attempt', '=', job.attempt)
-            .where('status', 'in', ['scheduled', 'queued'])
-            .returningAll()
-            .executeTakeFirst();
-
-        return row ? ForgeDB.Job.toDomain(row) : null;
-    }
-
-    /**
-     * `scheduled` or `queued` → `running`, once per attempt (`scheduled` too: the
-     * relay may have pushed and crashed before marking it queued). Null if this
-     * attempt isn't waiting to start.
-     */
+    /** `scheduled` → `running`, once per attempt. Null if this attempt isn't waiting to start. */
     @Transactional()
     public async start(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.Job.Schema | null> {
         const now = new Date();
@@ -134,7 +87,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
             .set({ status: 'running', started_at: now, heartbeat_at: now })
             .where('rid', '=', rid)
             .where('attempt', '=', attempt)
-            .where('status', 'in', ['scheduled', 'queued'])
+            .where('status', '=', 'scheduled')
             .returningAll()
             .executeTakeFirst();
 

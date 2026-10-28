@@ -48,7 +48,7 @@ function load() {
         },
 
         checks: {
-            /** Check runs at once on this machine; more get 503 and wait for the next dispatch. */
+            /** Check runs at once on this machine — its run-check processor's concurrency; the rest wait in the queue. */
             slots:  env.CODE_WORKSPACE_CHECK_SLOTS,
             memory: env.CODE_WORKSPACE_CHECK_MEMORY,
             cpus:   env.CODE_WORKSPACE_CHECK_CPUS,

@@ -58,12 +58,12 @@ describe('job events', () => {
         ({ jobs } = await harness.jobsBySpec(user, build.rid, specs));
         await harness.run(jobs.B);
 
-        const events = await eventsOf(build.rid, names, 9);
+        const events = await eventsOf(build.rid, names, 7);
 
-        // Initializing announces every job (in no particular order), then the relay queues the root.
+        // Initializing announces every job (in no particular order); delivery to Redis isn't a job change.
         expect(new Set(events.slice(0, 2))).toEqual(new Set(['A:scheduled', 'B:waiting']));
         expect(events.slice(2)).toEqual([
-            'A:queued', 'A:running', 'A:succeeded', 'B:scheduled', 'B:queued', 'B:running', 'B:succeeded',
+            'A:running', 'A:succeeded', 'B:scheduled', 'B:running', 'B:succeeded',
         ]);
     });
 
@@ -80,7 +80,7 @@ describe('job events', () => {
         const { jobs } = await harness.jobsBySpec(user, build.rid, specs);
         await harness.run(jobs.A, 'failed');
 
-        const events = await eventsOf(build.rid, names, 8);
+        const events = await eventsOf(build.rid, names, 7);
 
         expect(events).toContain('A:failed');
         expect(events).toContain('B:canceled');
@@ -97,7 +97,7 @@ describe('job events', () => {
 
         await harness.forge.cancelBuild(user, build.rid);
 
-        expect(await eventsOf(build.rid, names, 3)).toEqual(['A:scheduled', 'A:queued', 'A:canceled']);
+        expect(await eventsOf(build.rid, names, 2)).toEqual(['A:scheduled', 'A:canceled']);
     });
 
     it("publishes each build on its own channel — another build's subscriber hears nothing", async () => {
@@ -107,7 +107,7 @@ describe('job events', () => {
 
         const { build } = await harness.build(user, [datasets.a]);
         await harness.forge.cancelBuild(user, build.rid);
-        await eventsOf(build.rid, {}, 3);
+        await eventsOf(build.rid, {}, 2);
 
         const channels = new Set(received.map((event) => event.channel));
 

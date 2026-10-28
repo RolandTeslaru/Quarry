@@ -15,11 +15,15 @@ export namespace CheckRun {
     export const Rid = Foundations.Rid.generateSchema("code-workspace", "check-run")
     export const createRid = () => Foundations.Rid.create("code-workspace", "check-run")
 
-    /** `queued`: decided, maybe not yet sent to the worker · `canceled`: a newer push to the branch superseded it. */
-    export const Status = z.enum(["queued", "running", "succeeded", "failed", "canceled"])
+    /**
+     * `waiting` for its workspace (one runs at a time) · `scheduled`: may run — its message is on its
+     * way to a worker (the outbox, then Redis) · `running`: a worker took it · finished · `canceled`:
+     * a newer push to the branch superseded it. Forge's (Airflow's) names for the same steps.
+     */
+    export const Status = z.enum(["waiting", "scheduled", "running", "succeeded", "failed", "canceled"])
     export type  Status = z.infer<typeof Status>
 
-    export const UNFINISHED: readonly Status[] = ["queued", "running"]
+    export const UNFINISHED: readonly Status[] = ["waiting", "scheduled", "running"]
 
     export namespace Step {
 
@@ -60,9 +64,10 @@ export namespace CheckRun {
         published:    z.boolean(),                      // its commit became the branch's job specs
         failure:      Failure.nullable(),
         pushedBy:     User.Rid.nullable(),              // whom it acts as; null = the system
-        createdAt:    z.coerce.date(),
-        startedAt:    z.coerce.date().nullable(),        // claimed by dispatch, sent to the worker
-        reportedAt:   z.coerce.date().nullable(),        // the worker's last report; null until it takes the run
+        createdAt:    z.coerce.date(),                   // pushed
+        scheduledAt:  z.coerce.date().nullable(),        // its workspace was free: its message added
+        startedAt:    z.coerce.date().nullable(),        // a worker took it
+        reportedAt:   z.coerce.date().nullable(),        // the worker's last report (start, a step) — silence fails it
         finishedAt:   z.coerce.date().nullable(),
     })
     export type Schema = z.infer<typeof Schema>

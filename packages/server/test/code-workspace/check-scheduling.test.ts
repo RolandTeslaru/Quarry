@@ -6,8 +6,8 @@ import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { Principal } from '@/auth/principal';
 import { db } from '@/db/pool';
+import { DurableQueues } from '@/infra/durable-queue';
 import { QueueManager } from '@/infra/queue';
-import { CheckDispatcher } from '@/services/CodeWorkspace/checks/check-dispatcher';
 import { CodeWorkspaceChecks } from '@/services/CodeWorkspace/checks/code-workspace-checks';
 import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/repository/code-workspace.repository';
 import { MAIN, QUARRY_CI, commitFiles, createWorkspace, type TestWorkspace } from '../support/code-workspace-fixtures';
@@ -27,56 +27,72 @@ const MANIFEST = {
 };
 
 /**
- * Running check runs (docs/design/code-workspaces/checks.md §3): dispatch claims
- * queued runs, one running per workspace, and enqueues them (code-workspace.run-check,
- * read here from the test Redis — nothing consumes it); the test plays the worker
- * (its reports are the service's calls) and the sweep.
+ * Running check runs (docs/design/code-workspaces/checks.md §3): one at a time per
+ * workspace — a push schedules its run if the workspace is free, and whatever frees
+ * it (a finish, a superseding push, the sweep failing a silent run) schedules the
+ * next, adding its message to the durable queue (code-workspace.run-check, read here
+ * from the test Redis — nothing consumes it). The test plays the worker (its reports
+ * are the service's calls) and the sweep.
  */
 describe('check runs, running', () => {
 
     let harness: ForgeHarness;
     let checks: CodeWorkspaceChecks;
-    let dispatcher: CheckDispatcher;
     let admin: Principal.User;
     let add: MockInstance<QueueManager['add']>;
-    const runChecks = new Queue(CodeWorkspace.Queue.RunCheck.Definition.name, { connection: redisConnection(), prefix: QUEUE_PREFIX });
+    const runCheckQueue = new Queue(CodeWorkspace.Queue.RunCheck.Definition.name, { connection: redisConnection(), prefix: QUEUE_PREFIX });
 
-    /** The check runs waiting in the queue, oldest first. */
+    /** The check runs waiting in Redis, oldest first. */
     async function getSent(): Promise<CheckRun.Rid[]> {
-        const jobs = await runChecks.getJobs(['waiting'], 0, -1, true);
+        const jobs = await runCheckQueue.getJobs(['waiting'], 0, -1, true);
 
         return jobs.map((job) => (job.data as CodeWorkspace.Queue.RunCheck.Job).checkRunRid);
+    }
+
+    /** The run-check messages in the outbox — scheduled runs no worker has taken yet. */
+    async function getOutbox(): Promise<{ jobId: string; sentAt: Date | null }[]> {
+        const { rows } = await sql<{ job_id: string; sent_at: Date | null }>`
+            select job_id, sent_at from foundations.outbox where queue_name = ${CodeWorkspace.Queue.RunCheck.Definition.name} order by id`.execute(db());
+
+        return rows.map((row) => ({ jobId: row.job_id, sentAt: row.sent_at }));
     }
 
     beforeAll(async () => {
         harness = await ForgeHarness.start();
         checks = harness.get(CodeWorkspaceChecks);
-        dispatcher = harness.get(CheckDispatcher);
         admin = await harness.createUser();
 
-        vi.spyOn(dispatcher, 'trigger').mockImplementation(() => undefined);      // the test dispatches, when it means to
         add = vi.spyOn(harness.get(QueueManager), 'add');
     });
 
     beforeEach(async () => {
         add.mockClear();
-        await runChecks.obliterate({ force: true });
+        await runCheckQueue.obliterate({ force: true });
 
-        // Every test starts with nothing left to dispatch.
-        await sql`update code_workspace.check_run set status = 'canceled', finished_at = now() where status in ('queued', 'running')`.execute(db());
+        // Every test starts with nothing left to deliver.
+        await sql`update code_workspace.check_run set status = 'canceled', finished_at = now() where status in ('waiting', 'scheduled', 'running')`.execute(db());
+        await sql`delete from foundations.outbox where queue_name = ${CodeWorkspace.Queue.RunCheck.Definition.name}`.execute(db());
     });
 
     afterAll(async () => {
-        await runChecks.close();
+        await runCheckQueue.close();
         await harness.stop();
     });
 
-    /** A workspace whose main has quarry-ci.yml, and a queued run of it. */
-    async function queuedWorkspace(files: Record<string, string> = { 'quarry-ci.yml': QUARRY_CI }): Promise<TestWorkspace & { run: CheckRun.Schema }> {
+    /** A workspace whose main has quarry-ci.yml, and its run — scheduled at once: the workspace is free. */
+    async function scheduledWorkspace(files: Record<string, string> = { 'quarry-ci.yml': QUARRY_CI }): Promise<TestWorkspace & { run: CheckRun.Schema }> {
         const workspace = await createWorkspace(harness, admin, files);
         const { queued } = await checks.pushed(admin, workspace.rid, workspace.heads);
 
         return { ...workspace, run: queued[0] };
+    }
+
+    /** A commit on another branch, pushed: its run (waiting, if the workspace is busy). */
+    async function pushBranch(workspace: TestWorkspace, branch: Foundations.Branch): Promise<CheckRun.Schema> {
+        const commit = await commitFiles(harness, workspace.rid, { [`${branch}.py`]: '' }, branch);
+        const { queued } = await checks.pushed(admin, workspace.rid, { [branch]: commit });
+
+        return getRun(queued[0].rid);
     }
 
     async function getRun(rid: CheckRun.Rid): Promise<CheckRun.Schema> {
@@ -88,73 +104,89 @@ describe('check runs, running', () => {
         return run;
     }
 
-    /** Dispatched and taken by the (test's) worker. */
+    /** Scheduled and taken by the (test's) worker. */
     async function startedRun(): Promise<{ workspace: TestWorkspace; run: CheckRun.Schema }> {
-        const workspace = await queuedWorkspace();
+        const workspace = await scheduledWorkspace();
 
-        await dispatcher.dispatch();
         await checks.start(workspace.run.rid);
 
         return { workspace, run: await getRun(workspace.run.rid) };
     }
 
-    describe('dispatch', () => {
+    describe('scheduling', () => {
 
-        it('enqueues a queued run, claimed with its steps laid out, its RID as job id', async () => {
-            const { run } = await queuedWorkspace();
+        it('schedules a push in a free workspace at once: steps laid out, its message added and sent (its RID as job id)', async () => {
+            const { run } = await scheduledWorkspace();
 
-            expect(await dispatcher.dispatch()).toBe(1);
-            expect(await getSent()).toEqual([run.rid]);
+            const scheduled = await getRun(run.rid);
 
-            const sent = await getRun(run.rid);
-
-            expect(await runChecks.getJob(CodeWorkspace.Queue.RunCheck.getJobId(sent))).toBeDefined();
-
-            expect(sent).toMatchObject({ status: 'running', reportedAt: null });
-            expect(sent.startedAt).not.toBeNull();
-            expect(sent.steps.map((step) => [step.name, step.status])).toEqual([
+            expect(scheduled).toMatchObject({ status: 'scheduled', startedAt: null });
+            expect(scheduled.scheduledAt).not.toBeNull();
+            expect(scheduled.steps.map((step) => [step.name, step.status])).toEqual([
                 [CheckRun.PARSE_STEP, 'succeeded'],
                 ['Tests', 'waiting'],
                 ['Publish transforms', 'waiting'],
                 [CheckRun.PUBLISH_STEP, 'waiting'],
             ]);
+            expect(await getSent()).toEqual([run.rid]);
+            expect(await getOutbox()).toMatchObject([{ jobId: run.rid }]);
+            expect((await getOutbox())[0].sentAt).not.toBeNull();
         });
 
-        it('runs one check at a time per workspace, oldest first — the next once it finishes', async () => {
-            const workspace = await queuedWorkspace();
-            const feature = await commitFiles(harness, workspace.rid, { 'b.py': '' }, FEATURE);
-            const { queued } = await checks.pushed(admin, workspace.rid, { [FEATURE]: feature });
+        it('runs one check at a time per workspace — the next scheduled by the finish that frees it', async () => {
+            const workspace = await scheduledWorkspace();
+            const waiting = await pushBranch(workspace, FEATURE);
 
-            expect(await dispatcher.dispatch()).toBe(1);
+            expect(waiting.status).toBe('waiting');
             expect(await getSent()).toEqual([workspace.run.rid]);
-            expect((await getRun(queued[0].rid)).status).toBe('queued');
 
             await checks.start(workspace.run.rid);
+            expect((await getRun(waiting.rid)).status).toBe('waiting');                  // running counts too
+
             await checks.finish(workspace.run.rid, { status: 'failed', failure: { step: 'Tests', message: 'pytest failed' } });
 
-            expect(await dispatcher.dispatch()).toBe(1);
-            expect(await getSent()).toEqual([workspace.run.rid, queued[0].rid]);
+            expect((await getRun(waiting.rid)).status).toBe('scheduled');
+            expect(await getSent()).toEqual([workspace.run.rid, waiting.rid]);
         });
 
         it('runs different workspaces at once', async () => {
-            const first = await queuedWorkspace();
-            const second = await queuedWorkspace();
+            const first = await scheduledWorkspace();
+            const second = await scheduledWorkspace();
 
-            expect(await dispatcher.dispatch()).toBe(2);
             expect(await getSent()).toEqual([first.run.rid, second.run.rid]);
         });
 
-        it("gives a run back when it can't be enqueued (Redis down), and stops sending", async () => {
-            const first = await queuedWorkspace();
-            await queuedWorkspace();
+        // The outcome under concurrency. (It passes without scheduleNext's advisory lock too: the race needs two
+        // transactions inside each other's commit window, which these don't reliably hit — the lock is from Postgres's rules.)
+        it('schedules exactly one of many pushes racing for a free workspace — and every push succeeds', async () => {
+            const workspace = await createWorkspace(harness, admin, { 'quarry-ci.yml': QUARRY_CI });
+            const branches = Array.from({ length: 10 }, (_, index) => Foundations.Branch.parse(`race-${index}`));
+            const repository = harness.get(CodeWorkspaceRepository);
+            const steps = [{ name: CheckRun.PARSE_STEP, status: 'succeeded' as const, exitCode: null, startedAt: null, finishedAt: null, log: '' }];
 
+            // Straight to the repository, all at once: no Git reads to stagger them.
+            await Promise.all(branches.map((branch) =>
+                repository.queueCheckRuns(admin, workspace.rid, [{ branch, commit: workspace.heads[MAIN], steps, failure: null }])));
+
+            const statuses = (await checks.listCheckRuns(admin, workspace.rid)).map((run) => run.status);
+
+            expect(statuses.filter((status) => status === 'scheduled')).toHaveLength(1);
+            expect(statuses.filter((status) => status === 'waiting')).toHaveLength(9);
+            expect(await getOutbox()).toHaveLength(1);
+        });
+
+        it("keeps a run scheduled when Redis refuses — its message stays in the outbox, for the sweep", async () => {
             add.mockRejectedValueOnce(new Error('Connection is closed'));
 
-            expect(await dispatcher.dispatch()).toBe(0);
-            expect(add).toHaveBeenCalledTimes(1);                                        // not tried again this pass
-            expect(await getRun(first.run.rid)).toMatchObject({ status: 'queued', startedAt: null, steps: [] });
+            const { run } = await scheduledWorkspace();
 
-            expect(await dispatcher.dispatch()).toBe(2);
+            expect((await getRun(run.rid)).status).toBe('scheduled');
+            expect(await getSent()).toEqual([]);
+            expect(await getOutbox()).toMatchObject([{ jobId: run.rid, sentAt: null }]);
+
+            await harness.get(DurableQueues).sweep();
+
+            expect(await getSent()).toEqual([run.rid]);
         });
 
         it.each([
@@ -162,75 +194,57 @@ describe('check runs, running', () => {
             ['YAML that doesn\'t parse', { 'quarry-ci.yml': 'steps: [unclosed' }, /isn't valid YAML/],
             ['publishing before the last step', { 'quarry-ci.yml': 'steps:\n  - name: P\n    uses: quarry/publish-transforms\n  - name: T\n    run: pytest\n' }, /must be the last step/],
             ['an unknown key', { 'quarry-ci.yml': 'on: push\nsteps:\n  - name: P\n    uses: quarry/publish-transforms\n' }, /invalid/],
-        ])('fails a run with %s at Parse, never sending it — and sends the next', async (_, files, message) => {
-            const broken = await queuedWorkspace(files);
-            const fine = await queuedWorkspace();
-
-            expect(await dispatcher.dispatch()).toBe(1);
-            expect(await getSent()).toEqual([fine.run.rid]);
-
+        ])('fails a push with %s at Parse, never scheduled — the workspace stays free', async (_, files, message) => {
+            const broken = await scheduledWorkspace(files);
             const failed = await getRun(broken.run.rid);
 
-            expect(failed).toMatchObject({ status: 'failed', failure: { step: CheckRun.PARSE_STEP } });
+            expect(failed).toMatchObject({ status: 'failed', failure: { step: CheckRun.PARSE_STEP }, scheduledAt: null });
             expect(failed.failure?.message).toMatch(message);
             expect(failed.steps).toMatchObject([{ name: CheckRun.PARSE_STEP, status: 'failed' }]);
             expect(failed.finishedAt).not.toBeNull();
+            expect(await getSent()).toEqual([]);
+
+            // A fixed commit is scheduled straight away: nothing holds the workspace.
+            const fixed = await commitFiles(harness, broken.rid, { 'quarry-ci.yml': QUARRY_CI });
+            const { queued } = await checks.pushed(admin, broken.rid, { [MAIN]: fixed });
+
+            expect((await getRun(queued[0].rid)).status).toBe('scheduled');
         });
 
-        it('never sends a superseded run, and a push superseding a running one frees the workspace', async () => {
-            const workspace = await queuedWorkspace();
-
-            await dispatcher.dispatch();
+        it('superseding a scheduled run acks its message and schedules the new head in the same push', async () => {
+            const workspace = await scheduledWorkspace();
             const newer = await commitFiles(harness, workspace.rid, { 'a.py': '' });
-            const { queued } = await checks.pushed(admin, workspace.rid, { [MAIN]: newer });
+            const { queued, canceled, scheduled } = await checks.pushed(admin, workspace.rid, { [MAIN]: newer });
 
-            expect((await getRun(workspace.run.rid)).status).toBe('canceled');
-            expect(await dispatcher.dispatch()).toBe(1);
+            expect(canceled.map((run) => run.rid)).toEqual([workspace.run.rid]);
+            expect(scheduled?.rid).toBe(queued[0].rid);
+            expect(await getOutbox()).toMatchObject([{ jobId: queued[0].rid }]);
             expect((await getSent()).at(-1)).toBe(queued[0].rid);
-        });
-
-        it('refuses a second running run in a workspace (the unique index), as a 409 dispatch skips', async () => {
-            const workspace = await queuedWorkspace();
-            const feature = await commitFiles(harness, workspace.rid, { 'b.py': '' }, FEATURE);
-            const { queued } = await checks.pushed(admin, workspace.rid, { [FEATURE]: feature });
-            const repository = harness.get(CodeWorkspaceRepository);
-
-            await repository.checkRun.claim(Principal.SELF('test'), workspace.run.rid, []);
-
-            await expect(repository.checkRun.claim(Principal.SELF('test'), queued[0].rid, [])).rejects.toBeInstanceOf(ConflictException);
-        });
-
-        it('coalesces calls arriving while it runs into one more pass', async () => {
-            await queuedWorkspace();
-            await queuedWorkspace();
-
-            const sent = await Promise.all([dispatcher.dispatch(), dispatcher.dispatch(), dispatcher.dispatch()]);
-
-            expect(await getSent()).toHaveLength(2);
-            expect(sent.every((count) => count === 2)).toBe(true);
         });
     });
 
     describe("the worker's reports", () => {
 
-        it('starts a dispatched run once: its steps and a token', async () => {
-            const workspace = await queuedWorkspace();
-
-            await dispatcher.dispatch();
+        it('starts a scheduled run once — its steps, a token, its message acked', async () => {
+            const workspace = await scheduledWorkspace();
 
             const started = await checks.start(workspace.run.rid);
 
             expect(started.steps.map((step) => step.name)).toEqual(['Tests', 'Publish transforms']);
             expect(started.token.split('.')).toHaveLength(3);                            // a JWT
-            expect(started.checkRun.reportedAt).not.toBeNull();
+            expect(started.checkRun).toMatchObject({ status: 'running' });
+            expect(started.checkRun.startedAt).not.toBeNull();
+            expect(await getOutbox()).toEqual([]);
 
             await expect(checks.start(workspace.run.rid)).rejects.toBeInstanceOf(ConflictException);
         });
 
-        it("refuses to start a run that wasn't dispatched", async () => {
-            const { run } = await queuedWorkspace();
+        it("refuses to start a run that isn't scheduled (waiting for its workspace)", async () => {
+            const workspace = await scheduledWorkspace();
+            const waiting = await pushBranch(workspace, FEATURE);
 
-            await expect(checks.start(run.rid)).rejects.toBeInstanceOf(ConflictException);
+            expect(waiting.status).toBe('waiting');
+            await expect(checks.start(waiting.rid)).rejects.toBeInstanceOf(ConflictException);
         });
 
         it('records a step starting and ending, at its place after Parse', async () => {
@@ -320,63 +334,34 @@ describe('check runs, running', () => {
 
     describe('the sweep', () => {
 
-        async function backdate(rid: CheckRun.Rid, column: 'started_at' | 'reported_at', minutes: number): Promise<void> {
-            await sql`update code_workspace.check_run set ${sql.ref(column)} = now() - make_interval(mins => ${minutes}) where rid = ${rid}`.execute(db());
-        }
-
-        it('sends again a run no worker took within 2 minutes, whose message Redis lost', async () => {
-            const { run } = await queuedWorkspace();
-
-            await dispatcher.dispatch();
-            await backdate(run.rid, 'started_at', 3);
-
-            const claimed = await getRun(run.rid);
-
-            await runChecks.remove(CodeWorkspace.Queue.RunCheck.getJobId(claimed));                // a Redis restart
-            expect(await getSent()).toEqual([]);
-
-            expect(await checks.sweep()).toEqual({ resent: 1, failed: 0, dispatched: 0 });
-            expect(await getSent()).toEqual([run.rid]);
-            expect(await runChecks.getJob(CodeWorkspace.Queue.RunCheck.getJobId(claimed))).toBeDefined();
-            expect((await getRun(run.rid)).status).toBe('running');
-        });
-
-        it("doesn't duplicate a message still waiting for a worker (all of them busy)", async () => {
-            const { run } = await queuedWorkspace();
-
-            await dispatcher.dispatch();
-            await backdate(run.rid, 'started_at', 3);
-
-            expect(await checks.sweep()).toMatchObject({ resent: 1 });
-            expect(await getSent()).toEqual([run.rid]);                                          // the same job id: ignored
-        });
-
-        it('leaves a run sent moments ago alone', async () => {
-            await queuedWorkspace();
-            await dispatcher.dispatch();
-
-            expect(await checks.sweep()).toEqual({ resent: 0, failed: 0, dispatched: 0 });
-        });
-
-        it('fails a run whose worker went silent for 35 minutes — and frees its workspace', async () => {
+        it('fails a run whose worker went silent for 35 minutes — and schedules the workspace\'s next', async () => {
             const { workspace, run } = await startedRun();
-            const feature = await commitFiles(harness, workspace.rid, { 'b.py': '' }, FEATURE);
-            const { queued } = await checks.pushed(admin, workspace.rid, { [FEATURE]: feature });
+            const waiting = await pushBranch(workspace, FEATURE);
 
-            await backdate(run.rid, 'reported_at', 36);
+            await sql`update code_workspace.check_run set reported_at = now() - interval '36 minutes' where rid = ${run.rid}`.execute(db());
 
-            expect(await checks.sweep()).toEqual({ resent: 0, failed: 1, dispatched: 1 });
+            expect(await checks.sweep()).toEqual({ failed: 1, scheduled: 1 });
             expect(await getRun(run.rid)).toMatchObject({ status: 'failed', failure: { step: 'Worker' } });
-            expect((await getSent()).at(-1)).toBe(queued[0].rid);
+            expect((await getRun(waiting.rid)).status).toBe('scheduled');
+            expect((await getSent()).at(-1)).toBe(waiting.rid);
         });
 
         it('leaves a run that reported recently alone', async () => {
             const { run } = await startedRun();
 
-            await backdate(run.rid, 'reported_at', 20);
+            await sql`update code_workspace.check_run set reported_at = now() - interval '20 minutes' where rid = ${run.rid}`.execute(db());
 
-            expect(await checks.sweep()).toMatchObject({ resent: 0, failed: 0 });
+            expect(await checks.sweep()).toEqual({ failed: 0, scheduled: 0 });
             expect((await getRun(run.rid)).status).toBe('running');
+        });
+
+        it("leaves a scheduled run alone, however long it waits for a worker — delivering it is the durable queue's", async () => {
+            const { run } = await scheduledWorkspace();
+
+            await sql`update code_workspace.check_run set scheduled_at = now() - interval '2 hours' where rid = ${run.rid}`.execute(db());
+
+            expect(await checks.sweep()).toEqual({ failed: 0, scheduled: 0 });
+            expect((await getRun(run.rid)).status).toBe('scheduled');
         });
     });
 });

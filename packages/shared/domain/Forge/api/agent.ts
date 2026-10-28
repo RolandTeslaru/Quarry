@@ -6,7 +6,7 @@ import { JobSpec as JobSpecD } from "../JobSpec"
 /** ForgeAgents only (`/api/forge-agent/…`, the ForgeAgent token) — mirrors forge-agent.controller. */
 export namespace Agent {
 
-    /** Take the job (`scheduled` or `queued` → `running`, once per attempt). */
+    /** Take the job (`scheduled` → `running`, once per attempt). */
     export namespace Start {
         export const Request = z.object({ attempt: z.number().int().positive() })
         export type  Request = z.infer<typeof Request>

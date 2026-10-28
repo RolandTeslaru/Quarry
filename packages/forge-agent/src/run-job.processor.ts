@@ -13,7 +13,7 @@ const SLOTS = Number(process.env.FORGE_AGENT_SLOTS ?? 2);
 /**
  * One attempt of one job, as the server hands it out:
  *
- *   start (scheduled|queued → running)  →  run  →  finish (succeeded | failed)
+ *   start (scheduled → running)  →  run  →  finish (succeeded | failed)
  *
  * Scaffold: there's no compute yet. "Run" is a single heartbeat — the server
  * aborts the job's outputs on finish rather than committing them.

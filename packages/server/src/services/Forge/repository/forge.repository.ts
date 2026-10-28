@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
+import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
 import { ForgeDB } from '../forge.db';
 import { BuildRepository, type NewBuild } from './build.repository';
 import { JobRepository, type NewJob } from './job.repository';
@@ -15,20 +16,26 @@ import { JobSpecRepository } from './job-spec.repository';
  * so a service can't commit half.
  *
  * Expose a sub-repository method only if it is, by itself, a complete and valid
- * state change (or a read): `markQueued` is; `schedule` isn't — it's only valid
+ * state change (or a read): `heartbeat` is; `schedule` isn't — it's only valid
  * once the parents succeeded, which `finishJob` decides.
+ *
+ * Jobs reach ForgeAgents through a durable queue (docs/design/durable-queues.md):
+ * a job's message is added in the transaction that schedules it, and acked in the
+ * one that starts it or ends its build.
  */
 @Injectable()
 export class ForgeRepository extends Repository(ForgeDB.database) {
 
     public readonly build:   Pick<BuildRepository, 'get' | 'list'>;
-    public readonly job:     Pick<JobRepository, 'get' | 'listForBuild' | 'listToRelay' | 'markQueued' | 'heartbeat'>;
+    public readonly job:     Pick<JobRepository, 'get' | 'listForBuild' | 'heartbeat'>;
     public readonly jobSpec: Pick<JobSpecRepository, 'publish' | 'getCurrent' | 'get'>;
 
     constructor(
         private readonly _build:   BuildRepository,
         private readonly _job:     JobRepository,
         private readonly _jobSpec: JobSpecRepository,
+        @InjectDurableQueue(Forge.DurableQueue.RunJob)
+        private readonly _runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
     ) {
         super();
 
@@ -39,13 +46,17 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
     // ── builds ──────────────────────────────────────────────────────────
 
-    /** The build and its jobs, in one transaction. Returns the jobs as created. */
+    /** The build and its jobs — and its roots' messages — in one transaction. Returns the jobs as created. */
     @Transactional()
     public async initializeBuild(principal: Principal, build: NewBuild, jobs: NewJob[]): Promise<Forge.Job.Schema[]> {
         await this._build.insert(principal, build);
         await this._job.insertForBuild(principal, build, jobs);
 
-        return this._job.listForBuild(principal, build.rid);
+        const created = await this._job.listForBuild(principal, build.rid);
+
+        await this._addRunJobs(created.filter((job) => job.status === 'scheduled'));
+
+        return created;
     }
 
     /**
@@ -66,6 +77,8 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
             return null;
         }
 
+        await this._ackRunJobs(canceled);                         // their messages won't be taken now
+
         return canceled;
     }
 
@@ -77,6 +90,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         const canceled = await this._job.cancelUnfinished(principal, buildRid, finishedAt);
 
         await this._build.end(principal, buildRid, 'failed', finishedAt);
+        await this._ackRunJobs(canceled);
 
         return canceled;
     }
@@ -85,8 +99,8 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
     /**
      * A ForgeAgent takes the job and gets its spec — in one transaction, so a
-     * job is never left running without its agent knowing what to run. Null if
-     * this attempt isn't waiting to start.
+     * job is never left running without its agent knowing what to run — and its
+     * message is acked. Null if this attempt isn't waiting to start.
      */
     @Transactional()
     public async startJob(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Start.Response | null> {
@@ -101,6 +115,8 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         if (!jobSpec)
             throw new Error(`Job ${rid} has no job spec ${job.jobSpecRid}`);
 
+        await this._ackRunJobs([job]);
+
         return { job, jobSpec };
     }
 
@@ -108,7 +124,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
      * Records how the running attempt ended, then advances its build: on success,
      * each child whose parents have all succeeded goes `waiting → scheduled`;
      * nothing left unfinished → the build is done. Null if this attempt wasn't
-     * running. Returns the jobs it scheduled, for the relay.
+     * running. The scheduled jobs' messages are added; returns them.
      */
     @Transactional()
     public async finishJob(
@@ -125,12 +141,27 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
             ? await this._scheduleReadyChildren(principal, job)
             : [];
 
+        await this._addRunJobs(scheduled);
         await this._endBuildIfDone(principal, job.buildRid);
 
         return { job, scheduled };
     }
 
     // ── helpers ─────────────────────────────────────────────────────────
+
+    /** Scheduled jobs' messages, into the outbox — in the transaction that scheduled them. */
+    private async _addRunJobs(jobs: Forge.Job.Schema[]): Promise<void> {
+        await this._runJobQueue.add(jobs.map((job) => {
+            const message = Forge.Job.getMessage(job);
+
+            return { message, jobId: Forge.Queue.RunJob.getJobId(message) };
+        }));
+    }
+
+    /** Taken, or never to be: out of the outbox. Jobs that never had a message (waiting) are no-ops. */
+    private async _ackRunJobs(jobs: Forge.Job.Schema[]): Promise<void> {
+        await this._runJobQueue.ack(jobs.map((job) => Forge.Queue.RunJob.getJobId(Forge.Job.getMessage(job))));
+    }
 
     /** The finished job's children whose parents have all succeeded: `waiting → scheduled`. */
     private async _scheduleReadyChildren(principal: Principal, finished: Forge.Job.Schema): Promise<Forge.Job.Schema[]> {

@@ -4,6 +4,7 @@ import { AuthGuard } from '@/auth/auth.guard';
 import { TokenVerifier } from '@/auth/token-verifier';
 import { HealthController } from '@/http/health.controller';
 import { InfraModule } from '@/infra/infra.module';
+import { DurableQueueInternalController, DurableQueueModule } from '@/infra/durable-queue';
 import { IdentityModule } from '@/services/Identity/identity.module';
 import { MeController } from '@/services/Identity/me.controller';
 import { UsersController } from '@/services/Identity/users.controller';
@@ -27,7 +28,6 @@ import { CodeWorkspaceInternalController } from '@/services/CodeWorkspace/code-w
 import { ForgeModule } from '@/services/Forge/forge.module';
 import { ForgeController } from '@/services/Forge/forge.controller';
 import { ForgeAgentController } from '@/services/Forge/agent/forge-agent.controller';
-import { ForgeInternalController } from '@/services/Forge/forge.internal.controller';
 import { RealtimeModule } from '@/services/Realtime/realtime.module';
 import { AuditModule } from '@/services/Audit/audit.module';
 import { AuditController } from '@/services/Audit/audit.controller';
@@ -40,6 +40,7 @@ import { AuditController } from '@/services/Audit/audit.controller';
 @Module({
     imports: [
         InfraModule,
+        DurableQueueModule.forRoot(),
         RealtimeModule,
         AuditModule,
         IdentityModule,
@@ -68,7 +69,7 @@ import { AuditController } from '@/services/Audit/audit.controller';
         CatalogInternalController,
         DataConnectionInternalController,
         CodeWorkspaceInternalController,
-        ForgeInternalController,
+        DurableQueueInternalController,
         // /api/forge-agent/… — the ForgeAgent token only
         ForgeAgentController,
     ],

@@ -15,21 +15,20 @@ import type { Principal } from '@/auth/principal';
 import { SessionTokens } from '@/auth/session-tokens';
 import { db } from '@/db/pool';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
-import { CheckDispatcher } from '@/services/CodeWorkspace/checks/check-dispatcher';
-import { createWorkspace } from '../support/code-workspace-fixtures';
+import { QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 import { ForgeHarness } from '../support/forge-fixtures';
 
 const run = promisify(execFile);
 
 const MAIN = Foundations.Branch.parse('main');
 const FEATURE = Foundations.Branch.parse('feature/orders');
-const sha = (character: string) => CodeWorkspace.Git.Commit.parse(character.repeat(40));
 
 /**
  * Check runs queued by pushes (docs/design/code-workspaces/checks.md §1): one per
- * moved branch head, as the pusher, superseding the branch's unfinished runs.
+ * moved branch head, as the pusher, superseding the branch's unfinished runs — and,
+ * one at a time per workspace, the next scheduled in the same transaction.
  * Workspaces are made without a template (no `uv lock`): the row, and a bare
- * repository with one commit, under the test Git root.
+ * repository under the test Git root whose commits hold a quarry-ci.yml.
  */
 describe('check runs', () => {
 
@@ -40,9 +39,6 @@ describe('check runs', () => {
     beforeAll(async () => {
         harness = await ForgeHarness.start();
         service = harness.get(CodeWorkspaceService);
-
-        // Queueing only: dispatching them is check-dispatch.test's.
-        vi.spyOn(harness.get(CheckDispatcher), 'trigger').mockImplementation(() => undefined);
         admin = await harness.createUser();
     });
 
@@ -50,83 +46,112 @@ describe('check runs', () => {
         await harness.stop();
     });
 
+    /** A workspace whose commits can be checked (they hold quarry-ci.yml). */
+    const checkedWorkspace = () => createWorkspace(harness, admin, { 'quarry-ci.yml': QUARRY_CI });
+
+    async function getByCommit(rid: CodeWorkspace.Rid): Promise<Record<string, CodeWorkspace.CheckRun.Schema>> {
+        return Object.fromEntries((await service.checks.listCheckRuns(admin, rid)).map((run) => [run.commit, run]));
+    }
+
     describe('queued by the service', () => {
 
-        it('queues a run per moved branch, as the pusher', async () => {
-            const { rid, heads } = await createWorkspace(harness, admin);
+        it('queues a run per moved branch, as the pusher — scheduled at once in a free workspace', async () => {
+            const { rid, heads } = await checkedWorkspace();
 
             await service.pushed(admin, rid, {});
 
             const runs = await service.checks.listCheckRuns(admin, rid);
 
             expect(runs).toHaveLength(1);
-            expect(runs[0]).toMatchObject({ branch: MAIN, commit: heads[MAIN], status: 'queued', pushedBy: admin.userRid, steps: [], published: false });
+            expect(runs[0]).toMatchObject({ branch: MAIN, commit: heads[MAIN], status: 'scheduled', pushedBy: admin.userRid, published: false });
+            expect(runs[0].steps.map((step) => step.name)).toEqual([CodeWorkspace.CheckRun.PARSE_STEP, 'Tests', 'Publish transforms', CodeWorkspace.CheckRun.PUBLISH_STEP]);
+        });
+
+        it('fails a head without a valid quarry-ci.yml at Parse, at once', async () => {
+            const { rid } = await createWorkspace(harness, admin);                       // README only
+
+            await service.pushed(admin, rid, {});
+
+            expect(await service.checks.listCheckRuns(admin, rid)).toMatchObject([{ status: 'failed', failure: { step: CodeWorkspace.CheckRun.PARSE_STEP } }]);
         });
 
         it("queues nothing when the push moved nothing", async () => {
-            const { rid, heads } = await createWorkspace(harness, admin);
+            const { rid, heads } = await checkedWorkspace();
 
             await service.pushed(admin, rid, heads);
 
             expect(await service.checks.listCheckRuns(admin, rid)).toEqual([]);
         });
 
-        it("supersedes the branch's queued and running runs, and only that branch's", async () => {
-            const { rid } = await createWorkspace(harness, admin);
+        it("supersedes the branch's unfinished runs — freeing the workspace for its oldest waiting run", async () => {
+            const { rid } = await checkedWorkspace();
+            const a = await commitFiles(harness, rid, { 'a.py': '' });
+            const f = await commitFiles(harness, rid, { 'f.py': '' }, FEATURE);
 
-            const first = await service.checks.pushed(admin, rid, { [MAIN]: sha('a'), [FEATURE]: sha('f') });
-            await setRunning(first.queued.find((run) => run.branch === MAIN)!.rid);
+            await service.checks.pushed(admin, rid, { [MAIN]: a });                          // scheduled
+            await service.checks.pushed(admin, rid, { [FEATURE]: f });                       // waiting: the workspace is busy
+            await setRunning((await getByCommit(rid))[a].rid);
 
-            const second = await service.checks.pushed(admin, rid, { [MAIN]: sha('b') });
+            const b = await commitFiles(harness, rid, { 'b.py': '' });
+            const second = await service.checks.pushed(admin, rid, { [MAIN]: b });
 
-            expect(second.canceled.map((run) => run.commit)).toEqual([sha('a')]);
+            expect(second.canceled.map((run) => run.commit)).toEqual([a]);
 
-            const byCommit = Object.fromEntries((await service.checks.listCheckRuns(admin, rid)).map((run) => [run.commit, run]));
+            const byCommit = await getByCommit(rid);
 
-            expect(byCommit[sha('a')]).toMatchObject({ status: 'canceled' });
-            expect(byCommit[sha('a')].finishedAt).not.toBeNull();
-            expect(byCommit[sha('b')]).toMatchObject({ status: 'queued' });
-            expect(byCommit[sha('f')]).toMatchObject({ status: 'queued' });           // another branch: untouched
+            expect(byCommit[a]).toMatchObject({ status: 'canceled' });
+            expect(byCommit[a].finishedAt).not.toBeNull();
+            expect(byCommit[f]).toMatchObject({ status: 'scheduled' });                    // the oldest waiting, not the newest
+            expect(byCommit[b]).toMatchObject({ status: 'waiting' });
         });
 
         it('leaves finished runs alone when superseding', async () => {
-            const { rid } = await createWorkspace(harness, admin);
+            const { rid } = await checkedWorkspace();
+            const a = await commitFiles(harness, rid, { 'a.py': '' });
 
-            const first = await service.checks.pushed(admin, rid, { [MAIN]: sha('a') });
-            await finish(first.queued[0].rid);
+            await service.checks.pushed(admin, rid, { [MAIN]: a });
+            await finish((await getByCommit(rid))[a].rid);
 
-            const second = await service.checks.pushed(admin, rid, { [MAIN]: sha('b') });
+            const b = await commitFiles(harness, rid, { 'b.py': '' });
+            const second = await service.checks.pushed(admin, rid, { [MAIN]: b });
 
             expect(second.canceled).toEqual([]);
-            expect((await service.checks.listCheckRuns(admin, rid, MAIN)).map((run) => run.status)).toEqual(['queued', 'failed']);
+            expect((await service.checks.listCheckRuns(admin, rid, MAIN)).map((run) => run.status)).toEqual(['scheduled', 'failed']);
         });
 
         it('lists one branch, newest first', async () => {
-            const { rid } = await createWorkspace(harness, admin);
+            const { rid } = await checkedWorkspace();
+            const a = await commitFiles(harness, rid, { 'a.py': '' });
+            const f = await commitFiles(harness, rid, { 'f.py': '' }, FEATURE);
 
-            await service.checks.pushed(admin, rid, { [MAIN]: sha('a'), [FEATURE]: sha('f') });
-            await service.checks.pushed(admin, rid, { [MAIN]: sha('b') });
+            await service.checks.pushed(admin, rid, { [MAIN]: a, [FEATURE]: f });
 
-            expect((await service.checks.listCheckRuns(admin, rid, MAIN)).map((run) => run.commit)).toEqual([sha('b'), sha('a')]);
-            expect((await service.checks.listCheckRuns(admin, rid, FEATURE)).map((run) => run.commit)).toEqual([sha('f')]);
+            const b = await commitFiles(harness, rid, { 'b.py': '' });
+
+            await service.checks.pushed(admin, rid, { [MAIN]: b });
+
+            expect((await service.checks.listCheckRuns(admin, rid, MAIN)).map((run) => run.commit)).toEqual([b, a]);
+            expect((await service.checks.listCheckRuns(admin, rid, FEATURE)).map((run) => run.commit)).toEqual([f]);
         });
 
         it('lets readers see runs; refuses queueing to someone without write', async () => {
-            const { rid, projectRid } = await createWorkspace(harness, admin);
+            const { rid, projectRid } = await checkedWorkspace();
             const viewer = await harness.createUser('member');
             const outsider = await harness.createUser('member');
+            const a = await commitFiles(harness, rid, { 'a.py': '' });
+            const b = await commitFiles(harness, rid, { 'b.py': '' });
 
             await harness.grant(admin, projectRid, viewer, 'viewer');
-            await service.checks.pushed(admin, rid, { [MAIN]: sha('a') });
+            await service.checks.pushed(admin, rid, { [MAIN]: a });
 
             expect(await service.checks.listCheckRuns(viewer, rid)).toHaveLength(1);
             expect(await service.checks.listCheckRuns(outsider, rid)).toEqual([]);
-            await expect(service.checks.pushed(viewer, rid, { [MAIN]: sha('b') })).rejects.toThrow();
+            await expect(service.checks.pushed(viewer, rid, { [MAIN]: b })).rejects.toThrow();
             expect(await service.checks.listCheckRuns(admin, rid)).toHaveLength(1);
         });
 
         it('never throws from pushed: a failure to queue is logged, not raised into the finished push', async () => {
-            const { rid, projectRid } = await createWorkspace(harness, admin);
+            const { rid, projectRid } = await checkedWorkspace();
             const viewer = await harness.createUser('member');
 
             await harness.grant(admin, projectRid, viewer, 'viewer');
@@ -146,7 +171,6 @@ describe('check runs', () => {
             server = await NestFactory.create<NestExpressApplication>(ApiModule, { logger: false });
             server.setGlobalPrefix('api');
             server.useWebSocketAdapter(new WsAdapter(server));
-            vi.spyOn(server.get(CheckDispatcher), 'trigger').mockImplementation(() => undefined);
             await server.listen(0, '127.0.0.1');
 
             const { port } = server.getHttpServer().address() as AddressInfo;
@@ -187,7 +211,7 @@ describe('check runs', () => {
         }
 
         it('queues a run for the pushed commit', async () => {
-            const { rid } = await createWorkspace(harness, admin);
+            const { rid } = await checkedWorkspace();
             const clone = await cloneAs(admin, rid);
             const commit = await clone.commit('orders.py');
 
@@ -196,11 +220,11 @@ describe('check runs', () => {
             const runs = await service.checks.listCheckRuns(admin, rid);
 
             expect(runs).toHaveLength(1);
-            expect(runs[0]).toMatchObject({ branch: MAIN, commit, status: 'queued', pushedBy: admin.userRid });
+            expect(runs[0]).toMatchObject({ branch: MAIN, commit, status: 'scheduled', pushedBy: admin.userRid });
         });
 
         it('checks only the head of a push of several commits', async () => {
-            const { rid } = await createWorkspace(harness, admin);
+            const { rid } = await checkedWorkspace();
             const clone = await cloneAs(admin, rid);
 
             await clone.commit('a.py');
@@ -213,7 +237,7 @@ describe('check runs', () => {
         });
 
         it('queues a run per branch pushed, and supersedes on the next push', async () => {
-            const { rid } = await createWorkspace(harness, admin);
+            const { rid } = await checkedWorkspace();
             const clone = await cloneAs(admin, rid);
 
             const first = await clone.commit('a.py');
@@ -228,12 +252,13 @@ describe('check runs', () => {
             const byCommit = Object.fromEntries((await service.checks.listCheckRuns(admin, rid)).map((run) => [run.commit, run]));
 
             expect(byCommit[first]).toMatchObject({ status: 'canceled' });
-            expect(byCommit[second]).toMatchObject({ branch: MAIN, status: 'queued' });
-            expect(byCommit[feature]).toMatchObject({ branch: FEATURE, status: 'queued' });
+            expect(byCommit[second]).toMatchObject({ branch: MAIN });
+            expect(byCommit[feature]).toMatchObject({ branch: FEATURE });
+            expect([byCommit[second].status, byCommit[feature].status].sort()).toEqual(['scheduled', 'waiting']);   // one at a time per workspace
         });
 
         it('queues nothing for a rejected push, a fetch, or a deleted branch', async () => {
-            const { rid } = await createWorkspace(harness, admin);
+            const { rid } = await checkedWorkspace();
             const ahead = await cloneAs(admin, rid);
             const behind = await cloneAs(admin, rid);
 
@@ -252,7 +277,7 @@ describe('check runs', () => {
         });
 
         it("refuses a viewer's push — and queues nothing", async () => {
-            const { rid, projectRid } = await createWorkspace(harness, admin);
+            const { rid, projectRid } = await checkedWorkspace();
             const viewer = await harness.createUser('member');
 
             await harness.grant(admin, projectRid, viewer, 'viewer');
@@ -265,7 +290,7 @@ describe('check runs', () => {
         });
 
         it("queues an editor's push as the editor", async () => {
-            const { rid, projectRid } = await createWorkspace(harness, admin);
+            const { rid, projectRid } = await checkedWorkspace();
             const editor = await harness.createUser('member');
 
             await harness.grant(admin, projectRid, editor, 'editor');
@@ -289,7 +314,7 @@ interface Git {
 
 /** As the worker will, once it takes the run. */
 async function setRunning(rid: CodeWorkspace.CheckRun.Rid): Promise<void> {
-    await sql`update code_workspace.check_run set status = 'running', started_at = now() where rid = ${rid}`.execute(db());
+    await sql`update code_workspace.check_run set status = 'running', scheduled_at = now(), started_at = now(), reported_at = now() where rid = ${rid}`.execute(db());
 }
 
 async function finish(rid: CodeWorkspace.CheckRun.Rid): Promise<void> {

@@ -6,8 +6,8 @@ import { config } from './config';
 
 /**
  * Takes check runs from `code-workspace.run-check` — as many at once as this machine
- * has check slots (CODE_WORKSPACE_CHECK_SLOTS). The server's dispatch decides what's
- * queued (one running per workspace); here they're only run.
+ * has check slots (CODE_WORKSPACE_CHECK_SLOTS). The server decides what's scheduled
+ * (one at a time per workspace); here they're only run.
  */
 @Processor(CodeWorkspace.Queue.RunCheck.Definition.name, { concurrency: config.checks.slots })
 export class RunCheckProcessor extends JobProcessor<typeof CodeWorkspace.Queue.RunCheck.Definition> {

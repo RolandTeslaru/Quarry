@@ -1,6 +1,6 @@
 # Checks (CI)
 
-_Spec, written 2026-10-27. Built so far: steps 1–3 of the build order — pushes queue runs, dispatch enqueues them for the workers, which runs quarry-ci.yml's steps and reports them; the sweep repairs. Not yet: the manifest command (step 4) — so a real run fails at its publish step — and publishing (step 5). Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
+_Spec, written 2026-10-27. Built so far: steps 1–3 of the build order — pushes queue runs, the scheduler hands them to the workers through a durable queue ([durable-queues.md](../durable-queues.md), since 2026-10-28), a worker runs quarry-ci.yml's steps and reports them; the sweep fails silent runs. Not yet: the manifest command (step 4) — so a real run fails at its publish step — and publishing (step 5). Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
 
 A **check run** is CI for one commit of a Code Workspace: it runs the steps the repository declares in `quarry-ci.yml`, then — if they all pass — **publishes the workspace's job specs** for that branch, pinned to that commit. It's the only thing that publishes them: a build reads specs, it never makes them ([forge.md](../forge.md)). No passing check, nothing to build.
 
@@ -34,8 +34,8 @@ sequenceDiagram
     V->>G: POST /api/git/<rid>.git/git-receive-pack (Bearer: session token)
     G->>G: heads before → git http-backend → heads after
     G->>S: pushed(principal, workspace, moved branches)
-    S->>S: insert check_run (queued) per moved branch,<br/>cancel older queued/running runs of that branch
-    S->>S: dispatch: claim (running), parse quarry-ci.yml
+    S->>S: insert check_run (waiting) per moved branch,<br/>cancel the branch's unfinished runs (acking their messages)
+    S->>S: schedule: parse quarry-ci.yml, waiting → scheduled + its message in the outbox (one transaction)
     S->>W: enqueue code-workspace.run-check { checkRunRid } (Redis) — a worker with a free slot takes it
     W->>S: POST /api/internal/…/check-runs/:rid/start → { steps, token, … }
     W->>C: docker run runtime image — clone @commit, uv sync
@@ -68,7 +68,7 @@ await serveGit(request, response, {
 
 - `afterServe` runs once `git http-backend` has exited and **before the response ends**: when the user's `git push` returns, its runs are queued. A rejected push (non-fast-forward, say) moves nothing.
 - `pushed` never throws — the push already succeeded; a run that couldn't be queued is logged.
-- `CodeWorkspaceChecks.pushed` → `CodeWorkspaceRepository.queueCheckRuns`, as the pusher, one transaction: cancel the branches' `queued`/`running` runs, insert a `queued` run per head.
+- `CodeWorkspaceChecks.pushed` → `CodeWorkspaceRepository.queueCheckRuns`, as the pusher, one transaction: cancel the branches' unfinished runs (acking their messages), insert a `waiting` run per head.
 - **Deleted branches** run nothing. Their specs stay until branch deletion is designed (open question).
 - **The template's first commit** doesn't pass through the controller (`repositories.ts` pushes straight to the bare repository); creating a workspace calls `checks.pushed` for `main` itself.
 - **Push on commit**: `docker/code-workspace-runtime/configuration-defaults.json` gets `"git.postCommitCommand": "push"`. `git commit` in the terminal still needs a `git push` — ordinary Git.
@@ -110,7 +110,7 @@ Rules — a file breaking one fails the run at **Parse**, before anything runs:
 
 Templates own the file's first version: a future template (SQL, another language) writes its own steps and its own `uses:` step. The file is parsed **by the server**, from the bare repository at the commit (`git show <commit>:quarry-ci.yml`) — so a bad file fails fast without a container, and the worker gets the steps already validated.
 
-## 3. Running it — dispatch and the worker
+## 3. Running it — scheduling and the worker
 
 ### Who runs when
 
@@ -119,34 +119,31 @@ One Code Workspace worker per machine serves every workspace — sessions and ch
 | Level | Rule | Enforced by |
 |---|---|---|
 | Steps of one run | one after another; the first failure stops the run | the worker |
-| Runs of one branch | only the newest head: a push cancels the branch's queued and running runs | `queue` (§1) |
-| Runs of one workspace | **one running at a time**, oldest queued first — a workspace with five busy branches can't take every slot | a unique index: `(workspace_rid) WHERE status = 'running'` |
+| Runs of one branch | only the newest head: a push cancels the branch's waiting, scheduled and running runs | `queue` (§1) |
+| Runs of one workspace | **one at a time** (scheduled or running), oldest waiting first — a workspace with five busy branches can't take every slot | a unique index: `(workspace_rid) WHERE status IN ('scheduled', 'running')` |
 | Runs on a machine | at most `CODE_WORKSPACE_CHECK_SLOTS` (default 2) | the worker: its queue processor's concurrency — it takes a run only when a slot is free |
 
-### Dispatch — the server decides what runs
+### Scheduling — in the transaction that frees the workspace
 
-`CheckDispatcher.dispatch()` (server, as the service), until nothing more can be sent. The check_run table is the outbox (Forge's pattern):
+No scheduler process: like Forge's `finishJob`, every write that frees a workspace schedules its next run in the same transaction (`CodeWorkspaceRepository._scheduleNext`): its oldest `waiting` run → `scheduled`, `scheduled_at`, **and its message added** to the durable queue `CodeWorkspace.DurableQueue.RunCheck` (job id = the run's RID). Those writes:
 
-1. **Claim** the oldest `queued` run whose workspace has none `running`: `queued → running`, `started_at`, its steps laid out (§6). Two dispatchers racing for one workspace: the unique index refuses the second claim, which skips that run.
-2. **Parse** `quarry-ci.yml` at the commit (`git show <commit>:quarry-ci.yml`, YAML, `Check.Config`). Missing or invalid → the run **fails at Parse** without reaching the worker, and dispatch goes on to the next.
-3. **Enqueue** `code-workspace.run-check { checkRunRid }`, job id = the run's RID — sending it again while it waits is ignored. Redis down → the claim is undone (`running → queued`) and dispatch stops until the next trigger.
+- **a push** (`queueCheckRuns`): its runs inserted — `quarry-ci.yml` is read per head *before* the transaction, so a missing or invalid file inserts the run already **failed at Parse** — the branches' older runs canceled (acked), then the next scheduled if the workspace is free;
+- **a finish** (`finishCheckRun`), and **the sweep failing a silent run** (`failSilentCheckRuns`).
 
-Per-workspace order can't be BullMQ's (grouping is BullMQ Pro): it's the claim — a run is only enqueued once its workspace has none running.
-
-Triggers: a push (§1), a run finishing, and the sweep (below) — every minute, the safety net.
+Scheduling takes a transaction-scoped advisory lock on the workspace, so two transactions freeing it at once schedule one run; the unique index is the backstop. After the commit, `relay()` sends the message; if Redis is down it stays in the outbox for the platform's sweep ([durable-queues.md](../durable-queues.md)).
 
 ### The worker
 
 New in `packages/code-workspace-worker`: `src/run-check.processor.ts` (BullMQ, `concurrency: CODE_WORKSPACE_CHECK_SLOTS`) and `src/check-runner.ts`. The worker now uses Redis, for this queue; still no database — it reports everything to the server.
 
 1. **Take** a message when a slot is free.
-2. **Start**: `POST /api/internal/code-workspaces/check-runs/:rid/start` → `{ checkRun, steps, token }` — the file's steps, and a token for the pusher. Accepted once: only a `running` run no worker has reported on yet; else 409, and the worker drops it.
+2. **Start**: `POST /api/internal/code-workspaces/check-runs/:rid/start` → `{ checkRun, steps, token }` — the file's steps, and a token for the pusher. Accepted once: `scheduled → running`, its message acked in the same transaction; else 409 (taken, or canceled), and the worker drops it.
 3. **Container**: `docker run` the runtime image (`CODE_WORKSPACE_RUNTIME_IMAGE`) with no volume and no published port, CPU and memory limits (`CODE_WORKSPACE_CHECK_CPUS`, `CODE_WORKSPACE_CHECK_MEMORY`), labelled `quarry.check-run`. Then `quarry-check-setup` (beside `quarry-session-setup`): git's auth header, `git clone`, `git checkout --detach <commit>`, `uv venv --system-site-packages`. A failed setup fails the run (`failure.step: "Set up"`).
 4. **Steps**, in order: `POST …/steps/:index` as each starts (`running`) and ends (`succeeded`/`failed`, exit code, times, the last 64 KB of output). `run` is `sh -c` in the checkout, stderr merged into stdout, the venv on `PATH`, killed at its timeout. `uses: quarry/publish-transforms` runs `python -m quarry.transforms.manifest`: stdout is the manifest, stderr its log.
 5. **Finish**: `POST …/finish { status, failure, manifest }`.
 6. Always: `docker rm --force` the container. A **409** on any report means the run was canceled (superseded) or taken back: the worker stops and removes the container.
 
-At boot the worker removes leftover `quarry.check-run` containers — a restart lost their runs; the sweep fails them (they had reported).
+At boot the worker removes leftover `quarry.check-run` containers — a restart lost their runs; the sweep fails them once they've been silent 35 minutes.
 
 The **token** is minted by `SessionTokens.mint(pusher, 'check')` — the pusher's, like a session's. So any step that calls Quarry (the manifest, tests reading a dataset) acts as the pusher, checked on every request. A step's code is the user's code: it can do anything the pusher's token can — the same reach their session already has.
 
@@ -156,10 +153,9 @@ The **token** is minted by `SessionTokens.mint(pusher, 'check')` — the pusher'
 
 | Found | Means | Becomes |
 |---|---|---|
-| `running`, no worker report, claimed over 2 min ago | maybe lost: Redis runs without persistence, a restart loses messages (or the server died between claiming and enqueueing) | enqueued again, same job id — ignored if it's still waiting (every worker busy), delivered if it was lost |
 | `running`, no report for 35 min (the longest step is 30) | the worker died mid-run | `failed`: "The worker stopped reporting" |
 
-Then it dispatches.
+Each failed run's workspace gets its next run scheduled. A `scheduled` run waits for a worker as long as it takes: delivering its message — and sending it again if Redis lost it — is the durable queue's sweep, not this one.
 
 ## 4. The manifest
 
@@ -204,14 +200,15 @@ A check run's life — who moves it, and why:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> queued: a push moved the branch (§1)
+    [*] --> waiting: a push moved the branch (§1)
 
-    queued --> running: dispatch claims it (its workspace has none running), then enqueues it
-    queued --> failed: dispatch — quarry-ci.yml missing or invalid (Parse)
-    queued --> canceled: a newer push to the branch
+    waiting --> scheduled: its workspace is free — its message added (one transaction)
+    waiting --> failed: quarry-ci.yml missing or invalid (Parse)
+    waiting --> canceled: a newer push to the branch
 
-    running --> queued: enqueueing failed (Redis down) — claim undone
-    running --> running: no worker took it in 2 min — the sweep enqueues it again
+    scheduled --> running: a worker starts it — its message acked (one transaction)
+    scheduled --> canceled: a newer push — its message acked
+
     running --> succeeded: the worker finishes, the manifest is valid
     running --> failed: a step failed · the manifest is invalid · the worker went silent 35 min (sweep)
     running --> canceled: a newer push to the branch — the worker's next report gets 409, it stops
@@ -221,7 +218,7 @@ stateDiagram-v2
     canceled --> [*]
 ```
 
-`running` covers two moments, told apart by `reported_at`: **enqueued, not yet taken** (null — the sweep may resend it) and **taken by a worker** (set — the worker reports each step; silence fails it).
+Whether a `scheduled` run's message has reached Redis yet is the durable queue's business, not a status: it's in `foundations.outbox` from the moment the run is scheduled until a worker starts it.
 
 
 `code_workspace.check_run` — one row per (branch head, push):
@@ -230,20 +227,21 @@ stateDiagram-v2
 |---|---|
 | `rid` | `ri.code-workspace.main.check-run.<uuid>` |
 | `workspace_rid`, `branch`, `commit` | what's checked |
-| `status` | `queued → running → succeeded \| failed \| canceled` |
+| `status` | `waiting → scheduled → running → succeeded \| failed \| canceled` |
 | `steps` | jsonb: `[{ name, status (waiting/running/succeeded/failed/skipped), exitCode, startedAt, finishedAt, log }]` — the parsed file's steps, plus the server's own **Parse** first and **Validate & publish** last |
 | `published` | did this run's commit become the branch's specs |
 | `failure` | jsonb `{ step, message }`, null unless failed |
 | `pushed_by` | the pusher — whom the run acts as |
-| `created_at` | queued |
-| `started_at` | claimed by dispatch |
-| `reported_at` | the worker's last report (start, a step) — null until it takes the run |
+| `created_at` | pushed |
+| `scheduled_at` | its workspace was free: its message added |
+| `started_at` | a worker took it |
+| `reported_at` | the worker's last report (start, a step) — silence fails it |
 | `finished_at` | |
 
-- **Steps** are laid out when dispatch claims the run: **Parse quarry-ci.yml** (`succeeded`), the file's steps (`waiting`), **Validate & publish** (`waiting`). The worker's step `index` counts the file's steps from 0 (`steps[index + 1]`). On finish, steps still `waiting` become `skipped`.
-- **One running per workspace**: `UNIQUE (workspace_rid) WHERE status = 'running'`.
-- **Superseding**: a new run for a branch cancels that branch's `queued` and `running` runs — which also frees the workspace for the next. A canceled run's late `step`/`finish` gets 409 (the ForgeAgent's rule); the worker removes its container on 409.
-- **Delivery**: the row is the outbox — `queued` = decided, not sent; `running` with no `reported_at` = enqueued, not taken. Dispatch sends the first, the sweep resends the second (§3).
+- **Steps** are laid out when the run is scheduled: **Parse quarry-ci.yml** (`succeeded`), the file's steps (`waiting`), **Validate & publish** (`waiting`). The worker's step `index` counts the file's steps from 0 (`steps[index + 1]`). On finish, steps still `waiting` become `skipped`.
+- **One at a time per workspace**: `UNIQUE (workspace_rid) WHERE status IN ('scheduled', 'running')`.
+- **Superseding**: a new run for a branch cancels that branch's waiting, scheduled and running runs (acking their messages) — which also frees the workspace for the next. A canceled run's late `step`/`finish` gets 409 (the ForgeAgent's rule); the worker removes its container on 409.
+- **Delivery**: a durable queue — the run's message is added when it's scheduled and acked when a worker starts it (or it's canceled); the platform relays and resends it (§3, [durable-queues.md](../durable-queues.md)).
 - **RLS**: read with read on the workspace; inserts and updates only through the service (the internal endpoints, as the system).
 
 Domain: `CodeWorkspace.CheckRun` (`Rid`, `Status`, `Step`, `Schema`), `CodeWorkspace.Check.Config` (the file), `CodeWorkspace.Check.Manifest`.
@@ -268,8 +266,8 @@ Domain: `CodeWorkspace.CheckRun` (`Rid`, `Status`, `Step`, `Schema`), `CodeWorks
 ## Build order
 
 1. Domain and table — `CheckRun`, `Check.Config`, `Check.Manifest`; `code_workspace.check_run` in `code_workspace/001_initial.sql` (a living file until launch). **Built 2026-10-27.**
-2. Push detection + `postCommitCommand` — `GitController`, `repositories.getHeads`, runs inserted `queued` (nothing runs them yet). **Built 2026-10-27.**
-3. Dispatch and the worker's runner — `CheckDispatcher` (enqueues `code-workspace.run-check`), the internal endpoints, the sweep and its timer, `run-check.processor.ts`, `check-runner.ts`, `quarry-check-setup`. **Built 2026-10-27**; until step 5, a run whose manifest parses ends `succeeded` with its publish step `skipped`.
+2. Push detection + `postCommitCommand` — `GitController`, `repositories.getHeads`, runs inserted `waiting`. **Built 2026-10-27.**
+3. Scheduling and the worker's runner — inline scheduling (adds `code-workspace.run-check` messages; a durable queue since 2026-10-28), the internal endpoints, the sweep and its timer, `run-check.processor.ts`, `check-runner.ts`, `quarry-check-setup`. **Built 2026-10-27**; until step 5, a run whose manifest parses ends `succeeded` with its publish step `skipped`.
 4. `quarry.transforms.manifest` and the template's `quarry-ci.yml` (with `ruff` added to the template's dev dependencies).
 5. Validate and publish — `CodeWorkspaceChecks.finish`.
 6. Checks tab and events.

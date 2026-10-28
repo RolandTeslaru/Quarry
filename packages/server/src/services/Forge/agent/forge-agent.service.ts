@@ -4,7 +4,7 @@ import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { CatalogService } from '@/services/Catalog/catalog.service';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
-import { ForgeRelayService } from '../relay/forge-relay.service';
+import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
 import { ForgeRepository } from '../repository/forge.repository';
 
 /** ForgeAgents act through the server as the system: they carry no user. */
@@ -23,11 +23,12 @@ export class ForgeAgentService {
     constructor(
         private readonly repository: ForgeRepository,
         private readonly catalog:    CatalogService,
-        private readonly relay:      ForgeRelayService,
         private readonly realtime:   RealtimeService,
+        @InjectDurableQueue(Forge.DurableQueue.RunJob)
+        private readonly runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
     ) {}
 
-    /** Take the job: once per attempt, from scheduled or queued. 409 if this attempt isn't waiting to start. */
+    /** Take the job: once per attempt, from scheduled. 409 if this attempt isn't waiting to start. */
     public async startJob(rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Start.Response> {
         const started = await this.repository.startJob(AGENT, rid, attempt);
 
@@ -80,7 +81,7 @@ export class ForgeAgentService {
 
         this.log.info(`Finished ${rid}: ${outcome.status}, ${finished.scheduled.length} job(s) scheduled`);
 
-        await this.relay.relay(finished.scheduled);
+        await this.runJobQueue.relay();
 
         return { job };
     }

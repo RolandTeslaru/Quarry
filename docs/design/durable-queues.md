@@ -1,6 +1,6 @@
 # Durable queues
 
-_Design, 2026-10-28. Nothing here is built yet. Related: plain queues, [jobs.md](jobs.md); the hand-built ones this replaces — Forge's run-job ([forge.md](forge.md) §4), Code Workspaces' run-check ([code-workspaces/checks.md](code-workspaces/checks.md) §3) and Catalog's event outbox ([catalog.md](catalog.md))._
+_Design, 2026-10-28. **Built 2026-10-28**: the platform piece (§3, build order 1–3), Forge's run-job (step 4) and Code Workspaces' run-check (step 5) on it. Not yet: Catalog's events (step 6 — once the queue has a consumer). Related: plain queues, [jobs.md](jobs.md); the hand-built ones this replaces — Forge's run-job ([forge.md](forge.md) §4), Code Workspaces' run-check ([code-workspaces/checks.md](code-workspaces/checks.md) §3) and Catalog's event outbox ([catalog.md](catalog.md))._
 
 A **durable queue** is a BullMQ queue whose messages can't be lost. A message is first written to **the outbox** — one Postgres table for the whole platform — in the same transaction as the change that calls for it; then **relayed** to Redis. It stays in the outbox until the consumer **acknowledges** it, so if Redis loses it, or the server dies before sending it, it's sent again. It's the transactional outbox pattern, written once.
 
@@ -208,7 +208,7 @@ imports: [DurableQueueModule.registerQueue(Identity.DurableQueue.SendInvitation)
 @Injectable()
 export class InvitationRepository extends Repository(IdentityDB.database) {
 
-    constructor(@InjectDurableQueue(Identity.DurableQueue.SendInvitation) private readonly sendInvitations: DurableQueue.Handle<Identity.Queue.SendInvitation.Job>) {
+    constructor(@InjectDurableQueue(Identity.DurableQueue.SendInvitation) private readonly sendInvitationQueue: DurableQueue.Handle<Identity.Queue.SendInvitation.Job>) {
         super();
     }
 
@@ -219,7 +219,7 @@ export class InvitationRepository extends Repository(IdentityDB.database) {
             .values({ rid: Identity.Invitation.createRid(), email, invited_by: principal.userRid })
             .returningAll().executeTakeFirstOrThrow();
 
-        await this.sendInvitations.add({ invitationRid: row.rid }, { jobId: row.rid });
+        await this.sendInvitationQueue.add({ invitationRid: row.rid }, { jobId: row.rid });
 
         return IdentityDB.Invitation.toDomain(row);
     }
@@ -233,7 +233,7 @@ export class InvitationRepository extends Repository(IdentityDB.database) {
             .returningAll().executeTakeFirst();
 
         if (row)
-            await this.sendInvitations.ack(rid);
+            await this.sendInvitationQueue.ack(rid);
 
         return row ? IdentityDB.Invitation.toDomain(row) : null;
     }
@@ -247,7 +247,7 @@ export class InvitationRepository extends Repository(IdentityDB.database) {
 public async invite(principal: Principal.User, email: string): Promise<Identity.Invitation.Schema> {
     const invitation = await this.repository.invitation.create(principal, email);
 
-    await this.sendInvitations.relay();          // the fast path — best effort; the sweep catches what it misses
+    await this.sendInvitationQueue.relay();          // the fast path — best effort; the sweep catches what it misses
 
     return invitation;
 }

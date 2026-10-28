@@ -6,7 +6,6 @@ import { Build as BuildD } from "../Build"
 import { Job as JobD } from "../Job"
 import { JobSpec as JobSpecD } from "../JobSpec"
 import * as AgentMod from "./agent"
-import * as InternalMod from "./internal"
 
 const MAIN = Branch.parse("main")
 
@@ -107,7 +106,4 @@ export namespace API {
 
     /** ForgeAgents' own endpoints (`/api/forge-agent/…`). */
     export import Agent = AgentMod.Agent
-
-    /** The system worker's endpoints (`/api/internal/forge/…`). */
-    export import Internal = InternalMod.Internal
 }

@@ -126,10 +126,10 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
 | `catalog.outbox-relay` | `Catalog.Queue.OutboxRelay` | **system-worker** | repeatable + `NOTIFY` nudge | singleton | — | every 5 s |
 | `catalog.storage-gc` | `Catalog.Queue.StorageGc` | **system-worker** | repeatable | singleton | — | hourly |
 | `catalog.dataset-updated` | `Catalog.Queue.DatasetUpdated` | none yet (layer 2: builds; layer 3: reindex) | outbox relay | `transactionRid` | — | — |
-| `forge.run-job` | `Forge.Queue.RunJob` | **forge-agent** | the server's `ForgeRelayService` (after a commit that schedules jobs, and its sweep) | `<jobRid>_<attempt>` | — (a retry is a new attempt) | — |
-| `forge.relay-sweep` | `Forge.Queue.RelaySweep` | **system-worker** → `POST /api/internal/forge/relay-sweep` | repeatable | singleton | — | every minute |
-| `code-workspace.run-check` | `CodeWorkspace.Queue.RunCheck` | **server** (check dispatch) → **code-workspace-worker** | one-off | job id = check run RID | — | per claimed check run; concurrency = `CODE_WORKSPACE_CHECK_SLOTS` |
-| `code-workspace.check-sweep` | `CodeWorkspace.Queue.CheckSweep` | **system-worker** → `POST /api/internal/code-workspaces/check-runs/sweep` | repeatable | singleton | — | every minute |
+| `forge.run-job` | `Forge.Queue.RunJob` (durable: `Forge.DurableQueue.RunJob`) | **forge-agent** | the server, through the durable queue: added with the commit that schedules a job, relayed after it and by the durable-queue sweep | `<jobRid>_<attempt>` | — (a retry is a new attempt) | — |
+| `durable-queue.sweep` | `Foundations.DurableQueue.Sweep` | **system-worker** → `POST /api/internal/durable-queues/sweep` | repeatable | singleton | — | every minute: every durable queue's unsent and stale messages ([durable-queues.md](durable-queues.md)) |
+| `code-workspace.run-check` | `CodeWorkspace.Queue.RunCheck` (durable: `CodeWorkspace.DurableQueue.RunCheck`) | **code-workspace-worker** | the server, through the durable queue: added when a check run is scheduled | check run RID | — | per scheduled check run; concurrency = `CODE_WORKSPACE_CHECK_SLOTS` |
+| `code-workspace.check-sweep` | `CodeWorkspace.Queue.CheckSweep` | **system-worker** → `POST /api/internal/code-workspaces/check-runs/sweep` | repeatable | singleton | — | every minute: fails silent runs, schedules waiting ones |
 
 Library has no queue in layer 1. Its first will be `library.purge` — when trashed resources pass their retention, ask each owning service to purge its subtype rows and storage, then delete the library row.
 

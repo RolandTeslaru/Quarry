@@ -12,7 +12,7 @@ import { CatalogService } from '@/services/Catalog/catalog.service';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { ForgeAgentService } from '@/services/Forge/agent/forge-agent.service';
 import { ForgeService } from '@/services/Forge/forge.service';
-import { ForgeRelayService } from '@/services/Forge/relay/forge-relay.service';
+import { DurableQueues } from '@/infra/durable-queue';
 import { LibraryService } from '@/services/Library/library.service';
 
 export const MAIN = Foundations.Branch.parse('main');
@@ -32,18 +32,18 @@ export class ForgeHarness {
 
     public readonly forge:   ForgeService;
     public readonly agent:   ForgeAgentService;
-    public readonly relay:   ForgeRelayService;
+    public readonly durableQueues: DurableQueues;
     public readonly catalog: CatalogService;
     public readonly library: LibraryService;
     public readonly gatekeeper: GatekeeperService;
 
     /** The ForgeAgents' queue, to see what was pushed. */
-    public readonly runJobs = new Queue(Forge.Queue.RunJob.Definition.name, { connection: redisConnection(), prefix: QUEUE_PREFIX });
+    public readonly runJobQueue = new Queue(Forge.Queue.RunJob.Definition.name, { connection: redisConnection(), prefix: QUEUE_PREFIX });
 
     private constructor(private readonly app: INestApplicationContext) {
         this.forge = app.get(ForgeService);
         this.agent = app.get(ForgeAgentService);
-        this.relay = app.get(ForgeRelayService);
+        this.durableQueues = app.get(DurableQueues);
         this.catalog = app.get(CatalogService);
         this.library = app.get(LibraryService);
         this.gatekeeper = app.get(GatekeeperService);
@@ -59,7 +59,7 @@ export class ForgeHarness {
     }
 
     public async stop(): Promise<void> {
-        await this.runJobs.close();
+        await this.runJobQueue.close();
         await this.app.close();
         await destroyPool();
     }
@@ -180,9 +180,20 @@ export class ForgeHarness {
         await sql`update forge.job set status = ${status} where rid = ${jobRid}`.execute(db());
     }
 
-    /** Simulates a job queued `minutes` ago. */
-    public async backdateQueued(jobRid: Forge.Job.Rid, minutes: number): Promise<void> {
-        await sql`update forge.job set queued_at = now() - make_interval(mins => ${minutes}) where rid = ${jobRid}`.execute(db());
+    /** A job attempt's run-job message in the outbox (null: acked, or never added) — what the sweep sends again until acked. */
+    public async getOutboxMessage(job: Pick<Forge.Job.Schema, 'rid' | 'attempt'>): Promise<{ sentAt: Date | null; sends: number } | null> {
+        const { rows } = await sql<{ sent_at: Date | null; sends: number }>`
+            select sent_at, sends from foundations.outbox
+             where queue_name = ${Forge.Queue.RunJob.Definition.name} and job_id = ${Forge.Queue.RunJob.getJobId(Forge.Job.getMessage(job))}`.execute(db());
+
+        return rows[0] ? { sentAt: rows[0].sent_at, sends: rows[0].sends } : null;
+    }
+
+    /** Simulates a job's message sent `minutes` ago and never acked. */
+    public async backdateSent(job: Pick<Forge.Job.Schema, 'rid' | 'attempt'>, minutes: number): Promise<void> {
+        await sql`
+            update foundations.outbox set sent_at = now() - make_interval(mins => ${minutes})
+             where queue_name = ${Forge.Queue.RunJob.Definition.name} and job_id = ${Forge.Queue.RunJob.getJobId(Forge.Job.getMessage(job))}`.execute(db());
     }
 
     /** How many transactions are open on a dataset — the lock a build or upload holds. */

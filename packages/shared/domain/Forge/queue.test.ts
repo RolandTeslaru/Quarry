@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { Job } from "./Job"
 import { Queue } from "./queue"
+import { DurableQueue } from "./durable-queue"
 
 describe("Queue.RunJob", () => {
 
@@ -23,8 +24,12 @@ describe("Queue.RunJob", () => {
         expect(Queue.RunJob.Job.safeParse({ jobRid: "ri.forge.main.build.01a1729a-975b-70de-8141-89cca28b34d2", attempt: 1 }).success).toBe(false)
     })
 
-    it("names its queues <service>.<job>", () => {
+    it("names its queue <service>.<job>", () => {
         expect(Queue.RunJob.Definition.name).toBe("forge.run-job")
-        expect(Queue.RelaySweep.Definition.name).toBe("forge.relay-sweep")
+    })
+
+    it("delivers it through a durable queue of the same name", () => {
+        expect(DurableQueue.RunJob.name).toBe("forge.run-job")
+        expect(DurableQueue.RunJob.queue).toBe(Queue.RunJob.Definition)
     })
 })

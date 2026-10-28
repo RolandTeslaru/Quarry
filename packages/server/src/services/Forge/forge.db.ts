@@ -96,7 +96,6 @@ export namespace ForgeDB {
             inputs:       z.record(Catalog.Dataset.Rid, Catalog.Transaction.Rid).nullable(),
             outputs:      z.record(Catalog.Dataset.Rid, Catalog.Transaction.Rid),
             scheduled_at: z.date().nullable(),
-            queued_at:    z.date().nullable(),
             started_at:   z.date().nullable(),
             heartbeat_at: z.date().nullable(),
             finished_at:  z.date().nullable(),
@@ -113,7 +112,6 @@ export namespace ForgeDB {
             outputs:     row.outputs,
             failure:     row.failure,
             scheduledAt: row.scheduled_at,
-            queuedAt:    row.queued_at,
             startedAt:   row.started_at,
             heartbeatAt: row.heartbeat_at,
             finishedAt:  row.finished_at,
@@ -126,7 +124,7 @@ export namespace ForgeDB {
         'forge.job_spec_output_dataset': Table<typeof JobSpecDataset.Row>;
         'forge.current_job_spec':        Table<typeof CurrentJobSpec.Row>;
         'forge.build':                   Table<typeof Build.Row, 'fallback_branches' | 'force_build' | 'abort_on_failure' | 'retry_count' | 'status' | 'created_at' | 'finished_at'>;
-        'forge.job':                     Table<typeof Job.Row, 'status' | 'attempt' | 'failure' | 'inputs' | 'scheduled_at' | 'queued_at' | 'started_at' | 'heartbeat_at' | 'finished_at'>;
+        'forge.job':                     Table<typeof Job.Row, 'status' | 'attempt' | 'failure' | 'inputs' | 'scheduled_at' | 'started_at' | 'heartbeat_at' | 'finished_at'>;
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();

@@ -4,9 +4,8 @@ import type { Principal } from '@/auth/principal';
 import { ForgeHarness } from '../support/forge-fixtures';
 
 /**
- * The rules ForgeAgents rely on: an attempt starts once, a finish is
- * idempotent, a stale attempt is refused (the fencing token), and a job the
- * relay didn't get to mark queued can still start.
+ * The rules ForgeAgents rely on: an attempt starts once (and its message is
+ * acked then), a finish is idempotent, a stale attempt is refused (the fencing token).
  */
 describe('the ForgeAgent API', () => {
 
@@ -22,8 +21,8 @@ describe('the ForgeAgent API', () => {
         await harness.stop();
     });
 
-    /** One job, queued, ready to start. */
-    async function queuedJob() {
+    /** One job, scheduled, its message sent — ready to start. */
+    async function scheduledJob() {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'out'], ['raw']);
 
         await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }]);
@@ -34,7 +33,7 @@ describe('the ForgeAgent API', () => {
     }
 
     it('starts an attempt once: a second start is refused', async () => {
-        const job = await queuedJob();
+        const job = await scheduledJob();
 
         const started = await harness.agent.startJob(job.rid, 1);
 
@@ -43,16 +42,25 @@ describe('the ForgeAgent API', () => {
         await expect(harness.agent.startJob(job.rid, 1)).rejects.toBeInstanceOf(ConflictException);
     });
 
-    it('starts a job still scheduled — the relay pushed it but never marked it queued', async () => {
-        const job = await queuedJob();
+    it('acks its message when it starts — the sweep stops sending it', async () => {
+        const job = await scheduledJob();
 
-        await harness.setStatus(job.rid, 'scheduled');
+        expect(await harness.getOutboxMessage(job)).not.toBeNull();
 
-        await expect(harness.agent.startJob(job.rid, 1)).resolves.toMatchObject({ job: { status: 'running' } });
+        await harness.agent.startJob(job.rid, 1);
+
+        expect(await harness.getOutboxMessage(job)).toBeNull();
+    });
+
+    it('keeps its message when the start is refused', async () => {
+        const job = await scheduledJob();
+
+        await expect(harness.agent.startJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);    // not this attempt
+        expect(await harness.getOutboxMessage(job)).not.toBeNull();
     });
 
     it('accepts a repeated finish of the same outcome, and refuses a different one', async () => {
-        const job = await queuedJob();
+        const job = await scheduledJob();
 
         await harness.agent.startJob(job.rid, 1);
         await harness.agent.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null });
@@ -64,7 +72,7 @@ describe('the ForgeAgent API', () => {
     });
 
     it("refuses another attempt's start, heartbeat and finish — the attempt is the fencing token", async () => {
-        const job = await queuedJob();
+        const job = await scheduledJob();
 
         await expect(harness.agent.startJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);
 
@@ -77,7 +85,7 @@ describe('the ForgeAgent API', () => {
     });
 
     it('releases the outputs on finish — no compute yet, so they are aborted, not committed', async () => {
-        const job = await queuedJob();
+        const job = await scheduledJob();
         const [transactionRid] = Object.values(job.outputs);
 
         expect(await harness.transactionStatus(transactionRid)).toBe('open');

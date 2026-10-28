@@ -3,11 +3,11 @@ import { CodeWorkspace, type Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { SessionTokens } from '@/auth/session-tokens';
+import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
 import { CodeWorkspaceRepository } from '../repository/code-workspace.repository';
-import type { QueuedCheckRuns } from '../repository/check-run.repository';
+import type { NewCheckRun, QueuedCheckRuns } from '../repository/check-run.repository';
 import { GitRepositories } from '../git/repositories';
-import { CheckDispatcher } from './check-dispatcher';
-import { getLogTail, readCheckConfig } from './check-config';
+import { getLogTail, getParseFailedSteps, layOutSteps, readCheckConfig } from './check-config';
 
 import CheckRun = CodeWorkspace.CheckRun;
 import Internal = CodeWorkspace.API.Internal;
@@ -15,18 +15,15 @@ import Internal = CodeWorkspace.API.Internal;
 const WORKER = Principal.SELF('code-workspace.check-worker');
 const SWEEP = Principal.SELF('code-workspace.check-sweep');
 
-/** Sent, and no worker took it within this long: sent again (a no-op if the message is still waiting). */
-const UNTAKEN_MINUTES = 2;
-
 /** Taken, then silent this long (the longest step is 30 min): the worker died. */
 const SILENT_MINUTES = 35;
 
 /**
- * CI for Code Workspaces (docs/design/code-workspaces/checks.md): a check run
- * per pushed branch head, queued as the pusher; dispatched to the workers' queue
- * (CheckDispatcher); the worker that takes it reports its steps and outcome here;
- * swept every minute.
- * Publishing job specs is not built yet: a passing run ends with its publish step skipped.
+ * CI for Code Workspaces (docs/design/code-workspaces/checks.md): a check run per
+ * pushed branch head, as the pusher, one at a time per workspace — scheduled in the
+ * transaction that frees its workspace, delivered to a worker through a durable
+ * queue; the worker reports its steps and outcome here. Publishing job specs is
+ * not built yet: a passing run ends with its publish step skipped.
  */
 @Injectable()
 export class CodeWorkspaceChecks {
@@ -37,22 +34,28 @@ export class CodeWorkspaceChecks {
         private readonly repository:    CodeWorkspaceRepository,
         private readonly repositories:  GitRepositories,
         private readonly sessionTokens: SessionTokens,
-        public readonly dispatcher:     CheckDispatcher,
+        @InjectDurableQueue(CodeWorkspace.DurableQueue.RunCheck)
+        private readonly runCheckQueue: DurableQueueHandle<typeof CodeWorkspace.Queue.RunCheck.Definition>,
     ) {}
 
-    /** Branches moved by a push (or the template's first commit): a queued run for each new head. */
+    /**
+     * Branches moved by a push (or the template's first commit): a run for each new head —
+     * its quarry-ci.yml read now (failed at Parse if it's missing or invalid) — and, if the
+     * workspace is free, the next scheduled and relayed.
+     */
     public async pushed(principal: Principal.User, rid: CodeWorkspace.Rid, moved: CodeWorkspace.Git.Heads): Promise<QueuedCheckRuns> {
-        const runs = await this.repository.checkRun.queue(principal, rid, moved);
+        const runs = await Promise.all(Object.entries(moved).map(([branch, commit]) => this._prepare(rid, branch as Foundations.Branch, commit)));
+        const queued = await this.repository.queueCheckRuns(principal, rid, runs);
 
-        for (const run of runs.queued)
-            this.log.info(`Queued ${run.rid}: ${run.branch} at ${run.commit.slice(0, 7)}`, { workspace: rid });
+        for (const run of queued.queued)
+            this.log.info(`Queued ${run.rid}: ${run.branch} at ${run.commit.slice(0, 7)} (${run.status})`, { workspace: rid });
 
-        if (runs.canceled.length > 0)
-            this.log.info(`Superseded ${runs.canceled.length} run(s) of ${rid}`, { canceled: runs.canceled.map(run => run.rid) });
+        if (queued.canceled.length > 0)
+            this.log.info(`Superseded ${queued.canceled.length} run(s) of ${rid}`, { canceled: queued.canceled.map(run => run.rid) });
 
-        this.dispatcher.trigger();
+        await this._relay(queued.scheduled ? [queued.scheduled] : []);
 
-        return runs;
+        return queued;
     }
 
     public async listCheckRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CodeWorkspace.CheckRun.Schema[]> {
@@ -61,21 +64,22 @@ export class CodeWorkspaceChecks {
 
     // ── the worker running one ──────────────────────────────────────────
 
-    /** The worker takes a dispatched run — once: quarry-ci.yml's steps, and a token acting as the pusher. */
+    /** The worker takes a scheduled run — once: quarry-ci.yml's steps, and a token acting as the pusher. */
     public async start(rid: CheckRun.Rid): Promise<Internal.CheckRun.Start.Response> {
-        const checkRun = await this.repository.checkRun.start(WORKER, rid);
+        const checkRun = await this.repository.startCheckRun(WORKER, rid);
 
         if (!checkRun)
             throw new ConflictException("This check run isn't waiting for a worker");
 
-        // Parsed at dispatch, so it parses again: the commit can't have changed.
+        // Parsed when it was pushed, so it parses again: the commit can't have changed.
         const result = await readCheckConfig(this.repositories, checkRun);
 
         if ('error' in result || !checkRun.pushedBy) {
             const message = 'error' in result ? result.error : 'No pusher to act as';
 
-            await this.repository.checkRun.finish(WORKER, rid, { status: 'failed', steps: skipWaiting(checkRun.steps), failure: { step: 'Set up', message } });
-            this.dispatcher.trigger();
+            const finished = await this.repository.finishCheckRun(WORKER, rid, { status: 'failed', steps: skipWaiting(checkRun.steps), failure: { step: 'Set up', message } });
+
+            await this._relay(finished?.scheduled ? [finished.scheduled] : []);
 
             throw new ConflictException(message);
         }
@@ -141,50 +145,60 @@ export class CodeWorkspaceChecks {
             }
         }
 
-        const finished = await this.repository.checkRun.finish(WORKER, rid, { status, steps, failure: status === 'failed' ? failure : null });
+        const finished = await this.repository.finishCheckRun(WORKER, rid, { status, steps, failure: status === 'failed' ? failure : null });
 
         if (!finished)
             throw new ConflictException('This check run was canceled');
 
-        this.log.info(`${rid} ${status}`, { workspace: finished.workspaceRid, failure });
-        this.dispatcher.trigger();
+        this.log.info(`${rid} ${status}`, { workspace: finished.run.workspaceRid, failure });
+        await this._relay(finished.scheduled ? [finished.scheduled] : []);
 
-        return finished;
+        return finished.run;
     }
 
     // ── the sweep ───────────────────────────────────────────────────────
 
-    /**
-     * The system worker's minute: sends again what no worker took (Redis runs without
-     * persistence — a restart loses its messages; one still there ignores the resend),
-     * fails what went silent, dispatches.
-     */
+    /** The system worker's minute: fails what went silent, scheduling each workspace's next. (Lost messages are the durable-queue sweep's.) */
     public async sweep(): Promise<Internal.CheckRun.Sweep.Response> {
-        const untaken = await this.repository.checkRun.listUntaken(SWEEP, UNTAKEN_MINUTES);
-
-        for (const run of untaken)
-            await this.dispatcher.send(run);
-
-        const failed = await this.repository.checkRun.failSilent(SWEEP, SILENT_MINUTES, {
+        const { failed, scheduled } = await this.repository.failSilentCheckRuns(SWEEP, SILENT_MINUTES, {
             step:    'Worker',
             message: `The worker stopped reporting for ${SILENT_MINUTES} minutes`,
         });
-        const dispatched = await this.dispatcher.dispatch();
 
-        if (untaken.length + failed.length > 0)
-            this.log.info(`Swept: ${untaken.length} sent again, ${failed.length} failed`, { failed: failed.map(run => run.rid) });
+        if (failed.length > 0)
+            this.log.info(`Swept: ${failed.length} failed`, { failed: failed.map(run => run.rid) });
 
-        return { resent: untaken.length, failed: failed.length, dispatched };
+        await this._relay(scheduled);
+
+        return { failed: failed.length, scheduled: scheduled.length };
     }
 
-    /** The run, if it's the worker's to report on: running, and taken. */
+    /** A pushed head's run: its steps laid out from quarry-ci.yml at that commit — or why it can't run. */
+    private async _prepare(rid: CodeWorkspace.Rid, branch: Foundations.Branch, commit: CodeWorkspace.Git.Commit): Promise<NewCheckRun> {
+        const result = await readCheckConfig(this.repositories, { workspaceRid: rid, commit });
+
+        return 'error' in result
+            ? { branch, commit, steps: getParseFailedSteps(result.error), failure: { step: CheckRun.PARSE_STEP, message: result.error } }
+            : { branch, commit, steps: layOutSteps(result.config), failure: null };
+    }
+
+    /** After a commit that scheduled runs: their messages to Redis now. Best effort — the durable-queue sweep catches the rest. */
+    private async _relay(scheduled: CheckRun.Schema[]): Promise<void> {
+        for (const run of scheduled)
+            this.log.info(`Scheduled ${run.rid}: ${run.branch} at ${run.commit.slice(0, 7)}`, { workspace: run.workspaceRid });
+
+        if (scheduled.length > 0)
+            await this.runCheckQueue.relay();
+    }
+
+    /** The run, if it's the worker's to report on: running. */
     private async getRunning(rid: CheckRun.Rid): Promise<CheckRun.Schema> {
         const checkRun = await this.repository.checkRun.get(WORKER, rid);
 
         if (!checkRun)
             throw new NotFoundException('Not found');
 
-        if (checkRun.status !== 'running' || !checkRun.reportedAt)
+        if (checkRun.status !== 'running')
             throw new ConflictException(checkRun.status === 'canceled' ? 'This check run was canceled' : `This check run is ${checkRun.status}`);
 
         return checkRun;

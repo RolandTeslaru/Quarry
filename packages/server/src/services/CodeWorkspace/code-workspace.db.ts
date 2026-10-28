@@ -34,6 +34,7 @@ export namespace CodeWorkspaceDB {
             failure:       CodeWorkspace.CheckRun.Failure.nullable(),
             pushed_by:     Identity.User.Rid.nullable(),
             created_at:    z.date(),
+            scheduled_at:  z.date().nullable(),
             started_at:    z.date().nullable(),
             reported_at:   z.date().nullable(),
             finished_at:   z.date().nullable(),
@@ -51,6 +52,7 @@ export namespace CodeWorkspaceDB {
             failure:      row.failure,
             pushedBy:     row.pushed_by,
             createdAt:    row.created_at,
+            scheduledAt:  row.scheduled_at,
             startedAt:    row.started_at,
             reportedAt:   row.reported_at,
             finishedAt:   row.finished_at,
@@ -59,7 +61,7 @@ export namespace CodeWorkspaceDB {
 
     export interface Tables {
         'code_workspace.workspace': Table<typeof Workspace.Row, 'type'>;
-        'code_workspace.check_run': Table<typeof CheckRun.Row, 'status' | 'steps' | 'published' | 'failure' | 'created_at' | 'started_at' | 'reported_at' | 'finished_at'>;
+        'code_workspace.check_run': Table<typeof CheckRun.Row, 'status' | 'steps' | 'published' | 'failure' | 'created_at' | 'scheduled_at' | 'started_at' | 'reported_at' | 'finished_at'>;
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();

@@ -6,11 +6,9 @@ import { CheckRun as CheckRunD } from "./CheckRun"
 export namespace Queue {
 
     /**
-     * Run one claimed check run — produced by the server's dispatch, consumed by the code
-     * workspace worker (its concurrency is its slots). The BullMQ job id is the run's RID:
-     * sending it again while the message waits is ignored. A run is claimed again only after
-     * its enqueue failed (no message), and messages are removed when done — so the id is free
-     * whenever a message is really missing.
+     * Run one scheduled check run — delivered through the durable queue (CodeWorkspace.DurableQueue.RunCheck),
+     * consumed by the code workspace worker (its concurrency is its slots). The BullMQ job id is the run's
+     * RID: sending it again while it waits is ignored.
      */
     export namespace RunCheck {
         export const Job = z.object({ checkRunRid: CheckRunD.Rid })
@@ -30,14 +28,13 @@ export namespace Queue {
     }
 
     /**
-     * Every minute, from the system worker: the server sends again check runs no worker
-     * took (Redis may have lost them), fails ones whose worker went silent, and dispatches what's queued.
+     * Every minute, from the system worker: the server fails runs whose worker went silent, and
+     * schedules what's waiting. (Resending lost messages is the durable-queue sweep's.)
      */
     export namespace CheckSweep {
         export const Result = z.object({
-            resent:     z.number().int(),
-            failed:     z.number().int(),
-            dispatched: z.number().int(),
+            failed:    z.number().int(),
+            scheduled: z.number().int(),
         })
         export type  Result = z.infer<typeof Result>
 
