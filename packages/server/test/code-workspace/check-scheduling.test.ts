@@ -79,6 +79,11 @@ describe('check runs, running', () => {
         await harness.stop();
     });
 
+    /** Every run of the workspace (one branch's, or all), newest first — up to a page of 100. */
+    function listRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CodeWorkspace.CheckRun.Schema[]> {
+        return harness.get(CodeWorkspaceChecks).listCheckRuns(principal, rid, { branch, limit: 100 }).then((page) => page.checkRuns);
+    }
+
     /** A workspace whose main has quarry-ci.yml, and its run — scheduled at once: the workspace is free. */
     async function scheduledWorkspace(files: Record<string, string> = { 'quarry-ci.yml': QUARRY_CI }): Promise<TestWorkspace & { run: CheckRun.Schema }> {
         const workspace = await createWorkspace(harness, admin, files);
@@ -168,7 +173,7 @@ describe('check runs, running', () => {
             await Promise.all(branches.map((branch) =>
                 repository.queueCheckRuns(admin, workspace.rid, [{ branch, commit: workspace.heads[MAIN], steps, failure: null }])));
 
-            const statuses = (await checks.listCheckRuns(admin, workspace.rid)).map((run) => run.status);
+            const statuses = (await listRuns(admin, workspace.rid)).map((run) => run.status);
 
             expect(statuses.filter((status) => status === 'scheduled')).toHaveLength(1);
             expect(statuses.filter((status) => status === 'waiting')).toHaveLength(9);
@@ -277,6 +282,15 @@ describe('check runs, running', () => {
             await expect(checks.reportStep(run.rid, index, { status: 'running', startedAt: new Date() })).rejects.toThrow(/no step/);
         });
 
+        it('succeeds with an empty manifest — a pipeline with no transforms has nothing to publish', async () => {
+            const { run } = await startedRun();
+
+            const finished = await checks.finish(run.rid, { status: 'succeeded', manifest: { transforms: [] } });
+
+            expect(finished).toMatchObject({ status: 'succeeded', failure: null });
+            expect(finished.steps.at(-1)!.log).toMatch(/0 transform/);
+        });
+
         it('succeeds with a valid manifest; publishing is skipped (not built yet)', async () => {
             const { run } = await startedRun();
 
@@ -290,7 +304,6 @@ describe('check runs, running', () => {
 
         it.each([
             ['no manifest', null],
-            ['no transforms', { transforms: [] }],
             ['two transforms writing one output', { transforms: [MANIFEST.transforms[0], { ...MANIFEST.transforms[0], name: 'sales.datasets.b.b' }] }],
         ])('fails at its publish step with %s', async (_, manifest) => {
             const { run } = await startedRun();

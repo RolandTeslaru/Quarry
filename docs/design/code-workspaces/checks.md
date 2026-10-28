@@ -1,6 +1,6 @@
 # Checks (CI)
 
-_Spec, written 2026-10-27. Built so far: steps 1–3 of the build order — pushes queue runs, the scheduler hands them to the workers through a durable queue ([durable-queues.md](../durable-queues.md), since 2026-10-28), a worker runs quarry-ci.yml's steps and reports them; the sweep fails silent runs. Not yet: the manifest command (step 4) — so a real run fails at its publish step — and publishing (step 5). Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
+_Spec, written 2026-10-27. Built so far: steps 1–3 of the build order — pushes queue runs, the scheduler hands them to the workers through a durable queue ([durable-queues.md](../durable-queues.md), since 2026-10-28), a worker runs quarry-ci.yml's steps and reports them; the sweep fails silent runs. Step 4 (the manifest command, the template's quarry-ci.yml) built 2026-10-28: a new workspace's first push passes. Not yet: publishing (step 5) — a passing run ends with its publish step skipped. Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
 
 A **check run** is CI for one commit of a Code Workspace: it runs the steps the repository declares in `quarry-ci.yml`, then — if they all pass — **publishes the workspace's job specs** for that branch, pinned to that commit. It's the only thing that publishes them: a build reads specs, it never makes them ([forge.md](../forge.md)). No passing check, nothing to build.
 
@@ -84,15 +84,14 @@ steps:
   - name: Environment
     run: uv sync --frozen
 
-  - name: Lint
-    run: ruff check .
-
   - name: Tests
     run: pytest -q
 
   - name: Publish transforms
     uses: quarry/publish-transforms
 ```
+
+Lint isn't in it yet — `ruff` would have to join the template's dev dependencies first. The template also writes `tests/test_pipeline.py` (the pipeline imports), so the Tests step always has a test: a workspace made without an example — its example and its test commented out — still passes its first check.
 
 | Field | Meaning |
 |---|---|
@@ -174,7 +173,7 @@ Each failed run's workspace gets its next run scheduled. A `scheduled` run waits
 }
 ```
 
-`CodeWorkspace.Check.Manifest` in `@quarry/shared` (zod): `name` a `ModuleFunctionPath`, references `CodeTransform.DatasetReference` (a RID or a library path). Fails the step: the pipeline doesn't import, a decorator is malformed, two transforms write the same output, no transforms at all.
+`CodeWorkspace.Check.Manifest` in `@quarry/shared` (zod): `name` a `ModuleFunctionPath`, references `CodeTransform.DatasetReference` (a RID or a library path). Fails the step: the pipeline doesn't import, a decorator is malformed (traceback on stderr, exit 1, nothing on stdout). The server refuses a manifest where two transforms write the same output. **No transforms is fine**: there's nothing to publish (a new workspace without an example).
 
 ## 5. Validating and publishing — the server
 
@@ -248,9 +247,11 @@ Domain: `CodeWorkspace.CheckRun` (`Rid`, `Status`, `Step`, `Schema`), `CodeWorks
 
 ## 7. Reaching the user
 
-- **Events**: `code-workspace:check:updated` with the run, on the workspace's channel (`Realtime.Event.defineFactory`, like Forge's), on every status and step change.
-- **API**: `GET /api/code-workspaces/:rid/checks?branch=` (newest first), `GET …/checks/:checkRunRid`. Both need read on the workspace.
-- **Checks tab** (`routes/$rid/checks.tsx`): runs by commit — status, branch, short sha, pusher, when; open one for its steps and their logs. Live through the event.
+**Built 2026-10-28** (except the IDE status bar and the Build button's gating).
+
+- **Events**: `code-workspace:check-run:updated` with the run as it is now, on the workspace's channel `code-workspace:workspace:<rid>` (`CodeWorkspace.Event`, `Realtime.Event.defineFactory`, like Forge's) — after every commit that changes a run: a push (its runs, the ones it superseded, the one it scheduled), a start, each step report (as a step starts and ends), a finish (and the run it scheduled), the sweep failing a silent run. A run changed twice in one commit is announced once, as it is after it. Listening needs read on the workspace (the gateway's `mayListen`).
+- **API**: `GET /api/code-workspaces/:rid/check-runs?branch=&before=&limit=` — newest first, `limit` default 25 (at most 100), `before` the last run RID seen (keyset paging on `(created_at, rid)`, so runs arriving meanwhile don't shift the pages); `nextBefore` is the next page's cursor, null after the last. `GET …/check-runs/:checkRunRid` — one run, through its own workspace only. Both need read on the workspace: 403 for a discoverer, 404 for someone who can't see it.
+- **Checks tab** (`routes/$rid/checks.tsx`, `components/CheckRunTable.tsx`): runs newest first — status, branch, short commit, pushed, took; a row opens to its steps (status, duration, exit code) and each step's output; **Load older** fetches the next page. Live: `CodeWorkspaceSDK` follows the open workspace's channel from the route's open to its leave (`openWorkspaceRid`, as Data Connection follows an open source), so a new run appears on top and a running one updates in place, on every tab. State: `checkRuns` by RID, and per workspace its loaded RIDs in order with the next cursor (`checkRunHistory`).
 - **In the IDE** (later): the status bar shows the head commit's check.
 - **Build** stays disabled until the branch has specs — `GET /api/forge/job-specs/current` for the transform's output.
 
@@ -268,7 +269,7 @@ Domain: `CodeWorkspace.CheckRun` (`Rid`, `Status`, `Step`, `Schema`), `CodeWorks
 1. Domain and table — `CheckRun`, `Check.Config`, `Check.Manifest`; `code_workspace.check_run` in `code_workspace/001_initial.sql` (a living file until launch). **Built 2026-10-27.**
 2. Push detection + `postCommitCommand` — `GitController`, `repositories.getHeads`, runs inserted `waiting`. **Built 2026-10-27.**
 3. Scheduling and the worker's runner — inline scheduling (adds `code-workspace.run-check` messages; a durable queue since 2026-10-28), the internal endpoints, the sweep and its timer, `run-check.processor.ts`, `check-runner.ts`, `quarry-check-setup`. **Built 2026-10-27**; until step 5, a run whose manifest parses ends `succeeded` with its publish step `skipped`.
-4. `quarry.transforms.manifest` and the template's `quarry-ci.yml` (with `ruff` added to the template's dev dependencies).
+4. `quarry.transforms.manifest` and the template's `quarry-ci.yml` and `tests/test_pipeline.py`. **Built 2026-10-28**; tested by rendering the template and running its tests and its manifest (`test/code-workspace/template`).
 5. Validate and publish — `CodeWorkspaceChecks.finish`.
 6. Checks tab and events.
 7. Tests — the harness pattern from [testing.md](../testing.md): push to a real bare repository, play the worker, assert specs.

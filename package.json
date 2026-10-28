@@ -6,6 +6,7 @@
         "packages/*"
     ],
     "scripts": {
+        "dev:all": "npm run infra && npm run build:code-workspace-runtime && npm run dev",
         "dev": "concurrently -n server,dc,system,cw,forge,web -c cyan,magenta,yellow,blue,red,green \"npm:dev:server\" \"npm:dev:data-connection\" \"npm:dev:system\" \"npm:dev:code-workspace\" \"npm:dev:forge-agent\" \"npm:dev:frontend\"",
         "dev:server": "npm run dev:api --workspace=packages/server",
         "dev:data-connection": "npm run dev --workspace=packages/data-connection-worker",

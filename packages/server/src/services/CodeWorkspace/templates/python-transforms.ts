@@ -19,12 +19,14 @@ export const pythonTransforms: WorkspaceTemplate = {
 
     files: params => ({
         'pyproject.toml':                                pyproject(params),
+        'quarry-ci.yml':                                 QUARRY_CI,
         'README.md':                                     readme(params),
         '.gitignore':                                    GITIGNORE,
         [`src/${params.packageName}/__init__.py`]:       '',
         [`src/${params.packageName}/pipeline.py`]:       PIPELINE,
         [`src/${params.packageName}/datasets/__init__.py`]: '',
         [`src/${params.packageName}/datasets/example.py`]:  example(params),
+        'tests/test_pipeline.py':                        pipelineTest(params),
         'tests/test_example.py':                         exampleTest(params),
     }),
 
@@ -71,12 +73,27 @@ Transforms in \`src/${params.packageName}/datasets/\`, one or more \`@transform\
 - **Preview** runs a transform as it is in the editor, on a sample of its inputs. It writes nothing.
 - **Dependencies:** \`uv add <package>\` in the terminal, then commit \`pyproject.toml\` and \`uv.lock\`.
 - **Tests:** \`uv run pytest\`.
+- **Checks:** every commit you push runs \`quarry-ci.yml\` — its steps, then publishing your transforms so they can be built.
 `;
 }
 
 const GITIGNORE = `.venv/
 __pycache__/
 .pytest_cache/
+`;
+
+/** What every pushed commit goes through (docs/design/code-workspaces/checks.md §2). */
+const QUARRY_CI = `# What every pushed commit goes through. The last step publishes this branch's
+# transforms as job specs — what Build runs — and only if every step before it passed.
+steps:
+  - name: Environment
+    run: uv sync --frozen
+
+  - name: Tests
+    run: pytest -q
+
+  - name: Publish transforms
+    uses: quarry/publish-transforms
 `;
 
 const PIPELINE = `from quarry.transforms import Pipeline
@@ -119,6 +136,18 @@ def example(source: TransformInput, out: TransformOutput):
     df = source.polars()
 
     out.write_table(df)
+`;
+}
+
+/** Always there, so the Tests step always has a test: the pipeline imports, and finds its transforms. */
+function pipelineTest(params: TemplateParams): string {
+    return `from quarry.transforms import Pipeline
+
+from ${params.packageName}.pipeline import pipeline
+
+
+def test_the_pipeline_loads():
+    assert isinstance(pipeline, Pipeline)
 `;
 }
 

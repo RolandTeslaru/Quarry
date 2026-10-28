@@ -24,13 +24,15 @@ export const Route = createFileRoute('/_workspace/code-workspaces/$rid')({
             return { rid: parsed.data }
         },
     },
-    // Entering opens the workspace: it and the audit `open` in one request. A hover (preload) only reads.
+    // Entering opens the workspace: it and the audit `open` in one request; then its check runs go live
+    // until it closes (CodeWorkspaceSDK decides what open means). A hover (preload) only reads.
     loader: async ({ params, cause }) => {
         if (cause === 'enter')
             await orNotFound(CodeWorkspaceSDK.actions.workspace.open(params.rid, codeWorkspacesApp.id))
         else if (cause === 'preload')
             await CodeWorkspaceSDK.prefetch(CodeWorkspaceSDK.query.workspace(params.rid))
     },
+    onLeave: match => CodeWorkspaceSDK.actions.workspace.close(match.params.rid),
     // A preload is only a read: a click after a hover must still run the loader, to open.
     preloadStaleTime: 0,
     pendingComponent: App.Pending,

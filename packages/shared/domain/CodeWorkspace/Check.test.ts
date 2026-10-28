@@ -76,8 +76,8 @@ describe("Check.Manifest", () => {
         expect(manifest.success).toBe(true)
     })
 
-    it("refuses a pipeline with no transforms", () => {
-        expect(Check.Manifest.Schema.safeParse({ transforms: [] }).error?.issues[0].message).toMatch(/no transforms/)
+    it("accepts a pipeline with no transforms — nothing to publish", () => {
+        expect(Check.Manifest.Schema.safeParse({ transforms: [] }).success).toBe(true)
     })
 
     it("refuses two transforms writing the same output, naming it", () => {

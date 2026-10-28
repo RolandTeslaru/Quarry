@@ -7,6 +7,7 @@ import * as CheckRunMod from "./CheckRun"
 import * as CheckMod    from "./Check"
 import * as QueueMod    from "./queue"
 import * as DurableQueueMod from "./durable-queue"
+import * as EventMod    from "./Event"
 import * as ApiMod       from "./api"
 
 /**
@@ -27,6 +28,7 @@ export namespace CodeWorkspace {
     export import Check    = CheckMod.Check
     export import Queue    = QueueMod.Queue
     export import DurableQueue = DurableQueueMod.DurableQueue
+    export import Event    = EventMod.Event
 
     export import API = ApiMod.API
 }

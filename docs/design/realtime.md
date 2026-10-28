@@ -47,6 +47,7 @@ this.realtime.emitEvent({
 | `data-connection:source:<sourceRid>` | anyone with **discover** on the source (Gatekeeper) | `data-connection:run:updated` — a run started, succeeded or failed, as it is now |
 | `identity:user:<userRid>` | **only that user** | `identity:notification` — `{ level, title, description }`, shown as a toast anywhere in the workspace |
 | `forge:build:<buildRid>` | anyone who can **see the build** — discover on one of its targets (Forge decides: RLS on `forge.build`, resolved by the gateway through `ModuleRef` to avoid a module cycle) | `forge:job:updated` — any change to one of its jobs (scheduled, queued, started, finished, canceled), the job as it is now (`Forge.Event.Job.Updated`) |
+| `code-workspace:workspace:<workspaceRid>` | anyone with **read** on the workspace | `code-workspace:check-run:updated` — any change to one of its check runs (queued, scheduled, started, a step, finished, canceled), the run as it is now (`CodeWorkspace.Event.CheckRunUpdated`) |
 
 Any other channel is refused.
 

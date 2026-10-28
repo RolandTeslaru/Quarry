@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import { CodeWorkspace } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
@@ -55,6 +55,24 @@ export class CodeWorkspaceController {
     @HttpCode(200)
     async restartSession(@CurrentPrincipal() principal: Principal.User, @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid): Promise<API.RestartSession.Response> {
         return { url: await this.service.restartSession(principal, rid) };
+    }
+
+    @Get(':rid/check-runs')
+    async listCheckRuns(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid,
+        @Query(new ZodPipe(API.ListCheckRuns.Query)) query: API.ListCheckRuns.Query,
+    ): Promise<API.ListCheckRuns.Response> {
+        return this.service.listCheckRuns(principal, rid, query);
+    }
+
+    @Get(':rid/check-runs/:checkRunRid')
+    async getCheckRun(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid,
+        @Param('checkRunRid', new ZodPipe(CodeWorkspace.CheckRun.Rid)) checkRunRid: CodeWorkspace.CheckRun.Rid,
+    ): Promise<API.GetCheckRun.Response> {
+        return { checkRun: await this.service.getCheckRun(principal, rid, checkRunRid) };
     }
 
     @Get(':rid')

@@ -49,9 +49,9 @@ export namespace Check {
         })
         export type Transform = z.infer<typeof Transform>
 
-        /** What `quarry/publish-transforms` claims the commit's transforms are — the server checks every claim. */
+        /** What `quarry/publish-transforms` claims the commit's transforms are — the server checks every claim. None is fine: nothing to publish. */
         export const Schema = z.object({
-            transforms: Transform.array().min(1, "The pipeline declares no transforms"),
+            transforms: Transform.array(),
         }).superRefine((manifest, ctx) => {
             const outputs = manifest.transforms.flatMap((transform) => Object.values(transform.outputs))
             const repeated = outputs.filter((output, index) => outputs.indexOf(output) !== index)

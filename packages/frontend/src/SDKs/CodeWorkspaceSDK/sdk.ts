@@ -6,6 +6,7 @@ import { BaseSDK } from '../core/BaseSDK'
 import { CodeWorkspaceActions } from './actions'
 import { _createCodeWorkspaceDialogs_, type _CodeWorkspaceSDKDialogs } from './dialogs'
 import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
+import { observeCodeWorkspace, type CodeWorkspaceObserver, type ObserveOptions as ObserveOptions_ } from './observe'
 
 const TEMPLATES_STALE_TIME = Infinity
 
@@ -15,10 +16,35 @@ const SESSION_STALE_TIME = Infinity
 @SDK('CodeWorkspace')
 export class CodeWorkspaceSDKImpl extends BaseSDK<CodeWorkspaceSDK.State> {
 
+    constructor() {
+        super()
+
+        // While a workspace is open, its check runs stay live: follow its channel from onOpen to onClose.
+        this.observe({
+            workspace: {
+                onOpen:  workspaceRid => {
+                    this.runtime.stopFollowing = this.actions.checkRun.follow(workspaceRid)
+                },
+                onClose: () => {
+                    this.runtime.stopFollowing?.()
+                    this.runtime.stopFollowing = null
+                },
+            },
+        }, { immediate: true })
+    }
+
+    public readonly runtime = {
+        /** Ends following the open workspace's check runs. */
+        stopFollowing: null as (() => void) | null,
+    }
+
     public readonly useStore: BaseSDK.Store<CodeWorkspaceSDK.State> = createWithEqualityFn(
         immer<CodeWorkspaceSDK.State>(() => ({
             templates: {},
             workspaces: {},
+            checkRuns: {},
+            checkRunHistory: {},
+            openWorkspaceRid: null,
         })),
         shallow,
     )
@@ -48,6 +74,12 @@ export class CodeWorkspaceSDKImpl extends BaseSDK<CodeWorkspaceSDK.State> {
         }),
 
         /** The user's session on the workspace: started (or reused) by the code worker. */
+        /** The workspace's newest check runs — the Checks tab; older pages through `actions.checkRun.loadOlder`. */
+        checkRuns: (rid: CodeWorkspace.Rid) => ({
+            queryKey: ['code-workspace', 'check-runs', rid] as const,
+            queryFn: () => this.actions.checkRun.list(rid),
+        }),
+
         session: (rid: CodeWorkspace.Rid) => ({
             queryKey: ['code-workspace', 'session', rid] as const,
             queryFn: () => this.actions.session.open(rid),
@@ -57,10 +89,17 @@ export class CodeWorkspaceSDKImpl extends BaseSDK<CodeWorkspaceSDK.State> {
         }),
     }
 
+    public observe(observer: CodeWorkspaceSDK.Observer, options?: CodeWorkspaceSDK.ObserveOptions): () => void {
+        return observeCodeWorkspace(this, observer, options)
+    }
+
     public override cleanup(): void {
         this.setState({
             templates: {},
             workspaces: {},
+            checkRuns: {},
+            checkRunHistory: {},
+            openWorkspaceRid: null,
         })
     }
 }
@@ -72,8 +111,15 @@ export namespace CodeWorkspaceSDK {
     export type State = {
         templates:  Record<CodeWorkspace.Template.Id, CodeWorkspace.Template.Schema>
         workspaces: Record<CodeWorkspace.Rid, CodeWorkspace.Schema>
+        checkRuns:  Record<CodeWorkspace.CheckRun.Rid, CodeWorkspace.CheckRun.Schema>
+        /** Each workspace's loaded check runs, newest first (order matters: a list), and the next page's cursor. */
+        checkRunHistory: Record<CodeWorkspace.Rid, { rids: CodeWorkspace.CheckRun.Rid[]; nextBefore: CodeWorkspace.CheckRun.Rid | null }>
+        /** The workspace whose page is open (the route sets it); its check runs are followed live. */
+        openWorkspaceRid: CodeWorkspace.Rid | null
     }
 
     export type Actions = CodeWorkspaceActions
+    export type Observer = CodeWorkspaceObserver
+    export type ObserveOptions = ObserveOptions_
     export type Dialogs = _CodeWorkspaceSDKDialogs
 }

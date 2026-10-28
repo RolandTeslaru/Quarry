@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { CodeWorkspace } from '@quarry/shared/domain';
 import { Internal } from '@/auth/current-principal';
+import { Principal } from '@/auth/principal';
 import { ZodPipe } from '@/http/zod.pipe';
 import { CodeWorkspaceService } from './code-workspace.service';
 
@@ -24,7 +25,10 @@ export class CodeWorkspaceInternalController {
     getSessionCredentials(
         @Body(new ZodPipe(API.Internal.SessionCredentials.Request)) body: API.Internal.SessionCredentials.Request,
     ): Promise<API.Internal.SessionCredentials.Response> {
-        return this.service.getSessionCredentials(body);
+        // As the user, through their session on this workspace — what audit records as `via`.
+        const principal = Principal.delegate(body.userRid, `code-workspace-session:${body.workspaceRid}`);
+
+        return this.service.getSessionCredentials(principal, body.workspaceRid);
     }
 
     @Post('code-workspaces/check-runs/sweep')

@@ -98,7 +98,7 @@
         "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --outfile=dist/extension.js",
         "build:webviews": "node scripts/build-webviews.mjs && tailwindcss -i webviews/styles.css -o dist/webview/styles.css --minify",
         "build": "npm run build:extension && npm run build:webviews",
-        "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --out dist/quarry-code-workspace.vsix",
+        "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --skip-license --out dist/quarry-code-workspace.vsix",
         "typecheck": "tsc --noEmit && tsc --noEmit -p webviews"
     },
     "dependencies": {

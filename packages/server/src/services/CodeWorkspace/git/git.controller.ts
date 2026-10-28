@@ -34,7 +34,9 @@ export class GitController {
         if (!SMART_PATHS.includes(rest))
             throw new NotFoundException('Not found');
 
-        const projectRoot = await this.service.authorizeGit(principal, rid, isPush(request, rest) ? 'push' : 'fetch');
+        const projectRoot = isPush(request, rest)
+            ? await this.service.authorizePush(principal, rid)
+            : await this.service.authorizeFetch(principal, rid);
 
         // The push itself, not its advertisement: compare the heads around it to see what it moved.
         const before = rest === 'git-receive-pack' ? await this.service.getHeads(rid) : null;

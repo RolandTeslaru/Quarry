@@ -71,20 +71,43 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
         };
     }
 
-    /** A workspace's check runs, newest first — one branch's, or all. Read on the workspace (RLS). */
+    /**
+     * A page of the workspace's check runs, newest first: up to `limit`, older than `before`
+     * (a run's RID — keyset paging, so runs arriving meanwhile don't shift the pages). Read on the workspace (RLS).
+     */
     @Transactional()
-    public async list(principal: Principal, workspaceRid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CheckRun.Schema[]> {
+    public async list(
+        principal:    Principal,
+        workspaceRid: CodeWorkspace.Rid,
+        page:         { branch?: Foundations.Branch; before?: CheckRun.Rid; limit: number },
+    ): Promise<CheckRun.Schema[]> {
         let query = this.trx
             .selectFrom('code_workspace.check_run')
             .selectAll()
             .where('workspace_rid', '=', workspaceRid);
 
-        if (branch)
-            query = query.where('branch', '=', branch);
+        if (page.branch)
+            query = query.where('branch', '=', page.branch);
 
-        const rows = await query.orderBy('created_at', 'desc').orderBy('rid', 'desc').execute();
+        if (page.before)
+            query = query.where(sql<boolean>`(created_at, rid) < (select created_at, rid from code_workspace.check_run where rid = ${page.before})`);
+
+        const rows = await query.orderBy('created_at', 'desc').orderBy('rid', 'desc').limit(page.limit).execute();
 
         return rows.map(CodeWorkspaceDB.CheckRun.toDomain);
+    }
+
+    /** One of the workspace's check runs. Null if there's no such run there, or it isn't the principal's to see (RLS). */
+    @Transactional()
+    public async getInWorkspace(principal: Principal, workspaceRid: CodeWorkspace.Rid, rid: CheckRun.Rid): Promise<CheckRun.Schema | null> {
+        const row = await this.trx
+            .selectFrom('code_workspace.check_run')
+            .selectAll()
+            .where('workspace_rid', '=', workspaceRid)
+            .where('rid', '=', rid)
+            .executeTakeFirst();
+
+        return row ? CodeWorkspaceDB.CheckRun.toDomain(row) : null;
     }
 
     // ── running them (the worker, the sweep — as the service) ──

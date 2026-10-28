@@ -1,5 +1,6 @@
 import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import type { CodeWorkspaceSDKImpl } from '../sdk'
+import { CheckRunActions } from './check-run'
 import { SessionActions } from './session'
 import { WorkspaceActions } from './workspace'
 
@@ -11,4 +12,6 @@ export class CodeWorkspaceActions extends ActionGroup<CodeWorkspaceSDKImpl> {
     public readonly workspace = new WorkspaceActions(this.sdk)
 
     public readonly session = new SessionActions(this.sdk)
+
+    public readonly checkRun = new CheckRunActions(this.sdk)
 }

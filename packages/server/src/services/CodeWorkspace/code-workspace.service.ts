@@ -1,12 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import { CodeWorkspace, Library, type Catalog, type Platform } from '@quarry/shared/domain';
+import { CodeWorkspace, Library, type Catalog, type Identity, type Platform } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { RequireUserPrincipal } from '@/auth/require-user-principal';
 import { SessionTokens } from '@/auth/session-tokens';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
+import { RequireLive } from '@/db/liveness';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { IdentityService } from '@/services/Identity/identity.service';
 import { LibraryService } from '@/services/Library/library.service';
@@ -132,9 +133,7 @@ export class CodeWorkspaceService {
      */
     @RequireUserPrincipal('Only users have sessions')
     @SecurityGate('read')
-    async openSession(principal: Principal.User, rid: CodeWorkspace.Rid): Promise<string> {
-        await this.get(principal, rid);                     // 404 if it's gone or trashed
-
+    async openSession(principal: Principal.User, @RequireLive() rid: CodeWorkspace.Rid): Promise<string> {
         return this.worker.openSession(rid, principal.userRid);
     }
 
@@ -144,40 +143,49 @@ export class CodeWorkspaceService {
      */
     @RequireUserPrincipal('Only users have sessions')
     @SecurityGate('read')
-    async restartSession(principal: Principal.User, rid: CodeWorkspace.Rid): Promise<string> {
-        await this.get(principal, rid);                     // 404 if it's gone or trashed
-
+    async restartSession(principal: Principal.User, @RequireLive() rid: CodeWorkspace.Rid): Promise<string> {
         return this.worker.restartSession(rid, principal.userRid);
     }
 
     /**
      * For the code workspace worker, each time it acts for a session: the user must still
-     * read the workspace — checked as them — then a token that acts as them.
+     * read the live workspace — checked as them (the delegate) — then a token that acts as them.
      */
-    async getSessionCredentials(request: CodeWorkspace.API.Internal.SessionCredentials.Request): Promise<CodeWorkspace.API.Internal.SessionCredentials.Response> {
-        const via = `code-workspace-session:${request.workspaceRid}`;
-        const principal = Principal.onBehalfOf(request.userRid, via);
-
-        await this.get(principal, request.workspaceRid);
-        await this.gatekeeper.assert(principal, 'read', request.workspaceRid);
-
-        const user = await this.identity.getUser(principal, request.userRid);
+    @SecurityGate('read')
+    async getSessionCredentials(principal: Principal.Delegate, @RequireLive() workspaceRid: CodeWorkspace.Rid): Promise<CodeWorkspace.API.Internal.SessionCredentials.Response> {
+        const user = await this.identity.getUser(principal, principal.userRid);
 
         return {
-            token: await this.sessionTokens.mint(request.userRid, via),
+            token: await this.sessionTokens.mint(principal.userRid, principal.via),
             user:  { name: user.displayName, email: user.email },
         };
     }
 
-    /**
-     * Git over HTTP: the workspace must be live and visible, then read to clone
-     * or fetch, write to push. Returns where its bare repository is.
-     */
-    async authorizeGit(principal: Principal, rid: CodeWorkspace.Rid, operation: 'fetch' | 'push'): Promise<string> {
-        await this.get(principal, rid);
-        await this.gatekeeper.assert(principal, operation === 'push' ? 'write' : 'read', rid);
-
+    /** Git over HTTP, to clone or fetch: read on the live workspace. Returns where its bare repository is. */
+    @SecurityGate('read')
+    async authorizeFetch(principal: Principal, @RequireLive() rid: CodeWorkspace.Rid): Promise<string> {
         return this.gitRepositories.root;
+    }
+
+    /** Git over HTTP, to push: write on the live workspace. Returns where its bare repository is. */
+    @SecurityGate('write')
+    async authorizePush(principal: Principal, @RequireLive() rid: CodeWorkspace.Rid): Promise<string> {
+        return this.gitRepositories.root;
+    }
+
+    /**
+     * A page of the workspace's check runs, newest first. Read on the workspace — the gate;
+     * gone or trashed is the repository's 404 (its @Transactional liveness check).
+     */
+    @SecurityGate('read')
+    async listCheckRuns(principal: Principal, rid: CodeWorkspace.Rid, query: CodeWorkspace.API.ListCheckRuns.Query): Promise<CodeWorkspace.API.ListCheckRuns.Response> {
+        return this.checks.listCheckRuns(principal, rid, query);
+    }
+
+    /** One of the workspace's check runs. Read on the workspace, as above. */
+    @SecurityGate('read')
+    async getCheckRun(principal: Principal, rid: CodeWorkspace.Rid, checkRunRid: CodeWorkspace.CheckRun.Rid): Promise<CodeWorkspace.CheckRun.Schema> {
+        return this.checks.getCheckRun(principal, rid, checkRunRid);
     }
 
     /** Where the workspace's branches point — read before a push, to see what it moved. */

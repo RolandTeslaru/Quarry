@@ -15,6 +15,7 @@ import type { Principal } from '@/auth/principal';
 import { SessionTokens } from '@/auth/session-tokens';
 import { db } from '@/db/pool';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
+import { CodeWorkspaceChecks } from '@/services/CodeWorkspace/checks/code-workspace-checks';
 import { QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 import { ForgeHarness } from '../support/forge-fixtures';
 
@@ -46,11 +47,16 @@ describe('check runs', () => {
         await harness.stop();
     });
 
+    /** Every run of the workspace (one branch's, or all), newest first — up to a page of 100. */
+    function listRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CodeWorkspace.CheckRun.Schema[]> {
+        return harness.get(CodeWorkspaceChecks).listCheckRuns(principal, rid, { branch, limit: 100 }).then((page) => page.checkRuns);
+    }
+
     /** A workspace whose commits can be checked (they hold quarry-ci.yml). */
     const checkedWorkspace = () => createWorkspace(harness, admin, { 'quarry-ci.yml': QUARRY_CI });
 
     async function getByCommit(rid: CodeWorkspace.Rid): Promise<Record<string, CodeWorkspace.CheckRun.Schema>> {
-        return Object.fromEntries((await service.checks.listCheckRuns(admin, rid)).map((run) => [run.commit, run]));
+        return Object.fromEntries((await listRuns(admin, rid)).map((run) => [run.commit, run]));
     }
 
     describe('queued by the service', () => {
@@ -60,7 +66,7 @@ describe('check runs', () => {
 
             await service.pushed(admin, rid, {});
 
-            const runs = await service.checks.listCheckRuns(admin, rid);
+            const runs = await listRuns(admin, rid);
 
             expect(runs).toHaveLength(1);
             expect(runs[0]).toMatchObject({ branch: MAIN, commit: heads[MAIN], status: 'scheduled', pushedBy: admin.userRid, published: false });
@@ -72,7 +78,7 @@ describe('check runs', () => {
 
             await service.pushed(admin, rid, {});
 
-            expect(await service.checks.listCheckRuns(admin, rid)).toMatchObject([{ status: 'failed', failure: { step: CodeWorkspace.CheckRun.PARSE_STEP } }]);
+            expect(await listRuns(admin, rid)).toMatchObject([{ status: 'failed', failure: { step: CodeWorkspace.CheckRun.PARSE_STEP } }]);
         });
 
         it("queues nothing when the push moved nothing", async () => {
@@ -80,7 +86,7 @@ describe('check runs', () => {
 
             await service.pushed(admin, rid, heads);
 
-            expect(await service.checks.listCheckRuns(admin, rid)).toEqual([]);
+            expect(await listRuns(admin, rid)).toEqual([]);
         });
 
         it("supersedes the branch's unfinished runs — freeing the workspace for its oldest waiting run", async () => {
@@ -116,7 +122,7 @@ describe('check runs', () => {
             const second = await service.checks.pushed(admin, rid, { [MAIN]: b });
 
             expect(second.canceled).toEqual([]);
-            expect((await service.checks.listCheckRuns(admin, rid, MAIN)).map((run) => run.status)).toEqual(['scheduled', 'failed']);
+            expect((await listRuns(admin, rid, MAIN)).map((run) => run.status)).toEqual(['scheduled', 'failed']);
         });
 
         it('lists one branch, newest first', async () => {
@@ -130,8 +136,8 @@ describe('check runs', () => {
 
             await service.checks.pushed(admin, rid, { [MAIN]: b });
 
-            expect((await service.checks.listCheckRuns(admin, rid, MAIN)).map((run) => run.commit)).toEqual([b, a]);
-            expect((await service.checks.listCheckRuns(admin, rid, FEATURE)).map((run) => run.commit)).toEqual([f]);
+            expect((await listRuns(admin, rid, MAIN)).map((run) => run.commit)).toEqual([b, a]);
+            expect((await listRuns(admin, rid, FEATURE)).map((run) => run.commit)).toEqual([f]);
         });
 
         it('lets readers see runs; refuses queueing to someone without write', async () => {
@@ -144,10 +150,10 @@ describe('check runs', () => {
             await harness.grant(admin, projectRid, viewer, 'viewer');
             await service.checks.pushed(admin, rid, { [MAIN]: a });
 
-            expect(await service.checks.listCheckRuns(viewer, rid)).toHaveLength(1);
-            expect(await service.checks.listCheckRuns(outsider, rid)).toEqual([]);
+            expect(await listRuns(viewer, rid)).toHaveLength(1);
+            expect(await listRuns(outsider, rid)).toEqual([]);
             await expect(service.checks.pushed(viewer, rid, { [MAIN]: b })).rejects.toThrow();
-            expect(await service.checks.listCheckRuns(admin, rid)).toHaveLength(1);
+            expect(await listRuns(admin, rid)).toHaveLength(1);
         });
 
         it('never throws from pushed: a failure to queue is logged, not raised into the finished push', async () => {
@@ -157,7 +163,7 @@ describe('check runs', () => {
             await harness.grant(admin, projectRid, viewer, 'viewer');
 
             await expect(service.pushed(viewer, rid, {})).resolves.toBeUndefined();
-            expect(await service.checks.listCheckRuns(admin, rid)).toEqual([]);
+            expect(await listRuns(admin, rid)).toEqual([]);
         });
     });
 
@@ -217,7 +223,7 @@ describe('check runs', () => {
 
             await clone.git('push', '--quiet', 'origin', 'main');
 
-            const runs = await service.checks.listCheckRuns(admin, rid);
+            const runs = await listRuns(admin, rid);
 
             expect(runs).toHaveLength(1);
             expect(runs[0]).toMatchObject({ branch: MAIN, commit, status: 'scheduled', pushedBy: admin.userRid });
@@ -233,7 +239,7 @@ describe('check runs', () => {
 
             await clone.git('push', '--quiet', 'origin', 'main');
 
-            expect((await service.checks.listCheckRuns(admin, rid)).map((run) => run.commit)).toEqual([head]);
+            expect((await listRuns(admin, rid)).map((run) => run.commit)).toEqual([head]);
         });
 
         it('queues a run per branch pushed, and supersedes on the next push', async () => {
@@ -249,7 +255,7 @@ describe('check runs', () => {
 
             await clone.git('push', '--quiet', 'origin', 'main', FEATURE);
 
-            const byCommit = Object.fromEntries((await service.checks.listCheckRuns(admin, rid)).map((run) => [run.commit, run]));
+            const byCommit = Object.fromEntries((await listRuns(admin, rid)).map((run) => [run.commit, run]));
 
             expect(byCommit[first]).toMatchObject({ status: 'canceled' });
             expect(byCommit[second]).toMatchObject({ branch: MAIN });
@@ -266,14 +272,14 @@ describe('check runs', () => {
             await ahead.git('push', '--quiet', 'origin', 'main');
             await ahead.git('push', '--quiet', 'origin', `main:${FEATURE}`);
 
-            const before = (await service.checks.listCheckRuns(admin, rid)).length;
+            const before = (await listRuns(admin, rid)).length;
 
             await behind.commit('b.py');
             await expect(behind.git('push', '--quiet', 'origin', 'main')).rejects.toThrow();     // not a fast-forward
             await behind.git('fetch', '--quiet', 'origin');
             await ahead.git('push', '--quiet', 'origin', '--delete', FEATURE);
 
-            expect(await service.checks.listCheckRuns(admin, rid)).toHaveLength(before);
+            expect(await listRuns(admin, rid)).toHaveLength(before);
         });
 
         it("refuses a viewer's push — and queues nothing", async () => {
@@ -286,7 +292,7 @@ describe('check runs', () => {
 
             await clone.commit('a.py');
             await expect(clone.git('push', '--quiet', 'origin', 'main')).rejects.toThrow(/403/);
-            expect(await service.checks.listCheckRuns(admin, rid)).toEqual([]);
+            expect(await listRuns(admin, rid)).toEqual([]);
         });
 
         it("queues an editor's push as the editor", async () => {
@@ -300,7 +306,7 @@ describe('check runs', () => {
 
             await clone.git('push', '--quiet', 'origin', 'main');
 
-            expect(await service.checks.listCheckRuns(admin, rid)).toMatchObject([{ commit, pushedBy: editor.userRid }]);
+            expect(await listRuns(admin, rid)).toMatchObject([{ commit, pushedBy: editor.userRid }]);
         });
     });
 });

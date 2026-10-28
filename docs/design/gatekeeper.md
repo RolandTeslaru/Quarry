@@ -115,6 +115,8 @@ gatekeeper.effective_rank(resource_rid, user_rid) → 0..4
 
 Trash is **not** a Gatekeeper concern. Gatekeeper answers "would be allowed"; the repository layer answers "does it exist right now" (not trashed, no trashed ancestor): `@Transactional` checks every top-level resource-RID argument, unless that parameter is marked `@AllowTrashed()`. Both fail with 404, so a trashed resource and an invisible one look the same.
 
+A gated **service** method whose work isn't a repository call with that RID — an IDE session, its token, Git over HTTP — has nothing that would check liveness: Gatekeeper ranks a trashed resource like any other (and an admin ranks owner on any RID, even one that doesn't exist). Such a method marks the parameter **`@RequireLive()`** — the service-side counterpart of `@AllowTrashed()`, both in the liveness layer (`db/liveness.ts`): `openSession(principal, @RequireLive() rid)`. A parameter decorator only marks; the method's `@SecurityGate` enforces it — the rank, then the marked RIDs live, else 404 — and `test/architecture/security-gates` fails a `@RequireLive()` on an ungated method. (Before 2026-10-28 these methods read the resource just for its liveness: `await this.get(principal, rid)`.)
+
 ---
 
 ## 6. API

@@ -24,7 +24,7 @@ import CheckRun = CodeWorkspace.CheckRun;
 export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database) {
 
     public readonly workspace: Pick<WorkspaceRepository, 'create' | 'get' | 'open' | 'list'>;
-    public readonly checkRun:  Pick<CheckRunRepository, 'list' | 'get' | 'reportStep'>;
+    public readonly checkRun:  Pick<CheckRunRepository, 'list' | 'get' | 'getInWorkspace' | 'reportStep'>;
 
     constructor(
         _workspace: WorkspaceRepository,

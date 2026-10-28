@@ -3,6 +3,7 @@ import { CodeWorkspace, type Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { SessionTokens } from '@/auth/session-tokens';
+import { RealtimeService } from '@/services/Realtime/realtime.service';
 import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
 import { CodeWorkspaceRepository } from '../repository/code-workspace.repository';
 import type { NewCheckRun, QueuedCheckRuns } from '../repository/check-run.repository';
@@ -34,6 +35,7 @@ export class CodeWorkspaceChecks {
         private readonly repository:    CodeWorkspaceRepository,
         private readonly repositories:  GitRepositories,
         private readonly sessionTokens: SessionTokens,
+        private readonly realtime:      RealtimeService,
         @InjectDurableQueue(CodeWorkspace.DurableQueue.RunCheck)
         private readonly runCheckQueue: DurableQueueHandle<typeof CodeWorkspace.Queue.RunCheck.Definition>,
     ) {}
@@ -44,22 +46,56 @@ export class CodeWorkspaceChecks {
      * workspace is free, the next scheduled and relayed.
      */
     public async pushed(principal: Principal.User, rid: CodeWorkspace.Rid, moved: CodeWorkspace.Git.Heads): Promise<QueuedCheckRuns> {
-        const runs = await Promise.all(Object.entries(moved).map(([branch, commit]) => this._prepare(rid, branch as Foundations.Branch, commit)));
+        const runs: NewCheckRun[] = [];
+
+        for (const [branch, commit] of Object.entries(moved) as [Foundations.Branch, CodeWorkspace.Git.Commit][]) {
+            const config = await readCheckConfig(this.repositories, { workspaceRid: rid, commit });
+
+            if ('error' in config)
+                runs.push({ branch, commit, steps: getParseFailedSteps(config.error), failure: { step: CheckRun.PARSE_STEP, message: config.error } });
+            else
+                runs.push({ branch, commit, steps: layOutSteps(config.config), failure: null });
+        }
+
         const queued = await this.repository.queueCheckRuns(principal, rid, runs);
 
-        for (const run of queued.queued)
-            this.log.info(`Queued ${run.rid}: ${run.branch} at ${run.commit.slice(0, 7)} (${run.status})`, { workspace: rid });
+        for (const checkRun of queued.canceled)
+            this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(checkRun));
 
-        if (queued.canceled.length > 0)
-            this.log.info(`Superseded ${queued.canceled.length} run(s) of ${rid}`, { canceled: queued.canceled.map(run => run.rid) });
+        // The run this push scheduled is announced once, below, as scheduled.
+        for (const checkRun of queued.queued)
+            if (checkRun.rid !== queued.scheduled?.rid)
+                this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(checkRun));
 
-        await this._relay(queued.scheduled ? [queued.scheduled] : []);
+        if (queued.scheduled) {
+            this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(queued.scheduled));
+            await this.runCheckQueue.relay();
+        }
+
+        this.log.info(`Queued ${queued.queued.length} check run(s) of ${rid}`, {
+            queued:    queued.queued.map(run => run.rid),
+            canceled:  queued.canceled.map(run => run.rid),
+            scheduled: queued.scheduled?.rid ?? null,
+        });
 
         return queued;
     }
 
-    public async listCheckRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CodeWorkspace.CheckRun.Schema[]> {
-        return this.repository.checkRun.list(principal, rid, branch);
+    /** A page of the workspace's check runs, newest first. Visibility is the caller's to check (CodeWorkspaceService). */
+    public async listCheckRuns(principal: Principal, rid: CodeWorkspace.Rid, query: CodeWorkspace.API.ListCheckRuns.Query): Promise<CodeWorkspace.API.ListCheckRuns.Response> {
+        const runs = await this.repository.checkRun.list(principal, rid, { branch: query.branch, before: query.before, limit: query.limit + 1 });
+        const page = runs.slice(0, query.limit);
+
+        return { checkRuns: page, nextBefore: runs.length > query.limit ? page.at(-1)!.rid : null };
+    }
+
+    public async getCheckRun(principal: Principal, rid: CodeWorkspace.Rid, checkRunRid: CheckRun.Rid): Promise<CheckRun.Schema> {
+        const checkRun = await this.repository.checkRun.getInWorkspace(principal, rid, checkRunRid);
+
+        if (!checkRun)
+            throw new NotFoundException('Not found');
+
+        return checkRun;
     }
 
     // ── the worker running one ──────────────────────────────────────────
@@ -71,30 +107,46 @@ export class CodeWorkspaceChecks {
         if (!checkRun)
             throw new ConflictException("This check run isn't waiting for a worker");
 
-        // Parsed when it was pushed, so it parses again: the commit can't have changed.
-        const result = await readCheckConfig(this.repositories, checkRun);
+        this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(checkRun));
 
-        if ('error' in result || !checkRun.pushedBy) {
-            const message = 'error' in result ? result.error : 'No pusher to act as';
+        // Read when it was pushed, so it reads again: the commit can't have changed.
+        const config = await readCheckConfig(this.repositories, checkRun);
 
-            const finished = await this.repository.finishCheckRun(WORKER, rid, { status: 'failed', steps: skipWaiting(checkRun.steps), failure: { step: 'Set up', message } });
-
-            await this._relay(finished?.scheduled ? [finished.scheduled] : []);
-
-            throw new ConflictException(message);
+        if (!('error' in config) && checkRun.pushedBy) {
+            return {
+                checkRun,
+                steps: config.config.steps,
+                token: await this.sessionTokens.mint(checkRun.pushedBy, 'check'),
+            };
         }
 
-        return {
-            checkRun,
-            steps: result.config.steps,
-            token: await this.sessionTokens.mint(checkRun.pushedBy, 'check'),
-        };
+        // Can't be run after all: failed at set up, and the workspace's next run scheduled.
+        const message = 'error' in config ? config.error : 'No pusher to act as';
+        const steps = checkRun.steps.map(step => step.status === 'waiting' ? { ...step, status: 'skipped' as const } : step);
+        const finished = await this.repository.finishCheckRun(WORKER, rid, { status: 'failed', steps, failure: { step: 'Set up', message } });
+
+        if (finished)
+            this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(finished.run));
+
+        if (finished?.scheduled) {
+            this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(finished.scheduled));
+            await this.runCheckQueue.relay();
+        }
+
+        throw new ConflictException(message);
     }
 
-    /** A step starting or ending. 400 for a step the file hasn't got; 409 once the run isn't the worker's. */
+    /** A step starting or ending. 400 for a step the file hasn't got; 409 once the run isn't running. */
     public async reportStep(rid: CheckRun.Rid, index: number, report: Internal.CheckRun.Step.Request): Promise<CheckRun.Schema> {
         const parsed = Internal.CheckRun.Step.Request.parse(report);
-        const current = await this.getRunning(rid);
+        const current = await this.repository.checkRun.get(WORKER, rid);
+
+        if (!current)
+            throw new NotFoundException('Not found');
+
+        if (current.status !== 'running')
+            throw new ConflictException(current.status === 'canceled' ? 'This check run was canceled' : `This check run is ${current.status}`);
+
         const position = CheckRun.getStepPosition(index);
 
         if (!Number.isInteger(index) || index < 0 || position >= current.steps.length - 1)
@@ -112,6 +164,8 @@ export class CodeWorkspaceChecks {
         if (!updated)
             throw new ConflictException('This check run was canceled');
 
+        this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(updated));
+
         return updated;
     }
 
@@ -121,9 +175,18 @@ export class CodeWorkspaceChecks {
      */
     public async finish(rid: CheckRun.Rid, outcome: Internal.CheckRun.Finish.Request): Promise<CheckRun.Schema> {
         const parsed = Internal.CheckRun.Finish.Request.parse(outcome);
-        const current = await this.getRunning(rid);
-        const steps = skipWaiting(current.steps);
+        const current = await this.repository.checkRun.get(WORKER, rid);
+
+        if (!current)
+            throw new NotFoundException('Not found');
+
+        if (current.status !== 'running')
+            throw new ConflictException(current.status === 'canceled' ? 'This check run was canceled' : `This check run is ${current.status}`);
+
+        // Steps that never ran — after a failure, or never started — are skipped.
+        const steps = current.steps.map(step => step.status === 'waiting' || step.status === 'running' ? { ...step, status: 'skipped' as const } : step);
         const publish = steps.length - 1;
+        const now = new Date();
         let status = parsed.status;
         let failure = parsed.failure;
 
@@ -132,11 +195,15 @@ export class CodeWorkspaceChecks {
         }
         else {
             const manifest = CodeWorkspace.Check.Manifest.Schema.safeParse(parsed.manifest);
-            const now = new Date();
 
             if (manifest.success) {
-                steps[publish] = { ...steps[publish], status: 'skipped', startedAt: now, finishedAt: now,
-                    log: `${manifest.data.transforms.length} transform(s) found. Publishing job specs isn't built yet.` };
+                steps[publish] = {
+                    ...steps[publish],
+                    status:     'skipped',
+                    startedAt:  now,
+                    finishedAt: now,
+                    log:        `${manifest.data.transforms.length} transform(s) found. Publishing job specs isn't built yet.`,
+                };
             }
             else {
                 status = 'failed';
@@ -150,8 +217,14 @@ export class CodeWorkspaceChecks {
         if (!finished)
             throw new ConflictException('This check run was canceled');
 
-        this.log.info(`${rid} ${status}`, { workspace: finished.run.workspaceRid, failure });
-        await this._relay(finished.scheduled ? [finished.scheduled] : []);
+        this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(finished.run));
+
+        if (finished.scheduled) {
+            this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(finished.scheduled));
+            await this.runCheckQueue.relay();
+        }
+
+        this.log.info(`${rid} ${status}`, { workspace: finished.run.workspaceRid, failure, scheduled: finished.scheduled?.rid ?? null });
 
         return finished.run;
     }
@@ -165,47 +238,18 @@ export class CodeWorkspaceChecks {
             message: `The worker stopped reporting for ${SILENT_MINUTES} minutes`,
         });
 
-        if (failed.length > 0)
-            this.log.info(`Swept: ${failed.length} failed`, { failed: failed.map(run => run.rid) });
+        for (const checkRun of failed)
+            this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(checkRun));
 
-        await this._relay(scheduled);
-
-        return { failed: failed.length, scheduled: scheduled.length };
-    }
-
-    /** A pushed head's run: its steps laid out from quarry-ci.yml at that commit — or why it can't run. */
-    private async _prepare(rid: CodeWorkspace.Rid, branch: Foundations.Branch, commit: CodeWorkspace.Git.Commit): Promise<NewCheckRun> {
-        const result = await readCheckConfig(this.repositories, { workspaceRid: rid, commit });
-
-        return 'error' in result
-            ? { branch, commit, steps: getParseFailedSteps(result.error), failure: { step: CheckRun.PARSE_STEP, message: result.error } }
-            : { branch, commit, steps: layOutSteps(result.config), failure: null };
-    }
-
-    /** After a commit that scheduled runs: their messages to Redis now. Best effort — the durable-queue sweep catches the rest. */
-    private async _relay(scheduled: CheckRun.Schema[]): Promise<void> {
-        for (const run of scheduled)
-            this.log.info(`Scheduled ${run.rid}: ${run.branch} at ${run.commit.slice(0, 7)}`, { workspace: run.workspaceRid });
+        for (const checkRun of scheduled)
+            this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(checkRun));
 
         if (scheduled.length > 0)
             await this.runCheckQueue.relay();
+
+        if (failed.length > 0)
+            this.log.info(`Swept: ${failed.length} failed`, { failed: failed.map(run => run.rid), scheduled: scheduled.map(run => run.rid) });
+
+        return { failed: failed.length, scheduled: scheduled.length };
     }
-
-    /** The run, if it's the worker's to report on: running. */
-    private async getRunning(rid: CheckRun.Rid): Promise<CheckRun.Schema> {
-        const checkRun = await this.repository.checkRun.get(WORKER, rid);
-
-        if (!checkRun)
-            throw new NotFoundException('Not found');
-
-        if (checkRun.status !== 'running')
-            throw new ConflictException(checkRun.status === 'canceled' ? 'This check run was canceled' : `This check run is ${checkRun.status}`);
-
-        return checkRun;
-    }
-}
-
-/** Steps that never ran — after a failure, or never started — are skipped. */
-function skipWaiting(steps: CheckRun.Step.Schema[]): CheckRun.Step.Schema[] {
-    return steps.map(step => step.status === 'waiting' || step.status === 'running' ? { ...step, status: 'skipped' } : step);
 }

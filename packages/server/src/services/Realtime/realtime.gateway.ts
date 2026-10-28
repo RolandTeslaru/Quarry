@@ -3,7 +3,7 @@ import type { OnModuleDestroy } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { type OnGatewayConnection, type OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
 import { WebSocket } from 'ws';
-import { DataConnection, Forge, Identity, Realtime } from '@quarry/shared/domain';
+import { CodeWorkspace, DataConnection, Forge, Identity, Realtime } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import type { Principal } from '@/auth/principal';
 import { TokenVerifier } from '@/auth/token-verifier';
@@ -141,6 +141,11 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
         if (sourceRid)
             return this.gatekeeper.can(principal, 'discover', sourceRid);
+
+        const workspaceRid = CodeWorkspace.Event.workspaceOf(channel);
+
+        if (workspaceRid)
+            return this.gatekeeper.can(principal, 'read', workspaceRid);
 
         const buildRid = Forge.Event.buildOf(channel);
 

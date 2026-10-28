@@ -17,6 +17,7 @@ export class WorkspaceActions extends ActionGroup<CodeWorkspaceSDKImpl> {
 
         this.sdk.setState(state => {
             state.workspaces[rid] = data.workspace
+            state.openWorkspaceRid = rid
         })
 
         this.sdk.seedQuery(query => query.workspace(rid), { workspace: data.workspace })
@@ -24,6 +25,17 @@ export class WorkspaceActions extends ActionGroup<CodeWorkspaceSDKImpl> {
         void AuditSDK.invalidate(AuditSDK.query.recents(application))
 
         return data
+    }
+
+    /** This workspace's page closed (the route's onLeave) — only if it's still the open one. */
+    public close(rid: CodeWorkspace.Rid): void {
+        // Switching workspaces can enter the new one before leaving the old: never close the newer.
+        if (this.sdk.state.openWorkspaceRid !== rid)
+            return
+
+        this.sdk.setState(state => {
+            state.openWorkspaceRid = null
+        })
     }
 
     public async getTemplates(): Promise<CodeWorkspace.API.ListTemplates.Response> {
