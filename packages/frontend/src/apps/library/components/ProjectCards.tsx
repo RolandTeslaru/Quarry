@@ -14,7 +14,7 @@ interface Props {
     className?: string
 }
 
-/** The Library Explorer's first page: every project you can see, as cards, filtered by the header's search. */
+/** The Library Explorer's first page: every project you can see, as cards, filtered by the navbar's search. */
 export function ProjectCards({ className }: Props) {
     const { searchQuery } = useLibraryExplorer()
 

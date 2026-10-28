@@ -14,8 +14,8 @@ import { useApp } from './layout'
 
 // An app's home screen — its route without a rid (`/<app>`, routes/index.tsx),
 // inside the app's App.Root. Like an iPad app's document browser: the app's
-// tinted dither fills the whole screen; its name sits large over it, beside its
-// logo; below, a frosted panel holds the sections.
+// tinted dither fills a full-width header; its name sits over it beside its
+// logo. The sections sit on a solid surface below.
 //
 //   <App.Home.Root>
 //       <App.Home.Header>
@@ -32,24 +32,42 @@ import { useApp } from './layout'
 //
 // Logo, Title and TitleDescription show the app's own (App.useApp) unless given children.
 
-/** The whole screen — every column of the app's grid — over the app's dither. */
-function Root({ className, children, ...props }: ComponentProps<'div'>) {
+/** The whole home screen, spanning every column of the app's grid. */
+function Root({ className, ...props }: ComponentProps<'div'>) {
+    return (
+        <div
+            data-slot='app-home'
+            className={cn('surface-content flex min-h-0 flex-col overflow-hidden [grid-area:1/1/-1/-1]', className)}
+            {...props}
+        />
+    )
+}
+
+/** A full-width dither banner, with the app's identity aligned to the content below. */
+function Header({ className, children, ...props }: ComponentProps<'header'>) {
     const app = useApp()
     const look = app.home
 
     return (
-        <div
-            data-slot='app-home'
-            className={cn('relative isolate flex min-h-0 flex-col overflow-hidden [grid-area:1/1/-1/-1]', className)}
+        <header
+            data-slot='app-home-header'
+            className={cn(
+                'relative isolate h-72 w-full shrink-0 overflow-hidden border-b bg-(--surface-panel) dark:bg-black',
+                className,
+            )}
             {...props}
         >
             {look && (
-                <div aria-hidden className='pointer-events-none absolute inset-0 -z-10'>
+                <div
+                    aria-hidden
+                    className='pointer-events-none absolute inset-0 -z-10'
+                    style={{ maskImage: 'linear-gradient(to right, transparent, black)' }}
+                >
                     {/* One WebGL context for every home: only one is on screen; it moves with the page. */}
                     <Dither
                         ctx={ditherCtx}
                         waveColorVar={look.tint}
-                        bgColorVar='--backdrop'                    // near black in dark mode
+                        bgColorVar='--backdrop'
                         waveSpeed={look.wave?.speed}
                         waveFrequency={look.wave?.frequency}
                         waveAmplitude={look.wave?.amplitude}
@@ -59,29 +77,14 @@ function Root({ className, children, ...props }: ComponentProps<'div'>) {
                 </div>
             )}
 
-            {children}
-        </div>
-    )
-}
-
-/**
- * The top, frosted like the panel and as wide: logo beside the title and its
- * description.
- * A grid — each part places itself by area, so any can be left out.
- */
-function Header({ className, ...props }: ComponentProps<'header'>) {
-    return (
-        <header
-            data-slot='app-home-header'
-            className={cn(
-                `mx-auto mt-24 mb-8 grid w-full max-w-4xl shrink-0 items-center gap-x-6 gap-y-1 rounded-2xl border p-6
-                bg-(--surface)/65 shadow-lg backdrop-blur-2xl
-                grid-cols-[auto_minmax(0,1fr)]
-                [grid-template-areas:'logo_pretitle'_'logo_title'_'logo_description']`,
-                className,
-            )}
-            {...props}
-        />
+            <div
+                className={`relative mx-auto grid h-full w-full max-w-4xl grid-cols-[auto_minmax(0,1fr)]
+                content-center items-center gap-x-6 gap-y-1 px-6 py-6
+                [grid-template-areas:'logo_pretitle'_'logo_title'_'logo_description']`}
+            >
+                {children}
+            </div>
+        </header>
     )
 }
 
@@ -155,14 +158,13 @@ function Actions({ className, ...props }: ComponentProps<'div'>) {
     )
 }
 
-/** The frosted panel below the header: the dither blurred behind it. Scrolls on its own. */
+/** The main content below the banner. Scrolls on its own. */
 function Content({ className, ...props }: ComponentProps<'main'>) {
     return (
         <main
             data-slot='app-home-content'
             className={cn(
-                `mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-auto rounded-t-2xl border border-b-0
-                bg-(--surface)/65 shadow-lg backdrop-blur-2xl`,
+                'mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-auto',
                 className,
             )}
             {...props}
@@ -175,7 +177,7 @@ function Toolbar({ className, ...props }: ComponentProps<'div'>) {
     return (
         <div
             data-slot='app-home-toolbar'
-            className={cn('sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b px-6 py-3', className)}
+            className={cn('surface-content sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b px-6 py-3', className)}
             {...props}
         />
     )

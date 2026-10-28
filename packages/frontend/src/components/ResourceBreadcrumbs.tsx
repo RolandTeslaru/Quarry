@@ -10,7 +10,7 @@ interface Props {
     rid: Library.Resource.Rid
 }
 
-/** An app header's breadcrumbs for a library resource: its folders, then its name as the title. */
+/** An app navbar's breadcrumbs for a library resource: its folders, then its name as the title. */
 export function ResourceBreadcrumbs({ rid }: Props) {
     const [path, [pathRequest]] = LibrarySDK.useWith(
         state => LibrarySDK.selectors.path(state, rid),
@@ -21,7 +21,7 @@ export function ResourceBreadcrumbs({ rid }: Props) {
     const ancestors = path.slice(0, -1)
 
     return (
-        <App.Header.Breadcrumbs>
+        <App.Navbar.Breadcrumbs>
             {ancestors.map(ancestor => (
                 <Fragment key={ancestor.rid}>
                     <Breadcrumb.Item>
@@ -34,10 +34,10 @@ export function ResourceBreadcrumbs({ rid }: Props) {
             ))}
 
             <Breadcrumb.Item>
-                <App.Header.Title>
+                <App.Navbar.Title>
                     {resource?.name ?? (pathRequest.isPending ? 'Loading…' : 'Not found')}
-                </App.Header.Title>
+                </App.Navbar.Title>
             </Breadcrumb.Item>
-        </App.Header.Breadcrumbs>
+        </App.Navbar.Breadcrumbs>
     )
 }

@@ -64,21 +64,21 @@ export function SourceApp({ rid, table }: Props) {
 
     return (
         <>
-            <App.Header>
-                <App.Header.Icon glyph={dataConnectionApp.glyph} />
-                <App.Header.Rows>
+            <App.Navbar>
+                <App.Navbar.Icon glyph={dataConnectionApp.glyph} />
+                <App.Navbar.Rows>
                     <ResourceBreadcrumbs rid={rid} />
-                </App.Header.Rows>
+                </App.Navbar.Rows>
 
-                <App.Header.Actions>
+                <App.Navbar.Actions>
                     <Button icon='link' loading={task.pending} disabled={!source} onClick={testConnection}>
                         Test connection
                     </Button>
                     <Button intent='primary' icon='add' disabled={!definition} onClick={() => createSync()}>
                         Create sync
                     </Button>
-                </App.Header.Actions>
-            </App.Header>
+                </App.Navbar.Actions>
+            </App.Navbar>
 
             <App.LeftSidebar className='w-96'>
                 <div className='flex items-start gap-2 px-4 py-3'>

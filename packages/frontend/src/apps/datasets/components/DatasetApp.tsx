@@ -40,11 +40,11 @@ export function DatasetApp({ rid }: Props) {
 
     return (
         <>
-            <App.Header>
-                <App.Header.Icon glyph={datasetsApp.glyph} />
-                <App.Header.Rows>
+            <App.Navbar>
+                <App.Navbar.Icon glyph={datasetsApp.glyph} />
+                <App.Navbar.Rows>
                     <ResourceBreadcrumbs rid={rid} />
-                    <App.Header.Menubar>
+                    <App.Navbar.Menubar>
                         <Menubar.Menu>
                             <Menubar.Trigger>File</Menubar.Trigger>
                             <Menubar.Content>
@@ -58,18 +58,18 @@ export function DatasetApp({ rid }: Props) {
                                 </Menubar.Item>
                             </Menubar.Content>
                         </Menubar.Menu>
-                    </App.Header.Menubar>
-                </App.Header.Rows>
+                    </App.Navbar.Menubar>
+                </App.Navbar.Rows>
 
-                <App.Header.Actions>
+                <App.Navbar.Actions>
                     <Button icon='refresh' loading={viewRequest.isFetching} onClick={refresh}>
                         Refresh
                     </Button>
                     <Button intent='primary' icon='upload' onClick={() => CatalogSDK.dialogs.openUploadToDataset({ datasetRid: rid })}>
                         Upload file
                     </Button>
-                </App.Header.Actions>
-            </App.Header>
+                </App.Navbar.Actions>
+            </App.Navbar>
 
             <App.LeftSidebar className='w-96'>
                 <ViewTabs />

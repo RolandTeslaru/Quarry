@@ -6,7 +6,7 @@ import { cn } from '@quarry/standard-ui/utils/cn'
 import type { Definition } from './definition'
 
 // One shell measure: 56px (Tailwind `14`) is the collapsed workspace sidebar's width,
-// the left nav's width, the header's height and the header's icon square.
+// the left nav's width, the navbar's height and the navbar's icon square.
 
 const AppContext = createContext<Definition | null>(null)
 
@@ -29,7 +29,7 @@ interface RootProps extends ComponentProps<'div'> {
  * around every page of the app — so moving between them keeps it mounted.
  * Provides the app's definition (`App.useApp`).
  *
- * Its grid: the header spans the top; below it, left to right:
+ * Its grid: the navbar spans the top; below it, left to right:
  * LeftNav · LeftSidebar · Content · RightSidebar. A page renders the parts it
  * fills; they place themselves by grid area, so any can be left out and its
  * column collapses.
@@ -42,7 +42,7 @@ export function Root({ app, className, ...props }: RootProps) {
                 className={cn(
                     `grid h-full min-h-0
                     grid-cols-[auto_auto_minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)]
-                    [grid-template-areas:'header_header_header_header'_'nav_left_content_right']`,
+                    [grid-template-areas:'navbar_navbar_navbar_navbar'_'nav_left_content_right']`,
                     className,
                 )}
                 {...props}
@@ -108,7 +108,7 @@ export function LeftSidebar({ className, ...props }: ComponentProps<'aside'>) {
     )
 }
 
-/** Properties or details of the selection, toggled from the header. */
+/** Properties or details of the selection, toggled from the navbar. */
 export function RightSidebar({ className, ...props }: ComponentProps<'aside'>) {
     return (
         <aside
@@ -119,7 +119,7 @@ export function RightSidebar({ className, ...props }: ComponentProps<'aside'>) {
     )
 }
 
-/** The main view, a layer below the header and sidebars. Scrolls on its own; they stay put. */
+/** The main view, a layer below the navbar and sidebars. Scrolls on its own; they stay put. */
 function ContentRoot({ className, ...props }: ComponentProps<'main'>) {
     return (
         <main

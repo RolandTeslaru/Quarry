@@ -51,18 +51,18 @@ export function LibraryExplorerApp({ cwd, tab }: Props) {
     return (
         <LibraryExplorer.Root cwd={cwd} setCwd={openFolder} onItemClick={openItem}>
             <>
-                <App.Header>
-                    <App.Header.Icon glyph={libraryApp.glyph} />
-                    <App.Header.Rows>
+                <App.Navbar>
+                    <App.Navbar.Icon glyph={libraryApp.glyph} />
+                    <App.Navbar.Rows>
                         {tab === 'files' && <LibraryExplorer.View.Breadcrumbs size='sm' />}
-                        {tab === 'cloud' && <App.Header.Title>Cloud</App.Header.Title>}
-                        {tab === 'trash' && <App.Header.Title>Trash</App.Header.Title>}
-                    </App.Header.Rows>
-                    <App.Header.Actions>
+                        {tab === 'cloud' && <App.Navbar.Title>Cloud</App.Navbar.Title>}
+                        {tab === 'trash' && <App.Navbar.Title>Trash</App.Navbar.Title>}
+                    </App.Navbar.Rows>
+                    <App.Navbar.Actions>
                         {tab === 'files' && <LibraryExplorer.View.SearchInput className='w-64' />}
                         {tab === 'files' && <LibraryExplorer.View.CreateBtn />}
-                    </App.Header.Actions>
-                </App.Header>
+                    </App.Navbar.Actions>
+                </App.Navbar>
 
                 <App.LeftNav>
                     <App.LeftNav.Item

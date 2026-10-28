@@ -51,7 +51,7 @@ interface WorkspaceLayoutProps {
 }
 
 /**
- * One Code Workspace — the layout around its tabs. The header and its tabs are
+ * One Code Workspace — the layout around its tabs. The navbar and its tabs are
  * here; so is the user's session — VS Code in the browser — which stays
  * mounted on every tab and is only hidden away from Code, so the editor never
  * reloads (previews run in it — the Quarry extension's ▶ Preview). The other
@@ -72,11 +72,11 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
 
     return (
         <>
-            <App.Header>
-                <App.Header.Icon glyph={codeWorkspacesApp.glyph} />
-                <App.Header.Rows>
+            <App.Navbar>
+                <App.Navbar.Icon glyph={codeWorkspacesApp.glyph} />
+                <App.Navbar.Rows>
                     <ResourceBreadcrumbs rid={rid} />
-                    <App.Header.Menubar>
+                    <App.Navbar.Menubar>
                         <Menubar.Menu>
                             <Menubar.Trigger>File</Menubar.Trigger>
                             <Menubar.Content>
@@ -107,8 +107,8 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
                                 
                             </Menubar.Content>
                         </Menubar.Menu>
-                    </App.Header.Menubar>
-                </App.Header.Rows>
+                    </App.Navbar.Menubar>
+                </App.Navbar.Rows>
 
                 <Tabs.Root value={tab} activationMode='manual' className='self-stretch'>
                     <Tabs.List variant='underline' className='h-full! px-4 border-l border-border'>
@@ -119,7 +119,7 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
                         ))}
                     </Tabs.List>
                 </Tabs.Root>
-            </App.Header>
+            </App.Navbar>
 
             <App.Content className='overflow-hidden'>
                 <div className={cn('min-h-0 flex-1', tab !== 'code' && 'hidden')}>

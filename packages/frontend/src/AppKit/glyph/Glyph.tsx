@@ -42,7 +42,7 @@ interface Props {
     glyph:      GlyphDefinition
     /** Tile size in px; the icon takes 60% of it. Bare: the icon's size. */
     size?:      number
-    /** Only the coloured icon, for a container that is the tile itself (the header's corner square). */
+    /** Only the coloured icon, for a container that is the tile itself (the navbar's corner square). */
     bare?:      boolean
     className?: string
 }

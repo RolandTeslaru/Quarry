@@ -31,18 +31,18 @@ function LayoutDemoApp() {
 
     return (
         <>
-            <App.Header>
-                <App.Header.Icon glyph={layoutDemoApp.glyph} />
-                <App.Header.Rows>
-                    <App.Header.Breadcrumbs>
+            <App.Navbar>
+                <App.Navbar.Icon glyph={layoutDemoApp.glyph} />
+                <App.Navbar.Rows>
+                    <App.Navbar.Breadcrumbs>
                         <Breadcrumb.Item>Test apps</Breadcrumb.Item>
                         <Breadcrumb.Separator />
                         <Breadcrumb.Item>
-                            <App.Header.Title>Layout demo</App.Header.Title>
+                            <App.Navbar.Title>Layout demo</App.Navbar.Title>
                         </Breadcrumb.Item>
-                    </App.Header.Breadcrumbs>
+                    </App.Navbar.Breadcrumbs>
 
-                    <App.Header.Menubar>
+                    <App.Navbar.Menubar>
                         <Menubar.Menu>
                             <Menubar.Trigger>File</Menubar.Trigger>
                             <Menubar.Content>
@@ -58,10 +58,10 @@ function LayoutDemoApp() {
                                 </Menubar.Item>
                             </Menubar.Content>
                         </Menubar.Menu>
-                    </App.Header.Menubar>
-                </App.Header.Rows>
+                    </App.Navbar.Menubar>
+                </App.Navbar.Rows>
 
-                <App.Header.Actions>
+                <App.Navbar.Actions>
                     <Button icon='share' disabled>Share</Button>
                     <Button
                         variant='minimal'
@@ -70,8 +70,8 @@ function LayoutDemoApp() {
                         aria-pressed={rightOpen}
                         onClick={() => setRightOpen(open => !open)}
                     />
-                </App.Header.Actions>
-            </App.Header>
+                </App.Navbar.Actions>
+            </App.Navbar>
 
             <App.LeftNav>
                 {PANELS.map(item => (
@@ -119,7 +119,7 @@ function LayoutDemoApp() {
                 <App.RightSidebar>
                     <div className='border-b border-border px-4 py-3'>
                         <h2 className='text-sm font-semibold'>Details</h2>
-                        <p className='text-xs text-muted-foreground'>The selection, toggled from the header.</p>
+                        <p className='text-xs text-muted-foreground'>The selection, toggled from the navbar.</p>
                     </div>
                     <dl className='grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 p-4 text-sm'>
                         <dt className='text-muted-foreground'>Selected</dt>

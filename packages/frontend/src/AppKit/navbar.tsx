@@ -5,11 +5,11 @@ import { Glyph, type GlyphDefinition } from './glyph/Glyph'
 import { cn } from '@quarry/standard-ui/utils/cn'
 
 /** The top band, 56px: the app's icon square, rows (breadcrumbs, menubar), actions on the right. */
-function HeaderRoot({ className, ...props }: ComponentProps<'header'>) {
+function NavbarRoot({ className, ...props }: ComponentProps<'header'>) {
     return (
         <header
-            data-slot='app-header'
-            className={cn('surface-panel flex h-14 items-center gap-3 border-b pr-3 [grid-area:header]', className)}
+            data-slot='app-navbar'
+            className={cn('surface-panel flex h-14 items-center gap-3 border-b pr-3 [grid-area:navbar]', className)}
             {...props}
         />
     )
@@ -20,13 +20,13 @@ interface IconProps {
 }
 
 /**
- * The app's corner square at the header's left — the same width as the left nav
+ * The app's corner square at the navbar's left — the same width as the left nav
  * below it. The square is the glyph's tile, filled with the app's accent tint.
  */
 function Icon({ glyph }: IconProps) {
     return (
         <div
-            data-slot='app-header-icon'
+            data-slot='app-navbar-icon'
             className={cn('grid w-14 shrink-0 place-items-center self-stretch border-r border-border', glyph.tile)}
         >
             <Glyph glyph={glyph} size={28} bare />
@@ -38,7 +38,7 @@ function Icon({ glyph }: IconProps) {
 function Rows({ className, ...props }: ComponentProps<'div'>) {
     return (
         <div
-            data-slot='app-header-rows'
+            data-slot='app-navbar-rows'
             className={cn('flex min-w-0 flex-col justify-center gap-0.5 first:pl-3', className)}
             {...props}
         />
@@ -49,17 +49,17 @@ function Rows({ className, ...props }: ComponentProps<'div'>) {
 function Cols({ className, ...props }: ComponentProps<'div'>) {
     return (
         <div
-            data-slot='app-header-cols'
+            data-slot='app-navbar-cols'
             className={cn('flex min-w-0 items-center gap-3 first:pl-3', className)}
             {...props}
         />
     )
 }
 
-/** Where the resource is; children are `Breadcrumb.Item`s, the last usually holding `App.Header.Title`. */
+/** Where the resource is; children are `Breadcrumb.Item`s, the last usually holding `App.Navbar.Title`. */
 function Breadcrumbs({ className, children, ...props }: ComponentProps<'nav'>) {
     return (
-        <Breadcrumb.Root data-slot='app-header-breadcrumbs' className={cn('min-w-0', className)} {...props}>
+        <Breadcrumb.Root data-slot='app-navbar-breadcrumbs' className={cn('min-w-0', className)} {...props}>
             <Breadcrumb.List className='flex-nowrap text-xs'>
                 {children}
             </Breadcrumb.List>
@@ -71,18 +71,18 @@ function Breadcrumbs({ className, children, ...props }: ComponentProps<'nav'>) {
 function Title({ className, ...props }: ComponentProps<'h1'>) {
     return (
         <h1
-            data-slot='app-header-title'
+            data-slot='app-navbar-title'
             className={cn('truncate text-sm font-semibold text-foreground', className)}
             {...props}
         />
     )
 }
 
-/** File, Help, … — a standard Menubar sized for the header. */
+/** File, Help, … — a standard Menubar sized for the navbar. */
 function Menubar({ className, ...props }: ComponentProps<typeof MenubarPrimitive.Root>) {
     return (
         <MenubarPrimitive.Root
-            data-slot='app-header-menubar'
+            data-slot='app-navbar-menubar'
             className={cn('h-6 p-0', className)}
             {...props}
         />
@@ -93,14 +93,14 @@ function Menubar({ className, ...props }: ComponentProps<typeof MenubarPrimitive
 function Actions({ className, ...props }: ComponentProps<'div'>) {
     return (
         <div
-            data-slot='app-header-actions'
+            data-slot='app-navbar-actions'
             className={cn('ml-auto flex shrink-0 items-center gap-2', className)}
             {...props}
         />
     )
 }
 
-export const Header = Object.assign(HeaderRoot, {
+export const Navbar = Object.assign(NavbarRoot, {
     Icon,
     Rows,
     Cols,
