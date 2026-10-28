@@ -9,6 +9,7 @@ import { CodeWorkspaceRepository } from '../repository/code-workspace.repository
 import type { NewCheckRun, QueuedCheckRuns } from '../repository/check-run.repository';
 import { GitRepositories } from '../git/repositories';
 import { getLogTail, getParseFailedSteps, layOutSteps, readCheckConfig } from './check-config';
+import { CheckPublisher } from './check-publisher';
 
 import CheckRun = CodeWorkspace.CheckRun;
 import Internal = CodeWorkspace.API.Internal;
@@ -23,8 +24,8 @@ const SILENT_MINUTES = 35;
  * CI for Code Workspaces (docs/design/code-workspaces/checks.md): a check run per
  * pushed branch head, as the pusher, one at a time per workspace — scheduled in the
  * transaction that frees its workspace, delivered to a worker through a durable
- * queue; the worker reports its steps and outcome here. Publishing job specs is
- * not built yet: a passing run ends with its publish step skipped.
+ * queue; the worker reports its steps and outcome here; a passing run publishes
+ * the workspace's job specs for its branch (CheckPublisher).
  */
 @Injectable()
 export class CodeWorkspaceChecks {
@@ -36,6 +37,7 @@ export class CodeWorkspaceChecks {
         private readonly repositories:  GitRepositories,
         private readonly sessionTokens: SessionTokens,
         private readonly realtime:      RealtimeService,
+        private readonly publisher:     CheckPublisher,
         @InjectDurableQueue(CodeWorkspace.DurableQueue.RunCheck)
         private readonly runCheckQueue: DurableQueueHandle<typeof CodeWorkspace.Queue.RunCheck.Definition>,
     ) {}
@@ -170,8 +172,9 @@ export class CodeWorkspaceChecks {
     }
 
     /**
-     * The worker's outcome. Succeeded: the manifest must parse (Check.Manifest), else the
-     * run fails at its publish step. Publishing itself isn't built yet — the step is skipped.
+     * The worker's outcome. Succeeded: the manifest must parse (Check.Manifest) and pass
+     * CheckPublisher's checks — then the branch's job specs are published; else the run
+     * fails at its publish step, and nothing is published.
      */
     public async finish(rid: CheckRun.Rid, outcome: Internal.CheckRun.Finish.Request): Promise<CheckRun.Schema> {
         const parsed = Internal.CheckRun.Finish.Request.parse(outcome);
@@ -189,30 +192,39 @@ export class CodeWorkspaceChecks {
         const now = new Date();
         let status = parsed.status;
         let failure = parsed.failure;
+        let published = false;
 
         if (status === 'failed') {
             failure ??= { step: 'Unknown', message: 'The worker reported a failure without a reason' };
         }
         else {
             const manifest = CodeWorkspace.Check.Manifest.Schema.safeParse(parsed.manifest);
+            let refusal: string | null = manifest.success ? null : `The manifest is invalid: ${manifest.error.issues.map(issue => issue.message).join('; ')}`;
+            let log = '';
 
             if (manifest.success) {
-                steps[publish] = {
-                    ...steps[publish],
-                    status:     'skipped',
-                    startedAt:  now,
-                    finishedAt: now,
-                    log:        `${manifest.data.transforms.length} transform(s) found. Publishing job specs isn't built yet.`,
-                };
+                try {
+                    const result = await this.publisher.publish(current, manifest.data);
+
+                    published = result.published;
+                    log = result.log;
+                }
+                catch (error) {
+                    refusal = error instanceof Error ? error.message : String(error);
+                }
+            }
+
+            if (refusal) {
+                status = 'failed';
+                failure = { step: CheckRun.PUBLISH_STEP, message: refusal };
+                steps[publish] = { ...steps[publish], status: 'failed', startedAt: now, finishedAt: new Date(), log: refusal };
             }
             else {
-                status = 'failed';
-                failure = { step: CheckRun.PUBLISH_STEP, message: `The manifest is invalid: ${manifest.error.issues.map(issue => issue.message).join('; ')}` };
-                steps[publish] = { ...steps[publish], status: 'failed', startedAt: now, finishedAt: now, log: failure.message };
+                steps[publish] = { ...steps[publish], status: published ? 'succeeded' : 'skipped', startedAt: now, finishedAt: new Date(), log };
             }
         }
 
-        const finished = await this.repository.finishCheckRun(WORKER, rid, { status, steps, failure: status === 'failed' ? failure : null });
+        const finished = await this.repository.finishCheckRun(WORKER, rid, { status, steps, failure: status === 'failed' ? failure : null, published });
 
         if (!finished)
             throw new ConflictException('This check run was canceled');

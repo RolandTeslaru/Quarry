@@ -4,10 +4,13 @@ import { SessionTokens } from '@/auth/session-tokens';
 import { DurableQueueModule } from '@/infra/durable-queue';
 import { IdentityModule } from '@/services/Identity/identity.module';
 import { LibraryModule } from '@/services/Library/library.module';
+import { CatalogModule } from '@/services/Catalog/catalog.module';
+import { ForgeModule } from '@/services/Forge/forge.module';
 import { CodeWorkspaceService } from './code-workspace.service';
 import { CodeWorkspaceRepository } from './repository/code-workspace.repository';
 import { WorkspaceRepository } from './repository/workspace.repository';
 import { CodeWorkspaceChecks } from './checks/code-workspace-checks';
+import { CheckPublisher } from './checks/check-publisher';
 import { CheckRunRepository } from './repository/check-run.repository';
 import { GitRepositories } from './git/repositories';
 import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client';
@@ -20,8 +23,8 @@ import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client
  * Providers only; the controllers are registered by api.module.
  */
 @Module({
-    imports:   [IdentityModule, LibraryModule, DurableQueueModule.registerQueue(CodeWorkspace.DurableQueue.RunCheck)],
-    providers: [CodeWorkspaceService, CodeWorkspaceRepository, WorkspaceRepository, CheckRunRepository, CodeWorkspaceChecks, GitRepositories, CodeWorkspaceWorkerClient, SessionTokens],
+    imports:   [IdentityModule, LibraryModule, CatalogModule, ForgeModule, DurableQueueModule.registerQueue(CodeWorkspace.DurableQueue.RunCheck)],
+    providers: [CodeWorkspaceService, CodeWorkspaceRepository, WorkspaceRepository, CheckRunRepository, CodeWorkspaceChecks, CheckPublisher, GitRepositories, CodeWorkspaceWorkerClient, SessionTokens],
     exports:   [CodeWorkspaceService],
 })
 export class CodeWorkspaceModule {}

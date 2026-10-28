@@ -204,7 +204,7 @@ if (projectsRequest.isError)
   `src/routes.config.ts`; `src/routes/` holds only the shell's routes (root, workspace layout, auth, playground).
 - An app's folder: `definition.ts`, `routes/`, `components/`.
   - `routes/route.tsx` is the app's layout route: `<App.Root app={xApp}><Outlet /></App.Root>`, rendered once around
-    every page of the app. Pages never render `App.Root`; they render the parts they fill (`App.Header`,
+    every page of the app. Pages never render `App.Root`; they render the parts they fill (`App.Navbar`,
     `App.Content`, …) and read the app with `App.useApp()`.
   - The home (`/<app>`) is defined in `routes/index.tsx` itself, as `App.Home`; a resource page's route renders its
     page component from `components/`.

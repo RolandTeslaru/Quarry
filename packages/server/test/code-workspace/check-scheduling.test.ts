@@ -282,24 +282,23 @@ describe('check runs, running', () => {
             await expect(checks.reportStep(run.rid, index, { status: 'running', startedAt: new Date() })).rejects.toThrow(/no step/);
         });
 
-        it('succeeds with an empty manifest — a pipeline with no transforms has nothing to publish', async () => {
+        it('succeeds with an empty manifest — a pipeline with no transforms publishes no job specs', async () => {
             const { run } = await startedRun();
 
             const finished = await checks.finish(run.rid, { status: 'succeeded', manifest: { transforms: [] } });
 
-            expect(finished).toMatchObject({ status: 'succeeded', failure: null });
-            expect(finished.steps.at(-1)!.log).toMatch(/0 transform/);
+            expect(finished).toMatchObject({ status: 'succeeded', failure: null, published: true });
+            expect(finished.steps.at(-1)).toMatchObject({ status: 'succeeded' });
+            expect(finished.steps.at(-1)!.log).toMatch(/Published 0 job spec/);
         });
 
-        it('succeeds with a valid manifest; publishing is skipped (not built yet)', async () => {
+        it("fails at its publish step when the manifest reads a dataset that doesn't exist", async () => {
             const { run } = await startedRun();
 
             const finished = await checks.finish(run.rid, { status: 'succeeded', manifest: MANIFEST });
 
-            expect(finished).toMatchObject({ status: 'succeeded', published: false, failure: null });
-            expect(finished.finishedAt).not.toBeNull();
-            expect(finished.steps.at(-1)).toMatchObject({ name: CheckRun.PUBLISH_STEP, status: 'skipped' });
-            expect(finished.steps.at(-1)!.log).toMatch(/1 transform/);
+            expect(finished).toMatchObject({ status: 'failed', published: false, failure: { step: CheckRun.PUBLISH_STEP } });
+            expect(finished.failure!.message).toMatch(/reads \/Sales\/raw\/orders, which isn't a dataset you can see/);
         });
 
         it.each([
@@ -327,7 +326,7 @@ describe('check runs, running', () => {
         it('refuses a second finish', async () => {
             const { run } = await startedRun();
 
-            await checks.finish(run.rid, { status: 'succeeded', manifest: MANIFEST });
+            await checks.finish(run.rid, { status: 'succeeded', manifest: { transforms: [] } });
 
             await expect(checks.finish(run.rid, { status: 'failed', failure: { step: 'Tests', message: 'late' } })).rejects.toBeInstanceOf(ConflictException);
             expect((await getRun(run.rid)).status).toBe('succeeded');

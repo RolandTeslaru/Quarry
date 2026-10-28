@@ -32,30 +32,30 @@ Foundry's equivalent: the workspace sidebar stays while apps change; Compass (Li
 
 ### 1a. `App` — the shared app kit
 
-Every app is built from one namespace, **`App`**, exported from **`src/AppKit/`** (`import { App } from '@/AppKit'`) — the common design language for apps, like Foundry's apps all sharing one layout (Palantir doesn't publish that layout; this is Quarry's own convention, read from Foundry's apps such as the Workshop editor). AppKit is layout and types only — no state; it isn't an SDK. Styled with Tailwind. _Built: `layout.tsx` (Root, LeftNav + `LeftNav.Item`, sidebars, Content + `Content.Toolbar`), `header.tsx`, `definition.ts`, `index.ts`; no app uses it yet._
+Every app is built from one namespace, **`App`**, exported from **`src/AppKit/`** (`import { App } from '@/AppKit'`) — the common design language for apps, like Foundry's apps all sharing one layout (Palantir doesn't publish that layout; this is Quarry's own convention, read from Foundry's apps such as the Workshop editor). AppKit is layout and types only — no state; it isn't an SDK. Styled with Tailwind. _Built: `layout.tsx` (Root, LeftNav + `LeftNav.Item`, sidebars, Content + `Content.Toolbar`), `navbar.tsx`, `definition.ts`, `index.ts`; no app uses it yet._
 
 | Part | What it is |
 |---|---|
-| `App.Root` | the app itself: rendered once by the app's layout route (`routes/route.tsx`) around all its pages, providing its definition (`App.useApp()`). Its grid: the header across the top; LeftNav · LeftSidebar · Content · RightSidebar below. Pages render the parts they fill; each places itself by grid area, so any can be left out |
+| `App.Root` | the app itself: rendered once by the app's layout route (`routes/route.tsx`) around all its pages, providing its definition (`App.useApp()`). Its grid: the navbar across the top; LeftNav · LeftSidebar · Content · RightSidebar below. Pages render the parts they fill; each places itself by grid area, so any can be left out |
 | `App.LeftNav` | icon strip choosing what the left sidebar shows (vertical tabs); `App.LeftNav.Item` is one tab (icon button, tooltip, `active`) |
 | `App.LeftSidebar` | the panel `LeftNav` selects |
-| `App.Header` | the top band |
-| `App.Header.Icon` | the app's glyph (from its definition) in a square at the header's left, directly above the left nav |
-| `App.Header.Rows` | the header's two stacked rows |
-| `App.Header.Breadcrumbs` | location; the last item is the title |
-| `App.Header.Title` | the resource or page name |
-| `App.Header.Menubar` | File, Help, … — a plain `Menubar.Root` (standard-ui) |
-| `App.Header.Actions` | right side: undo/redo, save/publish, share, sidebar toggles |
+| `App.Navbar` | the top navigation bar |
+| `App.Navbar.Icon` | the app's glyph (from its definition) in a square at the navbar's left, directly above the left nav |
+| `App.Navbar.Rows` | the navbar's two stacked rows |
+| `App.Navbar.Breadcrumbs` | location; the last item is the title |
+| `App.Navbar.Title` | the resource or page name |
+| `App.Navbar.Menubar` | File, Help, … — a plain `Menubar.Root` (standard-ui) |
+| `App.Navbar.Actions` | right side: undo/redo, save/publish, share, sidebar toggles |
 | `App.Content` | the main view; `App.Content.Toolbar` for a toolbar on top of it |
-| `App.RightSidebar` | properties / details of the selection, toggled from the header |
+| `App.RightSidebar` | properties / details of the selection, toggled from the navbar |
 | `App.Glyph` | an app's coloured mark on a tinted tile, one of two kinds: a Blueprint icon drawn whole in a base colour with chosen parts (the sub-paths of its path) painted over in other colours — `{ icon, tile, base, parts }`; or a shaded standard-ui illustration mixed from one colour — `{ illustration, color, tile }` (the Library's yellow folder, from PretzelGraph) |
 | `App.Definition` | the model of an app: `id`, `label`, `glyph`, `to` (its home route, `/<app>` — every app has one), `inNavigation`, and `opens` — for each resource type it opens, the route it opens at (`rid => ToOptions`, type-checked against the route tree) |
 
 The shell's own sidebar (the workspace navigation) is not part of an app.
 
-**One shell measure: 56px** (Tailwind `14`) — the collapsed workspace sidebar's width and its top row's height, the left nav's width, the header's height and its icon square — so the corners line up across the shell and every app.
+**One shell measure: 56px** (Tailwind `14`) — the collapsed workspace sidebar's width and its top row's height, the left nav's width, the navbar's height and its icon square — so the corners line up across the shell and every app.
 
-**Rules for every app:** the header menubar is app-wide and constant (File, View, Help — actions on the resource as a whole); `LeftNav` switches what the app shows — the left sidebar's panel, or the app's sections (the Library Explorer's Files / Cloud / Trash); actions for the current view go in `App.Content.Toolbar` or the panel's own header.
+**Rules for every app:** the navbar menubar is app-wide and constant (File, View, Help — actions on the resource as a whole); `LeftNav` switches what the app shows — the left sidebar's panel, or the app's sections (the Library Explorer's Files / Cloud / Trash); actions for the current view go in `App.Content.Toolbar` or the panel's own header.
 
 ### Bundling and versioning
 
@@ -69,7 +69,7 @@ The shell's own sidebar (the workspace navigation) is not part of an app.
 - **`src/shell/apps.ts`** imports those definitions into `APPS`. It tells the shell what exists: the workspace sidebar draws its links from it (`inNavigation` and an entry route `to`), and `resourceRoute(type, rid)` finds where a resource opens — the app whose `opens` has the RID's type, else the Library's `/library/$rid`. `ResourceLink`, `ResourceBreadcrumbs` and the create dialogs use it. _Built: Library, Keychain, Datasets (`/datasets/$rid`), Data Connection (`/data-connection/sources/$rid`, a scaffold around the existing source panel)._
 - **Launchpad** (`shell/Launchpad.tsx`): the sidebar's first item, "Launchpad", opens a grid of every registered app (Foundry's Applications portal); each tile opens the app's home. The sidebar below it lists the apps with `inNavigation`. _Built._
 - **Every app has a home route**, `/<app>`: Dataset Viewer (`/datasets`, every dataset you can see — `GET /api/datasets`), Data Connection (`/data-connection`, every source — `GET /api/sources`), Library (`/library`), Keychain (`/keychain`). Resource routes hang below it (`/datasets/$rid`).
-- **App home screens** (`App.Home`, AppKit/home.tsx), like an iPad app's document browser: `App.Home.Root` fills the whole app with its dither, tinted with the app's own colour (`definition.home.tint`, a palette variable; wave settings in `home.wave`). `App.Home.Header` holds `Logo` (the app's glyph, large), `Title` and `TitleDescription` (the app's label and description unless given children) and `Actions`; `App.Home.Content` is a frosted panel — the dither blurred behind it — holding `App.Home.Section`s (the app's listing; *Recently opened* once audit exists — [audit.md](audit.md)). One WebGL context serves every home (`ditherCtx`, standard-ui): only one is on screen. The dither pauses off screen and in hidden tabs, draws one still frame under "reduce motion", and re-reads its colours on a theme switch. The Library's home (`/library`) is one too: Projects and Recents as tabs in the panel (`?view=recents`); a folder (`/library/$rid`), Cloud and Trash (`?tab=`) open the explorer.
+- **App home screens** (`App.Home`, AppKit/home.tsx), like an iPad app's document browser: `App.Home.Root` fills the app with a solid content surface. `App.Home.Header` is a full-width banner with the same 288px height in every app with the dither as its background, tinted with the app's own colour (`definition.home.tint`, a palette variable; wave settings in `home.wave`). It holds `Logo` (the app's glyph, large), `PreTitle`, `Title` and `TitleDescription` (the app's label and description unless given children), aligned with the centered content below. `App.Home.Content` scrolls independently on the solid surface, holding `App.Home.Section`s (the app's listing; *Recently opened* once audit exists — [audit.md](audit.md)). One WebGL context serves every home (`ditherCtx`, standard-ui): only one is on screen. The dither pauses off screen and in hidden tabs, draws one still frame under "reduce motion", and re-reads its colours on a theme switch. The Library's home (`/library`) is one too: Projects and Recents as tabs in the panel (`?view=recents`); a folder (`/library/$rid`), Cloud and Trash (`?tab=`) open the explorer.
 - **Each app owns its routes**, in `src/apps/<app>/routes/` (file-based: `route.tsx` the app's layout — its `App.Root` — then `index.tsx` its home, `$rid.tsx`, `sources.$rid.tsx`, …; components in `src/apps/<app>/components/`). `src/routes.config.ts` (TanStack virtual file routes) builds the tree: the shell's own routes from `src/routes/` (root, `_workspace` layout, auth, playground), then — discovered by listing `src/apps/*/routes` — every app's folder mounted at `/<folder name>` inside the workspace layout (`physical('/<app>', '../apps/<app>/routes')`). A new app is picked up on the next generate (restart the dev server). `autoCodeSplitting` puts every route's component in its own chunk, so an app's code loads on first visit; `WorkspaceLayout` renders the sidebar and `<Outlet />`. The layout never inspects the URL itself.
 - **RID → URL** is `resourceRoute` (the RID's type is in the RID); **URL → app** is the router.
 
@@ -91,7 +91,7 @@ LibraryExplorer = {
 }
 ```
 
-The Library Explorer app (`apps/library/LibraryExplorerApp.tsx`) is an AppKit app: the header holds the breadcrumbs, the search and "+ New"; the left nav switches its sections — **Files**, **Cloud** (disabled, not built) and **Trash** (a placeholder until there's an endpoint listing trashed resources) — kept in `/library?tab=`. On Files, the tree fills the left sidebar and the content shows the projects as cards (`ProjectCards.tsx`) at `/library`, or the open folder's items inside a project; the view's search sits in the header next to "+ New". `cwd` comes from the URL; choosing a non-container opens it in its app.
+The Library Explorer app (`apps/library/LibraryExplorerApp.tsx`) is an AppKit app: the navbar holds the breadcrumbs, the search and "+ New"; the left nav switches its sections — **Files**, **Cloud** (disabled, not built) and **Trash** (a placeholder until there's an endpoint listing trashed resources) — kept in `/library?tab=`. On Files, the tree fills the left sidebar and the content shows the projects as cards (`ProjectCards.tsx`) at `/library`, or the open folder's items inside a project; the view's search sits in the navbar next to "+ New". `cwd` comes from the URL; choosing a non-container opens it in its app.
 
 **The dataset app** starts with a **Preview** tab (first rows, read with the dataset's schema). History (needs a transactions endpoint), schema, files, and later compare / health / builds follow.
 

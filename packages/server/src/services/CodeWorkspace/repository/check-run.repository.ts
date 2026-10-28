@@ -188,16 +188,22 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
         return row ? CodeWorkspaceDB.CheckRun.toDomain(row) : null;
     }
 
-    /** `running → succeeded | failed`, with its final steps. Null if the run isn't running (any more). */
+    /** `running → succeeded | failed`, with its final steps — and whether its job specs were published. Null if the run isn't running (any more). */
     @Transactional('service')
     public async finish(
         principal: Principal.Service,
         rid:       CheckRun.Rid,
-        outcome:   { status: 'succeeded' | 'failed'; steps: CheckRun.Step.Schema[]; failure: CheckRun.Failure | null },
+        outcome:   { status: 'succeeded' | 'failed'; steps: CheckRun.Step.Schema[]; failure: CheckRun.Failure | null; published?: boolean },
     ): Promise<CheckRun.Schema | null> {
         const row = await this.trx
             .updateTable('code_workspace.check_run')
-            .set({ status: outcome.status, steps: json(outcome.steps), failure: outcome.failure ? json(outcome.failure) : null, finished_at: new Date() })
+            .set({
+                status:      outcome.status,
+                steps:       json(outcome.steps),
+                failure:     outcome.failure ? json(outcome.failure) : null,
+                published:   outcome.published ?? false,
+                finished_at: new Date(),
+            })
             .where('rid', '=', rid)
             .where('status', '=', 'running')
             .returningAll()

@@ -1,6 +1,6 @@
 # Checks (CI)
 
-_Spec, written 2026-10-27. Built so far: steps 1–3 of the build order — pushes queue runs, the scheduler hands them to the workers through a durable queue ([durable-queues.md](../durable-queues.md), since 2026-10-28), a worker runs quarry-ci.yml's steps and reports them; the sweep fails silent runs. Step 4 (the manifest command, the template's quarry-ci.yml) built 2026-10-28: a new workspace's first push passes. Not yet: publishing (step 5) — a passing run ends with its publish step skipped. Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
+_Spec, written 2026-10-27. Built so far: steps 1–3 of the build order — pushes queue runs, the scheduler hands them to the workers through a durable queue ([durable-queues.md](../durable-queues.md), since 2026-10-28), a worker runs quarry-ci.yml's steps and reports them; the sweep fails silent runs. Steps 4–5 built 2026-10-28: the manifest command and the template's quarry-ci.yml; a passing run publishes the branch's job specs, which builds run. Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
 
 A **check run** is CI for one commit of a Code Workspace: it runs the steps the repository declares in `quarry-ci.yml`, then — if they all pass — **publishes the workspace's job specs** for that branch, pinned to that commit. It's the only thing that publishes them: a build reads specs, it never makes them ([forge.md](../forge.md)). No passing check, nothing to build.
 
@@ -177,21 +177,21 @@ Each failed run's workspace gets its next run scheduled. A `scheduled` run waits
 
 ## 5. Validating and publishing — the server
 
-`CodeWorkspaceChecks.finish` (`services/CodeWorkspace/checks/`), when the run succeeded. **As the pusher**, all in one database transaction:
+**Built 2026-10-28.** `CodeWorkspaceChecks.finish`, when the worker reports success and the manifest parses, calls `CheckPublisher.publish(run, manifest)` (`services/CodeWorkspace/checks/check-publisher.ts`) — its steps in order, in one method. **As the pusher**, through a delegate `check-run:<rid>` (what audit records as `via`). Each step is its own call, not one transaction: a dataset created at step 3 stays if a later step refuses.
 
 | # | Check | Fails the run when |
 |---|---|---|
 | 1 | **Still the head** | `refs/heads/<branch>` no longer points at the commit — a newer push won. The run is `succeeded` but **not published** (`published: false`); the newer run publishes |
-| 2 | **Resolve inputs** | a path or RID doesn't exist, or the pusher can't see it (`Library` by-path, Gatekeeper `read`) |
-| 3 | **Resolve outputs** | a RID that doesn't exist; a path that exists but isn't a dataset. A path that doesn't exist → **create** an empty dataset there (`Catalog.createDataset`), if its folder exists and the pusher can write it — else fail ("No folder /Sales/clean") |
+| 2 | **Resolve inputs** | a path or RID isn't a dataset the pusher can see (`Library.getByPath`, `Catalog.get`) — "pkg.a.clean reads /Sales/raw/orders, which isn't a dataset you can see" |
+| 3 | **Resolve outputs** | a RID that doesn't exist; a path that exists but isn't a dataset. A path that doesn't exist → **create** an empty dataset there (`Catalog.createDataset`), if its folder (or project) exists and the pusher can write it — else fail ("there's no folder /Sales/clean you can see"); a one-segment path (a project's place) is refused |
 | 4 | **Write outputs** | the pusher can't write an output (Gatekeeper `write`) |
-| 5 | **One producer** | an output's current spec on this branch belongs to another producer — "`/Sales/clean/orders` is produced by *Claims Transforms*" (the repository's `_requireUnowned`, as a 409) |
-| 6 | **No cycles** | a transform reads, through this workspace's own transforms, its own output |
+| 5 | **One producer** | an output's current spec on this branch belongs to another producer — Forge refuses the publish (409, "… is already produced by …"); the run fails with that message |
+| 6 | **No cycles** | a transform reads, through this workspace's own transforms, its own output (checked before publishing — step 5 is Forge's, during it) |
 | 7 | **Publish** | `forge.jobSpecs.publish(pusher, workspaceRid, branch, specs)` — one spec per transform: `logic { type: 'code-workspace', workspaceRid, commit, transform: name }`, the resolved RIDs, its resources. RLS has the final say (write on the producer and outputs, read on inputs) |
 
 Publishing replaces the branch's specs for this producer: outputs no longer declared lose their current spec (a deleted transform stops being buildable). Outputs created at step 3 stay if a later step fails — empty datasets, harmless, and the next run finds them.
 
-Any failure → the run is `failed` with a `failure { step: 'publish', message }` naming the dataset, and **nothing is published**: the branch keeps its previous specs.
+Any refusal → the run is `failed` with `failure { step: 'Validate & publish', message }` naming the transform and the dataset, the step's log the same, and **nothing is published**: the branch keeps its previous specs. Published → the step `succeeded`, its log listing each transform → its outputs and any dataset created; the run's `published` is true. A newer head → the step `skipped`, the run `succeeded`, `published` false.
 
 ## 6. Model
 
@@ -270,7 +270,7 @@ Domain: `CodeWorkspace.CheckRun` (`Rid`, `Status`, `Step`, `Schema`), `CodeWorks
 2. Push detection + `postCommitCommand` — `GitController`, `repositories.getHeads`, runs inserted `waiting`. **Built 2026-10-27.**
 3. Scheduling and the worker's runner — inline scheduling (adds `code-workspace.run-check` messages; a durable queue since 2026-10-28), the internal endpoints, the sweep and its timer, `run-check.processor.ts`, `check-runner.ts`, `quarry-check-setup`. **Built 2026-10-27**; until step 5, a run whose manifest parses ends `succeeded` with its publish step `skipped`.
 4. `quarry.transforms.manifest` and the template's `quarry-ci.yml` and `tests/test_pipeline.py`. **Built 2026-10-28**; tested by rendering the template and running its tests and its manifest (`test/code-workspace/template`).
-5. Validate and publish — `CodeWorkspaceChecks.finish`.
+5. Validate and publish — `CheckPublisher`, called by `CodeWorkspaceChecks.finish`. **Built 2026-10-28.**
 6. Checks tab and events.
 7. Tests — the harness pattern from [testing.md](../testing.md): push to a real bare repository, play the worker, assert specs.
 
