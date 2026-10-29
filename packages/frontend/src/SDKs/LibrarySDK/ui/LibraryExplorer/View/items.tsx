@@ -27,8 +27,7 @@ export function ItemCard({ resource, disabled, onOpen }: Props) {
             onClick={onOpen}
         >
             <ItemMark resource={resource} />
-            <span className='w-full truncate text-sm font-medium'>{resource.name}</span>
-            <span className='text-xs text-muted-foreground capitalize'>{resource.type}</span>
+            <span className='w-full truncate text-xs font-medium'>{resource.name}</span>
         </button>
     )
 }
@@ -38,5 +37,5 @@ interface ItemMarkProps {
 }
 
 function ItemMark({ resource }: ItemMarkProps) {
-    return <ResourceIcon type={resource.type} size='lg' />
+    return <ResourceIcon type={resource.type} size='lg' className='transition-transform group-enabled:group-hover:scale-105' />
 }

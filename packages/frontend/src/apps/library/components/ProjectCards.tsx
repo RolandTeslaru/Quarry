@@ -1,5 +1,6 @@
+import { Button } from '@quarry/standard-ui/foundations/button'
 import { Skeleton } from '@quarry/standard-ui/foundations/skeleton'
-import { FolderIllustration, Icon } from '@quarry/standard-ui/icons'
+import { FolderIllustration } from '@quarry/standard-ui/icons'
 import type { Library } from '@quarry/shared/domain'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { cn } from '@quarry/standard-ui/utils/cn'
@@ -8,13 +9,13 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 
 const SKELETON_CARDS = [0, 1, 2, 3]
 
-const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4'
+const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4'
 
 interface Props {
     className?: string
 }
 
-/** The Library Explorer's first page: every project you can see, as cards, filtered by the navbar's search. */
+/** The Library Explorer's first page: every project you can see, as folder tiles, filtered by the navbar's search. */
 export function ProjectCards({ className }: Props) {
     const { searchQuery } = useLibraryExplorer()
 
@@ -31,7 +32,7 @@ export function ProjectCards({ className }: Props) {
 
             {projectsRequest.isPending && (
                 <div className={GRID}>
-                    {SKELETON_CARDS.map(card => <Skeleton key={card} className='h-44 rounded-xl' />)}
+                    {SKELETON_CARDS.map(card => <Skeleton key={card} className='h-40 rounded-xl' />)}
                 </div>
             )}
 
@@ -60,26 +61,15 @@ function ProjectCard({ project }: ProjectCardProps) {
     const { setCwd } = useLibraryExplorer()
 
     return (
-        <button
-            type='button'
+        <Button
+            variant='minimal'
             data-library-item='project'
             data-library-rid={project.rid}
-            className='surface group flex cursor-pointer flex-col gap-3 rounded-xl border p-4 text-left shadow-sm transition-shadow hover:shadow-md'
+            className='group h-auto flex-col gap-2 rounded-xl p-3'
             onClick={() => setCwd(project.rid)}
         >
-            <FolderIllustration className='size-12' />
-
-            <div className='min-w-0'>
-                <h2 className='truncate font-semibold'>{project.name}</h2>
-                <p className='mt-1 line-clamp-2 text-sm text-muted-foreground'>
-                    {project.description || 'Sources, datasets, and everything that connects them.'}
-                </p>
-            </div>
-
-            <div className='mt-auto flex items-center justify-between text-[10px] font-semibold tracking-[1.2px] text-muted-foreground'>
-                <span>PROJECT</span>
-                <Icon name='arrow-right' className='transition-transform group-hover:translate-x-0.5' />
-            </div>
-        </button>
+            <FolderIllustration className='size-28 transition-transform group-hover:scale-105' />
+            <h2 className='w-full truncate text-sm font-medium'>{project.name}</h2>
+        </Button>
     )
 }
