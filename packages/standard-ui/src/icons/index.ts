@@ -5,4 +5,4 @@ export { FolderFlatIllustration, FolderFrontIllustration, FolderIllustration, ty
 export { DataConnectionIllustration, type DataConnectionIllustrationProps } from './illustrations/dataConnection'
 export { CodeWorkspaceFrontIllustration, CodeWorkspaceIllustration, type CodeWorkspaceIllustrationProps } from './illustrations/codeWorkspace'
 export { AnvilIllustration, type AnvilIllustrationProps } from './illustrations/anvil'
-export type { IconName, IconProps } from './types'
+export type { IconName, IconProps, PathIconName } from './types'

@@ -61,9 +61,10 @@ interface WorkspaceLayoutProps {
 function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
     const tab = useWorkspaceTab(rid)
 
-    const [, [sessionRequest]] = CodeWorkspaceSDK.useWith(
-        () => null,
-        query => [query.session(rid)],
+    // The check runs load here too, so the Checks tab can show one running from any tab.
+    const [checkRunning, [sessionRequest]] = CodeWorkspaceSDK.useWith(
+        state => Object.values(state.checkRuns).some(run => run.workspaceRid === rid && run.status === 'running'),
+        query => [query.session(rid), query.checkRuns(rid)],
     )
 
     const [restart, withRestart] = useTask()
@@ -114,7 +115,10 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
                     <Tabs.List variant='underline' className='h-full! px-4 border-l border-border'>
                         {Object.entries(WORKSPACE_TABS).map(([value, { label, to }]) => (
                             <Tabs.Trigger key={value} value={value} asChild>
-                                <Link to={to} params={{ rid }}>{label}</Link>
+                                <Link to={to} params={{ rid }} className='gap-1.5'>
+                                    {label}
+                                    {value === 'checks' && checkRunning && <Icon name='spinner' title='A check is running' />}
+                                </Link>
                             </Tabs.Trigger>
                         ))}
                     </Tabs.List>

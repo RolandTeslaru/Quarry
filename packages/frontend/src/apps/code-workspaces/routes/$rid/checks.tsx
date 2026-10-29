@@ -26,23 +26,11 @@ function ChecksTab() {
 
     const [older, withOlder] = useTask()
 
-    const runs = history?.rids.map(checkRunRid => checkRuns[checkRunRid]).filter(run => run !== undefined) ?? []
+    const rids = history?.rids ?? []
+    const runs = rids.map(checkRunRid => checkRuns[checkRunRid])
 
     return (
         <div className='flex min-h-0 flex-1 flex-col overflow-auto p-6'>
-            <div className='mb-4 flex items-center justify-between'>
-                <div>
-                    <h2 className='text-base font-semibold'>Checks</h2>
-                    <p className='text-sm text-muted-foreground'>Every pushed commit runs quarry-ci.yml — live.</p>
-                </div>
-                <Button
-                    variant='minimal'
-                    icon='refresh'
-                    aria-label='Refresh checks'
-                    loading={checkRunsRequest.isFetching}
-                    onClick={() => void checkRunsRequest.refetch()}
-                />
-            </div>
 
             <ErrorNotice error={checkRunsRequest.error ?? older.error} />
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getIconPaths, loadIconPaths } from './iconLoader'
-import type { IconGrid, IconName } from './types'
+import type { IconGrid, PathIconName } from './types'
 
 interface IconLoadResult {
     key: string
@@ -8,7 +8,7 @@ interface IconLoadResult {
     failed?: boolean
 }
 
-export function useIconPaths(name: IconName, grid: IconGrid) {
+export function useIconPaths(name: PathIconName, grid: IconGrid) {
     const key = `${grid}:${name}`
     const [result, setResult] = useState<IconLoadResult>(() => ({
         key,

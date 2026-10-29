@@ -1,6 +1,6 @@
 import { useMemo, type ComponentType, type CSSProperties } from 'react'
 import svgpath from 'svgpath'
-import { AnvilIllustration, CodeWorkspaceIllustration, DataConnectionIllustration, FolderIllustration, useIconPaths, type IconName } from '@quarry/standard-ui/icons'
+import { AnvilIllustration, CodeWorkspaceIllustration, DataConnectionIllustration, FolderIllustration, useIconPaths, type PathIconName } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
 
 /**
@@ -17,7 +17,7 @@ import { cn } from '@quarry/standard-ui/utils/cn'
  */
 export type GlyphDefinition =
     | {
-        icon:   IconName
+        icon:   PathIconName
         tile:   string
         base:   string
         parts?: Partial<Record<number, string>>

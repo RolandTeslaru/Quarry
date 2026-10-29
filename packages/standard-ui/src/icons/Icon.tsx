@@ -1,8 +1,30 @@
+import { Spinner } from '../foundations/spinner'
 import { cn } from '../utils/cn'
 import { useIconPaths } from './useIconPaths'
-import type { IconProps } from './types'
+import type { IconProps, PathIconName } from './types'
 
-export function Icon({ name, size = 16, title, className, ...props }: IconProps) {
+export function Icon(props: IconProps) {
+    if (props.name === 'spinner')
+        return <SpinnerIcon {...props} />
+
+    return <PathIcon {...props} name={props.name} />
+}
+
+function SpinnerIcon({ name: _, size = 16, title, className, ...props }: IconProps) {
+    return (
+        <Spinner
+            width={size}
+            height={size}
+            role='status'
+            aria-label={title}
+            className={cn('shrink-0', className)}
+            elementClassName='fill-current'
+            {...props}
+        />
+    )
+}
+
+function PathIcon({ name, size = 16, title, className, ...props }: IconProps & { name: PathIconName }) {
     const grid = size < 20 ? 16 : 20
     const { paths, failed } = useIconPaths(name, grid)
     const hasLabel = Boolean(title || props['aria-label'] || props['aria-labelledby'])

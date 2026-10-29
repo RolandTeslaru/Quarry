@@ -9,6 +9,25 @@ architecture and naming. Use PretzelGraph's source as the reference for frontend
 code organization and writing style; adapt its patterns to Quarry's domain and
 Blueprint components.
 
+## Hard rule: no defensive noise
+
+Trust the methods, services, pipes and state you call. Write only what the code
+actually has to do. If something breaks, it's probably an upstream bug: let it
+break downstream, loudly, so it gets noticed and fixed where it starts. Don't
+hide it with a guard.
+
+- Don't pre-check what the callee already enforces: existence, type, permission,
+  liveness, validity, uniqueness. Let it throw.
+- Don't re-parse or re-validate what a pipe, schema or caller already did.
+- Don't guard against states your own code can't produce, such as a filter for
+  `undefined` on a record entry written together with its key, a `?? []` on a
+  value that is always set, or a check on what only your own worker sends.
+- Don't hand-write an exception per edge case to reword another layer's error.
+  Catch once, at the boundary where an error becomes a result.
+- If a lookup is missing, add it to the service that owns the concept. Don't
+  rebuild it inline.
+- Before adding a check or an edge case anyway, ask the user.
+
 ## 1. Inspect before writing
 
 - Read the relevant design documents in `docs/design/` before changing a domain.

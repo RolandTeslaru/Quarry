@@ -13,9 +13,22 @@ interface CheckRunTableProps {
     checkRuns: CI.CheckRun.Schema[]
 }
 
-/** A workspace's check runs, newest first; a row opens to its steps and their logs. */
+/** A workspace's check runs, newest first; each row opens to its steps and their logs. */
 export function CheckRunTable({ checkRuns }: CheckRunTableProps) {
-    const [openRid, setOpenRid] = useState<CI.CheckRun.Rid | null>(null)
+    const [openRids, setOpenRids] = useState<Record<CI.CheckRun.Rid, true>>({})
+
+    function toggle(rid: CI.CheckRun.Rid) {
+        setOpenRids(current => {
+            const next = { ...current }
+
+            if (next[rid])
+                delete next[rid]
+            else
+                next[rid] = true
+
+            return next
+        })
+    }
 
     return (
         <Table.Root>
@@ -31,14 +44,14 @@ export function CheckRunTable({ checkRuns }: CheckRunTableProps) {
             </Table.Header>
             <Table.Body>
                 {checkRuns.map(run => {
-                    const open = openRid === run.rid
+                    const open = openRids[run.rid] === true
 
                     return (
                         <Fragment key={run.rid}>
                             <Table.Row
                                 className='cursor-pointer'
                                 aria-expanded={open}
-                                onClick={() => setOpenRid(open ? null : run.rid)}
+                                onClick={() => toggle(run.rid)}
                             >
                                 <Table.Cell>
                                     <Icon name={open ? 'chevron-down' : 'chevron-right'} className='text-muted-foreground' />

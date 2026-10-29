@@ -20,7 +20,7 @@ export const WORKSPACE_TABS = {
 export const CHECK_RUN_STATUSES: Record<CI.CheckRun.Status, CheckRunStatusLook> = {
     waiting:   { label: 'Waiting',   icon: 'time',    variant: 'secondary' },
     scheduled: { label: 'Scheduled', icon: 'time',    variant: 'secondary' },
-    running:   { label: 'Running',   icon: 'refresh', variant: 'active' },
+    running:   { label: 'Running',   icon: 'spinner', variant: 'active' },
     succeeded: { label: 'Passed',    icon: 'tick',    variant: 'success' },
     failed:    { label: 'Failed',    icon: 'error',   variant: 'destructive' },
     canceled:  { label: 'Canceled',  icon: 'disable', variant: 'secondary' },
@@ -29,7 +29,7 @@ export const CHECK_RUN_STATUSES: Record<CI.CheckRun.Status, CheckRunStatusLook> 
 /** How each step status shows: its icon, in its colour. */
 export const CHECK_STEP_STATUSES: Record<CI.CheckRun.Step.Status, { label: string; icon: IconName; className: string }> = {
     waiting:   { label: 'Waiting',   icon: 'circle',  className: 'text-muted-foreground' },
-    running:   { label: 'Running',   icon: 'refresh', className: 'text-sky-600' },
+    running:   { label: 'Running',   icon: 'spinner', className: 'text-sky-600' },
     succeeded: { label: 'Passed',    icon: 'tick',    className: 'text-emerald-600' },
     failed:    { label: 'Failed',    icon: 'error',   className: 'text-destructive' },
     skipped:   { label: 'Skipped',   icon: 'disable', className: 'text-muted-foreground' },
