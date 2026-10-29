@@ -8,13 +8,14 @@ _Draft, 2026-10-25. **Built 2026-10-26–27**: publishing recipes; initializing,
 
 | Thing | RID | What it is | Changes? |
 |---|---|---|---|
-| **Recipe** | `ri.forge.main.recipe.…` | How to compute some datasets: a producer's logic at one version, its input datasets, its output datasets | immutable — a new version is a new recipe |
+| **Recipe** | `ri.forge.main.recipe.…` | How to compute some datasets: the driver that runs it (and what that driver needs, e.g. a commit and a transform), its input datasets, its output datasets | immutable — a new version is a new recipe |
 | **Build** | `ri.forge.main.build.…` | One request to bring datasets up to date on a branch: its target, its **plan**, its status | status only |
 | **Job** | `ri.forge.main.job.…` | One run of one recipe within one build: pinned input versions in, one transaction per output | status, attempt, times |
 
 None is a library resource. Shared types: `Forge.Recipe`, `Forge.Build` (with `Forge.Build.Plan`), `Forge.Job`, `Forge.API` in `@quarry/shared/domain`; branches are `Foundations.Branch`.
 
 - **Producers publish, builds run.** A Code Workspace publishes one recipe per transform on every commit (checks), per branch; Pipeline Builder will publish one per pipeline on deploy. Clicking Build or a schedule firing never publishes — it runs the current recipe.
+- **Drivers run jobs.** One per kind of producer — `code-workspace` (built first), later `data-connection` and `pipeline` — each talking to its own application. A recipe's `driver` names its driver (`type`) and holds what that driver needs (for a workspace: the commit and the transform). The ForgeAgent hands each job to its driver; Forge itself only plans, pins, locks, commits and aborts, and knows no driver's details.
 - **One producer per dataset per branch.** A dataset has at most one *current* recipe on a branch; many over time (history), different ones on different branches.
 - **The plan** is the build's graph, as an adjacency list over recipes: `{ roots, children }`. A recipe is a child of every recipe in the build whose output it reads; roots wait for nothing. Fixed when the build is created.
 - **One job per node** of the plan. A recipe writing several datasets is one job that writes them all together — building one of them rebuilds its siblings.
@@ -74,8 +75,8 @@ flowchart TB
 | **Server** — `ForgeService` | Creates builds (collect the plan, validate, lock the outputs, persist), advances them when a job finishes (commit its outputs, ask D2 which jobs are now ready, mark them scheduled, relay them), cancels them, fails silent jobs (reaper) | the API |
 | **Delivery** — the durable queue `Forge.DurableQueue.RunJob` | A scheduled job's message is added to `foundations.outbox` with the change that schedules it, relayed to BullMQ (job id `<rid>_<attempt>`) after the commit and by the platform's every-minute sweep, and acked when the job starts or its build ends — [durable-queues.md](durable-queues.md) | — |
 | **Queue** — BullMQ on Redis | Delivers "run job X" to one agent: one queue, `forge.run-job` | — |
-| **ForgeAgent** | Takes a job when it has a free slot, calls `start`, starts the container with the recipe's resources, heartbeats, streams logs, waits for the exit, calls `finish`; kills the container on cancel. Never moves data | one per machine |
-| **Job container** | The runner for the recipe's logic type: fetches the code at the commit, reads the inputs, runs the function, uploads and registers the output files, exits 0 or 1 | one per job, removed after |
+| **ForgeAgent** | Takes a job when it has a free slot, calls `start`, hands the job to the driver its recipe names (`recipe.driver.type`), which starts the container with the recipe's resources, heartbeats, streams logs, waits for the exit, calls `finish`; kills the container on cancel. Never moves data | one per machine |
+| **Job container** | Started by the `code-workspace` driver: fetches the code at the commit, reads the inputs, runs the function, uploads and registers the output files, exits 0 or 1 | one per job, removed after |
 | **Catalog** | Datasets, their transactions and files — what jobs read and write | — |
 
 **Why an agent per machine.** The agent doesn't compute; it stands in for a machine, the way Jenkins and Buildkite agents or Kubernetes' kubelet do. With plain Docker, containers run on the machine whose Docker daemon starts them, and Docker's API should stay local (exposed over the network it's root on the host). Each agent pulls a job only when its machine has room, so the queue does the placing — no central scheduler. Start with one machine; add machines (each with its agent) when one isn't enough. With Kubernetes, one or two agents submit Kubernetes Jobs and the cluster places them; nothing else changes.
@@ -102,7 +103,7 @@ forge.recipe                       -- immutable: one row per publish
   rid           recipe_rid  PRIMARY KEY
   producer_rid  → library.resource      -- the workspace (later: pipeline, sync)
   branch        text
-  logic         jsonb                   -- Forge.Recipe.Logic: what to run, per producer
+  driver        jsonb                   -- Forge.Recipe.Driver: which driver runs it, and what that driver needs
   resources     jsonb                   -- { cpuCores, memoryGb }
   published_by  → identity.user, NULL = the system
   published_at  timestamptz
@@ -309,7 +310,7 @@ The industry's usual answer to "a worker died without saying so" (Airflow's zomb
 
 ### Environments
 
-A container starts from an **environment image**: a Quarry-owned base (Python, `quarry.transforms`, the runner — later a CUDA variant) plus a layer installing the workspace's `uv.lock`, keyed by the lock's hash, built once by checks and shared by every recipe with the same lock. The code isn't in the image; the container fetches it. A `code-workspace` recipe's `logic` names its environment (to add). Pipeline Builder and syncs have no user environment: their runner image is Quarry's own, and the job records which version ran it.
+A container starts from an **environment image**: a Quarry-owned base (Python, `quarry.transforms`, the runner — later a CUDA variant) plus a layer installing the workspace's `uv.lock`, keyed by the lock's hash, built once by checks and shared by every recipe with the same lock. The code isn't in the image; the container fetches it. A `code-workspace` recipe's `driver` names its environment (to add). Pipeline Builder and syncs have no user environment: their runner image is Quarry's own, and the job records which version ran it.
 
 ## 6. D2 — the graph, kept apart — planned
 

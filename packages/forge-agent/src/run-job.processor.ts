@@ -1,11 +1,8 @@
 import { Processor } from '@nestjs/bullmq';
-import { isAxiosError } from 'axios';
 import { Forge } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { JobProcessor } from '@quarry/shared/server/queue';
-import { forgeApi } from './forge-api';
-
-import Agent = Forge.API.Agent;
+import { ForgeServerClient } from './forge-server.client';
 
 /** How many jobs this machine runs at once — its slots. */
 const SLOTS = Number(process.env.FORGE_AGENT_SLOTS ?? 2);
@@ -25,20 +22,29 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
 
     private readonly log = System.log.withContext('RunJob');
 
-    protected async handle(message: Forge.Queue.RunJob.Job): Promise<Forge.Queue.RunJob.Result> {
-        const started = await this._start(message);
+    constructor(private readonly forgeServer: ForgeServerClient) {
+        super();
+    }
 
-        if (!started)
+    protected async handle(message: Forge.Queue.RunJob.Job): Promise<Forge.Queue.RunJob.Result> {
+        const started = await this.forgeServer.start(message);
+
+        if (!started) {
+            this.log.info(`Skipped ${message.jobRid} (attempt ${message.attempt}): not waiting to start`);
+            
             return { status: 'skipped' };
+        }
+
+        const { job, recipe } = started; 
 
         this.log.info(`Picked up ${message.jobRid} (attempt ${message.attempt})`, {
-            build:     started.job.buildRid,
-            recipe:   started.recipe.rid,
-            transform: started.recipe.logic.transform,
-            outputs:   Object.keys(started.job.outputs).length,
+            build:     job.buildRid,
+            recipe:    recipe.rid,
+            transform: recipe.driver.transform,
+            outputs:   Object.keys(job.outputs).length,
         });
 
-        const heartbeat = await Agent.heartbeat(forgeApi, message.jobRid, { attempt: message.attempt });
+        const heartbeat = await this.forgeServer.heartbeat(message);
 
         if (heartbeat.action === 'stop') {
             this.log.info(`Stopped ${message.jobRid}: its build was canceled`);
@@ -46,47 +52,16 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
             return { status: 'skipped' };
         }
 
-        const finished = await this._finish(message, 'succeeded');
+        const finished = await this.forgeServer.finish(message, 'succeeded');
 
-        if (!finished)
+        if (!finished) {
+            this.log.info(`${message.jobRid} was canceled while it ran — its outcome is dropped`);
+
             return { status: 'skipped' };
+        }
 
         this.log.info(`Finished ${message.jobRid}: succeeded`);
 
         return { status: 'succeeded' };
-    }
-
-    /** False if the server refused it: the job was canceled while it ran (its build canceled or failed). */
-    private async _finish(message: Forge.Queue.RunJob.Job, status: 'succeeded' | 'failed'): Promise<boolean> {
-        try {
-            await Agent.finish(forgeApi, message.jobRid, { attempt: message.attempt, status });
-
-            return true;
-        }
-        catch (error) {
-            if (isAxiosError(error) && error.response?.status === 409) {
-                this.log.info(`${message.jobRid} was canceled while it ran — its outcome is dropped`);
-
-                return false;
-            }
-
-            throw error;
-        }
-    }
-
-    /** Null if the server says this attempt isn't waiting to start — a duplicate message, or a canceled build. */
-    private async _start(message: Forge.Queue.RunJob.Job): Promise<Agent.Start.Response | null> {
-        try {
-            return await Agent.start(forgeApi, message.jobRid, { attempt: message.attempt });
-        }
-        catch (error) {
-            if (isAxiosError(error) && error.response?.status === 409) {
-                this.log.info(`Skipped ${message.jobRid} (attempt ${message.attempt}): not waiting to start`);
-
-                return null;
-            }
-
-            throw error;
-        }
     }
 }

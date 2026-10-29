@@ -3,17 +3,18 @@ import './load-env';
 import { NestFactory } from '@nestjs/core';
 import { System } from '@quarry/shared/server/system';
 import { AgentModule } from './agent.module';
-import { waitForServer } from './forge-api';
+import { ForgeServerClient } from './forge-server.client';
 
 System.log.setAppName('ForgeAgent');
 
 const log = System.log.withContext('Agent');
 
 async function bootstrap(): Promise<void> {
-    // Started alongside the server, it may come up first — every job goes through the ForgeAgent API.
-    await waitForServer();
-
     const app = await NestFactory.create(AgentModule);
+
+    // Started alongside the server, it may come up first — every job goes through the ForgeAgent API.
+    // Before listen: init (listen's) is what starts the queue workers.
+    await app.get(ForgeServerClient).waitForServer();
 
     app.enableShutdownHooks();                      // finish or release the current jobs on stop
 

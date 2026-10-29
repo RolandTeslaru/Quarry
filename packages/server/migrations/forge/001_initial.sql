@@ -21,7 +21,7 @@ CREATE TABLE forge.recipe (
     rid           forge.recipe_rid PRIMARY KEY,
     producer_rid  foundations.rid NOT NULL REFERENCES library.resource (rid) ON DELETE RESTRICT,   -- the workspace (later: pipeline)
     branch        text NOT NULL,
-    logic         jsonb NOT NULL,                 -- Forge.Recipe.Logic: what to run, per producer
+    driver        jsonb NOT NULL,                 -- Forge.Recipe.Driver: which driver runs it, and what that driver needs
     resources     jsonb NOT NULL,                 -- Forge.Recipe.Resources
     published_by  identity.user_rid REFERENCES identity.user(rid),
     published_at  timestamptz NOT NULL DEFAULT now()

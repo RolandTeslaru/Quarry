@@ -8,8 +8,8 @@ import { Git } from "../CodeWorkspace/Git"
 import { ModuleFunctionPath } from "../CodeWorkspace/ModuleFunctionPath"
 
 /**
- * How to compute some datasets: a producer's logic at one version, its inputs
- * and outputs. Published by producers (a workspace's checks, per commit);
+ * How to compute some datasets: the driver that runs it, its inputs and
+ * outputs. Published by producers (a workspace's checks, per commit);
  * builds only read them. Immutable — a new version is a new recipe.
  */
 export namespace Recipe {
@@ -19,8 +19,8 @@ export namespace Recipe {
     export const Rid = Foundations.Rid.generateSchema("forge", "recipe")
     export const createRid = () => Foundations.Rid.create("forge", "recipe")
 
-    /** What to run — each producer's own. */
-    export const Logic = z.discriminatedUnion("type", [
+    /** Which driver runs the recipe, and what that driver needs — one per kind of producer. */
+    export const Driver = z.discriminatedUnion("type", [
         z.object({
             type:         z.literal("code-workspace"),
             workspaceRid: Workspace.Rid,
@@ -28,7 +28,7 @@ export namespace Recipe {
             transform:    ModuleFunctionPath.Schema,
         }),
     ])
-    export type Logic = z.infer<typeof Logic>
+    export type Driver = z.infer<typeof Driver>
 
     export const Resources = z.object({
         cpuCores: z.number().positive(),
@@ -40,8 +40,8 @@ export namespace Recipe {
         rid:               Rid,
         producerRid:       Resource.Rid,
         branch:            Foundations.Branch,
-        logic:             Logic,
-        inputDatasetRids:  Dataset.Rid.array(),          // a set; the runner matches them to the code's parameters
+        driver:            Driver,
+        inputDatasetRids:  Dataset.Rid.array(),          // a set; the driver matches them to the code's parameters
         outputDatasetRids: Dataset.Rid.array().min(1),
         resources:         Resources,
         publishedBy:       User.Rid.nullable(),          // null = the system

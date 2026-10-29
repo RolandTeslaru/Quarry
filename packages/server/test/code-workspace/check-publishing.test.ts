@@ -76,7 +76,7 @@ describe('publishing recipes', () => {
         expect(recipe).toMatchObject({
             producerRid:       workspace.rid,
             branch:            MAIN,
-            logic:             { type: 'code-workspace', workspaceRid: workspace.rid, commit: run.commit, transform: 'sales.datasets.orders.clean' },
+            driver:             { type: 'code-workspace', workspaceRid: workspace.rid, commit: run.commit, transform: 'sales.datasets.orders.clean' },
             inputDatasetRids:  [datasets.raw],
             outputDatasetRids: [datasets.clean],
             resources:         { cpuCores: 1, memoryGb: 4 },
@@ -119,7 +119,7 @@ describe('publishing recipes', () => {
         const [job] = Object.values(jobs);
         const started = await harness.agent.startJob(job.rid, 1);
 
-        expect(started.recipe.logic).toEqual({ type: 'code-workspace', workspaceRid: run.workspaceRid, commit: run.commit, transform: 'pkg.a.clean' });
+        expect(started.recipe.driver).toEqual({ type: 'code-workspace', workspaceRid: run.workspaceRid, commit: run.commit, transform: 'pkg.a.clean' });
     });
 
     describe('refusals — the run fails at its publish step, nothing published', () => {
@@ -183,7 +183,7 @@ describe('publishing recipes', () => {
         await checks.start(queued[0].rid);
         await finishWith(queued[0], [transform('pkg.a.a', { raw: datasets.raw }, { out: datasets.a })]);
 
-        expect((await harness.forge.recipes.getCurrent(admin, datasets.a, [MAIN]))?.logic).toMatchObject({ commit: next });
+        expect((await harness.forge.recipes.getCurrent(admin, datasets.a, [MAIN]))?.driver).toMatchObject({ commit: next });
         expect(await harness.forge.recipes.getCurrent(admin, datasets.b, [MAIN])).toBeNull();
     });
 });
