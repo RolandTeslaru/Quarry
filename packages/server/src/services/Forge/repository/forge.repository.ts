@@ -112,12 +112,9 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         // The FK guarantees it exists; a failure here undoes the start.
         const jobSpec = await this._jobSpec.get(principal, job.jobSpecRid);
 
-        if (!jobSpec)
-            throw new Error(`Job ${rid} has no job spec ${job.jobSpecRid}`);
-
         await this._ackRunJobs([job]);
 
-        return { job, jobSpec };
+        return { job, jobSpec: jobSpec! };
     }
 
     /**
@@ -167,13 +164,10 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
     private async _scheduleReadyChildren(principal: Principal, finished: Forge.Job.Schema): Promise<Forge.Job.Schema[]> {
         const build = await this._build.get(principal, finished.buildRid);
 
-        if (!build)
-            throw new Error(`Job ${finished.rid} has no build ${finished.buildRid}`);
-
         const jobs = await this._job.listForBuild(principal, finished.buildRid);
 
         const succeeded = new Set(jobs.filter((job) => job.status === 'succeeded').map((job) => job.jobSpecRid));
-        const ready = Forge.Build.Plan.getReadyChildren(build.plan, finished.jobSpecRid, succeeded);
+        const ready = Forge.Build.Plan.getReadyChildren(build!.plan, finished.jobSpecRid, succeeded);
 
         return this._job.schedule(principal, finished.buildRid, ready);
     }

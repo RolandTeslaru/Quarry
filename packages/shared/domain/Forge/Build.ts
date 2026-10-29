@@ -38,14 +38,20 @@ export namespace Build {
         export type Schema = z.infer<typeof Schema>
 
         /** The nodes the node waits for. */
-        export const getParents = (plan: Schema, node: JobSpec.Rid): JobSpec.Rid[] =>
-            Object.entries(plan.children)
-                .filter(([, children]) => children.includes(node))
-                .map(([parent]) => JobSpec.Rid.parse(parent))
+        export function getParents(plan: Schema, node: JobSpec.Rid): JobSpec.Rid[] {
+            const parents: JobSpec.Rid[] = []
+
+            for (const parent of Object.keys(plan.children) as JobSpec.Rid[])
+                if (plan.children[parent].includes(node))
+                    parents.push(parent)
+
+            return parents
+        }
 
         /** The finished node's children whose parents have all succeeded — they may run now. */
-        export const getReadyChildren = (plan: Schema, finished: JobSpec.Rid, succeeded: Set<JobSpec.Rid>): JobSpec.Rid[] =>
-            (plan.children[finished] ?? []).filter((child) => getParents(plan, child).every((parent) => succeeded.has(parent)))
+        export function getReadyChildren(plan: Schema, finished: JobSpec.Rid, succeeded: Set<JobSpec.Rid>): JobSpec.Rid[] {
+            return plan.children[finished].filter((child) => getParents(plan, child).every((parent) => succeeded.has(parent)))
+        }
     }
 
     export const Status = z.enum(["running", "succeeded", "failed", "canceled"])

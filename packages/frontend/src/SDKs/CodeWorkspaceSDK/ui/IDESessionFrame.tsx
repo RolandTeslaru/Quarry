@@ -28,10 +28,10 @@ export function IDESessionFrame({ rid, restarting = false }: Props) {
     if (restarting)
         return <SessionStarting label='Restarting your session on a fresh container — your files stay.' />
 
-    if (sessionRequest.error || !sessionRequest.data) {
+    if (sessionRequest.isError) {
         return (
             <div className='p-6'>
-                <ErrorNotice error={sessionRequest.error ?? 'The session didn’t start.'} />
+                <ErrorNotice error={sessionRequest.error} />
                 <Button onClick={() => void sessionRequest.refetch()}>Try again</Button>
             </div>
         )

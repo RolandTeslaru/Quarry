@@ -39,8 +39,8 @@ describe("Build.Plan", () => {
             expect(Build.Plan.getReadyChildren(diamond, D, new Set([A, B, C, D]))).toEqual([])
         })
 
-        it("readies nothing for a node the plan doesn't have", () => {
-            expect(Build.Plan.getReadyChildren(diamond, JobSpec.createRid(), new Set([A]))).toEqual([])
+        it("throws for a node the plan doesn't have — a broken plan isn't silently a leaf", () => {
+            expect(() => Build.Plan.getReadyChildren(diamond, JobSpec.createRid(), new Set([A]))).toThrow()
         })
 
         it("only counts successes: a failed parent never readies its child", () => {

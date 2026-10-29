@@ -156,7 +156,7 @@ export class CodeWorkspaceService {
     private async getExamplePaths(principal: Principal, inputRid: Catalog.Dataset.Rid, parentRid: Library.Resource.Rid) {
         const input = await this.library.path(principal, inputRid);
         const parent = await this.library.path(principal, parentRid);
-        const inputName = input[input.length - 1]?.name ?? 'input';
+        const inputName = input[input.length - 1].name;
 
         return {
             inputPath:  Library.Resource.getPath(input),

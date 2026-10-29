@@ -45,12 +45,19 @@ export class Schedules implements OnApplicationBootstrap {
         const { syncs } = await DataConnection.API.Internal.scheduledSyncs(api);
         const wanted = new Set<string>(syncs.map((sync) => sync.rid));
 
-        for (const sync of syncs)
+        for (const sync of syncs) {
+            const job: DataConnection.Queue.Sync.Job = {
+                syncRid:     sync.rid,
+                trigger:     'schedule',
+                triggeredBy: null,
+            };
+
             await this.sync.upsertJobScheduler(sync.rid, { pattern: sync.schedule }, {
                 name: queueDefinition.name,
-                data: queueDefinition.job.parse({ syncRid: sync.rid, trigger: 'schedule', triggeredBy: null }),
+                data: job,
                 opts: queueDefinition.options,
             });
+        }
 
         let removed = 0;
 

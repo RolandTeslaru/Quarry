@@ -39,12 +39,12 @@ export class CheckPublisher {
             }
 
             specs.push({
-                logic: Forge.JobSpec.Logic.parse({
+                logic: {
                     type:         'code-workspace',
                     workspaceRid: run.workspaceRid,
                     commit:       run.commit,
                     transform:    transform.name,
-                }),
+                },
                 inputDatasetRids,
                 outputDatasetRids,
                 resources: transform.resources,

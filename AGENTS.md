@@ -28,6 +28,21 @@ hide it with a guard.
   rebuild it inline.
 - Before adding a check or an edge case anyway, ask the user.
 
+## Hard rule: plain, readable code
+
+- No private or `_` helper methods in services. Write the steps inline in the
+  public method. A real domain concept goes in its shared namespace instead.
+- No wrapper methods that only forward to another service or class. Expose the
+  sub-service (`service.ci`, `service.gitRepos`) and call it directly. A method
+  earns its place by doing something, such as a gate.
+- No dense one-liners: no ternary inside a template string or an exception, no
+  `.map(x => cond ? { ...x, a } : x)`, no object literal with several fields on
+  one line. Write `if`/`else`, a `for` loop, one field per line.
+- Don't mutate through an alias (`const step = steps[i]; step.status = …`).
+  Replace the element where everyone can see it.
+- Comments: most methods get none. Never restate the name, signature or code.
+  When one is needed, it's one short line saying what the code can't.
+
 ## 1. Inspect before writing
 
 - Read the relevant design documents in `docs/design/` before changing a domain.

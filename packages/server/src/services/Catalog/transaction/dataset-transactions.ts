@@ -61,16 +61,12 @@ export class DatasetTransactions {
         }));
 
         const rows = await this.repository.openBatch(principal, branch, values);
-        const byRid = new Map(rows.map((row) => [row.rid, CatalogDB.Transaction.toDomain(row)]));
+        const byRid: Record<Catalog.Transaction.Rid, Catalog.Transaction.Schema> = {};
 
-        return values.map((value) => {
-            const transaction = byRid.get(value.rid);
+        for (const row of rows)
+            byRid[row.rid] = CatalogDB.Transaction.toDomain(row);
 
-            if (!transaction)
-                throw new Error(`Transaction ${value.rid} wasn't opened`);
-
-            return transaction;
-        });
+        return values.map((value) => byRid[value.rid]);
     }
 
     /** Adds stored files to the transaction (or removes logical paths from the view). */
@@ -89,9 +85,7 @@ export class DatasetTransactions {
         transactionRid: Catalog.Transaction.Rid,
         schema:         Catalog.ColumnSchema.Schema | null,
     ): Promise<number> {
-        const row = await this.repository.commit(principal, datasetRid, transactionRid, schema);
-
-        return row.sequence!;
+        return this.repository.commit(principal, datasetRid, transactionRid, schema);
     }
 
     /** Aborts the open ones among these, in one database transaction; finished ones are skipped, so it's safe to repeat. */

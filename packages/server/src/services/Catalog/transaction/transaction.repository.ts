@@ -111,7 +111,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         datasetRid:     Catalog.Dataset.Rid,
         rid:            Catalog.Transaction.Rid,
         schema:         Catalog.ColumnSchema.Schema | null,
-    ): Promise<CatalogDB.Transaction.Row> {
+    ): Promise<number> {
         const transaction = await this._requireOpen(datasetRid, rid);
 
         const branch = await this.trx
@@ -131,12 +131,12 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
             .where('name', '=', transaction.branch)
             .execute();
 
-        const committed = await this.trx
+        await this.trx
             .updateTable('catalog.transaction')
             .set({ status: 'committed', sequence, schema: schema ? json(schema) : null, finished_at: new Date() })
             .where('rid', '=', rid)
             .where('status', '=', 'open')
-            .returningAll()
+            .returning('rid')
             .executeTakeFirstOrThrow();
 
         await this.trx
@@ -149,7 +149,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
 
         await sql`select pg_notify('catalog_outbox', '')`.execute(this.trx);
 
-        return committed;
+        return sequence;
     }
 
     /**
@@ -250,10 +250,16 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
 
         const list = [...view.values()];
         // Known only if every file is a Parquet file that reported its rows.
-        const counts = list.map((file) => (file.format === 'parquet' ? file.rowCount : null));
-        const rowCount = counts.every((count) => count !== null)
-            ? counts.reduce<number>((sum, count) => sum + (count ?? 0), 0)
-            : null;
+        let rowCount: number | null = 0;
+
+        for (const file of list) {
+            if (file.format !== 'parquet' || file.rowCount === null) {
+                rowCount = null;
+                break;
+            }
+
+            rowCount += file.rowCount;
+        }
 
         return { branch, sequence: head, schema: latestSchema?.schema ?? null, files: list, rowCount };
     }

@@ -1,5 +1,5 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
-import { Foundations, Library } from '@quarry/shared/domain'
+import { Library } from '@quarry/shared/domain'
 import { LibraryExplorerApp } from '@/apps/library/components/LibraryExplorerApp'
 import { APP_FOR_TYPE } from '@/shell/apps'
 import { App } from '@/AppKit'
@@ -20,15 +20,12 @@ export const Route = createFileRoute('/_workspace/library/$rid')({
     },
     // The Library Explorer opens projects and folders; any other resource opens in its own app.
     beforeLoad: ({ params }) => {
-        const type = Library.Resource.Type.safeParse(Foundations.Rid.parse(params.rid).type)
+        const type = Library.Resource.getType(params.rid)
 
-        if (!type.success)
-            throw notFound()
-
-        if (Library.Resource.CONTAINERS.includes(type.data))
+        if (Library.Resource.CONTAINERS.includes(type))
             return
 
-        const open = APP_FOR_TYPE[type.data]?.opens[type.data]
+        const open = APP_FOR_TYPE[type]?.opens[type]
 
         if (!open)
             throw notFound()

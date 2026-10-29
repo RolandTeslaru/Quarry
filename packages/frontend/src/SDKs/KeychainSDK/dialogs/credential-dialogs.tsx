@@ -62,15 +62,12 @@ function CredentialDialog({ templates, dialog }: Props) {
     })
 
     const templateId = form.watch('templateId')
-    const template = templates[templateId] ?? first
+    const template = templates[templateId]
     const submitting = form.formState.isSubmitting
 
     // Another system: its own fields, from their defaults.
     function selectTemplate(id: string) {
         const next = templates[id]
-
-        if (!next)
-            return
 
         form.setValue('templateId', next.id)
         form.setValue('values', defaults(next.fieldsSchema))

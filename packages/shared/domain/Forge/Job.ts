@@ -41,8 +41,14 @@ export namespace Job {
     export const getMessage = (job: Pick<Schema, "rid" | "attempt">) => ({ jobRid: job.rid, attempt: job.attempt })
 
     /** The job's output transactions, each with its dataset — how Catalog addresses them. */
-    export const getOutputTransactions = (job: Pick<Schema, "outputs">): { rid: Transaction.Rid; datasetRid: Dataset.Rid }[] =>
-        Object.entries(job.outputs).map(([datasetRid, rid]) => ({ rid, datasetRid: Dataset.Rid.parse(datasetRid) }))
+    export function getOutputTransactions(job: Pick<Schema, "outputs">): { rid: Transaction.Rid; datasetRid: Dataset.Rid }[] {
+        const transactions: { rid: Transaction.Rid; datasetRid: Dataset.Rid }[] = []
+
+        for (const datasetRid of Object.keys(job.outputs) as Dataset.Rid[])
+            transactions.push({ rid: job.outputs[datasetRid], datasetRid })
+
+        return transactions
+    }
 
     /** Not finished: it may still run, or is running. */
     export const UNFINISHED: readonly Status[] = ["waiting", "scheduled", "running"]

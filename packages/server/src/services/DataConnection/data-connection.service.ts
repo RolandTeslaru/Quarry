@@ -441,10 +441,8 @@ export namespace DataConnectionService {
 
                 const sync = await this.repository.sync.get(self, run.sync_rid);
 
-                if (sync) {
-                    await this.publish(run.rid, sync);
-                    this.notifyFailure(run.triggered_by, sync, 'The worker running it stopped responding.');
-                }
+                await this.publish(run.rid, sync!);
+                this.notifyFailure(run.triggered_by, sync!, 'The worker running it stopped responding.');
             }
 
             return stuck.length;
@@ -454,11 +452,8 @@ export namespace DataConnectionService {
         private async publish(runRid: DataConnection.SyncRun.Rid, sync: DataConnectionDB.Sync.Row): Promise<void> {
             const run = await this.repository.run.get(Principal.SELF('sync.publish'), runRid);
 
-            if (!run)
-                return;
-
             this.realtime.emitEvent({
-                ...DataConnection.Event.create('data-connection:run:updated', { run: DataConnectionDB.SyncRun.toDomain(run) }),
+                ...DataConnection.Event.create('data-connection:run:updated', { run: DataConnectionDB.SyncRun.toDomain(run!) }),
                 channel: DataConnection.Event.getChannel(sync.source_rid),
             });
         }
@@ -492,10 +487,7 @@ export namespace DataConnectionService {
 
             const sync = await this.repository.sync.get(self, run.sync_rid);
 
-            if (!sync)
-                throw new NotFoundException('Not found');
-
-            return { run, sync };
+            return { run, sync: sync! };
         }
     }
 }

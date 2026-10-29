@@ -16,6 +16,9 @@ export namespace Resource {
     export type  Rid = Foundations.Rid<string, Type>
     export const Rid = Foundations.Rid.ofTypes(Type.options)
 
+    /** A resource RID's type segment — the resource's type. */
+    export const getType = (rid: Rid) => Foundations.Rid.parse(rid).type as Type
+
     /** The fields every resource has, whatever its type. Subtypes extend this. */
     export const Base = z.object({
         rid:         Rid,

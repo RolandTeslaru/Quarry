@@ -99,8 +99,6 @@ export class CatalogService {
     @Audit('read', (sequence?: number) => ({ op: 'view', sequence: sequence ?? null }))
     @SecurityGate('read')
     async view(principal: Principal, rid: Catalog.Dataset.Rid, sequence?: number): Promise<Catalog.Dataset.View.Schema> {
-        await this.get(principal, rid);
-
         return this.transactionRepository.resolveView(principal, rid, 'main', sequence);
     }
 

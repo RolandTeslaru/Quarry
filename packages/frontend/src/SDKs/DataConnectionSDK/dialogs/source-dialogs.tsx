@@ -129,9 +129,6 @@ function SourceWizard({ parentRid, dialog }: Props) {
     function selectDefinition(id: string) {
         const next = definitions[id]
 
-        if (!next)
-            return
-
         form.setValue('definitionId', next.id, { shouldValidate: true })
         form.setValue('config', defaults(next.configSchema))
         form.setValue('credentialRid', '')

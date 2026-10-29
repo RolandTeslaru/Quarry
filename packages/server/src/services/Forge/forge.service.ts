@@ -122,9 +122,6 @@ export class ForgeService {
         for (const datasetRid of build.target.datasetRids)
             await this.gatekeeper.assert(principal, 'write', datasetRid);
 
-        if (build.status !== 'running')
-            throw new ConflictException(`Build is ${build.status}`);
-
         // Mark first: a canceled job's late finish is refused (finish needs it running), so an
         // agent can't complete it once its outputs are being released.
         const canceled = await this.repository.cancelBuild(principal, rid);
@@ -219,18 +216,21 @@ export class ForgeService {
      */
     private async _lockOutputs(principal: Principal, buildRid: Forge.Build.Rid, { specs }: CollectedPlan): Promise<NewJob[]> {
         const jobSpecRids = Object.values(specs).map((spec) => spec.rid);
-        const jobRids = new Map(jobSpecRids.map((jobSpecRid) => [jobSpecRid, Forge.Job.createRid()]));
+        const jobRids: Record<Forge.JobSpec.Rid, Forge.Job.Rid> = {};
+
+        for (const jobSpecRid of jobSpecRids)
+            jobRids[jobSpecRid] = Forge.Job.createRid();
 
         const openings = jobSpecRids.flatMap((jobSpecRid) => specs[jobSpecRid].outputDatasetRids.map((datasetRid) => ({
             datasetRid,
             type:       'snapshot' as const,
-            provenance: { buildRid, jobRid: jobRids.get(jobSpecRid) },
+            provenance: { buildRid, jobRid: jobRids[jobSpecRid] },
         })));
 
         const transactions = await this.catalog.transaction.openBatch(principal, openings, MAIN);
 
         return jobSpecRids.map((jobSpecRid) => ({
-            rid:     this._getJobRid(jobRids, jobSpecRid),
+            rid:     jobRids[jobSpecRid],
             jobSpecRid,
             outputs: Object.fromEntries(transactions
                 .filter((transaction) => specs[jobSpecRid].outputDatasetRids.includes(transaction.datasetRid))
@@ -268,14 +268,5 @@ export class ForgeService {
             roots: specs.map((spec) => spec.rid).filter((rid) => !hasParent.has(rid)),
             children,
         };
-    }
-
-    private _getJobRid(jobRids: Map<Forge.JobSpec.Rid, Forge.Job.Rid>, jobSpecRid: Forge.JobSpec.Rid): Forge.Job.Rid {
-        const jobRid = jobRids.get(jobSpecRid);
-
-        if (!jobRid)
-            throw new Error(`No job for ${jobSpecRid}`);
-
-        return jobRid;
     }
 }

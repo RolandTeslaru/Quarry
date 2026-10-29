@@ -53,7 +53,7 @@ export interface NewEvent {
 }
 
 /** A RID's type segment — `ri.<service>.<instance>.<type>.<id>`; Library keeps it = the resource's type. */
-const typeOf = (rid: string) => rid.split('.')[3] ?? 'unknown';
+const typeOf = (rid: string) => rid.split('.')[3];
 
 @Injectable()
 export class AuditRepository extends Repository(AuditDB.database) {
