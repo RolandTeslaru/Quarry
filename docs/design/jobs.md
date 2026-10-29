@@ -6,12 +6,12 @@ _Draft, 2026-10-13. BullMQ on Redis, consumed by the workers described in [archi
 
 ## 1. Principles
 
-- **Postgres is the source of truth; BullMQ only executes.** Run state lives in `data_connection.sync_run`, `catalog.transaction`, `catalog.outbox`. Losing Redis loses no state — schedulers are rebuilt from Postgres on boot.
+- **Postgres is the source of truth; BullMQ only executes.** Run state lives in `data_connection.sync_run`, `catalog.transaction`, `foundations.outbox`. Losing Redis loses no state — schedulers are rebuilt from Postgres on boot.
 - **One queue per kind of job**, named `<service>.<job>` (dots, never colons — BullMQ uses colons in Redis keys). Moving a job to another worker = moving its processor to another worker module.
 - **Each service owns its queues** like it owns its tables: a `queue/` folder in its shared domain, exported as `<Service>.Queue` next to `<Service>.API`, declaring each queue with `Foundations.Queue.define` (name, job schema, result schema, options). Contracts live in `@quarry/shared`; the BullMQ runtime and scheduling policy in the server.
 - **Jobs are validated on both ends.** The producer builds a typed payload; the processor parses `job.data` with the same zod schema — Redis data is untyped, and a deploy can leave old-shaped jobs in a queue.
 - **Jobs are idempotent and deduplicated**; delivery is at-least-once.
-- **Events cross from Postgres to Redis only through the outbox** — never enqueue inside a database transaction and hope both commit.
+- **Work crosses from Postgres to Redis only through a durable queue's outbox** ([durable-queues.md](durable-queues.md)) — never enqueue inside a database transaction and hope both commit.
 
 ---
 
@@ -123,9 +123,7 @@ export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync
 | `data-connection.sync` | `DataConnection.Queue.Sync` | **data-connection-worker** | API (run now), job schedulers (cron) | `syncRid` | 3, exponential | per-sync cron |
 | `data-connection.source-probe` | `DataConnection.Queue.SourceProbe` | **data-connection-worker** | API (test / explore), request-reply | — | 1 | — |
 | `data-connection.sync-reaper` | `DataConnection.Queue.SyncReaper` | **system-worker** | repeatable | singleton | — | every 2 min |
-| `catalog.outbox-relay` | `Catalog.Queue.OutboxRelay` | **system-worker** | repeatable + `NOTIFY` nudge | singleton | — | every 5 s |
 | `catalog.storage-gc` | `Catalog.Queue.StorageGc` | **system-worker** | repeatable | singleton | — | hourly |
-| `catalog.dataset-updated` | `Catalog.Queue.DatasetUpdated` | none yet (layer 2: builds; layer 3: reindex) | outbox relay | `transactionRid` | — | — |
 | `forge.run-job` | `Forge.Queue.RunJob` (durable: `Forge.DurableQueue.RunJob`) | **forge-agent** | the server, through the durable queue: added with the commit that schedules a job, relayed after it and by the durable-queue sweep | `<jobRid>_<attempt>` | — (a retry is a new attempt) | — |
 | `durable-queue.sweep` | `Foundations.DurableQueue.Sweep` | **system-worker** → `POST /api/internal/durable-queues/sweep` | repeatable | singleton | — | every minute: every durable queue's unsent and stale messages ([durable-queues.md](durable-queues.md)) |
 | `code-workspace.run-check` | `CodeWorkspace.CI.Queue.RunCheck` (durable: `CodeWorkspace.CI.DurableQueue.RunCheck`) | **code-workspace-worker** | the server, through the durable queue: added when a check run is scheduled | check run RID | — | per scheduled check run; concurrency = `CODE_WORKSPACE_CHECK_SLOTS` |
@@ -154,7 +152,7 @@ sequenceDiagram
     W->>S3: open → read (DuckDB COPY) → close
     Note over W,S: heartbeat every 30 s
     W->>S: POST /internal/sync-runs/:rid/complete (row counts, schema)
-    Note over S: list the prefix, register files, commit (+ outbox row), finish the run
+    Note over S: list the prefix, register files, commit, finish the run
     opt on error
         W->>S: POST /internal/sync-runs/:rid/fail
         Note over S: abort the transaction, fail the run
@@ -170,27 +168,6 @@ Cron schedules are **BullMQ job schedulers** on `data-connection.sync` — not a
 
 - **server** — on sync create / update / delete: `upsertJobScheduler(syncRid, { pattern: cron }, { data: { syncRid, trigger: 'schedule', triggeredBy: null } })` or `removeJobScheduler(syncId)`.
 - **system-worker on boot** — reconcile (`GET /internal/syncs/scheduled`): upsert a scheduler for every enabled sync with a schedule, remove schedulers with no matching sync. A wiped Redis heals on the next boot.
-
-### Outbox relay
-
-```mermaid
-sequenceDiagram
-    participant C as Catalog commit (server)
-    participant S as server /internal
-    participant R as system-worker
-    participant Q as dataset-updated queue
-
-    C->>C: insert catalog.outbox row + NOTIFY (same transaction)
-    loop every 5 s
-        R->>S: GET /internal/outbox?limit=100
-        R->>Q: add(payload, jobId = transactionRid)
-        R->>S: POST /internal/outbox/published
-    end
-```
-
-The server reads oldest first (`ORDER BY id LIMIT 100`). Using the transaction RID as `jobId` makes a re-publish after a crash a no-op.
-
-Crash between enqueue and mark → the row is re-published next tick; the `jobId` makes that harmless.
 
 ### Reaper
 

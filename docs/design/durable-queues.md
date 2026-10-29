@@ -1,6 +1,6 @@
 # Durable queues
 
-_Design, 2026-10-28. **Built 2026-10-28**: the platform piece (§3, build order 1–3), Forge's run-job (step 4) and Code Workspaces' run-check (step 5) on it. Not yet: Catalog's events (step 6 — once the queue has a consumer). Related: plain queues, [jobs.md](jobs.md); the hand-built ones this replaces — Forge's run-job ([forge.md](forge.md) §4), Code Workspaces' run-check ([code-workspaces/checks.md](code-workspaces/checks.md) §3) and Catalog's event outbox ([catalog.md](catalog.md))._
+_Design, 2026-10-28. **Built 2026-10-28**: the platform piece (§3, build order 1–3), Forge's run-job (step 4) and Code Workspaces' run-check (step 5) on it. Catalog's events weren't moved: they were removed on 2026-10-29 (no consumer, and an event with several subscribers isn't a work queue — [catalog.md](catalog.md) §7). Related: plain queues, [jobs.md](jobs.md); the hand-built ones this replaces — Forge's run-job ([forge.md](forge.md) §4), Code Workspaces' run-check ([code-workspaces/checks.md](code-workspaces/checks.md) §3) and Catalog's event outbox ([catalog.md](catalog.md))._
 
 A **durable queue** is a BullMQ queue whose messages can't be lost. A message is first written to **the outbox** — one Postgres table for the whole platform — in the same transaction as the change that calls for it; then **relayed** to Redis. It stays in the outbox until the consumer **acknowledges** it, so if Redis loses it, or the server dies before sending it, it's sent again. It's the transactional outbox pattern, written once.
 
@@ -303,7 +303,7 @@ No delivery columns, no relay, no "what's undelivered" query, no sweep endpoint,
 | Domain states | `waiting → scheduled → running → …` — **`queued` and `queued_at` go** | `waiting → scheduled → running → …` (today's `queued` becomes `waiting`; dispatch's claim becomes **scheduling**) | — (events) |
 | add | where jobs become `scheduled`: `initializeBuild` (roots), `_scheduleReadyChildren`, a retry (`<rid>_<attempt>`) | where a run becomes `scheduled` (its workspace free) | in the commit, as now |
 | ack | `startJob` (take); `cancelBuild`, `failBuild` (cancel) | `start` (take); superseding a run (cancel) | the consumer, through the generic ack endpoint, once handled |
-| Deleted | `ForgeRelayService`, `listToRelay`, `markQueued`, `forge.relay-sweep` (queue, processor, endpoint, schedule) | `CheckDispatcher`'s sending, `listUntaken`, the resend in the check sweep | `catalog.outbox`, its relay endpoints, `catalog.outbox-relay` (queue, processor, schedule) |
+| Deleted | `ForgeRelayService`, `listToRelay`, `markQueued`, `forge.relay-sweep` (queue, processor, endpoint, schedule) | `CheckDispatcher`'s sending, `listUntaken`, the resend in the check sweep | all of it, with the event: `catalog.outbox`, its relay endpoints, `catalog.outbox-relay`, `catalog.dataset-updated` (removed 2026-10-29) |
 | Kept (the domain's) | the reaper (planned) | failing runs silent for 35 min | — |
 
 The "one running check per workspace" index becomes `UNIQUE (workspace_rid) WHERE status IN ('scheduled', 'running')`. Builds and checks show `scheduled` where they showed `queued`.
@@ -315,7 +315,7 @@ The "one running check per workspace" index becomes `UNIQUE (workspace_rid) WHER
 3. The system worker's `durable-queue.sweep`.
 4. Forge onto it — its tests (graph, relay, events, agent API, e2e) passing, with `queued` gone.
 5. Checks onto it — states renamed, scheduling in place of dispatch.
-6. Catalog's events onto it.
+6. ~~Catalog's events onto it.~~ Dropped: the events were removed instead.
 7. Docs: jobs.md's rows; forge.md, catalog.md and checks.md point here.
 
 ## Decisions

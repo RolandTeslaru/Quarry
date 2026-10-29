@@ -139,15 +139,6 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
             .returning('rid')
             .executeTakeFirstOrThrow();
 
-        await this.trx
-            .insertInto('catalog.outbox')
-            .values({
-                event:   'dataset.updated',
-                payload: json({ datasetRid: transaction.dataset_rid, branch: transaction.branch, sequence, transactionRid: rid }),
-            })
-            .execute();
-
-        await sql`select pg_notify('catalog_outbox', '')`.execute(this.trx);
 
         return sequence;
     }

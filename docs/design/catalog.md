@@ -1,6 +1,6 @@
 # Catalog — Datasets
 
-_Draft, 2026-10-18 (split from the 2026-10-13 datasets sketch). Tables, commit SQL and the outbox are in [database.md](database.md#6-catalog); queues in [jobs.md](jobs.md); permissions in [gatekeeper.md](gatekeeper.md). Foundry background: [research notes](../research/palantir-foundry-ontology.md) §2–3. What writes into datasets today: [data-connection.md](data-connection.md)._
+_Draft, 2026-10-18 (split from the 2026-10-13 datasets sketch). Tables and commit SQL are in [database.md](database.md#6-catalog); queues in [jobs.md](jobs.md); permissions in [gatekeeper.md](gatekeeper.md). Foundry background: [research notes](../research/palantir-foundry-ontology.md) §2–3. What writes into datasets today: [data-connection.md](data-connection.md)._
 
 Catalog owns **datasets**: versioned tables made of immutable files. It's Foundry's dataset layer — files in object storage, a transaction history in Postgres, and a "view" computed from that history. Everything later (transforms, ontology, indexing) reads datasets; only Catalog decides what a dataset contains.
 
@@ -136,7 +136,7 @@ sequenceDiagram
 - **`openBatch`** opens one transaction on each of several datasets in one database transaction — all or none; a dataset already being written is a 409 naming it. Datasets are inside the payload, so it checks their liveness itself. A build opens its outputs with it ([forge.md](forge.md)).
 - **`abortBatch`** aborts the open ones among several transactions (each addressed through its dataset) in one database transaction; finished ones are skipped, so it's safe to repeat. Builds abort their outputs with it.
 - **`registerChanges`** records the transaction's changes: `add` a stored file at a logical path, or `remove` a logical path. Called once or many times.
-- **`commit`**, in one Postgres transaction: lock the branch row (serialises commits), take `last_sequence + 1`, mark the transaction committed with its schema, insert a `dataset.updated` outbox row, `pg_notify`. Returns the sequence.
+- **`commit`**, in one Postgres transaction: lock the branch row (serialises commits), take `last_sequence + 1`, mark the transaction committed with its schema. Returns the sequence.
 - **`abort`** marks the transaction aborted. A no-op if it's already finished — failure paths race (runner catch block, sync reaper).
 
 ### Permissions and liveness
@@ -205,17 +205,15 @@ Nothing readable depends on listing the bucket — the catalog's file list is th
 
 ---
 
-## 6. Events and housekeeping
+## 6. Housekeeping
 
-Scheduled by the **system worker** (`packages/system-worker`), which has no database: the Postgres part of each job is a server endpoint (`Catalog.API.Internal`: `GET /internal/outbox`, `POST /internal/outbox/published`, `POST /internal/storage-gc`). Queue definitions in `Catalog.Queue` ([jobs.md](jobs.md)).
+Scheduled by the **system worker** (`packages/system-worker`), which has no database: the Postgres part of each job is a server endpoint (`Catalog.API.Internal`: `POST /internal/storage-gc`). Queue definitions in `Catalog.Queue` ([jobs.md](jobs.md)).
 
 | Job | Cadence | Does |
 |---|---|---|
-| `catalog.outbox-relay` | every 5 s (singleton) | Publishes unpublished `catalog.outbox` rows as `catalog.dataset-updated` jobs, `jobId` = transaction RID (a re-publish after a crash is a no-op), then marks them published |
 | `catalog.storage-gc` | hourly (singleton) | Aborts transactions open > 24 h; deletes the storage prefix of every transaction aborted in the last 7 days (idempotent) |
-| `catalog.dataset-updated` | per commit | **No consumer yet** — the hook for builds (layer 2) and reindexing (layer 3) |
 
-The outbox exists so an event is published **iff** the commit happened: the row is written in the commit's own Postgres transaction, and the relay only moves committed rows to BullMQ.
+No events on commit. A `dataset.updated` event (a `catalog.outbox` table, a relay in the system worker, a `catalog.dataset-updated` queue) was removed on 2026-10-29: nothing consumed it, and a work queue is the wrong shape for an event that several unrelated parties react to.
 
 ---
 
@@ -227,7 +225,7 @@ The outbox exists so an event is published **iff** the commit happened: the row 
 - **Schema checks** — no validation before commit; schema changes aren't detected or warned about.
 - **Branches beyond `main`**, queries beyond the preview, unstructured datasets (the model allows files without a schema; no tooling), Excel and other upload formats, pre-signed direct uploads, a schema editor in the frontend (the API exists).
 - **CSV row counts** — not counted on upload, so a CSV view's row count is unknown.
-- **Outbox via `LISTEN`** — commits `pg_notify('catalog_outbox')`, but the relay polls every 5 s and doesn't listen.
+- **Reacting to dataset updates** (update-triggered builds, reindexing) — not needed yet. For builds, prefer Forge pulling: compare each input's `last_sequence` with what its last build used, woken by a `NOTIFY` on commit. If several unrelated subscribers appear, a subscriber registry: the commit writes one pending row per registered subscriber in its transaction; an observer runs each subscriber's handler and deletes its rows only after it succeeds.
 
 ---
 

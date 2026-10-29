@@ -123,7 +123,7 @@ packages/shared/
     │   ├── Transaction.ts        Transaction.Rid, Type, Status, Schema, File
     │   ├── ColumnSchema.ts       the dataset type system (string, long, decimal(p,s), …)
     │   ├── api/                  Catalog.API: dataset.ts (create, get, getView)
-    │   ├── queue/                Catalog.Queue: OutboxRelay, StorageGc, DatasetUpdated
+    │   ├── queue/                Catalog.Queue: StorageGc
     │   └── index.ts
     └── DataConnection/
         ├── Source.ts             Source.Rid, DefinitionId, Config, Schema (+ credentialRid), Definition (wire shape), Table
@@ -199,10 +199,10 @@ packages/data-connection-worker/src/             NestJS app — @nestjs/bullmq p
 
 packages/system-worker/src/                      NestJS app — GET /health on port 4102
 ├── main.ts
-├── worker.module.ts  BullModule, its queues (+ dataset-updated and sync, which it produces), HealthController
+├── worker.module.ts  BullModule, its queues (+ sync, which it produces), HealthController
 ├── schedules.ts      Schedules — on boot: the repeating schedules, reconcile sync schedulers
 ├── processors/       one per job — each a server /internal call + the Redis part
-│   ├── outbox-relay.processor.ts · storage-gc.processor.ts · sync-reaper.processor.ts
+│   ├── storage-gc.processor.ts · sync-reaper.processor.ts
 └── infra.ts          env, server client, JobProcessor base
 ```
 
@@ -294,15 +294,13 @@ services/Catalog/
 ├── dataset.repository.ts         create (library row + dataset + branch main), get
 ├── transaction/
 │   ├── dataset-transactions.ts   the write protocol, reached as catalog.transaction: open → upload under storagePrefix → registerChanges → commit / abort
-│   └── transaction.repository.ts open, registerChanges, commit (sequence + outbox row), abort, resolveView, housekeeping queries
-└── outbox/
-    └── outbox.repository.ts      pending, markPublished (relayed by the system worker through /internal)
+│   └── transaction.repository.ts open, registerChanges, commit, abort, resolveView, housekeeping queries
 ```
 
-| Tables | `catalog.dataset` · `catalog.branch` · `catalog.transaction` · `catalog.transaction_change` · `catalog.outbox` |
+| Tables | `catalog.dataset` · `catalog.branch` · `catalog.transaction` · `catalog.transaction_change` |
 |---|---|
 | File storage | `s3://datasets/{datasetRid}/{transactionRid}/data_N.parquet` (bucket `S3_BUCKET`) |
-| Queues | `Catalog.Queue`: `OutboxRelay`, `StorageGc`, `DatasetUpdated` (shared domain) |
+| Queues | `Catalog.Queue`: `StorageGc` (shared domain) |
 
 ### DataConnection — schema `data_connection`
 
@@ -348,7 +346,6 @@ The server only *produces* `sync` jobs (run now, and the cron schedulers it upse
 | `catalog.branch` | Catalog | 〃 | 〃 |
 | `catalog.transaction` | Catalog | 〃 | 〃 |
 | `catalog.transaction_change` | Catalog | 〃 | 〃 |
-| `catalog.outbox` | Catalog | 〃 | 〃 |
 | `data_connection.source` | DataConnection | `services/DataConnection/data-connection.db.ts` | `migrations/data_connection/` |
 | `data_connection.sync` | DataConnection | 〃 | 〃 |
 | `data_connection.sync_run` | DataConnection | 〃 | 〃 |
@@ -468,14 +465,13 @@ export namespace CatalogDB {
             Catalog.Dataset.Schema.parse({ ...LibraryDB.Resource.toBase(resource), … });
     }
 
-    // Transaction, TransactionFile, Branch, Outbox — same pattern
+    // Transaction, TransactionFile, Branch — same pattern
 
     export interface Tables extends LibraryDB.ReadTables, IdentityDB.ReadTables {
         'catalog.dataset':          Table<typeof Dataset.Row>;
         'catalog.branch':           Table<typeof Branch.Row, 'created_at'>;
         'catalog.transaction':      Table<typeof Transaction.Row, 'started_at'>;
         'catalog.transaction_change': Table<typeof TransactionChange.Row>;
-        'catalog.outbox':           Table<typeof Outbox.Row, 'id' | 'created_at'>;
     }
 }
 ```
@@ -568,9 +564,8 @@ No cycles: a service never depends on one to its right.
 | Insert `sync_run` (unique running per sync) | `repository.run.start` | delegate |
 | Open dataset transaction — Gatekeeper checks `write` on the dataset **as that user** | `catalog.transaction.open` (`@SecurityGate('write')`) → `TransactionRepository.open` | delegate (`started_by` = the user) |
 | Decrypt credential, `COPY (SELECT …) TO s3://…`; heartbeat every 30 s | Data Connection worker: `SourceRuntimes` (`src/infra.ts`) + `integrations/Postgres/runtime.ts` | — |
-| `POST …/:runRid/complete`: list the prefix, register files + schema, commit (+ outbox event) | server: `DataConnectionService.completeRun` → `catalog.transaction.registerChanges` / `commit` | delegate |
+| `POST …/:runRid/complete`: list the prefix, register files + schema, commit | server: `DataConnectionService.completeRun` → `catalog.transaction.registerChanges` / `commit` | delegate |
 | Mark run succeeded with its `state_to` | `repository.run.succeed` | delegate |
-| Publish `catalog.dataset-updated` (**system-worker**) | `OutboxRelayProcessor` (`src/processors.ts`) → `GET /internal/outbox` → BullMQ → `POST /internal/outbox/published` | `SELF` (server side) |
 
 On failure the Data Connection worker calls `POST …/:runRid/fail`: the server aborts the transaction and marks the run failed — as `SELF`, so cleanup succeeds even if the user lost access mid-run; storage GC later removes the orphaned files. If the Data Connection worker dies mid-run, the system worker's reaper (`POST /internal/sync-runs/reap`) does the same for runs stuck in `running`.
 

@@ -90,23 +90,11 @@ export namespace CatalogDB {
         });
     }
 
-    export namespace Outbox {
-        export const Row = z.object({
-            id:           z.number().int(),
-            event:        z.string(),
-            payload:      z.record(z.string(), z.unknown()),
-            created_at:   z.date(),
-            published_at: z.date().nullable(),
-        });
-        export type Row = z.infer<typeof Row>;
-    }
-
     export interface Tables {
         'catalog.dataset':          Table<typeof Dataset.Row, 'type'>;
         'catalog.branch':           Table<typeof Branch.Row, 'last_sequence' | 'created_at'>;
         'catalog.transaction':      Table<typeof Transaction.Row, 'status' | 'sequence' | 'schema' | 'provenance' | 'started_at' | 'finished_at'>;
         'catalog.transaction_change': Table<typeof TransactionChange.Row>;
-        'catalog.outbox':           Table<typeof Outbox.Row, 'id' | 'created_at' | 'published_at'>;
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();

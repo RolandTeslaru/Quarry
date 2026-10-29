@@ -5,7 +5,6 @@ import { Catalog, CodeWorkspace, DataConnection, Foundations } from '@quarry/sha
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { CodeWorkspaceCheckSweepProcessor } from './processors/code-workspace-check-sweep.processor';
 import { DurableQueueSweepProcessor } from './processors/durable-queue-sweep.processor';
-import { OutboxRelayProcessor } from './processors/outbox-relay.processor';
 import { StorageGcProcessor } from './processors/storage-gc.processor';
 import { SyncReaperProcessor } from './processors/sync-reaper.processor';
 import { Schedules } from './schedules';
@@ -16,7 +15,7 @@ import CI = CodeWorkspace.CI;
 @Controller('health')
 export class HealthController {
 
-    constructor(@InjectQueue(Catalog.Queue.OutboxRelay.Definition.name) private readonly queue: Queue) {}
+    constructor(@InjectQueue(Catalog.Queue.StorageGc.Definition.name) private readonly queue: Queue) {}
 
     @Get()
     async health() {
@@ -36,7 +35,7 @@ export class HealthController {
 }
 
 /**
- * The system worker: housekeeping on a schedule — outbox relay, storage GC,
+ * The system worker: housekeeping on a schedule — storage GC,
  * stuck-run reaper, sync schedule reconcile, Code Workspaces'
  * check sweep, the durable queues' sweep. No database: each job's Postgres
  * part is a server /internal endpoint.
@@ -45,9 +44,7 @@ export class HealthController {
     imports: [
         BullModule.forRootAsync({ useFactory: () => ({ connection: redisConnection(), prefix: QUEUE_PREFIX }) }),
         BullModule.registerQueue(
-            { name: Catalog.Queue.OutboxRelay.Definition.name },
             { name: Catalog.Queue.StorageGc.Definition.name },
-            { name: Catalog.Queue.DatasetUpdated.Definition.name },          // produced: relayed outbox events
             { name: DataConnection.Queue.SyncReaper.Definition.name },
             { name: DataConnection.Queue.Sync.Definition.name },             // produced: cron schedulers only
             { name: CI.Queue.CheckSweep.Definition.name },
@@ -55,6 +52,6 @@ export class HealthController {
         ),
     ],
     controllers: [HealthController],
-    providers:   [OutboxRelayProcessor, StorageGcProcessor, SyncReaperProcessor, CodeWorkspaceCheckSweepProcessor, DurableQueueSweepProcessor, Schedules],
+    providers:   [StorageGcProcessor, SyncReaperProcessor, CodeWorkspaceCheckSweepProcessor, DurableQueueSweepProcessor, Schedules],
 })
 export class WorkerModule {}

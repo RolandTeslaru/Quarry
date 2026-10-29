@@ -8,7 +8,6 @@ import { Audit } from '@/services/Audit/audit.decorator';
 import { AuditService } from '@/services/Audit/audit.service';
 import { LibraryService } from '@/services/Library/library.service';
 import { DatasetRepository } from './dataset.repository';
-import { OutboxRepository } from './outbox/outbox.repository';
 import { CatalogStorage } from './storage/catalog-storage.service';
 import { DatasetTransactions } from './transaction/dataset-transactions';
 import { TransactionRepository } from './transaction/transaction.repository';
@@ -28,7 +27,6 @@ export class CatalogService {
         readonly storage:                       CatalogStorage,
         private readonly datasetRepository:     DatasetRepository,
         private readonly transactionRepository: TransactionRepository,
-        private readonly outboxRepository:      OutboxRepository,
         private readonly files:                 FileStorage,
         private readonly library:               LibraryService,
     ) {}
@@ -121,17 +119,6 @@ export class CatalogService {
     }
 
     // ── housekeeping — called by the system worker through /internal ───
-
-    /** Unpublished outbox events, oldest first — the system worker relays them to BullMQ. */
-    async pendingEvents(limit: number): Promise<{ id: number; event: string; payload: Record<string, unknown> }[]> {
-        const rows = await this.outboxRepository.pending(Principal.SELF('catalog.outbox'), limit);
-
-        return rows.map((row) => ({ id: row.id, event: row.event, payload: row.payload }));
-    }
-
-    async markPublished(ids: number[]): Promise<void> {
-        await this.outboxRepository.markPublished(Principal.SELF('catalog.outbox'), ids);
-    }
 
     /**
      * Aborts transactions left open longer than `staleOpenHours`, then deletes the

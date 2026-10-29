@@ -66,7 +66,7 @@ ri.data-connection.main.source.…
 | `type` | Resource type; must equal `library.resource.type` for library resources |
 | `locator` | UUIDv7 (time-ordered → index-friendly), generated in the application |
 
-Stored as `text`, typed `foundations.rid`. **Anything addressable from outside its table gets a RID** — anything in an API path, a job payload, a log line or another service's column: library resources, dataset transactions, syncs (`ri.data-connection.main.sync.…`) and sync runs (`…sync-run.…`), and the principals grants are given to: users (`ri.identity.main.user.<GoTrue user id>` — wraps GoTrue's UUID one-to-one) and groups (`ri.identity.main.group.<uuidv7>`). Users, groups, syncs and runs are RIDs but **not** library resources (no tree, grants or trash of their own). Rows that only describe something else don't: `role_grant` keeps a surrogate `uuid`, `catalog.outbox` a `bigint` identity, `transaction_change` and `group_member` have composite keys.
+Stored as `text`, typed `foundations.rid`. **Anything addressable from outside its table gets a RID** — anything in an API path, a job payload, a log line or another service's column: library resources, dataset transactions, syncs (`ri.data-connection.main.sync.…`) and sync runs (`…sync-run.…`), and the principals grants are given to: users (`ri.identity.main.user.<GoTrue user id>` — wraps GoTrue's UUID one-to-one) and groups (`ri.identity.main.group.<uuidv7>`). Users, groups, syncs and runs are RIDs but **not** library resources (no tree, grants or trash of their own). Rows that only describe something else don't: `role_grant` keeps a surrogate `uuid`, `transaction_change` and `group_member` have composite keys.
 
 **Typed in SQL too.** Each RID type is a domain built on `foundations.rid`, adding only the prefix check, the same layering as the TypeScript types: `identity.user_rid`, `identity.group_rid`, `catalog.dataset_rid`, `catalog.transaction_rid`, `data_connection.source_rid` / `sync_rid` / `sync_run_rid`. A column typed `data_connection.sync_rid` rejects a source RID. Domains are used in their own schema, and identity's everywhere, since identity is a foundation schema. Columns pointing into another service's schema stay `foundations.rid` (rule 3); their FK through `library.resource (rid, type)` checks the type. `library.resource.rid` stays `foundations.rid` because a resource can be any type, and its `split_part(rid, '.', 4) = type` check covers it.
 
@@ -516,7 +516,6 @@ BEGIN;
   UPDATE catalog.transaction
      SET status = 'committed', sequence = <new>, finished_at = now()
    WHERE rid = $txn AND status = 'open';
-  INSERT INTO catalog.outbox (event, payload) VALUES ('dataset.updated', …);
 COMMIT;
 ```
 
@@ -541,22 +540,6 @@ CREATE INDEX transaction_view
 ```
 
 Stored as `jsonb` and validated in the application against the type system in [catalog.md](catalog.md#schema-type-system).
-
-### Outbox
-
-Events for other services (`dataset.updated` → downstream builds, reindexing), written in the same transaction as the change and published afterwards:
-
-```sql
-CREATE TABLE catalog.outbox (
-    id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    event         text NOT NULL,
-    payload       jsonb NOT NULL,
-    created_at    timestamptz NOT NULL DEFAULT now(),
-    published_at  timestamptz
-);
-
-CREATE INDEX outbox_unpublished ON catalog.outbox (id) WHERE published_at IS NULL;
-```
 
 ---
 
@@ -648,7 +631,7 @@ Syncs are **not** library resources: they live under their source and have no in
 | Role | Used by | Access |
 |---|---|---|
 | The connecting role (`DATABASE_URL`) | Migrations; **service** transactions (system work) | Owns every schema; as owner it isn't subject to RLS |
-| `quarry_user` (NOLOGIN, created by `foundations/001`) | **User and delegate** transactions: `asUser` runs `SET LOCAL ROLE quarry_user` after `set_config('app.user_rid', …)` | `SELECT`/`INSERT`/`UPDATE` per table as needed, filtered by RLS; `INSERT` only on `catalog.outbox` |
+| `quarry_user` (NOLOGIN, created by `foundations/001`) | **User and delegate** transactions: `asUser` runs `SET LOCAL ROLE quarry_user` after `set_config('app.user_rid', …)` | `SELECT`/`INSERT`/`UPDATE` per table as needed, filtered by RLS; `INSERT` only on `foundations.outbox` |
 | GoTrue's own role | GoTrue | `auth` only |
 
 **How a policy decides.** `gatekeeper.can(rid, 'read')` — the SQL twin of `GatekeeperService.can` — compares the current user's effective rank (`gatekeeper.my_rank`: `effective_ranks` with `app.user_rid`; 0 without a user) with the action's minimum (`gatekeeper.action`: discover · read · write · manage, mirroring `Gatekeeper.Action`; a misspelt action fails the domain check). Computed per row, on the fly — a materialised access table can replace it later without changing the policies:
@@ -663,7 +646,7 @@ Syncs are **not** library resources: they live under their source and have no in
 | `catalog.transaction`, `catalog.transaction_change` | read on the dataset | write on the dataset |
 | `data_connection.sync_run` | read on the source | read on the source (runs act as their delegate) |
 
-Not resource-scoped, so no RLS: `identity.*` (admin-checked in the server), `library.resource_type`, `gatekeeper.role`, `gatekeeper.epoch`, `catalog.outbox` (users can only append to it).
+Not resource-scoped, so no RLS: `identity.*` (admin-checked in the server), `library.resource_type`, `gatekeeper.role`, `gatekeeper.epoch`, `foundations.outbox` (users can only append to it).
 
 **SECURITY DEFINER functions** see past RLS where they must: `gatekeeper.effective_ranks` (the policies call it), `library.is_live` (liveness must see trashed ancestors the user can't), the library ancestry triggers, `gatekeeper.bump_epoch`, `catalog.dataset_of`, `data_connection.source_of`.
 
@@ -698,7 +681,6 @@ Where each schema's tables are used in code (DB modules, repositories) is in [ar
 
 ## 10. Open questions
 
-- **Outbox delivery** — the relay polls every 5 s; commits already `pg_notify('catalog_outbox')`. Switch the relay to `LISTEN` as the wake-up signal (polling kept as a fallback)?
 
 _Settled:_ trash cascades by ancestry — only the trashed resource gets `trashed_at`; descendants are hidden because an ancestor is trashed, and `@Transactional` 404s on them (architecture.md §6).
 - **Large file lists** — snapshots with tens of thousands of files: is `transaction_change` enough, or do we need manifest files in object storage (Iceberg-style)?

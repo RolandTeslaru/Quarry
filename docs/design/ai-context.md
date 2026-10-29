@@ -236,8 +236,7 @@ Against a throwaway Postgres (port 55432) + redis-server (56379), no Docker:
 3. `UnrecoverableError` for permission/not-found failures in job processors.
 4. Restore and purge flows (first real users of `@AllowTrashed()`); a purge
    counterpart to `@EnsureResource`.
-5. Outbox: switch polling to `LISTEN catalog_outbox` (the `pg_notify` is
-   already emitted on commit).
+5. ~~Outbox: switch polling to `LISTEN catalog_outbox`.~~ The Catalog outbox was removed (2026-10-29).
 6. Undecided idea: replace `workspace_role` with grants on a workspace root.
 7. Later: transforms/pipelines, then the Ontology layer (objects backed by
    datasets, edits store, actions, an index like Funnel).

@@ -6,7 +6,6 @@ import { DuckDb } from './storage/duckdb';
 import { DatasetTransactions } from './transaction/dataset-transactions';
 import { DatasetRepository } from './dataset.repository';
 import { TransactionRepository } from './transaction/transaction.repository';
-import { OutboxRepository } from './outbox/outbox.repository';
 
 /**
  * Providers only; controllers are registered by api.module. Other services
@@ -14,7 +13,7 @@ import { OutboxRepository } from './outbox/outbox.repository';
  */
 @Module({
     imports:   [LibraryModule],
-    providers: [CatalogService, DatasetTransactions, CatalogStorage, DuckDb, DatasetRepository, TransactionRepository, OutboxRepository],
+    providers: [CatalogService, DatasetTransactions, CatalogStorage, DuckDb, DatasetRepository, TransactionRepository],
     exports:   [CatalogService],
 })
 export class CatalogModule {}

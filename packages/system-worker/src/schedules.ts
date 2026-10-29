@@ -17,7 +17,6 @@ export class Schedules implements OnApplicationBootstrap {
     private readonly log = System.log.withContext('Schedules');
 
     constructor(
-        @InjectQueue(Catalog.Queue.OutboxRelay.Definition.name)       private readonly outboxRelay: Queue,
         @InjectQueue(Catalog.Queue.StorageGc.Definition.name)         private readonly storageGc:   Queue,
         @InjectQueue(DataConnection.Queue.SyncReaper.Definition.name) private readonly syncReaper:  Queue,
         @InjectQueue(DataConnection.Queue.Sync.Definition.name)       private readonly sync:        Queue,
@@ -27,7 +26,6 @@ export class Schedules implements OnApplicationBootstrap {
 
     async onApplicationBootstrap(): Promise<void> {
         const every: [Queue, { name: string; options?: object }, number][] = [
-            [this.outboxRelay, Catalog.Queue.OutboxRelay.Definition,       5_000],           // every 5 s
             [this.storageGc,   Catalog.Queue.StorageGc.Definition,         60 * 60_000],     // hourly
             [this.syncReaper,  DataConnection.Queue.SyncReaper.Definition, 2 * 60_000],      // every 2 min
             [this.checkSweep,  CodeWorkspace.CI.Queue.CheckSweep.Definition,  60_000],          // every minute

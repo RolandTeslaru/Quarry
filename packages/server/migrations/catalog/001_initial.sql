@@ -70,16 +70,6 @@ CREATE INDEX transaction_view
     ON catalog.transaction (dataset_rid, branch, sequence)
     WHERE status = 'committed';
 
-CREATE TABLE catalog.outbox (
-    id            bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    event         text NOT NULL,
-    payload       jsonb NOT NULL,
-    created_at    timestamptz NOT NULL DEFAULT now(),
-    published_at  timestamptz
-);
-
-CREATE INDEX outbox_unpublished ON catalog.outbox (id) WHERE published_at IS NULL;
-
 -- ── row-level security (gatekeeper/001_initial.sql explains the setup) ─────
 --
 -- The dataset and its branch are metadata (discover); transactions and their file
@@ -116,6 +106,4 @@ CREATE POLICY register ON catalog.transaction_change FOR INSERT TO quarry_user
 GRANT USAGE ON SCHEMA catalog TO quarry_user;
 GRANT SELECT, INSERT ON catalog.dataset, catalog.transaction_change TO quarry_user;
 GRANT SELECT, INSERT, UPDATE ON catalog.branch, catalog.transaction TO quarry_user;
--- The outbox: users only append (a commit writes its event); the relay reads it as the system.
-GRANT INSERT ON catalog.outbox TO quarry_user;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA catalog TO quarry_user;
