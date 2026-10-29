@@ -17,7 +17,7 @@
 }
 
 /* An app's layers: content sits lowest, panels (header, sidebars) one step up, cards (`surface`)
-   above both. All the same white in light mode; dark mode steps them apart. */
+   above both. Light content is pale grey; dark mode steps all three layers apart. */
 @utility surface-panel {
     background-color: var(--surface-panel);
     border-color: var(--border);
@@ -84,7 +84,7 @@ code {
 
     --surface: #ffffff;
     --surface-panel: #ffffff;
-    --surface-content: #ffffff;
+    --surface-content: #f4f6f8;
     --surface-elevated: #ffffff;
     --surface-elevated-sidebar: #ffffff;
     /* Behind an app home's dither: the surface in light mode, near black in dark. */

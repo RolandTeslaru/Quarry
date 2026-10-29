@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Button } from '@quarry/standard-ui/foundations/button'
+import { Card } from '@quarry/standard-ui/foundations/card'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
+import { App } from '@/AppKit'
 import { CodeWorkspaceSDK } from '@/SDKs/CodeWorkspaceSDK/sdk'
 import { Empty } from '@/components/Empty'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -30,7 +32,8 @@ function ChecksTab() {
     const runs = rids.map(checkRunRid => checkRuns[checkRunRid])
 
     return (
-        <div className='flex min-h-0 flex-1 flex-col overflow-auto p-6'>
+        <div className='mx-auto flex min-h-0 w-full max-w-[1200px] flex-1 flex-col gap-4 overflow-auto p-8'>
+            <App.Content.Title>Checks</App.Content.Title>
 
             <ErrorNotice error={checkRunsRequest.error ?? older.error} />
 
@@ -46,11 +49,13 @@ function ChecksTab() {
 
             {runs.length > 0 && (
                 <>
-                    <CheckRunTable checkRuns={runs} />
+                    <Card.Root className='shrink-0 py-0'>
+                        <CheckRunTable checkRuns={runs} />
+                    </Card.Root>
 
                     {history?.nextBefore && (
                         <Button
-                            className='mt-4 self-center'
+                            className='self-center'
                             variant='outlined'
                             loading={older.pending}
                             onClick={withOlder(() => CodeWorkspaceSDK.actions.checkRun.loadOlder(rid))}

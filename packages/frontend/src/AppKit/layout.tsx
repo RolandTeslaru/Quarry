@@ -130,6 +130,17 @@ function ContentRoot({ className, ...props }: ComponentProps<'main'>) {
     )
 }
 
+/** The heading of a page or tab inside the app's content. */
+function ContentTitle({ className, ...props }: ComponentProps<'h2'>) {
+    return (
+        <h2
+            data-slot='app-content-title'
+            className={cn('text-2xl font-semibold tracking-tight text-foreground', className)}
+            {...props}
+        />
+    )
+}
+
 /** A toolbar pinned to the top of the content. */
 function ContentToolbar({ className, ...props }: ComponentProps<'div'>) {
     return (
@@ -142,5 +153,6 @@ function ContentToolbar({ className, ...props }: ComponentProps<'div'>) {
 }
 
 export const Content = Object.assign(ContentRoot, {
+    Title: ContentTitle,
     Toolbar: ContentToolbar,
 })

@@ -1,6 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Dither, ditherCtx } from '@quarry/standard-ui/components/Dither'
+import { Card } from '@quarry/standard-ui/foundations/card'
 import { Skeleton } from '@quarry/standard-ui/foundations/skeleton'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import type { Audit } from '@quarry/shared/domain'
@@ -15,7 +16,7 @@ import { useApp } from './layout'
 // An app's home screen — its route without a rid (`/<app>`, routes/index.tsx),
 // inside the app's App.Root. Like an iPad app's document browser: the app's
 // tinted dither fills a full-width header; its name sits over it beside its
-// logo. The sections sit on a solid surface below.
+// logo. The sections sit inside a shared Card below.
 //
 //   <App.Home.Root>
 //       <App.Home.Header>
@@ -158,17 +159,21 @@ function Actions({ className, ...props }: ComponentProps<'div'>) {
     )
 }
 
-/** The main content below the banner. Scrolls on its own. */
-function Content({ className, ...props }: ComponentProps<'main'>) {
+/** The main content below the banner, inside a Card that scrolls on its own. */
+function Content({ className, children, ...props }: ComponentProps<'main'>) {
     return (
         <main
             data-slot='app-home-content'
             className={cn(
-                'mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-auto',
+                'mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-6 py-6',
                 className,
             )}
             {...props}
-        />
+        >
+            <Card.Root className='min-h-0 gap-0 overflow-auto py-0'>
+                {children}
+            </Card.Root>
+        </main>
     )
 }
 
@@ -177,7 +182,7 @@ function Toolbar({ className, ...props }: ComponentProps<'div'>) {
     return (
         <div
             data-slot='app-home-toolbar'
-            className={cn('surface-content sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b px-6 py-3', className)}
+            className={cn('surface sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b px-6 py-3', className)}
             {...props}
         />
     )
