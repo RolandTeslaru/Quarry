@@ -1,8 +1,8 @@
 # Checks (CI)
 
-_Spec, written 2026-10-27. Built so far: steps 1–3 of the build order — pushes queue runs, the scheduler hands them to the workers through a durable queue ([durable-queues.md](../durable-queues.md), since 2026-10-28), a worker runs quarry-ci.yml's steps and reports them; the sweep fails silent runs. Steps 4–5 built 2026-10-28: the manifest command and the template's quarry-ci.yml; a passing run publishes the branch's job specs, which builds run. Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
+_Spec, written 2026-10-27. Built so far: steps 1–3 of the build order — pushes queue runs, the scheduler hands them to the workers through a durable queue ([durable-queues.md](../durable-queues.md), since 2026-10-28), a worker runs quarry-ci.yml's steps and reports them; the sweep fails silent runs. Steps 4–5 built 2026-10-28: the manifest command and the template's quarry-ci.yml; a passing run publishes the branch's recipes, which builds run. Part of iteration 2 of [transforms.md](../transforms.md) ("checks and a Build button")._
 
-A **check run** is CI for one commit of a Code Workspace: it runs the steps the repository declares in `quarry-ci.yml`, then — if they all pass — **publishes the workspace's job specs** for that branch, pinned to that commit. It's the only thing that publishes them: a build reads specs, it never makes them ([forge.md](../forge.md)). No passing check, nothing to build.
+A **check run** is CI for one commit of a Code Workspace: it runs the steps the repository declares in `quarry-ci.yml`, then — if they all pass — **publishes the workspace's recipes** for that branch, pinned to that commit. It's the only thing that publishes them: a build reads recipes, it never makes them ([forge.md](../forge.md)). No passing check, nothing to build.
 
 ## Decisions
 
@@ -14,7 +14,7 @@ A **check run** is CI for one commit of a Code Workspace: it runs the steps the 
 | Who defines the steps | The **repository**: `quarry-ci.yml` at its root, written by the template, editable by the user |
 | Who defines publishing | **Quarry**: the last step is `uses: quarry/publish-transforms`, a command in the runtime image, not a script in the repo. It only *claims* what the transforms are; the server checks every claim itself |
 | Where checks run | The **Code Workspace worker**, in a throwaway container from the runtime image — it already has Docker, the image and `quarry.transforms` |
-| As whom | The **pusher**. Every read, every dataset created, every spec published is theirs to do, or the check fails |
+| As whom | The **pusher**. Every read, every dataset created, every recipe published is theirs to do, or the check fails |
 | Publishing | All or nothing, and only while the commit is **still the branch head** |
 | New outputs | A missing `Output("/path")` is **created** as an empty dataset, as the pusher (transforms.md) |
 
@@ -28,7 +28,7 @@ sequenceDiagram
     participant S as CIService (server)
     participant W as Worker (CheckRunner)
     participant C as Check container
-    participant F as Forge (JobSpecs)
+    participant F as Forge (Recipes)
 
     V->>V: Commit → git push (postCommitCommand)
     V->>G: POST /api/git/<rid>.git/git-receive-pack (Bearer: session token)
@@ -46,7 +46,7 @@ sequenceDiagram
     C-->>W: manifest.json (from quarry/publish-transforms)
     W->>S: POST …/finish { status, manifest }
     S->>S: publish the manifest as the pusher<br/>(resolve inputs, get or create outputs)
-    S->>F: jobSpecs.publish(pusher, workspace, branch, specs)
+    S->>F: recipes.publish(pusher, workspace, branch, recipes)
     S-->>V: realtime: code-workspace:check:updated
 ```
 
@@ -69,7 +69,7 @@ await serveGit(request, response, {
 - `afterServe` runs once `git http-backend` has exited and **before the response ends**: when the user's `git push` returns, its runs are queued. A rejected push (non-fast-forward, say) moves nothing.
 - `queueChecksForPush` never throws — the push already succeeded; a run that couldn't be queued is logged.
 - `CIService.queueChecksForMovedHeads` → `CodeWorkspaceRepository.queueCheckRuns`, as the pusher, one transaction: cancel the branches' unfinished runs (acking their messages), insert a `waiting` run per head.
-- **Deleted branches** run nothing. Their specs stay until branch deletion is designed (open question).
+- **Deleted branches** run nothing. Their recipes stay until branch deletion is designed (open question).
 - **The template's first commit** doesn't pass through the controller (`git-repos.ts` pushes straight to the bare repository); creating a workspace calls `ci.queueChecksForMovedHeads` for `main` itself.
 - **Push on commit**: `docker/code-workspace-runtime/configuration-defaults.json` gets `"git.postCommitCommand": "push"`. `git commit` in the terminal still needs a `git push` — ordinary Git.
 
@@ -79,7 +79,7 @@ At the repository's root. The `python-transforms` template writes:
 
 ```yaml
 # What every pushed commit goes through. The last step publishes this branch's
-# transforms as job specs — what Build runs — and only if every step before it passed.
+# transforms as recipes — what Build runs — and only if every step before it passed.
 steps:
   - name: Environment
     run: uv sync --frozen
@@ -182,14 +182,14 @@ Each failed run's workspace gets its next run scheduled. A `scheduled` run waits
 1. Parse the manifest (`CI.Check.Manifest`).
 2. Inputs: `catalog.getByReference` (a RID or a library path), which 404s if the pusher can't see a dataset there.
 3. Outputs: `catalog.getOrCreateByReference`, which creates an empty dataset at a path nothing is at yet. Library 404s a missing folder; `createDataset` enforces write on it and a valid name.
-4. Publish: `forge.jobSpecs.publish(pusher, workspaceRid, branch, specs)`, one spec per transform. Forge refuses an output another producer owns.
+4. Publish: `forge.recipes.publish(pusher, workspaceRid, branch, recipes)`, one recipe per transform. Forge refuses an output another producer owns.
 
-Anything thrown fails the run at **Validate & publish** with the error's message, and the branch keeps its previous specs. Datasets created before the failure stay empty, which is harmless. On success the step's log is "Published N job spec(s)".
+Anything thrown fails the run at **Validate & publish** with the error's message, and the branch keeps its previous recipes. Datasets created before the failure stay empty, which is harmless. On success the step's log is "Published N recipe(s)".
 
 Not checked here, because something else covers it:
 - **Still the head:** a newer push cancels this run, and a canceled run's finish is a 409.
 - **Write on existing outputs:** a build checks write on every output when it starts.
-- **Cycles:** a build refuses specs that read each other in a cycle. Today it only catches a cycle with no way in; every cycle is planned for D2.
+- **Cycles:** a build refuses recipes that read each other in a cycle. Today it only catches a cycle with no way in; every cycle is planned for D2.
 
 ## 6. Model
 
@@ -226,7 +226,7 @@ Whether a `scheduled` run's message has reached Redis yet is the durable queue's
 | `workspace_rid`, `branch`, `commit` | what's checked |
 | `status` | `waiting → scheduled → running → succeeded \| failed \| canceled` |
 | `steps` | jsonb: `[{ name, status (waiting/running/succeeded/failed/skipped), exitCode, startedAt, finishedAt, log }]` — the parsed file's steps, plus the server's own **Parse** first and **Validate & publish** last |
-| `published` | did this run's commit become the branch's specs |
+| `published` | did this run's commit become the branch's recipes |
 | `failure` | jsonb `{ step, message }`, null unless failed |
 | `pushed_by` | the pusher — whom the run acts as |
 | `created_at` | pushed |
@@ -256,7 +256,7 @@ Everything CI is under one name, in each layer:
 - **API**: `GET /api/code-workspaces/:rid/check-runs?branch=&before=&limit=` — newest first, `limit` default 25 (at most 100), `before` the last run RID seen (keyset paging on `(created_at, rid)`, so runs arriving meanwhile don't shift the pages); `nextBefore` is the next page's cursor, null after the last. `GET …/check-runs/:checkRunRid` — one run, through its own workspace only. Both need read on the workspace: 403 for a discoverer, 404 for someone who can't see it.
 - **Checks tab** (`routes/$rid/checks.tsx`, `components/CheckRunTable.tsx`): runs newest first — status, branch, short commit, pushed, took; a row opens to its steps (status, duration, exit code) and each step's output; **Load older** fetches the next page. Live: `CodeWorkspaceSDK` follows the open workspace's channel from the route's open to its leave (`openWorkspaceRid`, as Data Connection follows an open source), so a new run appears on top and a running one updates in place, on every tab. State: `checkRuns` by RID, and per workspace its loaded RIDs in order with the next cursor (`checkRunHistory`).
 - **In the IDE** (later): the status bar shows the head commit's check.
-- **Build** stays disabled until the branch has specs — `GET /api/forge/job-specs/current` for the transform's output.
+- **Build** stays disabled until the branch has recipes — `GET /api/forge/recipes/current` for the transform's output.
 
 ## Permissions
 
@@ -275,11 +275,11 @@ Everything CI is under one name, in each layer:
 4. `quarry.transforms.manifest` and the template's `quarry-ci.yml` and `tests/test_pipeline.py`. **Built 2026-10-28**; tested by rendering the template and running its tests and its manifest (`test/code-workspace/template`).
 5. Validate and publish — `CheckPublisher`, called by `CIService.finish`. **Built 2026-10-28.**
 6. Checks tab and events.
-7. Tests — the harness pattern from [testing.md](../testing.md): push to a real bare repository, play the worker, assert specs.
+7. Tests — the harness pattern from [testing.md](../testing.md): push to a real bare repository, play the worker, assert recipes.
 
 ## Open questions
 
-- **Deleted branches** — drop the branch's specs, or keep them until something else replaces them?
+- **Deleted branches** — drop the branch's recipes, or keep them until something else replaces them?
 - **Logs** — the last 64 KB per step in Postgres for now; full logs in object storage later (with the ForgeAgents' job logs).
 - **Caching** — every check does a full `uv sync` into a fresh container. A shared uv cache volume on the worker would make it seconds.
 - **Moving to ForgeAgents** — once they run containers, a check could be a kind of Forge job; the server side (§5, §6) wouldn't change.

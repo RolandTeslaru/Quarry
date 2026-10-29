@@ -2,7 +2,7 @@ import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { Dataset } from "../Catalog/Dataset"
 import { User } from "../Identity/User"
-import { JobSpec } from "./JobSpec"
+import { Recipe } from "./Recipe"
 
 /** One request to bring datasets up to date on a branch: the jobs it resolved to, run in dependency order. */
 export namespace Build {
@@ -24,24 +24,24 @@ export namespace Build {
     export type Target = z.infer<typeof Target>
 
     /**
-     * What a build runs, as an adjacency list: every job spec it resolved to
-     * (one job each) mapped to its children — the specs that read its outputs
+     * What a build runs, as an adjacency list: every recipe it resolved to
+     * (one job each) mapped to its children — the recipes that read its outputs
      * and wait for it — and the roots, which wait for nothing. Fixed when the
      * build is created.
      */
     export namespace Plan {
 
         export const Schema = z.object({
-            roots:    JobSpec.Rid.array().min(1),
-            children: z.record(JobSpec.Rid, JobSpec.Rid.array()),   // every node; a leaf has none
+            roots:    Recipe.Rid.array().min(1),
+            children: z.record(Recipe.Rid, Recipe.Rid.array()),   // every node; a leaf has none
         })
         export type Schema = z.infer<typeof Schema>
 
         /** The nodes the node waits for. */
-        export function getParents(plan: Schema, node: JobSpec.Rid): JobSpec.Rid[] {
-            const parents: JobSpec.Rid[] = []
+        export function getParents(plan: Schema, node: Recipe.Rid): Recipe.Rid[] {
+            const parents: Recipe.Rid[] = []
 
-            for (const parent of Object.keys(plan.children) as JobSpec.Rid[])
+            for (const parent of Object.keys(plan.children) as Recipe.Rid[])
                 if (plan.children[parent].includes(node))
                     parents.push(parent)
 
@@ -49,7 +49,7 @@ export namespace Build {
         }
 
         /** The finished node's children whose parents have all succeeded — they may run now. */
-        export function getReadyChildren(plan: Schema, finished: JobSpec.Rid, succeeded: Set<JobSpec.Rid>): JobSpec.Rid[] {
+        export function getReadyChildren(plan: Schema, finished: Recipe.Rid, succeeded: Set<Recipe.Rid>): Recipe.Rid[] {
             return plan.children[finished].filter((child) => getParents(plan, child).every((parent) => succeeded.has(parent)))
         }
     }
@@ -60,7 +60,7 @@ export namespace Build {
     export const Schema = z.object({
         rid:              Rid,
         branch:           Foundations.Branch,
-        fallbackBranches: Foundations.Branch.array(),   // where to find job specs and inputs the branch hasn't got, in order
+        fallbackBranches: Foundations.Branch.array(),   // where to find recipes and inputs the branch hasn't got, in order
         target:           Target,
         plan:             Plan.Schema,
         forceBuild:       z.boolean(),                  // build fresh outputs too

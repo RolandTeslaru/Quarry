@@ -188,7 +188,7 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
         return row ? CodeWorkspaceDB.CheckRun.toDomain(row) : null;
     }
 
-    /** `running → succeeded | failed`, with its final steps — and whether its job specs were published. Null if the run isn't running (any more). */
+    /** `running → succeeded | failed`, with its final steps — and whether its recipes were published. Null if the run isn't running (any more). */
     @Transactional('service')
     public async finish(
         principal: Principal.Service,

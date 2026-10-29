@@ -6,7 +6,7 @@ import { Git } from "../Git"
 
 /**
  * CI for one pushed branch head: the steps of its quarry-ci.yml, then — if
- * they all pass — its job specs published. docs/design/code-workspaces/checks.md.
+ * they all pass — its recipes published. docs/design/code-workspaces/checks.md.
  */
 export namespace CheckRun {
 
@@ -75,7 +75,7 @@ export namespace CheckRun {
         commit:       Git.Commit,
         status:       Status,
         steps:        Step.Schema.array(),
-        published:    z.boolean(),                      // its commit became the branch's job specs
+        published:    z.boolean(),                      // its commit became the branch's recipes
         failure:      Failure.nullable(),
         pushedBy:     User.Rid.nullable(),              // whom it acts as; null = the system
         createdAt:    z.coerce.date(),                   // pushed

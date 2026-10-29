@@ -13,11 +13,11 @@ type Transform = CI.Check.Manifest.Transform;
 
 /**
  * A passing check run publishes (docs/design/code-workspaces/checks.md §5): its
- * manifest, checked as the pusher, becomes the branch's job specs — pinned to the
+ * manifest, checked as the pusher, becomes the branch's recipes — pinned to the
  * commit — and those are what a build runs. Any refusal fails the run at its
  * publish step, naming what's wrong, and publishes nothing.
  */
-describe('publishing job specs', () => {
+describe('publishing recipes', () => {
 
     let harness: ForgeHarness;
     let checks: CIService;
@@ -59,7 +59,7 @@ describe('publishing job specs', () => {
         return checks.finish(run.rid, Outcome.parse({ status: 'succeeded', manifest: { transforms } }));
     }
 
-    it('publishes a job spec per transform, pinned to the commit, by path', async () => {
+    it('publishes a recipe per transform, pinned to the commit, by path', async () => {
         const { datasets } = await harness.createDatasets(admin, ['raw', 'clean'], ['raw']);
         const { workspace, run } = await startedRun();
 
@@ -69,11 +69,11 @@ describe('publishing job specs', () => {
 
         expect(finished).toMatchObject({ status: 'succeeded', published: true, failure: null });
         expect(finished.steps.at(-1)).toMatchObject({ name: CheckRun.PUBLISH_STEP, status: 'succeeded' });
-        expect(finished.steps.at(-1)!.log).toMatch(/Published 1 job spec/);
+        expect(finished.steps.at(-1)!.log).toMatch(/Published 1 recipe/);
 
-        const spec = await harness.forge.jobSpecs.getCurrent(admin, datasets.clean, [MAIN]);
+        const recipe = await harness.forge.recipes.getCurrent(admin, datasets.clean, [MAIN]);
 
-        expect(spec).toMatchObject({
+        expect(recipe).toMatchObject({
             producerRid:       workspace.rid,
             branch:            MAIN,
             logic:             { type: 'code-workspace', workspaceRid: workspace.rid, commit: run.commit, transform: 'sales.datasets.orders.clean' },
@@ -91,7 +91,7 @@ describe('publishing job specs', () => {
         const finished = await finishWith(run, [transform('pkg.a.a', { raw: datasets.raw }, { out: datasets.clean })]);
 
         expect(finished.published).toBe(true);
-        expect((await harness.forge.jobSpecs.getCurrent(admin, datasets.clean, [MAIN]))?.inputDatasetRids).toEqual([datasets.raw]);
+        expect((await harness.forge.recipes.getCurrent(admin, datasets.clean, [MAIN]))?.inputDatasetRids).toEqual([datasets.raw]);
     });
 
     it("creates an output dataset that doesn't exist yet, in its folder", async () => {
@@ -106,7 +106,7 @@ describe('publishing job specs', () => {
         const created = await harness.library.getByPath(admin, `${projectPath}/brand new`);
 
         expect(created.type).toBe('dataset');
-        expect(await harness.forge.jobSpecs.getCurrent(admin, created.rid as Catalog.Dataset.Rid, [MAIN])).not.toBeNull();
+        expect(await harness.forge.recipes.getCurrent(admin, created.rid as Catalog.Dataset.Rid, [MAIN])).not.toBeNull();
     });
 
     it('builds what it published: the job runs the commit\'s transform', async () => {
@@ -119,7 +119,7 @@ describe('publishing job specs', () => {
         const [job] = Object.values(jobs);
         const started = await harness.agent.startJob(job.rid, 1);
 
-        expect(started.jobSpec.logic).toEqual({ type: 'code-workspace', workspaceRid: run.workspaceRid, commit: run.commit, transform: 'pkg.a.clean' });
+        expect(started.recipe.logic).toEqual({ type: 'code-workspace', workspaceRid: run.workspaceRid, commit: run.commit, transform: 'pkg.a.clean' });
     });
 
     describe('refusals — the run fails at its publish step, nothing published', () => {
@@ -137,7 +137,7 @@ describe('publishing job specs', () => {
             const { run } = await startedRun();
 
             await expectRefused(run, [transform('pkg.a.a', { raw: '/Nowhere/raw' }, { out: datasets.clean })], /Not found/);
-            expect(await harness.forge.jobSpecs.getCurrent(admin, datasets.clean, [MAIN])).toBeNull();
+            expect(await harness.forge.recipes.getCurrent(admin, datasets.clean, [MAIN])).toBeNull();
         });
 
         it('an output in a folder that doesn\'t exist', async () => {
@@ -163,12 +163,12 @@ describe('publishing job specs', () => {
             const second = await startedRun();
 
             await expectRefused(second.run, [transform('pkg.b.b', { raw: datasets.raw }, { out: datasets.clean })], /already produced by/);
-            expect((await harness.forge.jobSpecs.getCurrent(admin, datasets.clean, [MAIN]))?.producerRid).toBe(first.workspace.rid);
+            expect((await harness.forge.recipes.getCurrent(admin, datasets.clean, [MAIN]))?.producerRid).toBe(first.workspace.rid);
         });
 
     });
 
-    it("drops a removed transform's job spec on the next publish", async () => {
+    it("drops a removed transform's recipe on the next publish", async () => {
         const { datasets } = await harness.createDatasets(admin, ['raw', 'a', 'b'], ['raw']);
         const { workspace, run } = await startedRun();
 
@@ -183,7 +183,7 @@ describe('publishing job specs', () => {
         await checks.start(queued[0].rid);
         await finishWith(queued[0], [transform('pkg.a.a', { raw: datasets.raw }, { out: datasets.a })]);
 
-        expect((await harness.forge.jobSpecs.getCurrent(admin, datasets.a, [MAIN]))?.logic).toMatchObject({ commit: next });
-        expect(await harness.forge.jobSpecs.getCurrent(admin, datasets.b, [MAIN])).toBeNull();
+        expect((await harness.forge.recipes.getCurrent(admin, datasets.a, [MAIN]))?.logic).toMatchObject({ commit: next });
+        expect(await harness.forge.recipes.getCurrent(admin, datasets.b, [MAIN])).toBeNull();
     });
 });

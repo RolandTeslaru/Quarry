@@ -4,7 +4,7 @@ import { Branch } from "../../Foundations/Branch"
 import { Dataset as DatasetD } from "../../Catalog/Dataset"
 import { Build as BuildD } from "../Build"
 import { Job as JobD } from "../Job"
-import { JobSpec as JobSpecD } from "../JobSpec"
+import { Recipe as RecipeD } from "../Recipe"
 import * as AgentMod from "./agent"
 
 const MAIN = Branch.parse("main")
@@ -63,14 +63,14 @@ export namespace API {
     }
 
     /** What computes this dataset on this branch — null if nothing does. */
-    export namespace GetCurrentJobSpec {
+    export namespace GetCurrentRecipe {
         export const Query = z.object({
             datasetRid: DatasetD.Rid,
             branch:     Branch.default(MAIN),
         })
         export type  Query = z.infer<typeof Query>
 
-        export const Response = z.object({ jobSpec: JobSpecD.Schema.nullable() })
+        export const Response = z.object({ recipe: RecipeD.Schema.nullable() })
         export type  Response = z.infer<typeof Response>
     }
 
@@ -99,9 +99,9 @@ export namespace API {
         return GetJob.Response.parse(data)
     }
 
-    export async function getCurrentJobSpec(api: AxiosInstance, query: z.input<typeof GetCurrentJobSpec.Query>): Promise<GetCurrentJobSpec.Response> {
-        const { data } = await api.get("/api/job-specs/current", { params: query })
-        return GetCurrentJobSpec.Response.parse(data)
+    export async function getCurrentRecipe(api: AxiosInstance, query: z.input<typeof GetCurrentRecipe.Query>): Promise<GetCurrentRecipe.Response> {
+        const { data } = await api.get("/api/recipes/current", { params: query })
+        return GetCurrentRecipe.Response.parse(data)
     }
 
     /** ForgeAgents' own endpoints (`/api/forge-agent/…`). */

@@ -84,7 +84,7 @@ __pycache__/
 
 /** What every pushed commit goes through (docs/design/code-workspaces/checks.md §2). */
 const QUARRY_CI = `# What every pushed commit goes through. The last step publishes this branch's
-# transforms as job specs — what Build runs — and only if every step before it passed.
+# transforms as recipes — what Build runs — and only if every step before it passed.
 steps:
   - name: Environment
     run: uv sync --frozen

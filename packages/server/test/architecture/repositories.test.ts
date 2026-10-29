@@ -62,7 +62,7 @@ function isSubRepository(file: string): boolean {
         && !FACADES.includes(relative);
 }
 
-/** Value imports only: a type (`NewJob`, `PublishedJobSpec`) can't call anything. */
+/** Value imports only: a type (`NewJob`, `PublishedRecipe`) can't call anything. */
 function getImports(source: string): string[] {
     return [...source.matchAll(/^(?:import|export)\s+(?!type\s)[^'"]*?from\s+['"]([^'"]+)['"]/gm)].map((match) => match[1]);
 }

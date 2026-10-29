@@ -79,7 +79,7 @@ describe('a real ForgeAgent', () => {
 
     it('runs a diamond in dependency order', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b', 'c', 'd'], ['raw']);
-        const specs = await harness.publish(user, projectRid, datasets, [
+        const recipes = await harness.publish(user, projectRid, datasets, [
             { name: 'A', inputs: ['raw'],    outputs: ['a'] },
             { name: 'B', inputs: ['a'],      outputs: ['b'] },
             { name: 'C', inputs: ['a'],      outputs: ['c'] },
@@ -90,7 +90,7 @@ describe('a real ForgeAgent', () => {
 
         await finished(build.rid);
 
-        const { build: after, jobs } = await harness.jobsBySpec(user, build.rid, specs);
+        const { build: after, jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
         const startedAt = (name: string) => jobs[name].startedAt?.getTime() ?? Infinity;
         const finishedAt = (name: string) => jobs[name].finishedAt?.getTime() ?? Infinity;
 
@@ -102,7 +102,7 @@ describe('a real ForgeAgent', () => {
 
     it('cancels cleanly against a running agent — or loses the race to a build that finished first', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b'], ['raw']);
-        const specs = await harness.publish(user, projectRid, datasets, [
+        const recipes = await harness.publish(user, projectRid, datasets, [
             { name: 'A', inputs: ['raw'], outputs: ['a'] },
             { name: 'B', inputs: ['raw'], outputs: ['b'] },
         ]);
@@ -113,7 +113,7 @@ describe('a real ForgeAgent', () => {
         // Give the agent time to try to finish whatever it had started.
         await new Promise((resolve) => setTimeout(resolve, 1_000));
 
-        const { build: after, jobs } = await harness.jobsBySpec(user, build.rid, specs);
+        const { build: after, jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
 
         if (outcome === 'canceled') {
             // Canceled jobs stay canceled: a late finish is refused, so none turned succeeded afterwards.

@@ -31,8 +31,8 @@ describe("Rid", () => {
     })
 
     it("splits a RID into its parts", () => {
-        const rid = Rid.create("forge", "job-spec")
+        const rid = Rid.create("forge", "recipe")
 
-        expect(Rid.parse(rid)).toMatchObject({ service: "forge", instance: "main", type: "job-spec" })
+        expect(Rid.parse(rid)).toMatchObject({ service: "forge", instance: "main", type: "recipe" })
     })
 })

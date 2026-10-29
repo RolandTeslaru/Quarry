@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 import { Build } from "./Build"
-import { JobSpec } from "./JobSpec"
+import { Recipe } from "./Recipe"
 
-const [A, B, C, D] = [JobSpec.createRid(), JobSpec.createRid(), JobSpec.createRid(), JobSpec.createRid()]
+const [A, B, C, D] = [Recipe.createRid(), Recipe.createRid(), Recipe.createRid(), Recipe.createRid()]
 
 /** A → B, A → C, B → D, C → D */
 const diamond: Build.Plan.Schema = {
@@ -40,7 +40,7 @@ describe("Build.Plan", () => {
         })
 
         it("throws for a node the plan doesn't have — a broken plan isn't silently a leaf", () => {
-            expect(() => Build.Plan.getReadyChildren(diamond, JobSpec.createRid(), new Set([A]))).toThrow()
+            expect(() => Build.Plan.getReadyChildren(diamond, Recipe.createRid(), new Set([A]))).toThrow()
         })
 
         it("only counts successes: a failed parent never readies its child", () => {

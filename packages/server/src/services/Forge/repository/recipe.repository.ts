@@ -5,64 +5,64 @@ import { Repository, Transactional } from '@/db/repository';
 import { json } from '@/db/table';
 import { ForgeDB } from '../forge.db';
 
-/** A spec as a producer publishes it — Forge fills in the RID, branch, producer and who. */
-export interface PublishedJobSpec {
-    readonly logic:             Forge.JobSpec.Logic;
+/** A recipe as a producer publishes it — Forge fills in the RID, branch, producer and who. */
+export interface PublishedRecipe {
+    readonly logic:             Forge.Recipe.Logic;
     readonly inputDatasetRids:  Catalog.Dataset.Rid[];
     readonly outputDatasetRids: Catalog.Dataset.Rid[];
-    readonly resources:         Forge.JobSpec.Resources;
+    readonly resources:         Forge.Recipe.Resources;
 }
 
-/** forge.job_spec, its input/output datasets, and forge.current_job_spec — one aggregate. */
+/** forge.recipe, its input/output datasets, and forge.current_recipe — one aggregate. */
 @Injectable()
-export class JobSpecRepository extends Repository(ForgeDB.database) {
+export class RecipeRepository extends Repository(ForgeDB.database) {
 
     /**
      * Replaces everything the producer publishes on the branch: inserts the new
-     * specs, drops the producer's old pointers, points each output at its new
-     * spec. An output another producer owns is a conflict.
+     * recipes, drops the producer's old pointers, points each output at its new
+     * recipe. An output another producer owns is a conflict.
      */
     @Transactional()
     public async publish(
         principal:   Principal,
         producerRid: Library.Resource.Rid,
         branch:      Foundations.Branch,
-        specs:       PublishedJobSpec[],
-    ): Promise<Forge.JobSpec.Schema[]> {
-        const outputs = specs.flatMap((spec) => spec.outputDatasetRids);
+        recipes:       PublishedRecipe[],
+    ): Promise<Forge.Recipe.Schema[]> {
+        const outputs = recipes.flatMap((recipe) => recipe.outputDatasetRids);
 
         if (new Set(outputs).size !== outputs.length)
-            throw new BadRequestException('Two job specs write the same dataset');
+            throw new BadRequestException('Two recipes write the same dataset');
 
         await this._requireUnowned(producerRid, branch, outputs);
 
         await this.trx
-            .deleteFrom('forge.current_job_spec')
+            .deleteFrom('forge.current_recipe')
             .where('branch', '=', branch)
-            .where('job_spec_rid', 'in', (eb) => eb
-                .selectFrom('forge.job_spec')
+            .where('recipe_rid', 'in', (eb) => eb
+                .selectFrom('forge.recipe')
                 .select('rid')
                 .where('producer_rid', '=', producerRid)
                 .where('branch', '=', branch))
             .execute();
 
-        const published: Forge.JobSpec.Schema[] = [];
+        const published: Forge.Recipe.Schema[] = [];
 
-        for (const spec of specs)
-            published.push(await this._insert(principal, producerRid, branch, spec));
+        for (const recipe of recipes)
+            published.push(await this._insert(principal, producerRid, branch, recipe));
 
         return published;
     }
 
-    /** The spec computing the dataset on the first of `branches` that has one; null if none does. */
+    /** The recipe computing the dataset on the first of `branches` that has one; null if none does. */
     @Transactional()
     public async getCurrent(
         principal:  Principal,
         datasetRid: Catalog.Dataset.Rid,
         branches:   Foundations.Branch[],
-    ): Promise<Forge.JobSpec.Schema | null> {
+    ): Promise<Forge.Recipe.Schema | null> {
         const pointers = await this.trx
-            .selectFrom('forge.current_job_spec')
+            .selectFrom('forge.current_recipe')
             .selectAll()
             .where('dataset_rid', '=', datasetRid)
             .where('branch', 'in', branches)
@@ -75,13 +75,13 @@ export class JobSpecRepository extends Repository(ForgeDB.database) {
         if (!pointer)
             return null;
 
-        return this.get(principal, pointer.job_spec_rid);
+        return this.get(principal, pointer.recipe_rid);
     }
 
     @Transactional()
-    public async get(principal: Principal, rid: Forge.JobSpec.Rid): Promise<Forge.JobSpec.Schema | null> {
+    public async get(principal: Principal, rid: Forge.Recipe.Rid): Promise<Forge.Recipe.Schema | null> {
         const row = await this.trx
-            .selectFrom('forge.job_spec')
+            .selectFrom('forge.recipe')
             .selectAll()
             .where('rid', '=', rid)
             .executeTakeFirst();
@@ -90,18 +90,18 @@ export class JobSpecRepository extends Repository(ForgeDB.database) {
             return null;
 
         const inputs = await this.trx
-            .selectFrom('forge.job_spec_input_dataset')
+            .selectFrom('forge.recipe_input_dataset')
             .select('dataset_rid')
-            .where('job_spec_rid', '=', rid)
+            .where('recipe_rid', '=', rid)
             .execute();
 
         const outputs = await this.trx
-            .selectFrom('forge.job_spec_output_dataset')
+            .selectFrom('forge.recipe_output_dataset')
             .select('dataset_rid')
-            .where('job_spec_rid', '=', rid)
+            .where('recipe_rid', '=', rid)
             .execute();
 
-        return ForgeDB.JobSpec.toDomain(
+        return ForgeDB.Recipe.toDomain(
             row,
             inputs.map((input) => input.dataset_rid),
             outputs.map((output) => output.dataset_rid),
@@ -110,45 +110,45 @@ export class JobSpecRepository extends Repository(ForgeDB.database) {
 
     // ── helpers ─────────────────────────────────────────────────────────
 
-    /** The spec, its datasets, and a pointer from each output. */
+    /** The recipe, its datasets, and a pointer from each output. */
     private async _insert(
         principal:   Principal,
         producerRid: Library.Resource.Rid,
         branch:      Foundations.Branch,
-        spec:        PublishedJobSpec,
-    ): Promise<Forge.JobSpec.Schema> {
-        const rid = Forge.JobSpec.createRid();
+        recipe:        PublishedRecipe,
+    ): Promise<Forge.Recipe.Schema> {
+        const rid = Forge.Recipe.createRid();
 
         const row = await this.trx
-            .insertInto('forge.job_spec')
+            .insertInto('forge.recipe')
             .values({
                 rid,
                 producer_rid: producerRid,
                 branch,
-                logic:        json(spec.logic),
-                resources:    json(spec.resources),
+                logic:        json(recipe.logic),
+                resources:    json(recipe.resources),
                 published_by: Principal.actorOf(principal),
             })
             .returningAll()
             .executeTakeFirstOrThrow();
 
-        if (spec.inputDatasetRids.length > 0)
+        if (recipe.inputDatasetRids.length > 0)
             await this.trx
-                .insertInto('forge.job_spec_input_dataset')
-                .values(spec.inputDatasetRids.map((datasetRid) => ({ job_spec_rid: rid, dataset_rid: datasetRid })))
+                .insertInto('forge.recipe_input_dataset')
+                .values(recipe.inputDatasetRids.map((datasetRid) => ({ recipe_rid: rid, dataset_rid: datasetRid })))
                 .execute();
 
         await this.trx
-            .insertInto('forge.job_spec_output_dataset')
-            .values(spec.outputDatasetRids.map((datasetRid) => ({ job_spec_rid: rid, dataset_rid: datasetRid })))
+            .insertInto('forge.recipe_output_dataset')
+            .values(recipe.outputDatasetRids.map((datasetRid) => ({ recipe_rid: rid, dataset_rid: datasetRid })))
             .execute();
 
         await this.trx
-            .insertInto('forge.current_job_spec')
-            .values(spec.outputDatasetRids.map((datasetRid) => ({ dataset_rid: datasetRid, branch, job_spec_rid: rid })))
+            .insertInto('forge.current_recipe')
+            .values(recipe.outputDatasetRids.map((datasetRid) => ({ dataset_rid: datasetRid, branch, recipe_rid: rid })))
             .execute();
 
-        return ForgeDB.JobSpec.toDomain(row, spec.inputDatasetRids, spec.outputDatasetRids);
+        return ForgeDB.Recipe.toDomain(row, recipe.inputDatasetRids, recipe.outputDatasetRids);
     }
 
     /**
@@ -160,12 +160,12 @@ export class JobSpecRepository extends Repository(ForgeDB.database) {
             return;
 
         const owned = await this.trx
-            .selectFrom('forge.current_job_spec as pointer')
-            .innerJoin('forge.job_spec as spec', 'spec.rid', 'pointer.job_spec_rid')
-            .select(['pointer.dataset_rid', 'spec.producer_rid'])
+            .selectFrom('forge.current_recipe as pointer')
+            .innerJoin('forge.recipe as recipe', 'recipe.rid', 'pointer.recipe_rid')
+            .select(['pointer.dataset_rid', 'recipe.producer_rid'])
             .where('pointer.branch', '=', branch)
             .where('pointer.dataset_rid', 'in', outputs)
-            .where('spec.producer_rid', '!=', producerRid)
+            .where('recipe.producer_rid', '!=', producerRid)
             .executeTakeFirst();
 
         if (owned)

@@ -30,13 +30,13 @@ describe('job events', () => {
         await harness.stop();
     });
 
-    /** The build's events so far, as `<spec>:<status>`, once at least `count` have arrived. */
+    /** The build's events so far, as `<recipe>:<status>`, once at least `count` have arrived. */
     async function eventsOf(buildRid: Forge.Build.Rid, names: Record<string, string>, count: number): Promise<string[]> {
         const deadline = Date.now() + 5_000;
 
         const mine = () => received
             .filter((event) => event.channel === Forge.Event.getChannel(buildRid))
-            .map((event) => `${names[event.job.jobSpecRid]}:${event.job.status}`);
+            .map((event) => `${names[event.job.recipeRid]}:${event.job.status}`);
 
         while (mine().length < count && Date.now() < deadline)
             await new Promise((resolve) => setTimeout(resolve, 20));
@@ -46,16 +46,16 @@ describe('job events', () => {
 
     it('announces each step of a two-job build, in order', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b'], ['raw']);
-        const specs = await harness.publish(user, projectRid, datasets, [
+        const recipes = await harness.publish(user, projectRid, datasets, [
             { name: 'A', inputs: ['raw'], outputs: ['a'] },
             { name: 'B', inputs: ['a'],   outputs: ['b'] },
         ]);
-        const names = { [specs.A.rid]: 'A', [specs.B.rid]: 'B' };
+        const names = { [recipes.A.rid]: 'A', [recipes.B.rid]: 'B' };
 
         const { build } = await harness.build(user, [datasets.a, datasets.b]);
-        let { jobs } = await harness.jobsBySpec(user, build.rid, specs);
+        let { jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
         await harness.run(jobs.A);
-        ({ jobs } = await harness.jobsBySpec(user, build.rid, specs));
+        ({ jobs } = await harness.jobsByRecipe(user, build.rid, recipes));
         await harness.run(jobs.B);
 
         const events = await eventsOf(build.rid, names, 7);
@@ -69,15 +69,15 @@ describe('job events', () => {
 
     it('announces the canceled jobs when a job fails', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b', 'c'], ['raw']);
-        const specs = await harness.publish(user, projectRid, datasets, [
+        const recipes = await harness.publish(user, projectRid, datasets, [
             { name: 'A', inputs: ['raw'], outputs: ['a'] },
             { name: 'B', inputs: ['raw'], outputs: ['b'] },
             { name: 'C', inputs: ['a'],   outputs: ['c'] },
         ]);
-        const names = { [specs.A.rid]: 'A', [specs.B.rid]: 'B', [specs.C.rid]: 'C' };
+        const names = { [recipes.A.rid]: 'A', [recipes.B.rid]: 'B', [recipes.C.rid]: 'C' };
 
         const { build } = await harness.build(user, [datasets.a, datasets.b, datasets.c]);
-        const { jobs } = await harness.jobsBySpec(user, build.rid, specs);
+        const { jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
         await harness.run(jobs.A, 'failed');
 
         const events = await eventsOf(build.rid, names, 7);
@@ -90,8 +90,8 @@ describe('job events', () => {
 
     it('announces the jobs a user cancels', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a'], ['raw']);
-        const specs = await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
-        const names = { [specs.A.rid]: 'A' };
+        const recipes = await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
+        const names = { [recipes.A.rid]: 'A' };
 
         const { build } = await harness.build(user, [datasets.a]);
 

@@ -3,9 +3,9 @@ import { Foundations } from "../Foundations"
 import { Dataset } from "../Catalog/Dataset"
 import { Transaction } from "../Catalog/Transaction"
 import { Build } from "./Build"
-import { JobSpec } from "./JobSpec"
+import { Recipe } from "./Recipe"
 
-/** One run of one job spec within a build: a pinned version of each input in, one transaction per output. */
+/** One run of one recipe within a build: a pinned version of each input in, one transaction per output. */
 export namespace Job {
 
     /** A RID, but not a library resource. */
@@ -24,7 +24,7 @@ export namespace Job {
     export const Schema = z.object({
         rid:                   Rid,
         buildRid:              Build.Rid,
-        jobSpecRid:            JobSpec.Rid,
+        recipeRid:            Recipe.Rid,
         status:                Status,
         attempt:               z.number().int().positive(),         // 1, then each retry
         inputs:                z.record(Dataset.Rid, Transaction.Rid).nullable(),   // the version of each input it read, pinned when it starts

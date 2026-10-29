@@ -6,7 +6,7 @@ import * as ApiMod      from "./api"
 
 /**
  * CI for Code Workspaces: a check run per pushed branch head — quarry-ci.yml's
- * steps, then its job specs published. docs/design/code-workspaces/checks.md.
+ * steps, then its recipes published. docs/design/code-workspaces/checks.md.
  */
 export namespace CI {
     export import CheckRun = CheckRunMod.CheckRun

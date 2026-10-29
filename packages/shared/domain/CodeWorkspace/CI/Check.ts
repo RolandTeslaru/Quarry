@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { CodeTransform } from "../../CodeTransform/CodeTransform"
-import { JobSpec } from "../../Forge/JobSpec"
+import { Recipe } from "../../Forge/Recipe"
 
 /** What a check runs (quarry-ci.yml) and what its publish step reports (the manifest). docs/design/code-workspaces/checks.md. */
 export namespace Check {
@@ -45,7 +45,7 @@ export namespace Check {
     export namespace Manifest {
 
         export const Transform = CodeTransform.Schema.extend({
-            resources: JobSpec.Resources,
+            resources: Recipe.Resources,
         })
         export type Transform = z.infer<typeof Transform>
 

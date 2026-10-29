@@ -3,11 +3,11 @@ import { Catalog, CodeWorkspace, Forge } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { CatalogService } from '@/services/Catalog/catalog.service';
 import { ForgeService } from '@/services/Forge/forge.service';
-import type { PublishedJobSpec } from '@/services/Forge/job-specs';
+import type { PublishedRecipe } from '@/services/Forge/recipes';
 
 import CI = CodeWorkspace.CI;
 
-/** A passing run's manifest → its branch's job specs, as the pusher. Missing outputs are created empty. */
+/** A passing run's manifest → its branch's recipes, as the pusher. Missing outputs are created empty. */
 @Injectable()
 export class CheckPublisher {
 
@@ -16,10 +16,10 @@ export class CheckPublisher {
         private readonly forge:   ForgeService,
     ) {}
 
-    public async publish(run: CI.CheckRun.Schema, rawManifest: unknown): Promise<Forge.JobSpec.Schema[]> {
+    public async publish(run: CI.CheckRun.Schema, rawManifest: unknown): Promise<Forge.Recipe.Schema[]> {
         const manifest = CI.Check.Manifest.Schema.parse(rawManifest);
         const principal = Principal.delegate(run.pushedBy!, `check-run:${run.rid}`);
-        const specs: PublishedJobSpec[] = [];
+        const recipes: PublishedRecipe[] = [];
 
         for (const transform of manifest.transforms) {
             const inputDatasetRids: Catalog.Dataset.Rid[] = [];
@@ -38,7 +38,7 @@ export class CheckPublisher {
                 outputDatasetRids.push(dataset.rid);
             }
 
-            specs.push({
+            recipes.push({
                 logic: {
                     type:         'code-workspace',
                     workspaceRid: run.workspaceRid,
@@ -51,6 +51,6 @@ export class CheckPublisher {
             });
         }
 
-        return this.forge.jobSpecs.publish(principal, run.workspaceRid, run.branch, specs);
+        return this.forge.recipes.publish(principal, run.workspaceRid, run.branch, recipes);
     }
 }

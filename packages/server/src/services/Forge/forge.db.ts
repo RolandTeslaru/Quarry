@@ -5,23 +5,23 @@ import type { Table } from '@/db/table';
 import type { IdentityDB } from '@/services/Identity/identity.db';
 import type { LibraryDB } from '@/services/Library/library.db';
 
-/** The `forge` schema: job specs, builds, jobs. */
+/** The `forge` schema: recipes, builds, jobs. */
 export namespace ForgeDB {
 
-    export namespace JobSpec {
+    export namespace Recipe {
         export const Row = z.object({
-            rid:          Forge.JobSpec.Rid,
+            rid:          Forge.Recipe.Rid,
             producer_rid: Library.Resource.Rid,
             branch:       Foundations.Branch,
-            logic:        Forge.JobSpec.Logic,
-            resources:    Forge.JobSpec.Resources,
+            logic:        Forge.Recipe.Logic,
+            resources:    Forge.Recipe.Resources,
             published_by: Identity.User.Rid.nullable(),
             published_at: z.date(),
         });
         export type Row = z.infer<typeof Row>;
 
         export const toDomain = (row: Row, inputDatasetRids: Catalog.Dataset.Rid[], outputDatasetRids: Catalog.Dataset.Rid[]) =>
-            Forge.JobSpec.Schema.parse({
+            Forge.Recipe.Schema.parse({
                 rid:               row.rid,
                 producerRid:       row.producer_rid,
                 branch:            row.branch,
@@ -34,20 +34,20 @@ export namespace ForgeDB {
             });
     }
 
-    /** A spec's input or output dataset — the two tables have the same shape. */
-    export namespace JobSpecDataset {
+    /** A recipe's input or output dataset — the two tables have the same shape. */
+    export namespace RecipeDataset {
         export const Row = z.object({
-            job_spec_rid: Forge.JobSpec.Rid,
+            recipe_rid: Forge.Recipe.Rid,
             dataset_rid:  Catalog.Dataset.Rid,
         });
         export type Row = z.infer<typeof Row>;
     }
 
-    export namespace CurrentJobSpec {
+    export namespace CurrentRecipe {
         export const Row = z.object({
             dataset_rid:  Catalog.Dataset.Rid,
             branch:       Foundations.Branch,
-            job_spec_rid: Forge.JobSpec.Rid,
+            recipe_rid: Forge.Recipe.Rid,
         });
         export type Row = z.infer<typeof Row>;
     }
@@ -89,7 +89,7 @@ export namespace ForgeDB {
         export const Row = z.object({
             rid:          Forge.Job.Rid,
             build_rid:    Forge.Build.Rid,
-            job_spec_rid: Forge.JobSpec.Rid,
+            recipe_rid: Forge.Recipe.Rid,
             status:       Forge.Job.Status,
             attempt:      z.number().int(),
             failure:      z.object({ message: z.string() }).nullable(),
@@ -105,7 +105,7 @@ export namespace ForgeDB {
         export const toDomain = (row: Row) => Forge.Job.Schema.parse({
             rid:         row.rid,
             buildRid:    row.build_rid,
-            jobSpecRid:  row.job_spec_rid,
+            recipeRid:  row.recipe_rid,
             status:      row.status,
             attempt:     row.attempt,
             inputs:      row.inputs,
@@ -119,10 +119,10 @@ export namespace ForgeDB {
     }
 
     export interface Tables {
-        'forge.job_spec':                Table<typeof JobSpec.Row, 'published_at'>;
-        'forge.job_spec_input_dataset':  Table<typeof JobSpecDataset.Row>;
-        'forge.job_spec_output_dataset': Table<typeof JobSpecDataset.Row>;
-        'forge.current_job_spec':        Table<typeof CurrentJobSpec.Row>;
+        'forge.recipe':                Table<typeof Recipe.Row, 'published_at'>;
+        'forge.recipe_input_dataset':  Table<typeof RecipeDataset.Row>;
+        'forge.recipe_output_dataset': Table<typeof RecipeDataset.Row>;
+        'forge.current_recipe':        Table<typeof CurrentRecipe.Row>;
         'forge.build':                   Table<typeof Build.Row, 'fallback_branches' | 'force_build' | 'abort_on_failure' | 'retry_count' | 'status' | 'created_at' | 'finished_at'>;
         'forge.job':                     Table<typeof Job.Row, 'status' | 'attempt' | 'failure' | 'inputs' | 'scheduled_at' | 'started_at' | 'heartbeat_at' | 'finished_at'>;
     }

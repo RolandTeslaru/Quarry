@@ -2,17 +2,17 @@ import { Injectable } from '@nestjs/common';
 import type { Catalog, Forge, Foundations, Library } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
 import { ForgeRepository } from './repository/forge.repository';
-import type { PublishedJobSpec } from './repository/job-spec.repository';
+import type { PublishedRecipe } from './repository/recipe.repository';
 
-export type { PublishedJobSpec };
+export type { PublishedRecipe };
 
 /**
- * Publishing job specs and reading the current one. Reached as `forge.jobSpecs`
+ * Publishing recipes and reading the current one. Reached as `forge.recipes`
  * — producers call it in-process (a workspace's checks, later Pipeline Builder's
  * deploy); builds read through it.
  */
 @Injectable()
-export class JobSpecs {
+export class Recipes {
 
     constructor(private readonly repository: ForgeRepository) {}
 
@@ -21,17 +21,17 @@ export class JobSpecs {
         principal:   Principal,
         producerRid: Library.Resource.Rid,
         branch:      Foundations.Branch,
-        specs:       PublishedJobSpec[],
-    ): Promise<Forge.JobSpec.Schema[]> {
-        return this.repository.jobSpec.publish(principal, producerRid, branch, specs);
+        recipes:       PublishedRecipe[],
+    ): Promise<Forge.Recipe.Schema[]> {
+        return this.repository.recipe.publish(principal, producerRid, branch, recipes);
     }
 
-    /** What computes the dataset: the first of `branches` with a spec for it wins. */
+    /** What computes the dataset: the first of `branches` with a recipe for it wins. */
     public async getCurrent(
         principal:  Principal,
         datasetRid: Catalog.Dataset.Rid,
         branches:   Foundations.Branch[],
-    ): Promise<Forge.JobSpec.Schema | null> {
-        return this.repository.jobSpec.getCurrent(principal, datasetRid, branches);
+    ): Promise<Forge.Recipe.Schema | null> {
+        return this.repository.recipe.getCurrent(principal, datasetRid, branches);
     }
 }

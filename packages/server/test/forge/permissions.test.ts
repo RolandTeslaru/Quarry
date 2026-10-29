@@ -5,16 +5,16 @@ import type { Principal } from '@/auth/principal';
 import { ForgeHarness, MAIN } from '../support/forge-fixtures';
 
 /**
- * Who may do what with builds and job specs — row-level security and
+ * Who may do what with builds and recipes — row-level security and
  * Gatekeeper, as members who aren't admins. An admin sets up a project; members
  * get a role on it (inherited by its datasets), or none.
  *
  *   discoverer (1) see builds of its datasets
- *   viewer     (2) see them, read their specs
- *   editor     (3) start and cancel builds, publish specs
+ *   viewer     (2) see them, read their recipes
+ *   editor     (3) start and cancel builds, publish recipes
  *   no grant       see nothing: 404, never 403 (a hidden build isn't revealed)
  */
-describe('build and job spec permissions', () => {
+describe('build and recipe permissions', () => {
 
     let harness: ForgeHarness;
     let admin: Principal.User;
@@ -25,7 +25,7 @@ describe('build and job spec permissions', () => {
 
     let projectRid: Library.Resource.Rid;
     let datasets: Record<string, Catalog.Dataset.Rid>;
-    let spec: Forge.JobSpec.Schema;
+    let recipe: Forge.Recipe.Schema;
 
     beforeAll(async () => {
         harness = await ForgeHarness.start();
@@ -36,7 +36,7 @@ describe('build and job spec permissions', () => {
         outsider = await harness.createUser('member');
 
         ({ projectRid, datasets } = await harness.createDatasets(admin, ['raw', 'out', 'out2'], ['raw']));
-        ({ A: spec } = await harness.publish(admin, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }]));
+        ({ A: recipe } = await harness.publish(admin, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }]));
 
         await harness.grant(admin, projectRid, editor, 'editor');
         await harness.grant(admin, projectRid, viewer, 'viewer');
@@ -146,30 +146,30 @@ describe('build and job spec permissions', () => {
         });
     });
 
-    describe('job specs', () => {
+    describe('recipes', () => {
 
-        it('the current spec is visible to whoever can discover the dataset and its producer', async () => {
-            await expect(harness.forge.jobSpecs.getCurrent(discoverer, datasets.out, [MAIN])).resolves.toMatchObject({ rid: spec.rid });
-            await expect(harness.forge.jobSpecs.getCurrent(outsider, datasets.out, [MAIN])).resolves.toBeNull();
+        it('the current recipe is visible to whoever can discover the dataset and its producer', async () => {
+            await expect(harness.forge.recipes.getCurrent(discoverer, datasets.out, [MAIN])).resolves.toMatchObject({ rid: recipe.rid });
+            await expect(harness.forge.recipes.getCurrent(outsider, datasets.out, [MAIN])).resolves.toBeNull();
         });
 
         it('publishing needs write on the producer and the outputs: an editor may', async () => {
-            const published = await harness.forge.jobSpecs.publish(editor, projectRid, MAIN, [{
-                logic:             spec.logic,
+            const published = await harness.forge.recipes.publish(editor, projectRid, MAIN, [{
+                logic:             recipe.logic,
                 inputDatasetRids:  [datasets.raw],
                 outputDatasetRids: [datasets.out2],
-                resources:         spec.resources,
+                resources:         recipe.resources,
             }]);
 
             expect(published).toHaveLength(1);
         });
 
         it('a viewer may not publish: 403', async () => {
-            await expect(harness.forge.jobSpecs.publish(viewer, projectRid, MAIN, [{
-                logic:             spec.logic,
+            await expect(harness.forge.recipes.publish(viewer, projectRid, MAIN, [{
+                logic:             recipe.logic,
                 inputDatasetRids:  [datasets.raw],
                 outputDatasetRids: [datasets.out],
-                resources:         spec.resources,
+                resources:         recipe.resources,
             }])).rejects.toBeInstanceOf(ForbiddenException);
         });
     });

@@ -23,14 +23,14 @@ describe('delivering jobs', () => {
 
     async function chain() {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b'], ['raw']);
-        const specs = await harness.publish(user, projectRid, datasets, [
+        const recipes = await harness.publish(user, projectRid, datasets, [
             { name: 'A', inputs: ['raw'], outputs: ['a'] },
             { name: 'B', inputs: ['a'],   outputs: ['b'] },
         ]);
         const { build } = await harness.build(user, [datasets.a, datasets.b]);
-        const { jobs } = await harness.jobsBySpec(user, build.rid, specs);
+        const { jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
 
-        return { build, specs, jobs };
+        return { build, recipes, jobs };
     }
 
     it('sends a root at once (the fast path): in Redis, its outbox message marked sent', async () => {
@@ -51,11 +51,11 @@ describe('delivering jobs', () => {
     });
 
     it('adds and sends a child once its parent succeeds', async () => {
-        const { build, specs, jobs } = await chain();
+        const { build, recipes, jobs } = await chain();
 
         await harness.run(jobs.A);
 
-        const { jobs: after } = await harness.jobsBySpec(user, build.rid, specs);
+        const { jobs: after } = await harness.jobsByRecipe(user, build.rid, recipes);
 
         expect(after.B.status).toBe('scheduled');
         expect(await harness.runJobQueue.getJob(`${after.B.rid}_1`)).toBeDefined();
@@ -105,12 +105,12 @@ describe('delivering jobs', () => {
 
     it("stops sending the jobs a failure cancels", async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b'], ['raw']);
-        const specs = await harness.publish(user, projectRid, datasets, [
+        const recipes = await harness.publish(user, projectRid, datasets, [
             { name: 'A', inputs: ['raw'], outputs: ['a'] },
             { name: 'B', inputs: ['raw'], outputs: ['b'] },
         ]);
         const { build } = await harness.build(user, [datasets.a, datasets.b]);
-        const { jobs } = await harness.jobsBySpec(user, build.rid, specs);
+        const { jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
 
         expect(await harness.getOutboxMessage(jobs.B)).not.toBeNull();
 

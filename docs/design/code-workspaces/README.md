@@ -12,7 +12,7 @@ A **Code Workspace** is a Git repository of Python transforms plus its environme
 | [authorization.md](authorization.md) | Every entry point and what Gatekeeper / RLS check there; tokens and their reach |
 | [preview.md](preview.md) | Running a transform: the button → the worker's API → `docker exec` → samples → the panel |
 | [extension.md](extension.md) | The Quarry VS Code extension inside each session |
-| [checks.md](checks.md) | **Spec, not built**: CI on push — `quarry-ci.yml`, the worker's check runs, publishing job specs |
+| [checks.md](checks.md) | **Spec, not built**: CI on push — `quarry-ci.yml`, the worker's check runs, publishing recipes |
 
 ## The pieces
 

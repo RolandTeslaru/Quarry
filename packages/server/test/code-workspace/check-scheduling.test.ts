@@ -279,14 +279,14 @@ describe('check runs, running', () => {
             expect(ended.steps[1].log.endsWith('THE END')).toBe(true);
         });
 
-        it('succeeds with an empty manifest — a pipeline with no transforms publishes no job specs', async () => {
+        it('succeeds with an empty manifest — a pipeline with no transforms publishes no recipes', async () => {
             const { run } = await startedRun();
 
             const finished = await checks.finish(run.rid, Outcome.parse({ status: 'succeeded', manifest: { transforms: [] } }));
 
             expect(finished).toMatchObject({ status: 'succeeded', failure: null, published: true });
             expect(finished.steps.at(-1)).toMatchObject({ status: 'succeeded' });
-            expect(finished.steps.at(-1)!.log).toMatch(/Published 0 job spec/);
+            expect(finished.steps.at(-1)!.log).toMatch(/Published 0 recipe/);
         });
 
         it("fails at its publish step when the manifest reads a dataset that doesn't exist", async () => {

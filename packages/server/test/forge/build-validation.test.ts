@@ -48,7 +48,7 @@ describe('initializing a build', () => {
         await harness.forge.cancelBuild(user, build.rid);
     });
 
-    it('refuses specs that read each other in a cycle: 409', async () => {
+    it('refuses recipes that read each other in a cycle: 409', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['a', 'b']);
 
         await harness.publish(user, projectRid, datasets, [
@@ -78,17 +78,17 @@ describe('initializing a build', () => {
         })).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('builds from a spec on a fallback branch', async () => {
+    it('builds from a recipe on a fallback branch', async () => {
         const testing = Foundations.Branch.parse('testing');
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'out'], ['raw']);
-        const specs = await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }], testing);
+        const recipes = await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }], testing);
 
         const created = await harness.forge.initializeBuild(user, {
             branch: MAIN, fallbackBranches: [testing], target: { type: 'manual', datasetRids: [datasets.out] },
             forceBuild: false, abortOnFailure: false, retryCount: 0,
         });
 
-        expect(Object.values(created.jobs)[0].jobSpecRid).toBe(specs.A.rid);
+        expect(Object.values(created.jobs)[0].recipeRid).toBe(recipes.A.rid);
         await harness.forge.cancelBuild(user, created.build.rid);
     });
 

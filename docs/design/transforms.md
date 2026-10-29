@@ -8,7 +8,7 @@ Transforms turn datasets into datasets: raw copies from syncs into clean, joined
 flowchart LR
     raw[("Raw datasets<br/>written by syncs")] --> t["Transform<br/>Python function in a Code Workspace"]
     t -- builds write via catalog.transaction --> out[("Derived datasets")]
-    ws["Code Workspace<br/>Git repository + environment"] -. checks publish specs .-> t
+    ws["Code Workspace<br/>Git repository + environment"] -. checks publish recipes .-> t
 ```
 
 Decided (2026-10-24):
@@ -44,7 +44,7 @@ Decided (2026-10-24):
 | Thing | Library resource? | What it is |
 |---|---|---|
 | **Code Workspace** | **yes** — in a folder, grants, trash | A Git repository plus its environment (`pyproject.toml` + `uv.lock`). Holds any number of transforms |
-| **Job spec** | no — Forge's, published by a producer | How to compute some datasets: logic at one version (for a workspace: commit + transform), inputs, outputs, resources. Published by checks ([forge.md](forge.md#1-model)) |
+| **Recipe** | no — Forge's, published by a producer | How to compute some datasets: logic at one version (for a workspace: commit + transform), inputs, outputs, resources. Published by checks ([forge.md](forge.md#1-model)) |
 | **Build** | no | One request to bring datasets up to date: a set of jobs in dependency order |
 | **Job** | no — belongs to its build | One transform run: reads pinned input versions, writes its outputs' transactions |
 | **Session** | no — belongs to a user and a workspace | The running container behind an open IDE ([§6](#6-sessions-the-ide-and-preview)) |
@@ -58,7 +58,7 @@ Rules:
 
 ### One producer, handed over
 
-A dataset has **one producer at a time** (as in Foundry: one job spec per dataset) — a build must mean one thing to run, snapshots from two writers would overwrite each other, and staleness and lineage need one set of inputs.
+A dataset has **one producer at a time** (as in Foundry: one recipe per dataset) — a build must mean one thing to run, snapshots from two writers would overwrite each other, and staleness and lineage need one set of inputs.
 
 - **Taken:** checks fail a transform whose output already has another producer — "`/Sales/clean/orders` is produced by *Claims Transforms*", linking it.
 - **Handing over:** remove the output from the old producer (commit), declare it in the new one (commit). The next version's `produced_by` is the new one; older versions keep theirs.
@@ -237,14 +237,14 @@ Every commit runs **checks** (continuous integration) before its code can build 
 
 1. **Environment** — resolve `uv.lock` into an environment image, keyed by the lock's hash ([§7](#7-environments-and-containers)); reused if it exists.
 2. **Import** the package in that environment. The decorators run, the transforms don't: this collects every transform's inputs, outputs and resources.
-3. **Resolve** library paths to RIDs, pinned in the spec — a later rename doesn't break the transform. **Create** missing outputs (a dataset at that path; needs write on the parent folder).
+3. **Resolve** library paths to RIDs, pinned in the recipe — a later rename doesn't break the transform. **Create** missing outputs (a dataset at that path; needs write on the parent folder).
 4. **Validate** — one producer per dataset, no cycles, inputs exist and are readable, outputs writable.
 5. **Tests** — run the workspace's tests.
-6. **Publish** one job spec per transform for that branch and commit (`Forge.JobSpec`, [forge.md](forge.md#1-model)):
+6. **Publish** one recipe per transform for that branch and commit (`Forge.Recipe`, [forge.md](forge.md#1-model)):
 
 ```json
 {
-  "rid": "ri.forge.main.job-spec.…",
+  "rid": "ri.forge.main.recipe.…",
   "producerRid": "ri.code-workspace.main.workspace.…",
   "branch": "main",
   "logic": {
@@ -267,7 +267,7 @@ Checks act as a **delegate of the committer** (`Principal.onBehalfOf(committer, 
 
 ## 5. Builds
 
-Builds are **Forge**'s — a platform service, not part of Code Workspaces: [forge.md](forge.md) (job specs, builds, ForgeAgents, provenance). From a workspace's side: checks publish one job spec per transform for each commit ([§4](#4-checks--what-a-commit-goes-through)); Build runs the current one.
+Builds are **Forge**'s — a platform service, not part of Code Workspaces: [forge.md](forge.md) (recipes, builds, ForgeAgents, provenance). From a workspace's side: checks publish one recipe per transform for each commit ([§4](#4-checks--what-a-commit-goes-through)); Build runs the current one.
 
 ---
 

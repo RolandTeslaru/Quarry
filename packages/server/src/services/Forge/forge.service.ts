@@ -8,19 +8,19 @@ import { RealtimeService } from '@/services/Realtime/realtime.service';
 import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
 import { ForgeRepository } from './repository/forge.repository';
 import type { NewJob } from './repository/job.repository';
-import { JobSpecs } from './job-specs';
+import { Recipes } from './recipes';
 
 const MAIN = Foundations.Branch.parse('main');
 
-/** A build's plan with the specs it names, by RID. */
+/** A build's plan with the recipes it names, by RID. */
 interface CollectedPlan {
     readonly plan:  Forge.Build.Plan.Schema;
-    readonly specs: Record<Forge.JobSpec.Rid, Forge.JobSpec.Schema>;
+    readonly recipes: Record<Forge.Recipe.Rid, Forge.Recipe.Schema>;
 }
 
 /**
- * Forge's one entry point for other services: builds here, job specs under
- * `jobSpecs` (publish, getCurrent).
+ * Forge's one entry point for other services: builds here, recipes under
+ * `recipes` (publish, getCurrent).
  *
  * Initializing a build: collect its plan, validate it, lock its outputs (a
  * snapshot transaction on each, so no other writer gets in), persist it with
@@ -34,7 +34,7 @@ export class ForgeService {
 
     constructor(
         public readonly gatekeeper:  GatekeeperService,
-        public readonly jobSpecs:    JobSpecs,
+        public readonly recipes:    Recipes,
         private readonly catalog:    CatalogService,
         private readonly repository: ForgeRepository,
         private readonly realtime:   RealtimeService,
@@ -154,8 +154,8 @@ export class ForgeService {
     // ── creating a build, phase by phase ────────────────────────────────
 
     /**
-     * 1. Every spec the build needs, as an adjacency list. Manual: the
-     * targets' own specs (a spec writing several targets is one node) — no
+     * 1. Every recipe the build needs, as an adjacency list. Manual: the
+     * targets' own recipes (a recipe writing several targets is one node) — no
      * walking upstream. A target nothing produces is a conflict.
      */
     private async _collectPlan(principal: Principal, request: Forge.API.CreateBuild.Request): Promise<CollectedPlan> {
@@ -163,40 +163,40 @@ export class ForgeService {
             throw new BadRequestException('Only manual builds for now');
 
         const branches = [request.branch, ...request.fallbackBranches];
-        const specs: Record<Forge.JobSpec.Rid, Forge.JobSpec.Schema> = {};
+        const recipes: Record<Forge.Recipe.Rid, Forge.Recipe.Schema> = {};
 
         for (const datasetRid of request.target.datasetRids) {
             await this.catalog.get(principal, datasetRid);
 
-            const spec = await this.jobSpecs.getCurrent(principal, datasetRid, branches);
+            const recipe = await this.recipes.getCurrent(principal, datasetRid, branches);
 
-            if (!spec)
+            if (!recipe)
                 throw new ConflictException(`Nothing builds ${datasetRid} on ${branches.join(' or ')}`);
 
-            specs[spec.rid] = spec;
+            recipes[recipe.rid] = recipe;
         }
 
-        const plan = this._getPlan(Object.values(specs));
+        const plan = this._getPlan(Object.values(recipes));
 
         // A cycle with no way in leaves no roots; D2 will catch every cycle.
         if (plan.roots.length === 0)
-            throw new ConflictException('The specs to build read each other\'s outputs in a cycle');
+            throw new ConflictException('The recipes to build read each other\'s outputs in a cycle');
 
-        return { plan, specs };
+        return { plan, recipes };
     }
 
     /**
      * 2. Write on every output, read on every input; an input not built in
      * this build must have data already.
      */
-    private async _validatePlan(principal: Principal, { specs }: CollectedPlan): Promise<void> {
-        const builtHere = new Set(Object.values(specs).flatMap((spec) => spec.outputDatasetRids));
+    private async _validatePlan(principal: Principal, { recipes }: CollectedPlan): Promise<void> {
+        const builtHere = new Set(Object.values(recipes).flatMap((recipe) => recipe.outputDatasetRids));
 
-        for (const spec of Object.values(specs)) {
-            for (const datasetRid of spec.outputDatasetRids)
+        for (const recipe of Object.values(recipes)) {
+            for (const datasetRid of recipe.outputDatasetRids)
                 await this.gatekeeper.assert(principal, 'write', datasetRid);
 
-            for (const datasetRid of spec.inputDatasetRids) {
+            for (const datasetRid of recipe.inputDatasetRids) {
                 await this.gatekeeper.assert(principal, 'read', datasetRid);
 
                 if (builtHere.has(datasetRid))
@@ -211,29 +211,29 @@ export class ForgeService {
     }
 
     /**
-     * 3. One job per node, with a snapshot transaction open on each of its spec's
+     * 3. One job per node, with a snapshot transaction open on each of its recipe's
      * outputs — all opened in one database transaction, or none.
      */
-    private async _lockOutputs(principal: Principal, buildRid: Forge.Build.Rid, { specs }: CollectedPlan): Promise<NewJob[]> {
-        const jobSpecRids = Object.values(specs).map((spec) => spec.rid);
-        const jobRids: Record<Forge.JobSpec.Rid, Forge.Job.Rid> = {};
+    private async _lockOutputs(principal: Principal, buildRid: Forge.Build.Rid, { recipes }: CollectedPlan): Promise<NewJob[]> {
+        const recipeRids = Object.values(recipes).map((recipe) => recipe.rid);
+        const jobRids: Record<Forge.Recipe.Rid, Forge.Job.Rid> = {};
 
-        for (const jobSpecRid of jobSpecRids)
-            jobRids[jobSpecRid] = Forge.Job.createRid();
+        for (const recipeRid of recipeRids)
+            jobRids[recipeRid] = Forge.Job.createRid();
 
-        const openings = jobSpecRids.flatMap((jobSpecRid) => specs[jobSpecRid].outputDatasetRids.map((datasetRid) => ({
+        const openings = recipeRids.flatMap((recipeRid) => recipes[recipeRid].outputDatasetRids.map((datasetRid) => ({
             datasetRid,
             type:       'snapshot' as const,
-            provenance: { buildRid, jobRid: jobRids[jobSpecRid] },
+            provenance: { buildRid, jobRid: jobRids[recipeRid] },
         })));
 
         const transactions = await this.catalog.transaction.openBatch(principal, openings, MAIN);
 
-        return jobSpecRids.map((jobSpecRid) => ({
-            rid:     jobRids[jobSpecRid],
-            jobSpecRid,
+        return recipeRids.map((recipeRid) => ({
+            rid:     jobRids[recipeRid],
+            recipeRid,
             outputs: Object.fromEntries(transactions
-                .filter((transaction) => specs[jobSpecRid].outputDatasetRids.includes(transaction.datasetRid))
+                .filter((transaction) => recipes[recipeRid].outputDatasetRids.includes(transaction.datasetRid))
                 .map((transaction) => [transaction.datasetRid, transaction.rid])),
         }));
     }
@@ -241,31 +241,31 @@ export class ForgeService {
     // ── helpers ─────────────────────────────────────────────────────────
 
     /**
-     * The plan as an adjacency list: a spec is the child of each spec in the
-     * build that writes one of its inputs; specs with no parent are the roots.
+     * The plan as an adjacency list: a recipe is the child of each recipe in the
+     * build that writes one of its inputs; recipes with no parent are the roots.
      */
-    private _getPlan(specs: Forge.JobSpec.Schema[]): Forge.Build.Plan.Schema {
-        const producers = new Map(specs.flatMap((spec) => spec.outputDatasetRids.map((datasetRid) => [datasetRid, spec.rid] as const)));
-        const children: Record<Forge.JobSpec.Rid, Forge.JobSpec.Rid[]> = {};
-        const hasParent = new Set<Forge.JobSpec.Rid>();
+    private _getPlan(recipes: Forge.Recipe.Schema[]): Forge.Build.Plan.Schema {
+        const producers = new Map(recipes.flatMap((recipe) => recipe.outputDatasetRids.map((datasetRid) => [datasetRid, recipe.rid] as const)));
+        const children: Record<Forge.Recipe.Rid, Forge.Recipe.Rid[]> = {};
+        const hasParent = new Set<Forge.Recipe.Rid>();
 
-        for (const spec of specs)
-            children[spec.rid] = [];
+        for (const recipe of recipes)
+            children[recipe.rid] = [];
 
-        for (const spec of specs) {
-            const parents = new Set(spec.inputDatasetRids.flatMap((datasetRid) => producers.get(datasetRid) ?? []));
+        for (const recipe of recipes) {
+            const parents = new Set(recipe.inputDatasetRids.flatMap((datasetRid) => producers.get(datasetRid) ?? []));
 
             for (const parent of parents) {
-                if (parent === spec.rid)
+                if (parent === recipe.rid)
                     continue;
 
-                children[parent].push(spec.rid);
-                hasParent.add(spec.rid);
+                children[parent].push(recipe.rid);
+                hasParent.add(recipe.rid);
             }
         }
 
         return {
-            roots: specs.map((spec) => spec.rid).filter((rid) => !hasParent.has(rid)),
+            roots: recipes.map((recipe) => recipe.rid).filter((rid) => !hasParent.has(rid)),
             children,
         };
     }

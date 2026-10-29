@@ -10,14 +10,14 @@ import { ModuleFunctionPath } from "../CodeWorkspace/ModuleFunctionPath"
 /**
  * How to compute some datasets: a producer's logic at one version, its inputs
  * and outputs. Published by producers (a workspace's checks, per commit);
- * builds only read them. Immutable — a new version is a new spec.
+ * builds only read them. Immutable — a new version is a new recipe.
  */
-export namespace JobSpec {
+export namespace Recipe {
 
     /** A RID, but not a library resource. */
-    export type  Rid = Foundations.Rid<"forge", "job-spec">
-    export const Rid = Foundations.Rid.generateSchema("forge", "job-spec")
-    export const createRid = () => Foundations.Rid.create("forge", "job-spec")
+    export type  Rid = Foundations.Rid<"forge", "recipe">
+    export const Rid = Foundations.Rid.generateSchema("forge", "recipe")
+    export const createRid = () => Foundations.Rid.create("forge", "recipe")
 
     /** What to run — each producer's own. */
     export const Logic = z.discriminatedUnion("type", [

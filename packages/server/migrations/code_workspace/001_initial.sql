@@ -31,7 +31,7 @@ CREATE TABLE code_workspace.check_run (
     status         text NOT NULL DEFAULT 'waiting'
                    CHECK (status IN ('waiting', 'scheduled', 'running', 'succeeded', 'failed', 'canceled')),
     steps          jsonb NOT NULL DEFAULT '[]',     -- CodeWorkspace.CI.CheckRun.Step[]: the server's, then quarry-ci.yml's
-    published      boolean NOT NULL DEFAULT false,  -- its commit became the branch's job specs
+    published      boolean NOT NULL DEFAULT false,  -- its commit became the branch's recipes
     failure        jsonb,                           -- { step, message }
     pushed_by      identity.user_rid REFERENCES identity.user(rid),   -- whom it acts as; null = the system
     created_at     timestamptz NOT NULL DEFAULT now(),   -- pushed

@@ -1,7 +1,7 @@
 import { z } from "zod"
 import type { AxiosInstance } from "axios"
 import { Job as JobD } from "../Job"
-import { JobSpec as JobSpecD } from "../JobSpec"
+import { Recipe as RecipeD } from "../Recipe"
 
 /** ForgeAgents only (`/api/forge-agent/…`, the ForgeAgent token) — mirrors forge-agent.controller. */
 export namespace Agent {
@@ -13,7 +13,7 @@ export namespace Agent {
 
         export const Response = z.object({
             job:     JobD.Schema,
-            jobSpec: JobSpecD.Schema,
+            recipe: RecipeD.Schema,
         })
         export type  Response = z.infer<typeof Response>
     }

@@ -38,7 +38,7 @@ describe('the ForgeAgent API', () => {
         const started = await harness.agent.startJob(job.rid, 1);
 
         expect(started.job.status).toBe('running');
-        expect(started.jobSpec.rid).toBe(job.jobSpecRid);
+        expect(started.recipe.rid).toBe(job.recipeRid);
         await expect(harness.agent.startJob(job.rid, 1)).rejects.toBeInstanceOf(ConflictException);
     });
 

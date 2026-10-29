@@ -6,7 +6,7 @@ import { json } from '@/db/table';
 import { ForgeDB } from '../forge.db';
 
 /** A job as created — one per node of the plan — with its outputs' transactions already open. */
-export type NewJob = Pick<Forge.Job.Schema, 'rid' | 'jobSpecRid' | 'outputs'>;
+export type NewJob = Pick<Forge.Job.Schema, 'rid' | 'recipeRid' | 'outputs'>;
 
 /**
  * forge.job. Writes that also touch the build, or a job's message (the durable
@@ -23,12 +23,12 @@ export class JobRepository extends Repository(ForgeDB.database) {
         await this.trx
             .insertInto('forge.job')
             .values(jobs.map((job) => {
-                const isRoot = build.plan.roots.includes(job.jobSpecRid);
+                const isRoot = build.plan.roots.includes(job.recipeRid);
 
                 return {
                     rid:          job.rid,
                     build_rid:    build.rid,
-                    job_spec_rid: job.jobSpecRid,
+                    recipe_rid: job.recipeRid,
                     outputs:      json(job.outputs),
                     status:       isRoot ? 'scheduled' as const : 'waiting' as const,
                     scheduled_at: isRoot ? scheduledAt : null,
@@ -59,17 +59,17 @@ export class JobRepository extends Repository(ForgeDB.database) {
         return rows.map(ForgeDB.Job.toDomain);
     }
 
-    /** The build's `waiting` jobs for these specs → `scheduled` (once, whoever gets there first). */
+    /** The build's `waiting` jobs for these recipes → `scheduled` (once, whoever gets there first). */
     @Transactional()
-    public async schedule(principal: Principal, buildRid: Forge.Build.Rid, jobSpecRids: Forge.JobSpec.Rid[]): Promise<Forge.Job.Schema[]> {
-        if (jobSpecRids.length === 0)
+    public async schedule(principal: Principal, buildRid: Forge.Build.Rid, recipeRids: Forge.Recipe.Rid[]): Promise<Forge.Job.Schema[]> {
+        if (recipeRids.length === 0)
             return [];
 
         const rows = await this.trx
             .updateTable('forge.job')
             .set({ status: 'scheduled', scheduled_at: new Date() })
             .where('build_rid', '=', buildRid)
-            .where('job_spec_rid', 'in', jobSpecRids)
+            .where('recipe_rid', 'in', recipeRids)
             .where('status', '=', 'waiting')
             .returningAll()
             .execute();

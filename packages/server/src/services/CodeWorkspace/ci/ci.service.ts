@@ -180,7 +180,7 @@ export class CIService {
             const startedAt = new Date();
 
             try {
-                const specs = await this.publisher.publish(current, outcome.manifest);
+                const recipes = await this.publisher.publish(current, outcome.manifest);
 
                 published = true;
                 steps[last] = {
@@ -188,7 +188,7 @@ export class CIService {
                     status:     'succeeded',
                     startedAt,
                     finishedAt: new Date(),
-                    log:        `Published ${specs.length} job spec(s)`,
+                    log:        `Published ${recipes.length} recipe(s)`,
                 };
             }
             catch (error) {

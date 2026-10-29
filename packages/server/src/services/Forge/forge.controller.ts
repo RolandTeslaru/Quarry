@@ -56,11 +56,11 @@ export class ForgeController {
         return { job: await this.forge.getJob(principal, rid) };
     }
 
-    @Get('job-specs/current')
-    public async getCurrentJobSpec(
+    @Get('recipes/current')
+    public async getCurrentRecipe(
         @CurrentPrincipal() principal: Principal.User,
-        @Query(new ZodPipe(API.GetCurrentJobSpec.Query)) query: API.GetCurrentJobSpec.Query,
-    ): Promise<API.GetCurrentJobSpec.Response> {
-        return { jobSpec: await this.forge.jobSpecs.getCurrent(principal, query.datasetRid, [query.branch]) };
+        @Query(new ZodPipe(API.GetCurrentRecipe.Query)) query: API.GetCurrentRecipe.Query,
+    ): Promise<API.GetCurrentRecipe.Response> {
+        return { recipe: await this.forge.recipes.getCurrent(principal, query.datasetRid, [query.branch]) };
     }
 }

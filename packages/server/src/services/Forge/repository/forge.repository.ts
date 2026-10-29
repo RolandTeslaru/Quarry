@@ -6,13 +6,13 @@ import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
 import { ForgeDB } from '../forge.db';
 import { BuildRepository, type NewBuild } from './build.repository';
 import { JobRepository, type NewJob } from './job.repository';
-import { JobSpecRepository } from './job-spec.repository';
+import { RecipeRepository } from './recipe.repository';
 
 /**
  * The `forge` schema. A write that spans builds and jobs is a method here, so
  * it is one transaction — the sub-repositories' calls join it. `build`, `job`
- * and `jobSpec` expose only what is safe on its own: the pieces of those
- * writes (start, finish, end, …) stay private (`_build`, `_job`, `_jobSpec`),
+ * and `recipe` expose only what is safe on its own: the pieces of those
+ * writes (start, finish, end, …) stay private (`_build`, `_job`, `_recipe`),
  * so a service can't commit half.
  *
  * Expose a sub-repository method only if it is, by itself, a complete and valid
@@ -28,12 +28,12 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
     public readonly build:   Pick<BuildRepository, 'get' | 'list'>;
     public readonly job:     Pick<JobRepository, 'get' | 'listForBuild' | 'heartbeat'>;
-    public readonly jobSpec: Pick<JobSpecRepository, 'publish' | 'getCurrent' | 'get'>;
+    public readonly recipe: Pick<RecipeRepository, 'publish' | 'getCurrent' | 'get'>;
 
     constructor(
         private readonly _build:   BuildRepository,
         private readonly _job:     JobRepository,
-        private readonly _jobSpec: JobSpecRepository,
+        private readonly _recipe: RecipeRepository,
         @InjectDurableQueue(Forge.DurableQueue.RunJob)
         private readonly _runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
     ) {
@@ -41,7 +41,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
         this.build = _build;
         this.job = _job;
-        this.jobSpec = _jobSpec;
+        this.recipe = _recipe;
     }
 
     // ── builds ──────────────────────────────────────────────────────────
@@ -98,7 +98,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
     // ── running jobs (ForgeAgents) ──────────────────────────────────────
 
     /**
-     * A ForgeAgent takes the job and gets its spec — in one transaction, so a
+     * A ForgeAgent takes the job and gets its recipe — in one transaction, so a
      * job is never left running without its agent knowing what to run — and its
      * message is acked. Null if this attempt isn't waiting to start.
      */
@@ -110,11 +110,11 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
             return null;
 
         // The FK guarantees it exists; a failure here undoes the start.
-        const jobSpec = await this._jobSpec.get(principal, job.jobSpecRid);
+        const recipe = await this._recipe.get(principal, job.recipeRid);
 
         await this._ackRunJobs([job]);
 
-        return { job, jobSpec: jobSpec! };
+        return { job, recipe: recipe! };
     }
 
     /**
@@ -166,8 +166,8 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
         const jobs = await this._job.listForBuild(principal, finished.buildRid);
 
-        const succeeded = new Set(jobs.filter((job) => job.status === 'succeeded').map((job) => job.jobSpecRid));
-        const ready = Forge.Build.Plan.getReadyChildren(build!.plan, finished.jobSpecRid, succeeded);
+        const succeeded = new Set(jobs.filter((job) => job.status === 'succeeded').map((job) => job.recipeRid));
+        const ready = Forge.Build.Plan.getReadyChildren(build!.plan, finished.recipeRid, succeeded);
 
         return this._job.schedule(principal, finished.buildRid, ready);
     }

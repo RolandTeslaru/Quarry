@@ -17,8 +17,8 @@ import { LibraryService } from '@/services/Library/library.service';
 
 export const MAIN = Foundations.Branch.parse('main');
 
-/** A spec to publish, by dataset name: what it reads, what it writes. */
-export interface SpecShape {
+/** A recipe to publish, by dataset name: what it reads, what it writes. */
+export interface RecipeShape {
     readonly name:    string;
     readonly inputs:  string[];
     readonly outputs: string[];
@@ -99,16 +99,16 @@ export class ForgeHarness {
         return { projectRid: project.rid, datasets };
     }
 
-    /** Publishes the specs, producer = the project (any library resource will do). Returns them by spec name. */
+    /** Publishes the recipes, producer = the project (any library resource will do). Returns them by recipe name. */
     public async publish(
         principal:   Principal.User,
         producerRid: Catalog.Dataset.Schema['parentRid'],
         datasets:    Record<string, Catalog.Dataset.Rid>,
-        shapes:      SpecShape[],
+        shapes:      RecipeShape[],
         branch:      Foundations.Branch = MAIN,
-    ): Promise<Record<string, Forge.JobSpec.Schema>> {
-        const specs = await this.forge.jobSpecs.publish(principal, producerRid, branch, shapes.map((shape) => ({
-            logic: Forge.JobSpec.Logic.parse({
+    ): Promise<Record<string, Forge.Recipe.Schema>> {
+        const recipes = await this.forge.recipes.publish(principal, producerRid, branch, shapes.map((shape) => ({
+            logic: Forge.Recipe.Logic.parse({
                 type:         'code-workspace',
                 workspaceRid: 'ri.code-workspace.main.workspace.01a1729a-975b-70de-8141-89cca28b34d2',
                 commit:       'a'.repeat(40),
@@ -119,7 +119,7 @@ export class ForgeHarness {
             resources:         { cpuCores: 1, memoryGb: 4 },
         })));
 
-        return Object.fromEntries(shapes.map((shape, index) => [shape.name, specs[index]]));
+        return Object.fromEntries(shapes.map((shape, index) => [shape.name, recipes[index]]));
     }
 
     /** A manual build of these datasets on main. */
@@ -144,28 +144,28 @@ export class ForgeHarness {
         });
     }
 
-    /** The build's jobs now, by the name of the spec each runs. */
-    public async jobsBySpec(
+    /** The build's jobs now, by the name of the recipe each runs. */
+    public async jobsByRecipe(
         principal: Principal.User,
         buildRid:  Forge.Build.Rid,
-        specs:     Record<string, Forge.JobSpec.Schema>,
+        recipes:     Record<string, Forge.Recipe.Schema>,
     ): Promise<{ build: Forge.Build.Schema; jobs: Record<string, Forge.Job.Schema> }> {
         const found = await this.forge.getBuild(principal, buildRid);
-        const names = Object.fromEntries(Object.entries(specs).map(([name, spec]) => [spec.rid, name]));
+        const names = Object.fromEntries(Object.entries(recipes).map(([name, recipe]) => [recipe.rid, name]));
 
         return {
             build: found.build,
-            jobs:  Object.fromEntries(Object.values(found.jobs).map((job) => [names[job.jobSpecRid], job])),
+            jobs:  Object.fromEntries(Object.values(found.jobs).map((job) => [names[job.recipeRid], job])),
         };
     }
 
-    /** The statuses of the build's jobs, by spec name — the shape most assertions check. */
+    /** The statuses of the build's jobs, by recipe name — the shape most assertions check. */
     public async statuses(
         principal: Principal.User,
         buildRid:  Forge.Build.Rid,
-        specs:     Record<string, Forge.JobSpec.Schema>,
+        recipes:     Record<string, Forge.Recipe.Schema>,
     ): Promise<Record<string, Forge.Job.Status>> {
-        const { jobs } = await this.jobsBySpec(principal, buildRid, specs);
+        const { jobs } = await this.jobsByRecipe(principal, buildRid, recipes);
 
         return Object.fromEntries(Object.entries(jobs).map(([name, job]) => [name, job.status]));
     }
