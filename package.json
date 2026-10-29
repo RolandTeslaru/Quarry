@@ -15,9 +15,10 @@
         "dev:forge-agent": "npm run dev --workspace=packages/forge-agent",
         "migrate": "npm run migrate --workspace=packages/server",
         "test": "npm run test --workspace=packages/shared --workspace=packages/server",
-        "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/integrations --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/forge-agent --workspace=packages/code-workspace-extension --workspace=packages/standard-ui --workspace=packages/frontend",
+        "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/integrations --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/forge-agent --workspace=packages/code-workspace-runtime --workspace=packages/code-workspace-extension --workspace=packages/standard-ui --workspace=packages/frontend",
         "build": "npm run build --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/forge-agent --workspace=packages/frontend",
         "build:code-workspace-ide": "npm run package --workspace=packages/code-workspace-extension && docker build -f docker/code-workspace-ide/Dockerfile -t quarry/code-workspace-ide:dev .",
+        "build:code-workspace-runtime": "npm run build --workspace=packages/code-workspace-runtime && docker build -f docker/code-workspace-runtime/Dockerfile -t quarry/code-workspace-runtime:dev .",
         "infra": "docker compose up -d postgres redis gotrue seaweedfs seaweedfs-init",
         "dev:frontend": "npm run dev --workspace=packages/frontend"
     },

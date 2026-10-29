@@ -37,6 +37,8 @@ class LogService implements Log {
 
     private appName = 'App';
 
+    private stderrOnly = false;
+
     // Read per call so loggers created before dotenv still use its configuration.
     private get threshold(): number {
         if (this.override)
@@ -61,6 +63,11 @@ class LogService implements Log {
 
     public setAppName(name: string): void {
         this.appName = name;
+    }
+
+    /** Every level to stderr: for a process whose stdout carries a protocol (a runtime). */
+    public useStderr(): void {
+        this.stderrOnly = true;
     }
 
     private get app(): string {
@@ -95,7 +102,7 @@ class LogService implements Log {
 
         let sink = console.log;
 
-        if (level === 'error')
+        if (this.stderrOnly || level === 'error')
             sink = console.error;
         else if (level === 'warning')
             sink = console.warn;

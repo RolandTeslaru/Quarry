@@ -1,11 +1,9 @@
 /// <reference types="node" />
 import { Injectable } from '@nestjs/common';
 import axios, { isAxiosError, type AxiosInstance } from 'axios';
-import { Forge } from '@quarry/shared/domain';
+import { Forge, Stdio } from '@quarry/shared/domain';
 import { requireEnv } from '@quarry/shared/server/env';
 import { System } from '@quarry/shared/server/system';
-
-import Agent = Forge.API.Agent;
 
 /** How long the agent waits for one server answer. */
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -48,9 +46,9 @@ export class ForgeServerClient {
     }
 
     /** Null if this attempt isn't waiting to be claimed — a duplicate message, or a canceled build. */
-    public async claim(message: Forge.Queue.RunJob.Job): Promise<Agent.Claim.Response | null> {
+    public async claim(message: Forge.Queue.RunJob.Job): Promise<Forge.API.Agent.Claim.Response | null> {
         try {
-            return await Agent.claim(this.api, message.jobRid, { attempt: message.attempt });
+            return await Forge.API.Agent.claim(this.api, message.jobRid, { attempt: message.attempt });
         }
         catch (error) {
             if (isAxiosError(error) && error.response?.status === 409)
@@ -60,14 +58,18 @@ export class ForgeServerClient {
         }
     }
 
-    public async heartbeat(message: Forge.Queue.RunJob.Job): Promise<Agent.Heartbeat.Response> {
-        return Agent.heartbeat(this.api, message.jobRid, { attempt: message.attempt });
+    public async heartbeat(message: Forge.Queue.RunJob.Job): Promise<Forge.API.Agent.Heartbeat.Response> {
+        return Forge.API.Agent.heartbeat(this.api, message.jobRid, { attempt: message.attempt });
     }
 
     /** False if the server refused it: the job was canceled while it ran (its build canceled or failed). */
-    public async finish(message: Forge.Queue.RunJob.Job, status: 'succeeded' | 'failed'): Promise<boolean> {
+    public async finish(message: Forge.Queue.RunJob.Job, outcome: Stdio.Payload<Forge.Runtime.Run.Response>): Promise<boolean> {
         try {
-            await Agent.finish(this.api, message.jobRid, { attempt: message.attempt, status });
+            await Forge.API.Agent.finish(this.api, message.jobRid, {
+                attempt: message.attempt,
+                status:  outcome.status,
+                failure: outcome.failure,
+            });
 
             return true;
         }

@@ -2,7 +2,7 @@
     "name": "@quarry/forge-agent",
     "version": "0.0.1",
     "private": true,
-    "description": "ForgeAgent: one per compute machine. Takes Forge jobs from the queue and reports them to the server's ForgeAgent API (/api/forge-agent/…). No database access. Scaffold: no compute yet — it starts each job and finishes it straight away.",
+    "description": "ForgeAgent: one per compute machine. Takes Forge jobs from the queue, runs each in its runtime's container (docs/design/forge-runtimes.md) and reports them to the server's ForgeAgent API (/api/forge-agent/…). No database access.",
     "scripts": {
         "dev": "nodemon -w src -w ../shared -e ts,json --exec ts-node -r tsconfig-paths/register src/main.ts",
         "build": "rm -rf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",

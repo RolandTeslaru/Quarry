@@ -138,6 +138,9 @@ return (
 - Reuse the domain types and API contracts from `@quarry/shared`.
 - `<Domain>.Event` is reserved for realtime events (a channel and its event union, docs/design/realtime.md).
   Anything else named after events gets its own name — Audit's records are `Audit.AccessEvent`.
+  A plain `<Domain>.Event` implies the usual transport, Redis. Another transport has its own base namespace that
+  domains extend, as they extend `Realtime`: a runtime's stdio messages build on `Stdio` (`Stdio.Event`,
+  `Stdio.Request.Base`), and Forge's calls are `Forge.Runtime.Run`.
 - Use domain RID types instead of plain strings when the value is a known RID.
   Name them `rid`, `sourceRid`, `datasetRid`, and similar; do not rename RIDs to IDs.
 - Use explicit types for public action contracts, SDK state, and component props.

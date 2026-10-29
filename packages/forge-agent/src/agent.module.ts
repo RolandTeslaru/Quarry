@@ -4,6 +4,7 @@ import type { Queue } from 'bullmq';
 import { Forge } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { ForgeServerClient } from './forge-server.client';
+import { JobContainers } from './job-containers';
 import { RunJobProcessor } from './run-job.processor';
 
 /** For container probes: up, and able to reach Redis (where its jobs come from). */
@@ -38,6 +39,6 @@ export class HealthController {
         BullModule.registerQueue({ name: Forge.Queue.RunJob.Definition.name }),
     ],
     controllers: [HealthController],
-    providers:   [ForgeServerClient, RunJobProcessor],
+    providers:   [ForgeServerClient, JobContainers, RunJobProcessor],
 })
 export class AgentModule {}

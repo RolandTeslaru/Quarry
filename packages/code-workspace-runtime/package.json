@@ -1,0 +1,24 @@
+{
+    "name": "@quarry/code-workspace-runtime",
+    "version": "0.0.1",
+    "private": true,
+    "description": "The Code Workspaces runtime: a Nest microservice over stdio, run as the main process of a Forge job container (image quarry/code-workspace-runtime). Spawns Python as the transform user. See docs/design/forge-runtimes.md.",
+    "scripts": {
+        "build": "rm -rf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && esbuild dist/code-workspace-runtime/src/main.js --bundle --platform=node --target=node22 --outfile=dist/runtime.js --external:@nestjs/websockets --external:@nestjs/platform-express --external:class-transformer --external:class-validator --external:@grpc/* --external:kafkajs --external:mqtt --external:nats --external:ioredis --external:amqplib --external:amqp-connection-manager",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@nestjs/common": "^11.1.16",
+        "@nestjs/core": "^11.1.16",
+        "@nestjs/microservices": "11.2.7",
+        "@quarry/shared": "*",
+        "reflect-metadata": "^0.2.2",
+        "rxjs": "^7.8.2",
+        "zod": "^4.3.6"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.2",
+        "esbuild": "^0.28.2",
+        "tsc-alias": "^1.9.2"
+    }
+}

@@ -4,7 +4,6 @@ import { ForgeAgentOnly } from '@/auth/current-principal';
 import { ZodPipe } from '@/http/zod.pipe';
 import { ForgeAgentService } from './forge-agent.service';
 
-import Agent = Forge.API.Agent;
 const JobRidParam = new ZodPipe(Forge.Job.Rid);
 
 /**
@@ -21,8 +20,8 @@ export class ForgeAgentController {
     @HttpCode(200)
     public async claim(
         @Param('rid', JobRidParam) rid: Forge.Job.Rid,
-        @Body(new ZodPipe(Agent.Claim.Request)) body: Agent.Claim.Request,
-    ): Promise<Agent.Claim.Response> {
+        @Body(new ZodPipe(Forge.API.Agent.Claim.Request)) body: Forge.API.Agent.Claim.Request,
+    ): Promise<Forge.API.Agent.Claim.Response> {
         return this.agent.claimJob(rid, body.attempt);
     }
 
@@ -30,8 +29,8 @@ export class ForgeAgentController {
     @HttpCode(200)
     public async heartbeat(
         @Param('rid', JobRidParam) rid: Forge.Job.Rid,
-        @Body(new ZodPipe(Agent.Heartbeat.Request)) body: Agent.Heartbeat.Request,
-    ): Promise<Agent.Heartbeat.Response> {
+        @Body(new ZodPipe(Forge.API.Agent.Heartbeat.Request)) body: Forge.API.Agent.Heartbeat.Request,
+    ): Promise<Forge.API.Agent.Heartbeat.Response> {
         return this.agent.heartbeatJob(rid, body.attempt);
     }
 
@@ -39,8 +38,8 @@ export class ForgeAgentController {
     @HttpCode(200)
     public async finish(
         @Param('rid', JobRidParam) rid: Forge.Job.Rid,
-        @Body(new ZodPipe(Agent.Finish.Request)) body: Agent.Finish.Request,
-    ): Promise<Agent.Finish.Response> {
+        @Body(new ZodPipe(Forge.API.Agent.Finish.Request)) body: Forge.API.Agent.Finish.Request,
+    ): Promise<Forge.API.Agent.Finish.Response> {
         return this.agent.finishJob(rid, body);
     }
 }

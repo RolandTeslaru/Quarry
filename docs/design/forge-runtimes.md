@@ -1,6 +1,6 @@
 # Forge — Runtimes and delegates
 
-_Design, 2026-10-29. Nothing here is built. Decided with the user: runtimes as Nest microservices over stdio; one container per job; inputs read through presigned URLs; one shared uv cache per ForgeAgent machine. Extends [forge.md](forge.md) §5 (ForgeAgents and job containers); preview today is described in [transforms.md](transforms.md)._
+_Design, 2026-10-29. **Phase 1 built 2026-10-29** (the plumbing, §8): the contract, the stdio transport, the code-workspace runtime and its image, the ForgeAgent running jobs in containers. Everything after it is design. Decided with the user: runtimes as Nest microservices over stdio; one container per job; inputs read through presigned URLs; one shared uv cache per ForgeAgent machine. Extends [forge.md](forge.md) §5 (ForgeAgents and job containers); preview today is described in [transforms.md](transforms.md)._
 
 A **runtime** is what does a Quarry application's compute. Every application that produces recipes has one: Code Workspaces first, later Pipeline Builder and Data Connection. It runs inside a container, takes instructions over stdio, and is the one interface for everything that wants that application's compute — a ForgeAgent running a build job, the IDE running a preview, a check run listing transforms.
 
@@ -105,36 +105,40 @@ sequenceDiagram
 
 So the runtime needs no HTTP server and no port. It's a Nest microservice with a **custom transport** (Nest ships TCP, Redis, NATS, MQTT, RabbitMQ, Kafka and gRPC, and supports custom ones):
 
-- `StdioServer extends Server implements CustomTransportStrategy`, in the runtime: reads stdin a line at a time, dispatches each message to its `@MessagePattern` handler, writes replies and events to stdout.
-- `StdioClient`, in the ForgeAgent, the extension and the check worker: starts the process, writes requests, matches replies by `id`.
-- The messages are a zod contract in `@quarry/shared` (`Runtime.*`), like `Forge.API.Agent`.
+- **`Stdio`** (`packages/shared/domain/Stdio/Stdio.ts`) is the base, as `Realtime` is for events over Redis: `Stdio.Request.Base`, `Stdio.Response.Base`, `Stdio.Error`, `Stdio.Event` (`Ready`, `Log` — the transport's own), `Stdio.FromProcess`, `Stdio.PROTOCOL`, and `Stdio.Payload<M>` — a message without its envelope (`type`, `id`, `pattern`): what a handler returns and a caller passes.
+- **A domain's calls extend it.** `Forge.Runtime.Run` (`packages/shared/domain/Forge/Runtime.ts`) is `Stdio.Request.Base.extend({ pattern: z.literal("run"), job, recipe })` and `Stdio.Response.Base.extend({ status, failure })` — fields directly on the message, as a domain's events sit on `Realtime.Event.Base`, so no `data` wrapper. A domain's fields never use the envelope's names (`type`, `id`, `pattern`, `event`). Code Workspaces' `describe` and `preview` will extend it the same way. `Forge.Recipe.Runtime` says which runtime a recipe uses; `Forge.Runtime` is what Forge asks of one.
+- **`StdioServer`** (`@quarry/shared/server/stdio/stdio-server`), in the runtime: a `CustomTransportStrategy`, given the request schemas the runtime serves (`new StdioServer('code-workspace', [Forge.Runtime.Run.Request])`). It reads stdin a line at a time, parses each line whole against the schema of its pattern (the envelope only says which) before the `@MessagePattern` handler gets the request, and writes the handler's payload as the response — or the error — to stdout. `sendEvent({ event: 'log', stream, line })` writes an event.
+- **`StdioClient`** (`…/stdio/stdio-client`), for whoever started the runtime — the ForgeAgent now, the extension and the check worker later: `request(Forge.Runtime.Run, { job, recipe })` sends the payload with the call's pattern and returns the parsed response; `log` events go to a callback. If the runtime exits, everything still waiting fails with its exit code; a line that breaks the protocol kills the runtime and fails what's waiting with the reason, never the caller's own process.
 
 ```ts
-const app = await NestFactory.createMicroservice(RuntimeModule, { strategy: new StdioServer() });
+const app = await NestFactory.createMicroservice(RuntimeModule, {
+    strategy: new StdioServer('code-workspace', [Forge.Runtime.Run.Request]),
+    logger:   ['error'],                                  // Nest logs below error to stdout
+});
 
 @Controller()
 export class RuntimeController {
-    @MessagePattern('describe') describe() { … }                                    // the transforms
-    @MessagePattern('preview')  preview(@Payload() request: Runtime.Preview.Request) { … }
-    @MessagePattern('run')      run(@Payload() request: Runtime.Run.Request) { … }
-    @MessagePattern('cancel')   cancel() { … }                                      // kills the child
+    @MessagePattern('run') run(@Payload() request: Forge.Runtime.Run.Request) { … }   // built: returns Stdio.Payload<Run.Response>
+    // later: describe (the transforms), preview, cancel
 }
 ```
 
-One JSON message per line:
+One JSON message per line, each with its `type`:
 
 ```mermaid
 sequenceDiagram
     participant D as ForgeAgent (parent)
     participant R as Runtime (child)
-    D->>R: stdin {"id":1,"pattern":"run","data":{ job, recipe, inputs, outputs, token }}
-    R-->>D: stdout {"event":"log","data":{ … }}
-    R-->>D: stdout {"event":"progress","data":{ … }}
-    R-->>D: stdout {"id":1,"response":{"status":"succeeded"}}
-    D->>R: stdin {"id":2,"pattern":"cancel"}
+    R-->>D: stdout {"type":"event","event":"ready","runtime":"code-workspace","protocol":1}
+    D->>R: stdin {"type":"request","id":1,"pattern":"run","job":{ … },"recipe":{ … }}
+    R-->>D: stdout {"type":"event","event":"log","stream":"stdout","line":"…"}
+    R-->>D: stdout {"type":"response","id":1,"status":"succeeded","failure":null}
+    Note over D,R: a handler that throws answers {"type":"error","id":1,"message":"…"}
 ```
 
-stdout is only for protocol messages; anything else the runtime logs goes to stderr. A closed stdin means stop.
+**`ready` comes first.** The runtime says which runtime it is and which protocol it speaks; the caller refuses anything else (`waitUntilReady`). It's also the "booted" signal: the caller sends nothing before it. The images are pinned to the agent's release (`FORGE_AGENT_RUNTIME_TAG`), so for jobs a mismatch only happens when something is pinned wrong; the IDE's long-lived runtime is where the check really matters.
+
+stdout is only for protocol messages. The runtime's own logs go to stderr (`System.log.useStderr()`), and so does Nest's, at error level only. A closed stdin means stop: the runtime exits, even mid-request.
 
 ### Who starts it, and for what
 
@@ -157,18 +161,21 @@ sequenceDiagram
     participant S as Server
     D->>C: docker run -i --rm image runtime
     Note over C: container starts = runtime starts
-    D->>C: run { job }
-    C-->>D: log, progress (heartbeats)
-    C-->>D: done { status }
+    C-->>D: ready
+    D->>C: run { job, recipe }
+    Note over D: renews the lease every 10 s while it waits
+    C-->>D: log events
+    C-->>D: response { status }
+    D->>C: closes stdin
     Note over C: runtime exits, container stops,<br/>--rm deletes it
     D->>S: POST finish
 ```
 
-- **Normally nothing is killed.** The runtime sends `done` and exits; the container ends with it.
+- **Normally nothing is killed.** The runtime answers `run`, the ForgeAgent closes its stdin, it exits, and the container ends with it.
 - **Killed only when something's wrong:** a cancel (the heartbeat reply says `stop`), a timeout, or a runtime that sent `done` but doesn't exit (killed after a short grace).
 - **If the agent restarts mid-job,** the pipe is gone and nobody is listening. The runtime treats a closed stdin as stop; the reaper fails a job with no heartbeat and kills what's left.
 
-The ForgeAgent turns `log` and `progress` into heartbeats, and `done` into `finish`.
+The ForgeAgent renews the job's lease every 10 s while the runtime runs — on a timer, not on events, since a transform can compute for minutes without printing — logs its `log` events, and turns the response into `finish`. A runtime that exits, breaks the protocol or never says `ready` fails the job with that reason.
 
 ### Inside the code-workspace runtime
 
@@ -218,11 +225,13 @@ A runtime **carries** permissions; it can't **enforce** them. It runs in the sam
 | Preview (IDE) | the session's token | the user |
 | Check run | the run's token | the pusher |
 
-In a job, **Python never gets the token**. The runtime holds it and gives Python only presigned URLs for its own pinned inputs and a local folder to write to. **Python runs as its own OS user** (decided 2026-10-29). The image has two users: `runtime`, which the runtime runs as, and `transform`, which every Python child is spawned as (`uid`/`gid` on `spawn`). A process can read everything of another process of the same user — its environment (`/proc/<pid>/environ`), its memory, its files — so with one user, a transform could read the token straight out of the runtime. With two, the child gets only what it's handed:
+In a job, **Python never gets the token**. The runtime holds it and gives Python only presigned URLs for its own pinned inputs and a local folder to write to. **Python runs as its own OS user** (decided 2026-10-29, built in phase 1). A process can read everything of another process of the same user — its environment (`/proc/<pid>/environ`), its memory, its files — so with one user, a transform could read the token straight out of the runtime. Every Python child is spawned as `transform` (uid 1001, `uid`/`gid` on `spawn`).
+
+Switching users takes the right to switch, so the runtime runs as **root inside the container, with every capability dropped except switching users**: the ForgeAgent starts job containers with `--cap-drop ALL --cap-add SETUID --cap-add SETGID --security-opt no-new-privileges`. Switching from root to `transform` drops even those, so the child has no capabilities at all, can't switch back, and can't read the runtime's process. The child gets only what it's handed:
 
 - **A clean environment.** The child is spawned with an explicit `env` (`PATH`, `HOME`, `UV_CACHE_DIR`, the job's settings), never the runtime's own — nothing the runtime knows leaks through variables.
 - **No access to the runtime's files.** The runtime's working files and `job.json` drafts are readable by `runtime` only; the child gets its own job file and scratch directory, owned by `transform`.
-- **Not root.** Neither user is root, so the child can't switch users or read other processes.
+- **No capabilities.** `transform` isn't root and holds none, so it can't switch users or read other processes.
 
 ## 5. Reading inputs
 
@@ -355,7 +364,7 @@ sequenceDiagram
 ```
 
 - **Rolling files.** `write_table` pulls the result in batches (a Polars LazyFrame's batches, DuckDB's `fetch_record_batch`, or Arrow directly) and writes them with pyarrow's `ParquetWriter`, starting a new file every ~256 MB. It still streams: the whole output is never in memory. A DataFrame or Arrow table that's already in memory is split the same way.
-- **A file is announced only when it's complete.** Python writes `part-N.parquet.tmp`, closes it, renames it to `part-N.parquet`, then prints `{"event":"file-ready","path":…}` on its stdout to the runtime — the same stdio pattern as ForgeAgent ↔ runtime, one level down. A Parquet file is only valid once its footer is written, so a half-written file is never uploaded.
+- **A file is announced only when it's complete.** Python writes `part-N.parquet.tmp`, closes it, renames it to `part-N.parquet`, then writes `{"type":"event","event":"file-ready","path":…}` to the runtime on **file descriptor 3** — a pipe of its own, because Python's stdout and stderr carry the transform's own prints (relayed as `log` events). The same line protocol as ForgeAgent ↔ runtime, one level down. A Parquet file is only valid once its footer is written, so a half-written file is never uploaded.
 - **The runtime uploads, not Python** — uploading needs the token, and retries are the runtime's problem, not the user's. It uploads a few files in parallel, and registers each on the open transaction once it's stored.
 - **Backpressure.** If uploads fall behind, Python waits once N finished files are still waiting to upload. The scratch disk only ever needs a few files' worth of room.
 - **The schema** is read from the Parquet files and mapped to Catalog's column types (`preview.py`'s `column_type` already does this).
@@ -368,13 +377,15 @@ In phases, each small enough to read and review on its own (decided 2026-10-29):
 
 | Phase | What | Proves |
 |---|---|---|
-| **1. Plumbing** | the `Runtime.*` contract and the stdio transport; the code-workspace runtime and its compute image; the ForgeAgent starting it (`runtimeImages`, limits, `/cache`), `run` over stdin, events → heartbeats, `done` → `finish`, kill on stop. `run` spawns Python as `transform`, which only imports `quarry.transforms` and exits. No token, no code, no data | a job reaches a runtime in its own container and comes back |
+| **1. Plumbing** | the `Forge.Runtime` contract and the stdio transport; the code-workspace runtime and its compute image; the ForgeAgent starting it (`runtimeImages`, limits, `/cache`), `run` over stdin, events → heartbeats, `done` → `finish`, kill on stop. `run` spawns Python as `transform`, which only imports `quarry.transforms` and exits. No token, no code, no data | a job reaches a runtime in its own container and comes back |
 | **2. The code** | the job token at `claim`; the runtime checks out the commit, `uv sync --frozen` with `/cache`, imports the pipeline, finds the transform and checks its inputs and outputs against the recipe | the right code runs in the right environment |
 | **3. Reading** | presigning; input passes; `TransformInput` from URLs; lazy reads | a transform reads its pinned inputs |
 | **4. Writing** | upload passes; rolling files and `file-ready`; registering files; `commitBatch` on `finish` | a build writes new versions |
 | **5. Callers** | the extension's preview and the check worker's manifest go through the runtime | one path for preview, checks and builds |
 
 The items below say what each part needs; the table says when.
+
+**Phase 1, as built:** `Stdio` in `packages/shared/domain/Stdio/Stdio.ts` and `Forge.Runtime` in `packages/shared/domain/Forge/Runtime.ts`; `StdioServer` and `StdioClient` in `packages/shared/server/stdio/`; the runtime in `packages/code-workspace-runtime/` (`main.ts`, `runtime.module.ts`, `runtime.controller.ts`; `npm run build` bundles it into `dist/runtime.js`); its image in `docker/code-workspace-runtime/` (`npm run build:code-workspace-runtime` → `quarry/code-workspace-runtime:dev`); the ForgeAgent's `JobContainers` (`docker run` and `docker kill`) and `RunJobProcessor` in `packages/forge-agent/src/`. Verified end to end by `test/e2e/forge-agent.e2e.test.ts` (a real ForgeAgent, real containers, the runtime's Python reporting uid 1001). `finish` still aborts the outputs: nothing is written until phase 4.
 
 **Server**
 
@@ -386,7 +397,7 @@ The items below say what each part needs; the table says when.
 
 **Shared**
 
-6. `Runtime.*`: the message contract (`describe`, `preview`, `run`, `cancel`, events `log`, `progress`).
+6. `Stdio` and `Forge.Runtime`: the message contract — built with `Forge.Runtime.Run` and the events `Stdio.Event.Ready` and `Stdio.Event.Log`; `describe`, `preview` and `cancel` come with their callers.
 7. The stdio transport: `StdioServer` (custom transport strategy) and `StdioClient`.
 
 **Code-workspace runtime**

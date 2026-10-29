@@ -143,11 +143,14 @@ describe('a real ForgeAgent', () => {
         await harness.agent.claimJob(job.rid, 1).catch(() => undefined);        // the real agent may have taken it first
         await harness.forge.cancelBuild(user, build.rid).catch(() => undefined);
 
-        const late = harness.agent.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null });
+        const refusal = await harness.agent.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null }).then(
+            () => null,
+            (error: unknown) => error,
+        );
         const after = await harness.forge.getJob(user, job.rid);
 
         if (after.status === 'canceled')
-            await expect(late).rejects.toThrow(/isn't running/);
+            expect(refusal).toMatchObject({ message: expect.stringMatching(/isn't running/) });
     });
 });
 

@@ -24,7 +24,7 @@ export namespace Job {
     export const Schema = z.object({
         rid:                   Rid,
         buildRid:              Build.Rid,
-        recipeRid:            Recipe.Rid,
+        recipeRid:             Recipe.Rid,
         status:                Status,
         attempt:               z.number().int().positive(),         // 1, then each retry
         inputs:                z.record(Dataset.Rid, Transaction.Rid).nullable(),   // the version of each input it read, pinned when it starts
