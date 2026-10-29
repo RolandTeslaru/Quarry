@@ -108,7 +108,7 @@ export class ForgeHarness {
         branch:      Foundations.Branch = MAIN,
     ): Promise<Record<string, Forge.Recipe.Schema>> {
         const recipes = await this.forge.recipes.publish(principal, producerRid, branch, shapes.map((shape) => ({
-            driver: Forge.Recipe.Driver.parse({
+            runtime: Forge.Recipe.Runtime.parse({
                 type:         'code-workspace',
                 workspaceRid: 'ri.code-workspace.main.workspace.01a1729a-975b-70de-8141-89cca28b34d2',
                 commit:       'a'.repeat(40),

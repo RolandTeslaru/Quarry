@@ -40,7 +40,7 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
         this.log.info(`Picked up ${message.jobRid} (attempt ${message.attempt})`, {
             build:     job.buildRid,
             recipe:    recipe.rid,
-            transform: recipe.driver.transform,
+            transform: recipe.runtime.transform,
             outputs:   Object.keys(job.outputs).length,
         });
 

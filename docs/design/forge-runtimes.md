@@ -1,0 +1,395 @@
+# Forge — Runtimes and delegates
+
+_Design, 2026-10-29. Nothing here is built. Decided with the user: runtimes as Nest microservices over stdio; one container per job; inputs read through presigned URLs; one shared uv cache per ForgeAgent machine. Extends [forge.md](forge.md) §5 (ForgeAgents and job containers); preview today is described in [transforms.md](transforms.md)._
+
+A **runtime** is what does a Quarry application's compute. Every application that produces recipes has one: Code Workspaces first, later Pipeline Builder and Data Connection. It runs inside a container, takes instructions over stdio, and is the one interface for everything that wants that application's compute — a ForgeAgent running a build job, the IDE running a preview, a check run listing transforms.
+
+## 1. The pieces
+
+```mermaid
+flowchart TB
+    subgraph server["Server"]
+        forge["<b>Forge</b><br/>plans the build, creates the jobs<br/>queues RunJob { jobRid, attempt }<br/>at start: pins the inputs, mints the job token"]
+    end
+
+    subgraph machine["Agent machine (one or many)"]
+        agent["<b>ForgeAgent</b><br/>picks a job when a slot is free<br/>image = runtimeImages[recipe.runtime.type]<br/>docker run, limits from recipe.compute<br/>heartbeats, kill on cancel"]
+        cache[("cache volume<br/>per runtime type, at /cache")]
+
+        subgraph container["Job container"]
+            runtime["<b>runtime</b><br/>Nest microservice<br/>receives run { job, token }"]
+            work["<b>the work</b><br/>code-workspace: spawns Python<br/>pipeline, data-connection: the runtime itself"]
+        end
+    end
+
+    storage[("Storage")]
+
+    forge -- "RunJob message" --> agent
+    agent -- "POST start / finish" --> forge
+    agent -- "stdin / stdout" --> runtime
+    cache -. "mounted" .- container
+    runtime --> work
+    runtime -- "job token: input URLs, uploads, register files" --> forge
+    work -- "reads and writes Parquet via presigned URLs" --> storage
+```
+
+| Application | `recipe.runtime.type` | Runtime image | Does the work |
+|---|---|---|---|
+| Code Workspaces | `code-workspace` | `quarry/code-workspace-runtime` | spawns Python (`quarry.transforms`) per operation |
+| Pipeline Builder (later) | `pipeline` | `quarry/pipeline-runtime` | itself: its engine |
+| Data Connection (later) | `data-connection` | `quarry/data-connection-runtime` | itself: the sync |
+
+Forge never knows a runtime's details. It plans, pins, locks, commits and aborts; the runtime is the application's.
+
+### Runtime images
+
+A recipe's `runtime` names the runtime that runs it (`type`) and holds what that runtime needs — for a workspace, `{ type: 'code-workspace', workspaceRid, commit, transform }`. The ForgeAgent has one map from type to image, and nothing else per application:
+
+```ts
+const runtimeImages: Record<Forge.Recipe.Runtime['type'], string> = {
+    'code-workspace': 'quarry/code-workspace-runtime:<version>',
+};
+```
+
+Everything else is the same for every runtime, so the ForgeAgent does it once: start the container (`docker run -i --rm`, limits from `recipe.compute`), mount the runtime type's **cache volume** at `/cache`, send `run` on stdin, turn `log` and `progress` into heartbeats, kill on stop, turn `done` into `finish`. A runtime uses `/cache` or ignores it — the code-workspace runtime keeps its uv cache there.
+
+A new application adds one entry to the map and builds its runtime image; it writes no ForgeAgent code. An unknown type throws, and the job fails. If per-lock environment images come back, the value becomes a function of the recipe.
+
+## 2. A job, end to end
+
+```mermaid
+sequenceDiagram
+    participant S as Forge (server)
+    participant Q as Queue (forge.run-job)
+    participant A as ForgeAgent
+    participant R as Runtime (container)
+    participant P as Python (child)
+    participant O as Storage
+
+    S->>Q: RunJob { jobRid, attempt }
+    Q->>A: message (a slot is free)
+    A->>S: POST jobs/:rid/start
+    S-->>A: job, recipe, pinned inputs, output transactions, job token
+    A->>R: docker run -i --rm <image> runtime  (cpus, memory from recipe.compute)
+    A->>R: stdin: run { job, recipe, inputs, outputs, token }
+    R->>S: GET jobs/:rid/inputs (token)
+    S-->>R: presigned GET URLs for the pinned files
+    R->>P: spawn python run job.json (URLs, scratch dir, no token)
+    P->>O: range GETs (footers, needed column chunks)
+    P->>P: transform, sink Parquet to /scratch/out
+    P-->>R: exit 0
+    R->>S: upload URLs, then register files on the transaction (token)
+    R->>O: PUT the output files
+    R-->>A: stdout: done { succeeded }
+    R-->>A: exits, the container stops and --rm deletes it
+    A->>S: POST jobs/:rid/finish
+    S->>S: commitBatch: the outputs become new versions
+```
+
+The message on the queue never carries the job or a credential: only `{ jobRid, attempt }`. Everything else comes from `start`, because that's when the job is claimed (scheduled → running, once), when the inputs get pinned, and when the token is minted. A credential never waits in Redis.
+
+## 3. Runtimes
+
+### A Nest microservice over stdio
+
+Every process has three pipes: **stdin** (input), **stdout** (output) and **stderr** (logs). Whoever starts a process holds its pipes: what the parent writes into the child's stdin, the child reads; what the child prints, the parent reads.
+
+```mermaid
+sequenceDiagram
+    participant P as Parent (ForgeAgent, extension or check worker)
+    participant R as Child (the runtime)
+    P->>R: stdin pipe: child.stdin.write(message), read by process.stdin
+    R-->>P: stdout pipe: process.stdout.write(reply), read by child.stdout.on('data')
+    Note right of R: stderr: the runtime's own logs
+```
+
+So the runtime needs no HTTP server and no port. It's a Nest microservice with a **custom transport** (Nest ships TCP, Redis, NATS, MQTT, RabbitMQ, Kafka and gRPC, and supports custom ones):
+
+- `StdioServer extends Server implements CustomTransportStrategy`, in the runtime: reads stdin a line at a time, dispatches each message to its `@MessagePattern` handler, writes replies and events to stdout.
+- `StdioClient`, in the ForgeAgent, the extension and the check worker: starts the process, writes requests, matches replies by `id`.
+- The messages are a zod contract in `@quarry/shared` (`Runtime.*`), like `Forge.API.Agent`.
+
+```ts
+const app = await NestFactory.createMicroservice(RuntimeModule, { strategy: new StdioServer() });
+
+@Controller()
+export class RuntimeController {
+    @MessagePattern('describe') describe() { … }                                    // the transforms
+    @MessagePattern('preview')  preview(@Payload() request: Runtime.Preview.Request) { … }
+    @MessagePattern('run')      run(@Payload() request: Runtime.Run.Request) { … }
+    @MessagePattern('cancel')   cancel() { … }                                      // kills the child
+}
+```
+
+One JSON message per line:
+
+```mermaid
+sequenceDiagram
+    participant D as ForgeAgent (parent)
+    participant R as Runtime (child)
+    D->>R: stdin {"id":1,"pattern":"run","data":{ job, recipe, inputs, outputs, token }}
+    R-->>D: stdout {"event":"log","data":{ … }}
+    R-->>D: stdout {"event":"progress","data":{ … }}
+    R-->>D: stdout {"id":1,"response":{"status":"succeeded"}}
+    D->>R: stdin {"id":2,"pattern":"cancel"}
+```
+
+stdout is only for protocol messages; anything else the runtime logs goes to stderr. A closed stdin means stop.
+
+### Who starts it, and for what
+
+| Caller | Starts it with | Sends | Lifetime |
+|---|---|---|---|
+| ForgeAgent | `docker run -i --rm <image> runtime` | one `run` | the job's: one job per container |
+| IDE (the extension) | spawn, inside the session container | `describe`, `preview` (many), `cancel` | the IDE's; restarted after a crash or a changed environment |
+| Check worker | `docker exec -i <container> runtime` | one `describe` (the manifest) | the check run's container |
+
+`describe` replaces `preview.py --list` and `manifest.py`; `preview` replaces `preview.py <name>`; `run` is new.
+
+### Lifetimes: a job container
+
+The runtime is the container's main process, so they live and die together.
+
+```mermaid
+sequenceDiagram
+    participant D as ForgeAgent
+    participant C as Container + runtime
+    participant S as Server
+    D->>C: docker run -i --rm image runtime
+    Note over C: container starts = runtime starts
+    D->>C: run { job }
+    C-->>D: log, progress (heartbeats)
+    C-->>D: done { status }
+    Note over C: runtime exits, container stops,<br/>--rm deletes it
+    D->>S: POST finish
+```
+
+- **Normally nothing is killed.** The runtime sends `done` and exits; the container ends with it.
+- **Killed only when something's wrong:** a cancel (the heartbeat reply says `stop`), a timeout, or a runtime that sent `done` but doesn't exit (killed after a short grace).
+- **If the agent restarts mid-job,** the pipe is gone and nobody is listening. The runtime treats a closed stdin as stop; the reaper fails a job with no heartbeat and kills what's left.
+
+The ForgeAgent turns `log` and `progress` into heartbeats, and `done` into `finish`.
+
+### Inside the code-workspace runtime
+
+The runtime coordinates; Python only runs transforms. Each `preview` or `run` spawns a **child process**, so a crash or out-of-memory doesn't take the runtime down, and edited code is imported fresh.
+
+```mermaid
+flowchart TB
+    run["run { job, token }"] --> inputs["GET inputs (token)<br/>presigned URLs"]
+    inputs --> jobjson["write job.json<br/>inputs: URLs, outputs: scratch dirs"]
+    jobjson --> spawn
+    subgraph spawn["spawn: python -m quarry.transforms.run job.json"]
+        direction TB
+        checkout["git checkout of the commit"] --> sync["uv sync --frozen (cache)"] --> load["import the pipeline"] --> transform["transform reads URLs,<br/>writes /scratch/out/output/part-N.parquet"]
+    end
+    spawn -- "exit 0 or 1" --> upload["upload + register the output files"]
+    upload --> done["done { status }"]
+```
+
+### Environment
+
+The code-workspace runtime installs the workspace's `uv.lock` when the job starts (`uv sync --frozen`), with its uv cache in `/cache` (`UV_CACHE_DIR=/cache/uv`) — the code-workspace runtime's cache **volume**: a folder Docker keeps on the host, outside any container, that survives the containers that mount it. Every code-workspace job container on a machine mounts the same one:
+
+```mermaid
+flowchart LR
+    subgraph machine["Agent machine"]
+        cache[("volume quarry-cache-code-workspace<br/>persists: polars, duckdb, …<br/>downloaded once")]
+        job1["job 1 container<br/>created → ran → deleted<br/>uv sync ~10 s, fills the cache"]
+        job2["job 2 container<br/>created → ran → deleted<br/>uv sync 0.1 s"]
+        job3["job 3 container<br/>…<br/>uv sync 0.1 s"]
+    end
+    job1 -- "writes" --> cache
+    cache -- "reads" --> job2
+    cache -- "reads" --> job3
+```
+
+Measured 2026-10-29 in `quarry/code-workspace-runtime:dev` with the template's dependencies: about 10–11 s with an empty cache, 0.1 s warm (also on a volume); a bare container starts and stops in 0.2 s. The packages installed in the image don't help `uv sync` — it installs the locked versions into the venv anyway.
+
+**Known risk, accepted for now:** the cache is writable by every job's code, so a malicious transform could tamper with cached packages that another workspace's job then installs and runs. Fixes when it matters: a cache volume per workspace, or a shared cache filled by a trusted step and mounted read-only in jobs.
+
+## 4. Delegates: who holds which token
+
+A runtime **carries** permissions; it can't **enforce** them. It runs in the same container as the user's code, so anything it holds, that code could read. Only the server enforces.
+
+| Where | Token | Narrowed to |
+|---|---|---|
+| Build job | the **job token**, minted at `start` | the pusher's delegated principal, limited to the job's pinned inputs (read) and outputs (write), for this attempt |
+| Preview (IDE) | the session's token | the user |
+| Check run | the run's token | the pusher |
+
+In a job, **Python never gets the token**. The runtime holds it and gives Python only presigned URLs for its own pinned inputs and a local folder to write to. Running the Python child as a different OS user from the runtime keeps it from reading the token out of the runtime's process too.
+
+## 5. Reading inputs
+
+Nothing is mounted or copied into the container up front. The runtime asks the server for **presigned URLs** — short-lived, for exactly the pinned files — and the engines read Parquet straight from storage over HTTP.
+
+### What a Parquet file looks like
+
+```mermaid
+flowchart TB
+    subgraph file["orders-part-0001.parquet (say 1 GB)"]
+        direction TB
+        subgraph rg0["row group 0 (~1M rows)"]
+            direction LR
+            c1["column chunk: order_id<br/>pages, compressed"]
+            c2["column chunk: date<br/>pages, compressed"]
+            c3["column chunk: amount<br/>pages, compressed"]
+        end
+        subgraph rg1["row group 1"]
+            more["…"]
+        end
+        footer["<b>footer</b><br/>schema + for every row group and column:<br/>byte offset, size, min/max, null count"]
+        rg0 ~~~ rg1 ~~~ footer
+    end
+```
+
+The footer is a table of contents. A reader fetches it first (one range request at the end of the file), then only the byte ranges it needs. Presigned URLs serve byte ranges like any object storage.
+
+### From the job to a Polars frame
+
+```mermaid
+sequenceDiagram
+    participant R as Runtime (Nest)
+    participant S as Server
+    participant P as Python
+    participant O as Storage
+
+    Note over R: run { job, token } arrives
+    R->>S: GET jobs/:rid/inputs (token)
+    Note over S: token ok, the pinned files of each input,<br/>signed as presigned GET URLs (no data moved)
+    S-->>R: { clean: { sequence, schema, urls } }
+    R->>R: write job.json (URLs, output dirs)
+    R->>P: spawn python (no token in its env)
+    Note over P: TransformInput("clean", urls)<br/>.polars(lazy=True) = pl.scan_parquet(urls)<br/>nothing read yet
+    Note over P: the transform builds a query,<br/>then collect or sink_parquet runs it
+    P->>O: GET footer (range request)
+    O-->>P: last ~64 KB: schema, offsets, min/max
+    P->>O: GET date + amount chunks of the needed row groups
+    O-->>P: only those bytes
+```
+
+- `TransformInput` holds URLs instead of a local directory. Polars `pl.scan_parquet(urls)` and DuckDB `read_parquet([...])` read `https://` natively, with range requests in parallel; pyarrow and pandas go through `fsspec`'s HTTP filesystem.
+- **Columns:** a transform using 5 of 50 columns fetches only those 5 (Parquet is columnar).
+- **Row groups:** a filter like `date >= '2026-10-01'` skips whole row groups by their min/max.
+- So "20 GB of data" is often a few GB actually read — when the transform reads lazily. Eager `.polars()`, `.arrow()` and `.to_pandas()` read everything.
+- The URLs are signed for the job's longest allowed run, and only for those files.
+
+### A chain of jobs
+
+```mermaid
+flowchart LR
+    raw[("raw<br/>20 GB")] --> A["job A: clean"] --> clean[("clean<br/>18 GB")] --> B["job B: join"] --> joined[("joined")] --> C["job C: aggregate"] --> summary[("summary<br/>5 MB")]
+```
+
+Every job reads its own inputs from storage — the previous job's output, not the original. Nothing is shared between containers; storage is. This is the industry's model too (storage apart from compute: Databricks, Snowflake, Foundry). What avoids re-reading big data later is **incremental transforms** (process only what's new since the last build; transactions already know what was appended), not copying data around.
+
+## 6. Streaming: 20 GB in a 4 GB container
+
+A lazy query is a plan, not data:
+
+```python
+orders = clean.polars(lazy=True)                              # plan: scan
+result = (orders.filter(pl.col("date") >= "2026-10-01")       # plan: filter
+                .group_by("customer").agg(pl.col("amount").sum()))
+out.write_table(result)                                       # → runs, streaming
+```
+
+Run by the streaming engine (`collect(engine="streaming")`, or `sink_parquet`, which always streams):
+
+```mermaid
+flowchart LR
+    batches["row group batches<br/>batch 1, batch 2, …"] --> filter["filter"] --> agg["partial sums per customer<br/>(hash table)"] --> finish["end of input"] --> write["write"]
+    note["each batch: read, filter, add to the hash table, drop it<br/>memory ≈ a few batches + the hash table, not 20 GB"]
+    agg -.- note
+```
+
+| Work | Streams? | Typical bottleneck |
+|---|---|---|
+| filter, select, `with_columns` | yes | I/O: reading from storage |
+| group-by aggregations | yes — memory is the number of groups | CPU, then memory |
+| joins with one small side | yes | CPU |
+| sorts, joins of two big tables | spill to disk (DuckDB; Polars increasingly) | memory, then disk |
+| eager `collect()`, `.to_pandas()`, Python row loops | no — everything in memory | memory (out-of-memory), CPU (loops are 10–100× slower) |
+| decoding Parquet | — | CPU, about 1–2 GB/s per core |
+
+Rough speeds: object storage does about 100 MB/s per connection, 1–10 GB/s with the parallel reads engines make; on the same machine or LAN as SeaweedFS, faster. Reading 20 GB is seconds to a minute; what decides 30 seconds against 30 minutes (or out of memory) is how the transform is written and `recipe.compute.memoryGb`. The template and docs should show lazy as the normal way.
+
+## 7. Writing outputs
+
+Outputs are written as **several files**, and each one is uploaded as soon as Python closes it, while Python writes the next. So the upload overlaps the transform: when Python exits, only the last file is left to upload, and the scratch disk holds a few files, not the whole output.
+
+```mermaid
+sequenceDiagram
+    participant P as Python (writer)
+    participant R as Runtime (uploader)
+    participant S as Server
+    participant O as Storage
+    participant A as ForgeAgent
+
+    P->>P: write part-0 (rolls at ~256 MB)
+    P-->>R: file-ready part-0
+    par upload part-0
+        R->>S: POST jobs/:rid/outputs/:ds/uploads (token)
+        S-->>R: presigned PUT
+        R->>O: PUT part-0
+        R->>S: POST jobs/:rid/outputs/:ds/files { key, size, schema }
+    and keep writing
+        P->>P: write part-1
+    end
+    P-->>R: file-ready part-1
+    par upload part-1
+        R->>O: PUT part-1 (same three calls)
+    and keep writing
+        P->>P: write part-2
+    end
+    P-->>R: exit 0 (part-2 was the last)
+    R->>O: PUT part-2 (same three calls)
+    R-->>A: done { succeeded }
+    A->>S: POST jobs/:rid/finish
+    Note over S: commitBatch: the outputs become new versions
+```
+
+- **Rolling files.** `write_table` pulls the result in batches (a Polars LazyFrame's batches, DuckDB's `fetch_record_batch`, or Arrow directly) and writes them with pyarrow's `ParquetWriter`, starting a new file every ~256 MB. It still streams: the whole output is never in memory. A DataFrame or Arrow table that's already in memory is split the same way.
+- **A file is announced only when it's complete.** Python writes `part-N.parquet.tmp`, closes it, renames it to `part-N.parquet`, then prints `{"event":"file-ready","path":…}` on its stdout to the runtime — the same stdio pattern as ForgeAgent ↔ runtime, one level down. A Parquet file is only valid once its footer is written, so a half-written file is never uploaded.
+- **The runtime uploads, not Python** — uploading needs the token, and retries are the runtime's problem, not the user's. It uploads a few files in parallel, and registers each on the open transaction once it's stored.
+- **Backpressure.** If uploads fall behind, Python waits once N finished files are still waiting to upload. The scratch disk only ever needs a few files' worth of room.
+- **The schema** is read from the Parquet files and mapped to Catalog's column types (`preview.py`'s `column_type` already does this).
+- Nothing is visible until `finish` commits. A crash leaves the uploaded files on an open transaction; the abort cleans them up.
+- **Not chosen: streaming bytes straight into storage** (the Parquet writer feeding an S3 multipart upload, no files on disk). Parquet allows it — it's written front to back, footer last — but every part needs its own presigned URL from the runtime, retrying a failed part mid-stream is fiddly, and it only saves the scratch disk. Rolling files get almost all of the time back with per-file retries.
+
+## 8. What has to be built
+
+**Server**
+
+1. Presigning in `FileStorage` (`infra/file-storage.ts`): GET, PUT and multipart PUT URLs (SeaweedFS's S3 API supports them).
+2. The job token, minted at `start`: scoped to the job's attempt, its pinned inputs (read) and outputs (write).
+3. Pinning inputs at `start` (`job.inputs`).
+4. `GET jobs/:rid/inputs` → presigned URLs; `POST jobs/:rid/outputs/:ds/uploads` → upload URLs; `POST jobs/:rid/outputs/:ds/files` → registers files on the open transaction. All gated by the job token.
+5. `catalog.transaction.commitBatch`, and `finish` committing on success instead of aborting.
+
+**Shared**
+
+6. `Runtime.*`: the message contract (`describe`, `preview`, `run`, `cancel`, events `log`, `progress`).
+7. The stdio transport: `StdioServer` (custom transport strategy) and `StdioClient`.
+
+**Code-workspace runtime**
+
+8. The Nest runtime (`describe`, `preview`, `run`, `cancel`), spawning Python per operation, and uploading output files as Python announces them.
+9. `quarry.transforms`: `TransformInput` from URLs; `write_table` writing rolling files and announcing each (`file-ready`); a `run` entry point reading `job.json`; `describe` and `preview` behind the runtime.
+10. The image: the runtime, Node, Python, uv, git; the uv cache volume.
+
+**ForgeAgent**
+
+11. The ForgeAgent's runtime protocol, the same for every runtime: `runtimeImages`, `docker run -i` with limits and the type's `/cache` volume, the stdio client, heartbeats from events, kill on stop, `done` → `finish`.
+
+**Callers moving to the runtime**
+
+12. The extension's preview and the check worker's manifest go through the runtime instead of `preview.py` and `manifest.py`.
+
+## 9. Open questions
+
+- **Token format and lifetime:** a signed token the server checks per request, or a session row like the check run's token? How it's renewed for long jobs (heartbeats could extend it).
+- **Presigned URL lifetime** against the longest job; re-fetching URLs mid-job if they expire.
+- **Python as another OS user** from the runtime: needed so the child can't read the token from the runtime's process.
+- **Preview inputs:** keep downloading samples, or sample to storage and hand URLs over, so preview and run read the same way.

@@ -7,7 +7,7 @@ import { ForgeDB } from '../forge.db';
 
 /** A recipe as a producer publishes it — Forge fills in the RID, branch, producer and who. */
 export interface PublishedRecipe {
-    readonly driver:             Forge.Recipe.Driver;
+    readonly runtime:           Forge.Recipe.Runtime;
     readonly inputDatasetRids:  Catalog.Dataset.Rid[];
     readonly outputDatasetRids: Catalog.Dataset.Rid[];
     readonly compute:           Forge.Recipe.Compute;
@@ -125,7 +125,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
                 rid,
                 producer_rid: producerRid,
                 branch,
-                driver:        json(recipe.driver),
+                runtime:      json(recipe.runtime),
                 compute:      json(recipe.compute),
                 published_by: Principal.actorOf(principal),
             })

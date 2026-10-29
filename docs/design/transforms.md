@@ -44,7 +44,7 @@ Decided (2026-10-24):
 | Thing | Library resource? | What it is |
 |---|---|---|
 | **Code Workspace** | **yes** — in a folder, grants, trash | A Git repository plus its environment (`pyproject.toml` + `uv.lock`). Holds any number of transforms |
-| **Recipe** | no — Forge's, published by a producer | How to compute some datasets: the driver that runs it and what it needs (for a workspace: commit + transform), inputs, outputs, compute. Published by checks ([forge.md](forge.md#1-model)) |
+| **Recipe** | no — Forge's, published by a producer | How to compute some datasets: the runtime that runs it and what it needs (for a workspace: commit + transform), inputs, outputs, compute. Published by checks ([forge.md](forge.md#1-model)) |
 | **Build** | no | One request to bring datasets up to date: a set of jobs in dependency order |
 | **Job** | no — belongs to its build | One transform run: reads pinned input versions, writes its outputs' transactions |
 | **Session** | no — belongs to a user and a workspace | The running container behind an open IDE ([§6](#6-sessions-the-ide-and-preview)) |
@@ -247,7 +247,7 @@ Every commit runs **checks** (continuous integration) before its code can build 
   "rid": "ri.forge.main.recipe.…",
   "producerRid": "ri.code-workspace.main.workspace.…",
   "branch": "main",
-  "driver": {
+  "runtime": {
     "type": "code-workspace",
     "workspaceRid": "ri.code-workspace.main.workspace.…",
     "commit": "a1b2c3d4…",

@@ -39,7 +39,7 @@ export class CheckPublisher {
             }
 
             recipes.push({
-                driver: {
+                runtime: {
                     type:         'code-workspace',
                     workspaceRid: run.workspaceRid,
                     commit:       run.commit,
