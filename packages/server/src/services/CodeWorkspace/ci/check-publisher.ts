@@ -47,7 +47,7 @@ export class CheckPublisher {
                 },
                 inputDatasetRids,
                 outputDatasetRids,
-                resources: transform.resources,
+                compute: transform.resources,
             });
         }
 

@@ -44,7 +44,7 @@ Decided (2026-10-24):
 | Thing | Library resource? | What it is |
 |---|---|---|
 | **Code Workspace** | **yes** — in a folder, grants, trash | A Git repository plus its environment (`pyproject.toml` + `uv.lock`). Holds any number of transforms |
-| **Recipe** | no — Forge's, published by a producer | How to compute some datasets: the driver that runs it and what it needs (for a workspace: commit + transform), inputs, outputs, resources. Published by checks ([forge.md](forge.md#1-model)) |
+| **Recipe** | no — Forge's, published by a producer | How to compute some datasets: the driver that runs it and what it needs (for a workspace: commit + transform), inputs, outputs, compute. Published by checks ([forge.md](forge.md#1-model)) |
 | **Build** | no | One request to bring datasets up to date: a set of jobs in dependency order |
 | **Job** | no — belongs to its build | One transform run: reads pinned input versions, writes its outputs' transactions |
 | **Session** | no — belongs to a user and a workspace | The running container behind an open IDE ([§6](#6-sessions-the-ide-and-preview)) |
@@ -255,7 +255,7 @@ Every commit runs **checks** (continuous integration) before its code can build 
   },
   "inputDatasetRids":  ["ri.catalog.main.dataset.6f2e…", "ri.catalog.main.dataset.91ab…"],
   "outputDatasetRids": ["ri.catalog.main.dataset.c40d…"],
-  "resources": { "cpuCores": 4, "memoryGb": 16 },
+  "compute": { "cpuCores": 4, "memoryGb": 16 },
   "publishedBy": "ri.identity.main.user.…",
   "publishedAt": "2026-10-25T18:00:00Z"
 }

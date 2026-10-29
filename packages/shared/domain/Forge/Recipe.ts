@@ -30,11 +30,11 @@ export namespace Recipe {
     ])
     export type Driver = z.infer<typeof Driver>
 
-    export const Resources = z.object({
+    export const Compute = z.object({
         cpuCores: z.number().positive(),
         memoryGb: z.number().positive(),
     })
-    export type Resources = z.infer<typeof Resources>
+    export type Compute = z.infer<typeof Compute>
 
     export const Schema = z.object({
         rid:               Rid,
@@ -43,7 +43,7 @@ export namespace Recipe {
         driver:            Driver,
         inputDatasetRids:  Dataset.Rid.array(),          // a set; the driver matches them to the code's parameters
         outputDatasetRids: Dataset.Rid.array().min(1),
-        resources:         Resources,
+        compute:           Compute,
         publishedBy:       User.Rid.nullable(),          // null = the system
         publishedAt:       z.coerce.date(),
     })

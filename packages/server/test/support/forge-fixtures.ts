@@ -116,7 +116,7 @@ export class ForgeHarness {
             }),
             inputDatasetRids:  shape.inputs.map((name) => datasets[name]),
             outputDatasetRids: shape.outputs.map((name) => datasets[name]),
-            resources:         { cpuCores: 1, memoryGb: 4 },
+            compute:           { cpuCores: 1, memoryGb: 4 },
         })));
 
         return Object.fromEntries(shapes.map((shape, index) => [shape.name, recipes[index]]));

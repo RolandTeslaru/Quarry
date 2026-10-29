@@ -14,7 +14,7 @@ export namespace ForgeDB {
             producer_rid: Library.Resource.Rid,
             branch:       Foundations.Branch,
             driver:        Forge.Recipe.Driver,
-            resources:    Forge.Recipe.Resources,
+            compute:      Forge.Recipe.Compute,
             published_by: Identity.User.Rid.nullable(),
             published_at: z.date(),
         });
@@ -28,7 +28,7 @@ export namespace ForgeDB {
                 driver:             row.driver,
                 inputDatasetRids,
                 outputDatasetRids,
-                resources:         row.resources,
+                compute:           row.compute,
                 publishedBy:       row.published_by,
                 publishedAt:       row.published_at,
             });

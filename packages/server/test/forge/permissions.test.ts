@@ -158,7 +158,7 @@ describe('build and recipe permissions', () => {
                 driver:             recipe.driver,
                 inputDatasetRids:  [datasets.raw],
                 outputDatasetRids: [datasets.out2],
-                resources:         recipe.resources,
+                compute:           recipe.compute,
             }]);
 
             expect(published).toHaveLength(1);
@@ -169,7 +169,7 @@ describe('build and recipe permissions', () => {
                 driver:             recipe.driver,
                 inputDatasetRids:  [datasets.raw],
                 outputDatasetRids: [datasets.out],
-                resources:         recipe.resources,
+                compute:           recipe.compute,
             }])).rejects.toBeInstanceOf(ForbiddenException);
         });
     });

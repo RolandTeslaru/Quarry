@@ -75,7 +75,7 @@ flowchart TB
 | **Server** — `ForgeService` | Creates builds (collect the plan, validate, lock the outputs, persist), advances them when a job finishes (commit its outputs, ask D2 which jobs are now ready, mark them scheduled, relay them), cancels them, fails silent jobs (reaper) | the API |
 | **Delivery** — the durable queue `Forge.DurableQueue.RunJob` | A scheduled job's message is added to `foundations.outbox` with the change that schedules it, relayed to BullMQ (job id `<rid>_<attempt>`) after the commit and by the platform's every-minute sweep, and acked when the job starts or its build ends — [durable-queues.md](durable-queues.md) | — |
 | **Queue** — BullMQ on Redis | Delivers "run job X" to one agent: one queue, `forge.run-job` | — |
-| **ForgeAgent** | Takes a job when it has a free slot, calls `start`, hands the job to the driver its recipe names (`recipe.driver.type`), which starts the container with the recipe's resources, heartbeats, streams logs, waits for the exit, calls `finish`; kills the container on cancel. Never moves data | one per machine |
+| **ForgeAgent** | Takes a job when it has a free slot, calls `start`, hands the job to the driver its recipe names (`recipe.driver.type`), which starts the container with the recipe's compute, heartbeats, streams logs, waits for the exit, calls `finish`; kills the container on cancel. Never moves data | one per machine |
 | **Job container** | Started by the `code-workspace` driver: fetches the code at the commit, reads the inputs, runs the function, uploads and registers the output files, exits 0 or 1 | one per job, removed after |
 | **Catalog** | Datasets, their transactions and files — what jobs read and write | — |
 
@@ -104,7 +104,7 @@ forge.recipe                       -- immutable: one row per publish
   producer_rid  → library.resource      -- the workspace (later: pipeline, sync)
   branch        text
   driver        jsonb                   -- Forge.Recipe.Driver: which driver runs it, and what that driver needs
-  resources     jsonb                   -- { cpuCores, memoryGb }
+  compute       jsonb                   -- { cpuCores, memoryGb }
   published_by  → identity.user, NULL = the system
   published_at  timestamptz
   INDEX (producer_rid, branch)
@@ -269,7 +269,7 @@ stateDiagram-v2
 
 ### Which agent runs a job
 
-Every machine does the same work — "pull this image, run it with these limits" — so all agents share the one queue. **Load balancing is pull-based**: each agent has **slots** (a fixed concurrency to start, resource-aware later) and pulls a job only when one is free — busy machines stop taking work, idle ones take more. Different kinds of machine (GPU, big memory) would get their own queues, picked from the recipe's `resources`; not planned yet. (Spark is another layer: it spreads one job's work across machines; Forge spreads jobs.)
+Every machine does the same work — "pull this image, run it with these limits" — so all agents share the one queue. **Load balancing is pull-based**: each agent has **slots** (a fixed concurrency to start, resource-aware later) and pulls a job only when one is free — busy machines stop taking work, idle ones take more. Different kinds of machine (GPU, big memory) would get their own queues, picked from the recipe's `compute`; not planned yet. (Spark is another layer: it spreads one job's work across machines; Forge spreads jobs.)
 
 ### Handing a job to its container
 
@@ -277,7 +277,7 @@ Instructions and a token, never data:
 
 ```
 docker run
-  --cpus 1 --memory 4g                                  ← the recipe's resources
+  --cpus 1 --memory 4g                                  ← the recipe's compute
   -e QUARRY_SERVER_URL=…  -e QUARRY_TOKEN=…             ← short-lived, scoped to this job
   -e QUARRY_JOB_RID=ri.forge.main.job.…
   -v /tmp/forge/<job>/start.json:/job/start.json:ro     ← what `start` returned

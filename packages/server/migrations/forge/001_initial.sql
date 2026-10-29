@@ -22,7 +22,7 @@ CREATE TABLE forge.recipe (
     producer_rid  foundations.rid NOT NULL REFERENCES library.resource (rid) ON DELETE RESTRICT,   -- the workspace (later: pipeline)
     branch        text NOT NULL,
     driver        jsonb NOT NULL,                 -- Forge.Recipe.Driver: which driver runs it, and what that driver needs
-    resources     jsonb NOT NULL,                 -- Forge.Recipe.Resources
+    compute       jsonb NOT NULL,                 -- Forge.Recipe.Compute: cores and memory per job
     published_by  identity.user_rid REFERENCES identity.user(rid),
     published_at  timestamptz NOT NULL DEFAULT now()
 );

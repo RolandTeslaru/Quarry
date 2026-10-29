@@ -10,7 +10,7 @@ export interface PublishedRecipe {
     readonly driver:             Forge.Recipe.Driver;
     readonly inputDatasetRids:  Catalog.Dataset.Rid[];
     readonly outputDatasetRids: Catalog.Dataset.Rid[];
-    readonly resources:         Forge.Recipe.Resources;
+    readonly compute:           Forge.Recipe.Compute;
 }
 
 /** forge.recipe, its input/output datasets, and forge.current_recipe — one aggregate. */
@@ -126,7 +126,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
                 producer_rid: producerRid,
                 branch,
                 driver:        json(recipe.driver),
-                resources:    json(recipe.resources),
+                compute:      json(recipe.compute),
                 published_by: Principal.actorOf(principal),
             })
             .returningAll()

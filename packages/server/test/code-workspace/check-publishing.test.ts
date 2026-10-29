@@ -79,7 +79,7 @@ describe('publishing recipes', () => {
             driver:             { type: 'code-workspace', workspaceRid: workspace.rid, commit: run.commit, transform: 'sales.datasets.orders.clean' },
             inputDatasetRids:  [datasets.raw],
             outputDatasetRids: [datasets.clean],
-            resources:         { cpuCores: 1, memoryGb: 4 },
+            compute:           { cpuCores: 1, memoryGb: 4 },
             publishedBy:       admin.userRid,
         });
     });

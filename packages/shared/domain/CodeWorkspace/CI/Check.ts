@@ -45,7 +45,7 @@ export namespace Check {
     export namespace Manifest {
 
         export const Transform = CodeTransform.Schema.extend({
-            resources: Recipe.Resources,
+            resources: Recipe.Compute,
         })
         export type Transform = z.infer<typeof Transform>
 
