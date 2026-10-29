@@ -74,19 +74,14 @@ export class CatalogService {
         if (rid.success)
             return this.get(principal, rid.data);
 
-        const existing = await this.library.getByPath(principal, reference).catch(() => null);
+        const existing = await this.library.findByPath(principal, reference);
 
         if (existing)
             return this.get(principal, Catalog.Dataset.Rid.parse(existing.rid));
 
-        const segments = Library.Resource.parsePath(reference);
-        const folder = await this.library.getByPath(principal, `/${segments.slice(0, -1).join('/')}`);
+        const destination = await this.library.getDestination(principal, reference);
 
-        return this.createDataset(principal, {
-            parentRid:   folder.rid,
-            name:        Library.Resource.Name.parse(segments.at(-1)),
-            description: null,
-        });
+        return this.createDataset(principal, { ...destination, description: null });
     }
 
     /**

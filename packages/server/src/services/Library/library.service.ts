@@ -70,12 +70,33 @@ export class LibraryService {
 
     /** The live resource at `/Project/folder/name`; 404 if there's none, or it (or a folder on the way) is hidden. */
     async getByPath(principal: Principal, path: string): Promise<Library.Resource.Base> {
+        const resource = await this.findByPath(principal, path);
+
+        if (!resource)
+            throw new NotFoundException('Not found');
+
+        return resource;
+    }
+
+    /** Like getByPath, but null when nothing the principal can see is there. */
+    async findByPath(principal: Principal, path: string): Promise<Library.Resource.Base | null> {
         const row = await this.repository.getByPath(principal, Library.Resource.parsePath(path));
 
         if (!row)
-            throw new NotFoundException('Not found');
+            return null;
 
         return LibraryDB.Resource.toBase(row);
+    }
+
+    /** Where a new resource at this path goes: its parent folder or project (404 if there's none) and its name. */
+    async getDestination(principal: Principal, path: string): Promise<{ parentRid: Library.Resource.Rid; name: string }> {
+        const segments = Library.Resource.parsePath(path);
+        const parent = await this.repository.getByPath(principal, segments.slice(0, -1));
+
+        if (!parent)
+            throw new NotFoundException('Not found');
+
+        return { parentRid: parent.rid, name: Library.Resource.Name.parse(segments.at(-1)) };
     }
 
     /** Root first — ancestors the principal can't discover are left out (RLS). */
