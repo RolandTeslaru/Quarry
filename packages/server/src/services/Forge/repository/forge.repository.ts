@@ -107,7 +107,11 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
      * message is acked. Null if this attempt isn't waiting to be claimed.
      */
     @Transactional()
-    public async claimJob(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Claim.Response | null> {
+    public async claimJob(
+        principal: Principal,
+        rid:       Forge.Job.Rid,
+        attempt:   number,
+    ): Promise<{ job: Forge.Job.Schema; recipe: Forge.Recipe.Schema } | null> {
         const job = await this._job.claim(principal, rid, attempt);
 
         if (!job)

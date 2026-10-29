@@ -1,6 +1,6 @@
 # Forge — Runtimes and delegates
 
-_Design, 2026-10-29. **Phase 1 built 2026-10-29** (the plumbing, §8): the contract, the stdio transport, the code-workspace runtime and its image, the ForgeAgent running jobs in containers. Everything after it is design. Decided with the user: runtimes as Nest microservices over stdio; one container per job; inputs read through presigned URLs; one shared uv cache per ForgeAgent machine. Extends [forge.md](forge.md) §5 (ForgeAgents and job containers); preview today is described in [transforms.md](transforms.md)._
+_Design, 2026-10-29. **Phases 1 and 2 built 2026-10-29** (§8): the contract, the stdio transport, the code-workspace runtime and its image, the ForgeAgent running jobs in containers; the job token, and the runtime cloning the commit, installing its lock and finding the transform. Reading and writing data (phases 3–4) are design. Decided with the user: runtimes as Nest microservices over stdio; one container per job; inputs read through presigned URLs; one shared uv cache per ForgeAgent machine. Extends [forge.md](forge.md) §5 (ForgeAgents and job containers); preview today is described in [transforms.md](transforms.md)._
 
 A **runtime** is what does a Quarry application's compute. Every application that produces recipes has one: Code Workspaces first, later Pipeline Builder and Data Connection. It runs inside a container, takes instructions over stdio, and is the one interface for everything that wants that application's compute — a ForgeAgent running a build job, the IDE running a preview, a check run listing transforms.
 
@@ -62,26 +62,33 @@ sequenceDiagram
     participant S as Forge (server)
     participant Q as Queue (forge.run-job)
     participant A as ForgeAgent
-    participant R as Runtime (container)
-    participant P as Python (child)
+    participant R as Runtime (container, root)
+    participant P as Child process (as transform)
     participant O as Storage
 
     S->>Q: RunJob { jobRid, attempt }
     Q->>A: message (a slot is free)
     A->>S: POST jobs/:rid/claim
     S-->>A: job, recipe, pinned inputs, output transactions, job token
-    A->>R: docker run -i --rm <image> runtime  (cpus, memory from recipe.compute)
-    A->>R: stdin: run { job, recipe, inputs, outputs, token }
+    A->>R: docker run -i --rm image  (cpus, memory from recipe.compute)
+    R-->>A: stdout: ready
+    A->>R: stdin: run { job, recipe, token }
+    R->>S: git clone /api/git/workspace.git at recipe.runtime.commit (token)
+    Note over R: the checkout stays root's, readable by transform
+    R->>P: spawn uv venv + uv sync --frozen (venv in transform's home, /cache)
     R->>S: GET jobs/:rid/input-passes (token)
     S-->>R: presigned GET URLs for the pinned files
     R->>P: spawn python run job.json (URLs, scratch dir, no token)
     P->>O: range GETs (footers, needed column chunks)
-    P->>P: transform, sink Parquet to /scratch/out
+    P->>P: transform, rolling Parquet files in /scratch/out
+    loop each finished file
+        P-->>R: fd 3: file-ready
+        R->>S: upload pass, then register the file (token)
+        R->>O: PUT the file, while Python writes the next
+    end
     P-->>R: exit 0
-    R->>S: upload URLs, then register files on the transaction (token)
-    R->>O: PUT the output files
-    R-->>A: stdout: done { succeeded }
-    R-->>A: exits, the container stops and --rm deletes it
+    R-->>A: stdout: response { status: succeeded }
+    A->>R: closes stdin, the runtime exits, --rm deletes the container
     A->>S: POST jobs/:rid/finish
     S->>S: commitBatch: the outputs become new versions
 ```
@@ -183,16 +190,26 @@ The runtime coordinates; Python only runs transforms. Each `preview` or `run` sp
 
 ```mermaid
 flowchart TB
-    run["run { job, token }"] --> inputs["GET inputs (token)<br/>presigned URLs"]
+    run["run { job, recipe, token }"] --> clone["clone the workspace at recipe.runtime.commit<br/>(runtime, root, with the token)"]
+    clone --> sync["uv venv + uv sync --frozen<br/>(as transform: venv in its home, cache in /cache)"]
+    sync --> inputs["GET input-passes (token)<br/>presigned URLs"]
     inputs --> jobjson["write job.json<br/>inputs: URLs, outputs: scratch dirs"]
     jobjson --> spawn
-    subgraph spawn["spawn: python -m quarry.transforms.run job.json"]
+    subgraph spawn["spawn as transform: python -m quarry.transforms.run"]
         direction TB
-        checkout["git checkout of the commit"] --> sync["uv sync --frozen (cache)"] --> load["import the pipeline"] --> transform["transform reads URLs,<br/>writes /scratch/out/output/part-N.parquet"]
+        load["import the pipeline, find the transform"] --> transform["transform reads URLs,<br/>writes /scratch/out/output/part-N.parquet"]
     end
-    spawn -- "exit 0 or 1" --> upload["upload + register the output files"]
-    upload --> done["done { status }"]
+    spawn -- "file-ready, per file" --> upload["upload + register each file (token)"]
+    spawn -- "exit 0 or 1" --> done["response { status }"]
 ```
+
+Everything that needs the token — cloning, input and upload passes — is the runtime's, as root. Everything that runs the workspace's code or its dependencies — `uv sync` (a package's build can run code), the transform — is a child spawned as `transform`.
+
+**No file changes hands.** The runtime keeps only the capabilities to switch users, so it can't `chown`. It doesn't need to: git writes the checkout readable by everyone, and `transform` only reads it; the venv lives in `transform`'s home (`UV_PROJECT_ENVIRONMENT`), so nothing is written into the checkout; and `/cache` is `transform`'s in the image, which a new cache volume copies, ownership included.
+
+**The token reaches git only.** The clone gets it through `GIT_CONFIG_COUNT` / `GIT_CONFIG_KEY_0` / `GIT_CONFIG_VALUE_0` in its own environment (`http.extraHeader: Authorization: Bearer …`) — not in its arguments, where `ps` shows them, and not in a config file in the checkout.
+
+**The recipe's RIDs are trusted** (decided 2026-10-29). A job doesn't re-check that the transform's refs still point at the recipe's datasets: the check resolved them when it published, and the job reads and writes the RIDs it was given. A ref renamed since then takes effect at the next push.
 
 ### Environment
 
@@ -221,7 +238,7 @@ A runtime **carries** permissions; it can't **enforce** them. It runs in the sam
 
 | Where | Token | Narrowed to |
 |---|---|---|
-| Build job | the **job token**, minted at `claim` | the pusher's delegated principal, limited to the job's pinned inputs (read) and outputs (write), for this attempt |
+| Build job | the **job token**, minted at `claim` (`SessionTokens.mint`, `via: 'forge-job'`) | the **build's starter** — a full user token for now, like a check run's; narrowing it to the job's inputs and outputs needs a scope claim the verifier enforces (later) |
 | Preview (IDE) | the session's token | the user |
 | Check run | the run's token | the pusher |
 
@@ -378,14 +395,16 @@ In phases, each small enough to read and review on its own (decided 2026-10-29):
 | Phase | What | Proves |
 |---|---|---|
 | **1. Plumbing** | the `Forge.Runtime` contract and the stdio transport; the code-workspace runtime and its compute image; the ForgeAgent starting it (`runtimeImages`, limits, `/cache`), `run` over stdin, events → heartbeats, `done` → `finish`, kill on stop. `run` spawns Python as `transform`, which only imports `quarry.transforms` and exits. No token, no code, no data | a job reaches a runtime in its own container and comes back |
-| **2. The code** | the job token at `claim`; the runtime checks out the commit, `uv sync --frozen` with `/cache`, imports the pipeline, finds the transform and checks its inputs and outputs against the recipe | the right code runs in the right environment |
+| **2. The code** — built 2026-10-29 | the job token at `claim`; the runtime clones the commit, `uv sync --frozen` with `/cache`, imports the pipeline and finds the transform | the right code runs in the right environment |
 | **3. Reading** | presigning; input passes; `TransformInput` from URLs; lazy reads | a transform reads its pinned inputs |
 | **4. Writing** | upload passes; rolling files and `file-ready`; registering files; `commitBatch` on `finish` | a build writes new versions |
 | **5. Callers** | the extension's preview and the check worker's manifest go through the runtime | one path for preview, checks and builds |
 
 The items below say what each part needs; the table says when.
 
-**Phase 1, as built:** `Stdio` in `packages/shared/domain/Stdio/Stdio.ts` and `Forge.Runtime` in `packages/shared/domain/Forge/Runtime.ts`; `StdioServer` and `StdioClient` in `packages/shared/server/stdio/`; the runtime in `packages/code-workspace-runtime/` (`main.ts`, `runtime.module.ts`, `runtime.controller.ts`; `npm run build` bundles it into `dist/runtime.js`); its image in `docker/code-workspace-runtime/` (`npm run build:code-workspace-runtime` → `quarry/code-workspace-runtime:dev`); the ForgeAgent's `JobContainers` (`docker run` and `docker kill`) and `RunJobProcessor` in `packages/forge-agent/src/`. Verified end to end by `test/e2e/forge-agent.e2e.test.ts` (a real ForgeAgent, real containers, the runtime's Python reporting uid 1001). `finish` still aborts the outputs: nothing is written until phase 4.
+**Phase 1, as built:** `Stdio` in `packages/shared/domain/Stdio/Stdio.ts` and `Forge.Runtime` in `packages/shared/domain/Forge/Runtime.ts`; `StdioServer` and `StdioClient` in `packages/shared/server/stdio/`; the runtime in `packages/code-workspace-runtime/` (`main.ts`, `runtime.module.ts`, `runtime.controller.ts`; `npm run build` bundles it into `dist/runtime.js`); its image in `docker/code-workspace-runtime/` (`npm run build:code-workspace-runtime` → `quarry/code-workspace-runtime:dev`); the ForgeAgent's `JobContainers` (`docker run` and `docker kill`) and `RunJobProcessor` in `packages/forge-agent/src/`. Verified end to end by `test/e2e/forge-agent.e2e.test.ts` (a real ForgeAgent, real containers). `finish` still aborts the outputs: nothing is written until phase 4.
+
+**Phase 2, as built:** `claim` returns `token`, minted by `ForgeAgentService.claimJob` for the build's `createdBy`; the agent passes it in `run`, and starts job containers with `QUARRY_SERVER_URL` (`FORGE_AGENT_JOB_SERVER_URL`, default `http://host.docker.internal:4000`) and `--add-host host.docker.internal:host-gateway`. The runtime's `run` is a list of steps, each a child process whose lines are relayed as `log` events: clone and check out (root, the token in git's environment), `uv venv --system-site-packages` and `uv sync --frozen --no-dev` (as `transform`), then `python -m quarry.transforms.run <transform>` (`packages/transforms-python/src/quarry/transforms/run.py`: imports the pipeline at the commit and finds the transform). A failed step fails the job as `<step> failed with exit code N`. The image adds git and CA certificates. Tests: the e2e test builds from a real workspace commit (and fails a transform the commit doesn't have); `test/forge/agent-api` checks the token acts as the build's starter; `tests/test_run.py` covers `run.py`.
 
 **Server**
 
@@ -416,6 +435,6 @@ The items below say what each part needs; the table says when.
 
 ## 9. Open questions
 
-- **Token format and lifetime:** a signed token the server checks per request, or a session row like the check run's token? How it's renewed for long jobs (heartbeats could extend it).
+- **Narrowing the job token:** it's the build starter's full token for 12 h (`SessionTokens`). Narrowing it — this job's workspace, inputs and outputs — needs a scope claim and the verifier and guards enforcing it; renewing it for jobs longer than 12 h needs a way too (the heartbeat could).
 - **Presigned URL lifetime** against the longest job; re-fetching URLs mid-job if they expire.
 - **Preview inputs:** keep downloading samples, or sample to storage and hand URLs over, so preview and run read the same way.

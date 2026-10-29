@@ -12,8 +12,9 @@ export namespace Agent {
         export type  Request = z.infer<typeof Request>
 
         export const Response = z.object({
-            job:     JobD.Schema,
+            job:    JobD.Schema,
             recipe: RecipeD.Schema,
+            token:  z.string(),           // the build's starter, for the job's runtime only
         })
         export type  Response = z.infer<typeof Response>
     }

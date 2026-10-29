@@ -1,6 +1,7 @@
 import { ConflictException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Principal } from '@/auth/principal';
+import { TokenVerifier } from '@/auth/token-verifier';
 import { ForgeHarness } from '../support/forge-fixtures';
 
 /**
@@ -40,6 +41,19 @@ describe('the ForgeAgent API', () => {
         expect(claimed.job.status).toBe('running');
         expect(claimed.recipe.rid).toBe(job.recipeRid);
         await expect(harness.agent.claimJob(job.rid, 1)).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("hands the runtime a token for the build's starter, not the recipe's publisher", async () => {
+        const starter = await harness.createUser();
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'out'], ['raw']);
+
+        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }]);
+
+        const { jobs } = await harness.build(starter, [datasets.out]);
+        const claimed = await harness.agent.claimJob(Object.values(jobs)[0].rid, 1);
+        const actingAs = await harness.get(TokenVerifier).user(claimed.token);
+
+        expect(actingAs.userRid).toBe(starter.userRid);
     });
 
     it('acks its message when it is claimed — the sweep stops sending it', async () => {

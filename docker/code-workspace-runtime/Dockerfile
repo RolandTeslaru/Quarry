@@ -13,8 +13,9 @@ FROM ghcr.io/astral-sh/uv:0.9.11 AS uv
 
 FROM python:3.12.14-slim-bookworm
 
+# git clones the workspace; ca-certificates lets git and uv verify HTTPS servers (PyPI).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tini \
+    && apt-get install -y --no-install-recommends git ca-certificates tini \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
@@ -28,9 +29,12 @@ RUN cd /opt/quarry/transforms-python \
     && uv pip install --system --no-cache --no-deps /opt/quarry/transforms-python \
     && rm /tmp/requirements.txt
 
-# What transforms run as (the runtime's TRANSFORM_USER).
+# What transforms run as (the runtime's TRANSFORM_USER). /cache is theirs: a new cache volume takes this
+# folder's ownership, so uv can fill it. /work holds the checkout, root's.
 RUN groupadd --gid 1001 transform \
-    && useradd --uid 1001 --gid 1001 --create-home --home-dir /home/transform transform
+    && useradd --uid 1001 --gid 1001 --create-home --home-dir /home/transform transform \
+    && mkdir /work /cache \
+    && chown transform:transform /cache
 
 COPY packages/code-workspace-runtime/dist/runtime.js /opt/quarry/runtime/runtime.js
 

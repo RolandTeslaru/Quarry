@@ -9,11 +9,58 @@ import type { Forge } from '@quarry/shared/domain';
 import { ApiModule } from '@/api.module';
 import type { Principal } from '@/auth/principal';
 import { destroyPool } from '@/db/pool';
-import { ForgeHarness } from '../support/forge-fixtures';
+import { createWorkspace } from '../support/code-workspace-fixtures';
+import { ForgeHarness, MAIN, type RecipeCode } from '../support/forge-fixtures';
 
-/** How long a ForgeAgent gets to boot (ts-node compiles it first) and to finish a build. */
+/** How long a ForgeAgent gets to boot (ts-node compiles it first) and to finish a build (a container per job). */
 const AGENT_BOOT_MS = 60_000;
-const BUILD_DONE_MS = 30_000;
+const BUILD_DONE_MS = 60_000;
+
+/** The transform behind the harness's recipe `A` — `pkg.A.A` — writing nothing yet. */
+const transformFile = (name: string) => `from quarry.transforms import Output, transform
+
+
+@transform.using(out=Output("/Test/${name}"))
+def ${name}(out):
+    pass
+`;
+
+/** A workspace whose commit defines transforms A to D: no dependencies, so its lock is this short. */
+const WORKSPACE_FILES = {
+    'pyproject.toml': `[project]
+name = "pkg"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+`,
+    'uv.lock': `version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "pkg"
+version = "0.1.0"
+source = { virtual = "." }
+`,
+    'src/pkg/__init__.py': '',
+    'src/pkg/pipeline.py': `from quarry.transforms import Pipeline
+
+from pkg.A import A
+from pkg.B import B
+from pkg.C import C
+from pkg.D import D
+
+pipeline = Pipeline()
+pipeline.add_transforms(A, B, C, D)
+`,
+    'src/pkg/A.py': transformFile('A'),
+    'src/pkg/B.py': transformFile('B'),
+    'src/pkg/C.py': transformFile('C'),
+    'src/pkg/D.py': transformFile('D'),
+};
 
 /**
  * End to end, across processes: the server over HTTP on a random port (the
@@ -27,6 +74,7 @@ describe('a real ForgeAgent', () => {
     let agentLog = '';
     let harness: ForgeHarness;
     let user: Principal.User;
+    let code: RecipeCode;
 
     beforeAll(async () => {
         server = await NestFactory.create<NestExpressApplication>(ApiModule, { logger: false });
@@ -36,11 +84,18 @@ describe('a real ForgeAgent', () => {
 
         const { port } = server.getHttpServer().address() as AddressInfo;
 
-        agent = startAgent(`http://127.0.0.1:${port}`, (chunk) => agentLog += chunk);
+        agent = startAgent(port, (chunk) => agentLog += chunk);
         await waitFor(() => agentLog.includes('ForgeAgent listening'), AGENT_BOOT_MS, () => `the agent didn't start:\n${agentLog}`);
 
         harness = await ForgeHarness.start();
         user = await harness.createUser();
+
+        const workspace = await createWorkspace(harness, user, WORKSPACE_FILES);
+
+        code = {
+            workspaceRid: workspace.rid,
+            commit:       workspace.heads[MAIN],
+        };
     }, AGENT_BOOT_MS + 30_000);
 
     afterAll(async () => {
@@ -65,7 +120,7 @@ describe('a real ForgeAgent', () => {
     it('runs a one-job build to the end', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'out'], ['raw']);
 
-        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }]);
+        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }], MAIN, code);
 
         const { build } = await harness.build(user, [datasets.out]);
         const done = await finished(build.rid);
@@ -75,6 +130,21 @@ describe('a real ForgeAgent', () => {
         expect(job.status).toBe('succeeded');
         expect(job.startedAt).not.toBeNull();
         expect(agentLog).toContain(`Picked up ${job.rid}`);
+        expect(agentLog).toContain('Found pkg.A.A');                // cloned, installed, and found at the commit
+    });
+
+    it("fails the job when the commit doesn't have its transform", async () => {
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'out'], ['raw']);
+
+        await harness.publish(user, projectRid, datasets, [{ name: 'E', inputs: ['raw'], outputs: ['out'] }], MAIN, code);
+
+        const { build } = await harness.build(user, [datasets.out]);
+        const done = await finished(build.rid);
+        const [job] = Object.values(done.jobs);
+
+        expect(done.build.status).toBe('failed');
+        expect(job.failure?.message).toBe('Run the transform failed with exit code 1');
+        expect(agentLog).toContain('No transform named pkg.E.E at this commit');
     });
 
     it('runs a diamond in dependency order', async () => {
@@ -84,7 +154,7 @@ describe('a real ForgeAgent', () => {
             { name: 'B', inputs: ['a'],      outputs: ['b'] },
             { name: 'C', inputs: ['a'],      outputs: ['c'] },
             { name: 'D', inputs: ['b', 'c'], outputs: ['d'] },
-        ]);
+        ], MAIN, code);
 
         const { build } = await harness.build(user, [datasets.a, datasets.b, datasets.c, datasets.d]);
 
@@ -105,7 +175,7 @@ describe('a real ForgeAgent', () => {
         const recipes = await harness.publish(user, projectRid, datasets, [
             { name: 'A', inputs: ['raw'], outputs: ['a'] },
             { name: 'B', inputs: ['raw'], outputs: ['b'] },
-        ]);
+        ], MAIN, code);
 
         const { build } = await harness.build(user, [datasets.a, datasets.b]);
         const outcome = await harness.forge.cancelBuild(user, build.rid).then(() => 'canceled', (error: Error) => error.message);
@@ -134,7 +204,7 @@ describe('a real ForgeAgent', () => {
     it('drops the outcome of a job canceled while it ran (the agent gets 409 on finish)', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a'], ['raw']);
 
-        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
+        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }], MAIN, code);
 
         // Built without the agent's help: claim it as an agent would, cancel, then try to finish.
         const { build, jobs } = await harness.build(user, [datasets.a]);
@@ -155,16 +225,17 @@ describe('a real ForgeAgent', () => {
 });
 
 /** packages/forge-agent, as `npm run dev:forge-agent` runs it, pointed at the test server and test Redis. */
-function startAgent(serverUrl: string, onOutput: (chunk: string) => void): ChildProcess {
+function startAgent(port: number, onOutput: (chunk: string) => void): ChildProcess {
     const cwd = path.resolve(__dirname, '../../../forge-agent');
 
     const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', 'src/main.ts'], {
         cwd,
         env: {
             ...process.env,
-            QUARRY_SERVER_URL: serverUrl,
-            FORGE_AGENT_PORT:  '0',
-            NO_COLOR:          '1',
+            QUARRY_SERVER_URL:          `http://127.0.0.1:${port}`,
+            FORGE_AGENT_JOB_SERVER_URL: `http://host.docker.internal:${port}`,
+            FORGE_AGENT_PORT:           '0',
+            NO_COLOR:                   '1',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
     });

@@ -42,7 +42,7 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
             return { status: 'skipped' };
         }
 
-        const { job, recipe } = claimed;
+        const { job, recipe, token } = claimed;
 
         this.log.info(`Picked up ${message.jobRid} (attempt ${message.attempt})`, {
             build:     job.buildRid,
@@ -80,6 +80,7 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
             outcome = await runtime.request(Forge.Runtime.Run, {
                 job,
                 recipe,
+                token,
             });
         }
         catch (error) {

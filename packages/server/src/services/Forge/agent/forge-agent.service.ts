@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Forge } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
+import { SessionTokens } from '@/auth/session-tokens';
 import { CatalogService } from '@/services/Catalog/catalog.service';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
 import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
@@ -11,9 +12,9 @@ import { ForgeRepository } from '../repository/forge.repository';
 const AGENT = Principal.SELF('forge.agent');
 
 /**
- * What ForgeAgents do, through the ForgeAgent API only: start a job, renew its
- * lease, finish it — and finishing advances the build. No compute yet: a
- * finished job's outputs are aborted, not committed.
+ * What ForgeAgents do, through the ForgeAgent API only: claim a job, renew its
+ * lease, finish it — and finishing advances the build. Nothing is written yet:
+ * a finished job's outputs are aborted, not committed.
  */
 @Injectable()
 export class ForgeAgentService {
@@ -24,11 +25,15 @@ export class ForgeAgentService {
         private readonly repository: ForgeRepository,
         private readonly catalog:    CatalogService,
         private readonly realtime:   RealtimeService,
+        private readonly sessionTokens: SessionTokens,
         @InjectDurableQueue(Forge.DurableQueue.RunJob)
         private readonly runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
     ) {}
 
-    /** Grants the claim: once per attempt, from scheduled. 409 if this attempt isn't waiting to be claimed. */
+    /**
+     * Grants the claim: once per attempt, from scheduled. 409 if this attempt isn't waiting to be claimed.
+     * With it, a token for the build's starter: the job's runtime acts as them.
+     */
     public async claimJob(rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Claim.Response> {
         const claimed = await this.repository.claimJob(AGENT, rid, attempt);
 
@@ -41,7 +46,14 @@ export class ForgeAgentService {
         });
         this.log.info(`Claimed ${rid} (attempt ${attempt})`);
 
-        return claimed;
+        // The job's FK guarantees its build; builds are started by people until schedules exist.
+        const build = await this.repository.build.get(AGENT, claimed.job.buildRid);
+        const token = await this.sessionTokens.mint(build!.createdBy!, 'forge-job');
+
+        return {
+            ...claimed,
+            token,
+        };
     }
 
     /** Renews the attempt's lease. `stop` once it isn't running — its build was canceled or failed. */

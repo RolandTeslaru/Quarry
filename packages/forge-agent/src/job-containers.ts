@@ -10,6 +10,9 @@ const RUNTIME_IMAGES: Record<Forge.Recipe.Runtime['type'], string> = {
 
 const getContainerName = (job: Forge.Job.Schema): string => `forge-${job.rid}-${job.attempt}`;
 
+/** The server, as a job container reaches it (FORGE_AGENT_JOB_SERVER_URL): the agent's machine, by default. */
+const getJobServerUrl = (): string => process.env.FORGE_AGENT_JOB_SERVER_URL ?? 'http://host.docker.internal:4000';
+
 /**
  * One container per job, its runtime as the main process. The runtime may only
  * switch users (to run Python as `transform`); every other capability is dropped.
@@ -30,6 +33,8 @@ export class JobContainers {
             '--rm',
             '--name', getContainerName(job),
             '--label', `quarry.forge-job=${job.rid}`,
+            '--add-host', 'host.docker.internal:host-gateway',
+            '--env', `QUARRY_SERVER_URL=${getJobServerUrl()}`,
             '--cpus', String(recipe.compute.cpuCores),
             '--memory', `${recipe.compute.memoryGb}g`,
             '--volume', `quarry-cache-${recipe.runtime.type}:/cache`,

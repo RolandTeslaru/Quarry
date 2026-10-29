@@ -3,7 +3,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Queue } from 'bullmq';
 import { sql } from 'kysely';
-import { Catalog, Forge, Foundations, type Gatekeeper, Identity, type Library } from '@quarry/shared/domain';
+import { Catalog, CodeWorkspace, Forge, Foundations, type Gatekeeper, Identity, type Library } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { ApiModule } from '@/api.module';
 import type { Principal } from '@/auth/principal';
@@ -23,6 +23,18 @@ export interface RecipeShape {
     readonly inputs:  string[];
     readonly outputs: string[];
 }
+
+/** The workspace and commit a recipe's transform is taken from. */
+export interface RecipeCode {
+    readonly workspaceRid: CodeWorkspace.Rid;
+    readonly commit:       CodeWorkspace.Git.Commit;
+}
+
+/** For tests whose jobs never run code (the test plays the agent). */
+const MADE_UP_CODE: RecipeCode = {
+    workspaceRid: CodeWorkspace.Rid.parse('ri.code-workspace.main.workspace.01a1729a-975b-70de-8141-89cca28b34d2'),
+    commit:       CodeWorkspace.Git.Commit.parse('a'.repeat(40)),
+};
 
 /**
  * The server's services in one Nest context, against the test database and
@@ -99,19 +111,23 @@ export class ForgeHarness {
         return { projectRid: project.rid, datasets };
     }
 
-    /** Publishes the recipes, producer = the project (any library resource will do). Returns them by recipe name. */
+    /**
+     * Publishes the recipes, producer = the project (any library resource will do). Returns them by recipe name.
+     * Recipe `A` runs transform `pkg.A.A` of `code` — a made-up workspace and commit unless a test gives a real one.
+     */
     public async publish(
         principal:   Principal.User,
         producerRid: Catalog.Dataset.Schema['parentRid'],
         datasets:    Record<string, Catalog.Dataset.Rid>,
         shapes:      RecipeShape[],
         branch:      Foundations.Branch = MAIN,
+        code:        RecipeCode = MADE_UP_CODE,
     ): Promise<Record<string, Forge.Recipe.Schema>> {
         const recipes = await this.forge.recipes.publish(principal, producerRid, branch, shapes.map((shape) => ({
             runtime: Forge.Recipe.Runtime.parse({
                 type:         'code-workspace',
-                workspaceRid: 'ri.code-workspace.main.workspace.01a1729a-975b-70de-8141-89cca28b34d2',
-                commit:       'a'.repeat(40),
+                workspaceRid: code.workspaceRid,
+                commit:       code.commit,
                 transform:    `pkg.${shape.name}.${shape.name}`,
             }),
             inputDatasetRids:  shape.inputs.map((name) => datasets[name]),

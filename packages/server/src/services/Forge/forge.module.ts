@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
+import { SessionTokens } from '@/auth/session-tokens';
 import { DurableQueueModule } from '@/infra/durable-queue';
 import { CatalogModule } from '@/services/Catalog/catalog.module';
 import { ForgeService } from './forge.service';
@@ -17,7 +18,7 @@ import { Recipes } from './recipes';
  */
 @Module({
     imports:   [CatalogModule, DurableQueueModule.registerQueue(Forge.DurableQueue.RunJob)],
-    providers: [ForgeService, Recipes, ForgeRepository, BuildRepository, JobRepository, RecipeRepository, ForgeAgentService],
+    providers: [ForgeService, Recipes, ForgeRepository, BuildRepository, JobRepository, RecipeRepository, ForgeAgentService, SessionTokens],
     exports:   [ForgeService, ForgeAgentService],
 })
 export class ForgeModule {}

@@ -16,6 +16,7 @@ export namespace Runtime {
             pattern: z.literal("run"),
             job:     Job.Schema,
             recipe:  Recipe.Schema,
+            token:   z.string(),          // the runtime's to use, never its children's
         })
         export type  Request = z.infer<typeof Request>
 
