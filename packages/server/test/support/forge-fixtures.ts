@@ -134,9 +134,9 @@ export class ForgeHarness {
         });
     }
 
-    /** Plays a ForgeAgent for one job: start, then finish with this outcome. */
+    /** Plays a ForgeAgent for one job: claim, then finish with this outcome. */
     public async run(job: Forge.Job.Schema, status: 'succeeded' | 'failed' = 'succeeded'): Promise<void> {
-        await this.agent.startJob(job.rid, job.attempt);
+        await this.agent.claimJob(job.rid, job.attempt);
         await this.agent.finishJob(job.rid, {
             attempt: job.attempt,
             status,

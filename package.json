@@ -6,7 +6,7 @@
         "packages/*"
     ],
     "scripts": {
-        "dev:all": "npm run infra && npm run build:code-workspace-runtime && npm run dev",
+        "dev:all": "npm run infra && npm run build:code-workspace-ide && npm run dev",
         "dev": "concurrently -n server,dc,system,cw,forge,web -c cyan,magenta,yellow,blue,red,green \"npm:dev:server\" \"npm:dev:data-connection\" \"npm:dev:system\" \"npm:dev:code-workspace\" \"npm:dev:forge-agent\" \"npm:dev:frontend\"",
         "dev:server": "npm run dev:api --workspace=packages/server",
         "dev:data-connection": "npm run dev --workspace=packages/data-connection-worker",
@@ -17,7 +17,7 @@
         "test": "npm run test --workspace=packages/shared --workspace=packages/server",
         "typecheck": "tsc -b packages/shared && npm run typecheck --workspace=packages/integrations --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/forge-agent --workspace=packages/code-workspace-extension --workspace=packages/standard-ui --workspace=packages/frontend",
         "build": "npm run build --workspace=packages/server --workspace=packages/data-connection-worker --workspace=packages/system-worker --workspace=packages/code-workspace-worker --workspace=packages/forge-agent --workspace=packages/frontend",
-        "build:code-workspace-runtime": "npm run package --workspace=packages/code-workspace-extension && docker build -f docker/code-workspace-runtime/Dockerfile -t quarry/code-workspace-runtime:dev .",
+        "build:code-workspace-ide": "npm run package --workspace=packages/code-workspace-extension && docker build -f docker/code-workspace-ide/Dockerfile -t quarry/code-workspace-ide:dev .",
         "infra": "docker compose up -d postgres redis gotrue seaweedfs seaweedfs-init",
         "dev:frontend": "npm run dev --workspace=packages/frontend"
     },

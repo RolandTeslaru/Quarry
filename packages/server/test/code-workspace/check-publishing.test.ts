@@ -117,9 +117,9 @@ describe('publishing recipes', () => {
 
         const { jobs } = await harness.build(admin, [datasets.clean]);
         const [job] = Object.values(jobs);
-        const started = await harness.agent.startJob(job.rid, 1);
+        const claimed = await harness.agent.claimJob(job.rid, 1);
 
-        expect(started.recipe.runtime).toEqual({ type: 'code-workspace', workspaceRid: run.workspaceRid, commit: run.commit, transform: 'pkg.a.clean' });
+        expect(claimed.recipe.runtime).toEqual({ type: 'code-workspace', workspaceRid: run.workspaceRid, commit: run.commit, transform: 'pkg.a.clean' });
     });
 
     describe('refusals — the run fails at its publish step, nothing published', () => {

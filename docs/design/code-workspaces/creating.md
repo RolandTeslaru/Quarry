@@ -79,7 +79,7 @@ src/<package>/datasets/example.py       # the example transform (commented out w
 tests/test_example.py
 ```
 
-Names come from `CodeWorkspace.Template.getProjectName` / `getPackageName` ("Sales cleaning!" → `sales-cleaning` / `sales_cleaning`; never starting with a digit). Paths come from `Library.Resource.getPath`. `quarry.transforms` isn't in the lock — it's preinstalled in the runtime image, which the workspace's `.venv` sees (`--system-site-packages`).
+Names come from `CodeWorkspace.Template.getProjectName` / `getPackageName` ("Sales cleaning!" → `sales-cleaning` / `sales_cleaning`; never starting with a digit). Paths come from `Library.Resource.getPath`. `quarry.transforms` isn't in the lock — it's preinstalled in the IDE image, which the workspace's `.venv` sees (`--system-site-packages`).
 
 ## Opening its page
 

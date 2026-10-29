@@ -9,7 +9,7 @@ A **runtime** is what does a Quarry application's compute. Every application tha
 ```mermaid
 flowchart TB
     subgraph server["Server"]
-        forge["<b>Forge</b><br/>plans the build, creates the jobs<br/>queues RunJob { jobRid, attempt }<br/>at start: pins the inputs, mints the job token"]
+        forge["<b>Forge</b><br/>plans the build, creates the jobs<br/>queues RunJob { jobRid, attempt }<br/>at claim: pins the inputs, mints the job token"]
     end
 
     subgraph machine["Agent machine (one or many)"]
@@ -68,11 +68,11 @@ sequenceDiagram
 
     S->>Q: RunJob { jobRid, attempt }
     Q->>A: message (a slot is free)
-    A->>S: POST jobs/:rid/start
+    A->>S: POST jobs/:rid/claim
     S-->>A: job, recipe, pinned inputs, output transactions, job token
     A->>R: docker run -i --rm <image> runtime  (cpus, memory from recipe.compute)
     A->>R: stdin: run { job, recipe, inputs, outputs, token }
-    R->>S: GET jobs/:rid/inputs (token)
+    R->>S: GET jobs/:rid/input-passes (token)
     S-->>R: presigned GET URLs for the pinned files
     R->>P: spawn python run job.json (URLs, scratch dir, no token)
     P->>O: range GETs (footers, needed column chunks)
@@ -86,7 +86,7 @@ sequenceDiagram
     S->>S: commitBatch: the outputs become new versions
 ```
 
-The message on the queue never carries the job or a credential: only `{ jobRid, attempt }`. Everything else comes from `start`, because that's when the job is claimed (scheduled → running, once), when the inputs get pinned, and when the token is minted. A credential never waits in Redis.
+The message on the queue never carries the job or a credential: only `{ jobRid, attempt }`. Everything else comes from `claim` — the agent claims the job and the server grants it (scheduled → running, once per attempt) — when the inputs get pinned, and when the token is minted. A credential never waits in Redis.
 
 ## 3. Runtimes
 
@@ -204,7 +204,7 @@ flowchart LR
     cache -- "reads" --> job3
 ```
 
-Measured 2026-10-29 in `quarry/code-workspace-runtime:dev` with the template's dependencies: about 10–11 s with an empty cache, 0.1 s warm (also on a volume); a bare container starts and stops in 0.2 s. The packages installed in the image don't help `uv sync` — it installs the locked versions into the venv anyway.
+Measured 2026-10-29 in the IDE image (`quarry/code-workspace-ide:dev`) with the template's dependencies: about 10–11 s with an empty cache, 0.1 s warm (also on a volume); a bare container starts and stops in 0.2 s. The packages installed in the image don't help `uv sync` — it installs the locked versions into the venv anyway.
 
 **Known risk, accepted for now:** the cache is writable by every job's code, so a malicious transform could tamper with cached packages that another workspace's job then installs and runs. Fixes when it matters: a cache volume per workspace, or a shared cache filled by a trusted step and mounted read-only in jobs.
 
@@ -214,15 +214,19 @@ A runtime **carries** permissions; it can't **enforce** them. It runs in the sam
 
 | Where | Token | Narrowed to |
 |---|---|---|
-| Build job | the **job token**, minted at `start` | the pusher's delegated principal, limited to the job's pinned inputs (read) and outputs (write), for this attempt |
+| Build job | the **job token**, minted at `claim` | the pusher's delegated principal, limited to the job's pinned inputs (read) and outputs (write), for this attempt |
 | Preview (IDE) | the session's token | the user |
 | Check run | the run's token | the pusher |
 
-In a job, **Python never gets the token**. The runtime holds it and gives Python only presigned URLs for its own pinned inputs and a local folder to write to. Running the Python child as a different OS user from the runtime keeps it from reading the token out of the runtime's process too.
+In a job, **Python never gets the token**. The runtime holds it and gives Python only presigned URLs for its own pinned inputs and a local folder to write to. **Python runs as its own OS user** (decided 2026-10-29). The image has two users: `runtime`, which the runtime runs as, and `transform`, which every Python child is spawned as (`uid`/`gid` on `spawn`). A process can read everything of another process of the same user — its environment (`/proc/<pid>/environ`), its memory, its files — so with one user, a transform could read the token straight out of the runtime. With two, the child gets only what it's handed:
+
+- **A clean environment.** The child is spawned with an explicit `env` (`PATH`, `HOME`, `UV_CACHE_DIR`, the job's settings), never the runtime's own — nothing the runtime knows leaks through variables.
+- **No access to the runtime's files.** The runtime's working files and `job.json` drafts are readable by `runtime` only; the child gets its own job file and scratch directory, owned by `transform`.
+- **Not root.** Neither user is root, so the child can't switch users or read other processes.
 
 ## 5. Reading inputs
 
-Nothing is mounted or copied into the container up front. The runtime asks the server for **presigned URLs** — short-lived, for exactly the pinned files — and the engines read Parquet straight from storage over HTTP.
+Nothing is mounted or copied into the container up front. The runtime asks the server for **input passes** — presigned URLs, short-lived, for exactly the pinned files, like a visitor's pass that opens certain doors for a day — and the engines read Parquet straight from storage over HTTP. Writing works the same way with **upload passes** (§7).
 
 ### What a Parquet file looks like
 
@@ -256,7 +260,7 @@ sequenceDiagram
     participant O as Storage
 
     Note over R: run { job, token } arrives
-    R->>S: GET jobs/:rid/inputs (token)
+    R->>S: GET jobs/:rid/input-passes (token)
     Note over S: token ok, the pinned files of each input,<br/>signed as presigned GET URLs (no data moved)
     S-->>R: { clean: { sequence, schema, urls } }
     R->>R: write job.json (URLs, output dirs)
@@ -330,7 +334,7 @@ sequenceDiagram
     P->>P: write part-0 (rolls at ~256 MB)
     P-->>R: file-ready part-0
     par upload part-0
-        R->>S: POST jobs/:rid/outputs/:ds/uploads (token)
+        R->>S: POST jobs/:rid/outputs/:ds/upload-passes (token)
         S-->>R: presigned PUT
         R->>O: PUT part-0
         R->>S: POST jobs/:rid/outputs/:ds/files { key, size, schema }
@@ -360,12 +364,24 @@ sequenceDiagram
 
 ## 8. What has to be built
 
+In phases, each small enough to read and review on its own (decided 2026-10-29):
+
+| Phase | What | Proves |
+|---|---|---|
+| **1. Plumbing** | the `Runtime.*` contract and the stdio transport; the code-workspace runtime and its compute image; the ForgeAgent starting it (`runtimeImages`, limits, `/cache`), `run` over stdin, events → heartbeats, `done` → `finish`, kill on stop. `run` spawns Python as `transform`, which only imports `quarry.transforms` and exits. No token, no code, no data | a job reaches a runtime in its own container and comes back |
+| **2. The code** | the job token at `claim`; the runtime checks out the commit, `uv sync --frozen` with `/cache`, imports the pipeline, finds the transform and checks its inputs and outputs against the recipe | the right code runs in the right environment |
+| **3. Reading** | presigning; input passes; `TransformInput` from URLs; lazy reads | a transform reads its pinned inputs |
+| **4. Writing** | upload passes; rolling files and `file-ready`; registering files; `commitBatch` on `finish` | a build writes new versions |
+| **5. Callers** | the extension's preview and the check worker's manifest go through the runtime | one path for preview, checks and builds |
+
+The items below say what each part needs; the table says when.
+
 **Server**
 
 1. Presigning in `FileStorage` (`infra/file-storage.ts`): GET, PUT and multipart PUT URLs (SeaweedFS's S3 API supports them).
-2. The job token, minted at `start`: scoped to the job's attempt, its pinned inputs (read) and outputs (write).
-3. Pinning inputs at `start` (`job.inputs`).
-4. `GET jobs/:rid/inputs` → presigned URLs; `POST jobs/:rid/outputs/:ds/uploads` → upload URLs; `POST jobs/:rid/outputs/:ds/files` → registers files on the open transaction. All gated by the job token.
+2. The job token, minted at `claim`: scoped to the job's attempt, its pinned inputs (read) and outputs (write). **Phase 2**, decided 2026-10-29 — phase 1 runs without one.
+3. Pinning inputs at `claim` (`job.inputs`).
+4. `GET jobs/:rid/input-passes` → presigned URLs; `POST jobs/:rid/outputs/:ds/upload-passes` → upload URLs; `POST jobs/:rid/outputs/:ds/files` → registers files on the open transaction. All gated by the job token.
 5. `catalog.transaction.commitBatch`, and `finish` committing on success instead of aborting.
 
 **Shared**
@@ -377,7 +393,7 @@ sequenceDiagram
 
 8. The Nest runtime (`describe`, `preview`, `run`, `cancel`), spawning Python per operation, and uploading output files as Python announces them.
 9. `quarry.transforms`: `TransformInput` from URLs; `write_table` writing rolling files and announcing each (`file-ready`); a `run` entry point reading `job.json`; `describe` and `preview` behind the runtime.
-10. The image: the runtime, Node, Python, uv, git; the uv cache volume.
+10. **A separate compute image**, `quarry/code-workspace-runtime` — not the IDE's, which is `quarry/code-workspace-ide` (decided 2026-10-29): compute scales on its own and needs no editor. The runtime, Node, Python, uv, git; `/cache` from the agent.
 
 **ForgeAgent**
 
@@ -391,5 +407,4 @@ sequenceDiagram
 
 - **Token format and lifetime:** a signed token the server checks per request, or a session row like the check run's token? How it's renewed for long jobs (heartbeats could extend it).
 - **Presigned URL lifetime** against the longest job; re-fetching URLs mid-job if they expire.
-- **Python as another OS user** from the runtime: needed so the child can't read the token from the runtime's process.
 - **Preview inputs:** keep downloading samples, or sample to storage and hand URLs over, so preview and run read the same way.

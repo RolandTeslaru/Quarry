@@ -5,7 +5,7 @@ import { ForgeHarness } from '../support/forge-fixtures';
 /**
  * How jobs reach ForgeAgents — Forge's durable queue (docs/design/durable-queues.md):
  * a job's message is added with the change that schedules it, relayed at once,
- * sent again by the sweep while unacked, and acked when the job starts or its build ends.
+ * sent again by the sweep while unacked, and acked when the job is claimed or its build ends.
  */
 describe('delivering jobs', () => {
 
@@ -62,7 +62,7 @@ describe('delivering jobs', () => {
         expect(await harness.getOutboxMessage(after.B)).toMatchObject({ sends: 1 });
     });
 
-    it('sends again a job no agent started in time — Redis lost its message', async () => {
+    it('sends again a job no agent claimed in time — Redis lost its message', async () => {
         const { jobs } = await chain();
 
         await harness.runJobQueue.remove(`${jobs.A.rid}_1`);                         // a Redis restart
@@ -83,10 +83,10 @@ describe('delivering jobs', () => {
         expect(await harness.runJobQueue.getJob(`${jobs.A.rid}_1`)).toBeUndefined();
     });
 
-    it("stops sending a started job — its message was acked", async () => {
+    it("stops sending a claimed job — its message was acked", async () => {
         const { jobs } = await chain();
 
-        await harness.agent.startJob(jobs.A.rid, 1);
+        await harness.agent.claimJob(jobs.A.rid, 1);
         await harness.runJobQueue.remove(`${jobs.A.rid}_1`);
 
         await harness.durableQueues.sweep();

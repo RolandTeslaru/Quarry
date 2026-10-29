@@ -12,8 +12,8 @@ A **check run** is CI for one commit of a Code Workspace: it runs the steps the 
 | Commit = push | The session's VS Code pushes after every commit (`git.postCommitCommand: "push"`), so for the user, committing is what runs checks |
 | Which commits | One check per **moved branch head**. Five commits in one push → one check, of the newest |
 | Who defines the steps | The **repository**: `quarry-ci.yml` at its root, written by the template, editable by the user |
-| Who defines publishing | **Quarry**: the last step is `uses: quarry/publish-transforms`, a command in the runtime image, not a script in the repo. It only *claims* what the transforms are; the server checks every claim itself |
-| Where checks run | The **Code Workspace worker**, in a throwaway container from the runtime image — it already has Docker, the image and `quarry.transforms` |
+| Who defines publishing | **Quarry**: the last step is `uses: quarry/publish-transforms`, a command in the IDE image, not a script in the repo. It only *claims* what the transforms are; the server checks every claim itself |
+| Where checks run | The **Code Workspace worker**, in a throwaway container from the IDE image — it already has Docker, the image and `quarry.transforms` |
 | As whom | The **pusher**. Every read, every dataset created, every recipe published is theirs to do, or the check fails |
 | Publishing | All or nothing, and only while the commit is **still the branch head** |
 | New outputs | A missing `Output("/path")` is **created** as an empty dataset, as the pusher (transforms.md) |
@@ -38,7 +38,7 @@ sequenceDiagram
     S->>S: schedule: parse quarry-ci.yml, waiting → scheduled + its message in the outbox (one transaction)
     S->>W: enqueue code-workspace.run-check { checkRunRid } (Redis) — a worker with a free slot takes it
     W->>S: POST /api/internal/…/check-runs/:rid/start → { steps, token, … }
-    W->>C: docker run runtime image — clone @commit, uv sync
+    W->>C: docker run IDE image — clone @commit, uv sync
     loop each step of quarry-ci.yml
         W->>C: docker exec sh -c "<run>"
         W->>S: POST …/steps/:index (status, exit code, log tail)
@@ -71,7 +71,7 @@ await serveGit(request, response, {
 - `CIService.queueChecksForMovedHeads` → `CodeWorkspaceRepository.queueCheckRuns`, as the pusher, one transaction: cancel the branches' unfinished runs (acking their messages), insert a `waiting` run per head.
 - **Deleted branches** run nothing. Their recipes stay until branch deletion is designed (open question).
 - **The template's first commit** doesn't pass through the controller (`git-repos.ts` pushes straight to the bare repository); creating a workspace calls `ci.queueChecksForMovedHeads` for `main` itself.
-- **Push on commit**: `docker/code-workspace-runtime/configuration-defaults.json` gets `"git.postCommitCommand": "push"`. `git commit` in the terminal still needs a `git push` — ordinary Git.
+- **Push on commit**: `docker/code-workspace-ide/configuration-defaults.json` gets `"git.postCommitCommand": "push"`. `git commit` in the terminal still needs a `git push` — ordinary Git.
 
 ## 2. `quarry-ci.yml`
 
@@ -137,7 +137,7 @@ New in `packages/code-workspace-worker`: `src/run-check.processor.ts` (BullMQ, `
 
 1. **Take** a message when a slot is free.
 2. **Start**: `POST /api/internal/code-workspaces/check-runs/:rid/start` → `{ checkRun, steps, token }` — the file's steps, and a token for the pusher. Accepted once: `scheduled → running`, its message acked in the same transaction; else 409 (taken, or canceled), and the worker drops it.
-3. **Container**: `docker run` the runtime image (`CODE_WORKSPACE_RUNTIME_IMAGE`) with no volume and no published port, CPU and memory limits (`CODE_WORKSPACE_CHECK_CPUS`, `CODE_WORKSPACE_CHECK_MEMORY`), labelled `quarry.check-run`. Then `quarry-check-setup` (beside `quarry-session-setup`): git's auth header, `git clone`, `git checkout --detach <commit>`, `uv venv --system-site-packages`. A failed setup fails the run (`failure.step: "Set up"`).
+3. **Container**: `docker run` the IDE image (`CODE_WORKSPACE_IDE_IMAGE`) with no volume and no published port, CPU and memory limits (`CODE_WORKSPACE_CHECK_CPUS`, `CODE_WORKSPACE_CHECK_MEMORY`), labelled `quarry.check-run`. Then `quarry-check-setup` (beside `quarry-session-setup`): git's auth header, `git clone`, `git checkout --detach <commit>`, `uv venv --system-site-packages`. A failed setup fails the run (`failure.step: "Set up"`).
 4. **Steps**, in order: `POST …/steps/:index` as each starts (`running`) and ends (`succeeded`/`failed`, exit code, times, the last 64 KB of output). `run` is `sh -c` in the checkout, stderr merged into stdout, the venv on `PATH`, killed at its timeout. `uses: quarry/publish-transforms` runs `python -m quarry.transforms.manifest`: stdout is the manifest, stderr its log.
 5. **Finish**: `POST …/finish { status, failure, manifest }`.
 6. Always: `docker rm --force` the container. A **409** on any report means the run was canceled (superseded) or taken back: the worker stops and removes the container.

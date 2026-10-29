@@ -5,7 +5,7 @@ A **session** is one user's container on one workspace — the computer behind t
 | | |
 |---|---|
 | Identity | `Session.Key` = `<workspace rid>\|<user rid>` (`code-workspace-worker/src/domain/Session.ts`) |
-| Container | `quarry-code-workspace-session-<workspace uuid>-<user uuid>`, from `CODE_WORKSPACE_RUNTIME_IMAGE` |
+| Container | `quarry-code-workspace-session-<workspace uuid>-<user uuid>`, from `CODE_WORKSPACE_IDE_IMAGE` |
 | Volume | same name, mounted at `/workspace` — the working copy (`/workspace/repo`) and uv's cache survive stops |
 | Secret | 48 hex characters (`Session.createSecret`) — the IDE's path `/s/<secret>/` and VS Code's connection token |
 | Port | VS Code's 3000, published on `127.0.0.1:<random>` only |
@@ -66,7 +66,7 @@ Two opens of the same session at once share one in-flight open (`SessionManager.
 
 ## Restarting one
 
-`POST /api/code-workspaces/:rid/session/restart` → the IDE's new URL — the page's **IDE → Restart**. It replaces the session's container with a fresh one from the current `CODE_WORKSPACE_RUNTIME_IMAGE`, the way to pick up a rebuilt runtime image (the Quarry extension and its themes included) or to recover a wedged container. Same checks as an open (read on the workspace), then the worker's `POST /sessions/restart`:
+`POST /api/code-workspaces/:rid/session/restart` → the IDE's new URL — the page's **IDE → Restart**. It replaces the session's container with a fresh one from the current `CODE_WORKSPACE_IDE_IMAGE`, the way to pick up a rebuilt IDE image (the Quarry extension and its themes included) or to recover a wedged container. Same checks as an open (read on the workspace), then the worker's `POST /sessions/restart`:
 
 1. Waits for any open in flight; opens arriving during the restart join it (`SessionManager.opening`).
 2. `docker rm --force` the container and forgets the session. The volume stays — the working copy, uncommitted files and uv's cache.

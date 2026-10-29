@@ -1,9 +1,9 @@
-# The Code Workspaces runtime (docs/design/transforms.md §6–7): what a session
+# The Code Workspaces IDE image (docs/design/transforms.md §6–7): what a session
 # runs — VS Code in the browser (openvscode-server), Python, uv, git — with
 # quarry.transforms and its engines installed system-wide. A workspace's own
 # .venv sees them (--system-site-packages), so its lock lists only what it adds.
 #
-#   npm run build:code-workspace-runtime     (packages the Quarry extension first, then builds this)
+#   npm run build:code-workspace-ide     (packages the Quarry extension first, then builds this)
 #
 # Versions are pinned to releases at least two weeks old.
 
@@ -40,11 +40,11 @@ RUN useradd --create-home --uid 1000 quarry \
     && mkdir -p /workspace \
     && chown quarry:quarry /workspace
 
-COPY docker/code-workspace-runtime/bin/ /usr/local/bin/
+COPY docker/code-workspace-ide/bin/ /usr/local/bin/
 
 # Default settings, at every scope: the browser keeps user settings itself (IndexedDB), so a server-side
 # settings file can't set application ones — product.json's configurationDefaults can.
-COPY docker/code-workspace-runtime/configuration-defaults.json /tmp/configuration-defaults.json
+COPY docker/code-workspace-ide/configuration-defaults.json /tmp/configuration-defaults.json
 RUN python3 -c "import json; p='/opt/openvscode-server/product.json'; product=json.load(open(p)); product['configurationDefaults']=json.load(open('/tmp/configuration-defaults.json')); json.dump(product, open(p, 'w'), indent=2)" \
     && rm /tmp/configuration-defaults.json
 

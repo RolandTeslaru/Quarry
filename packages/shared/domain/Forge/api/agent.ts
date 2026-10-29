@@ -6,8 +6,8 @@ import { Recipe as RecipeD } from "../Recipe"
 /** ForgeAgents only (`/api/forge-agent/…`, the ForgeAgent token) — mirrors forge-agent.controller. */
 export namespace Agent {
 
-    /** Take the job (`scheduled` → `running`, once per attempt). */
-    export namespace Start {
+    /** Claim the job: the server grants it once per attempt (`scheduled` → `running`). */
+    export namespace Claim {
         export const Request = z.object({ attempt: z.number().int().positive() })
         export type  Request = z.infer<typeof Request>
 
@@ -40,9 +40,9 @@ export namespace Agent {
         export type  Response = z.infer<typeof Response>
     }
 
-    export async function start(api: AxiosInstance, rid: JobD.Rid, req: Start.Request): Promise<Start.Response> {
-        const { data } = await api.post(`/api/forge-agent/jobs/${rid}/start`, req)
-        return Start.Response.parse(data)
+    export async function claim(api: AxiosInstance, rid: JobD.Rid, req: Claim.Request): Promise<Claim.Response> {
+        const { data } = await api.post(`/api/forge-agent/jobs/${rid}/claim`, req)
+        return Claim.Response.parse(data)
     }
 
     export async function heartbeat(api: AxiosInstance, rid: JobD.Rid, req: Heartbeat.Request): Promise<Heartbeat.Response> {

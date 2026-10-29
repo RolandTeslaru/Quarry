@@ -1,6 +1,6 @@
-# The runtime image needs only its own files, the transforms library and the packaged Quarry extension.
+# The IDE image needs only its own files, the transforms library and the packaged Quarry extension.
 *
-!docker/code-workspace-runtime/
+!docker/code-workspace-ide/
 !packages/transforms-python/
 !packages/code-workspace-extension/dist/quarry-code-workspace.vsix
 packages/transforms-python/.venv/

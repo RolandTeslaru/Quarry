@@ -61,10 +61,12 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
     /**
      * The build and its unfinished jobs, canceled. Null if it had already finished; otherwise the canceled jobs.
-     * Jobs before the build, as finishJob and failBuild lock them: the opposite order deadlocks with a finishing last job.
+     * The build is locked before any job row, as finishJob and failBuild lock it: another order deadlocks.
      */
     @Transactional()
     public async cancelBuild(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.Job.Schema[] | null> {
+        await this._build.lock(principal, rid);
+
         const finishedAt = new Date();
 
         const canceled = await this._job.cancelUnfinished(principal, rid, finishedAt);
@@ -85,6 +87,8 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
     /** A job failed: its build's unfinished jobs are canceled and the build failed (descendants only, later). Returns the canceled jobs. */
     @Transactional()
     public async failBuild(principal: Principal, buildRid: Forge.Build.Rid): Promise<Forge.Job.Schema[]> {
+        await this._build.lock(principal, buildRid);
+
         const finishedAt = new Date();
 
         const canceled = await this._job.cancelUnfinished(principal, buildRid, finishedAt);
@@ -98,18 +102,18 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
     // ── running jobs (ForgeAgents) ──────────────────────────────────────
 
     /**
-     * A ForgeAgent takes the job and gets its recipe — in one transaction, so a
+     * A ForgeAgent claims the job and gets its recipe — in one transaction, so a
      * job is never left running without its agent knowing what to run — and its
-     * message is acked. Null if this attempt isn't waiting to start.
+     * message is acked. Null if this attempt isn't waiting to be claimed.
      */
     @Transactional()
-    public async startJob(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Start.Response | null> {
-        const job = await this._job.start(principal, rid, attempt);
+    public async claimJob(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Claim.Response | null> {
+        const job = await this._job.claim(principal, rid, attempt);
 
         if (!job)
             return null;
 
-        // The FK guarantees it exists; a failure here undoes the start.
+        // The FK guarantees it exists; a failure here undoes the claim.
         const recipe = await this._recipe.get(principal, job.recipeRid);
 
         await this._ackRunJobs([job]);
@@ -129,6 +133,9 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         rid:       Forge.Job.Rid,
         outcome:   Forge.API.Agent.Finish.Request,
     ): Promise<{ job: Forge.Job.Schema; scheduled: Forge.Job.Schema[] } | null> {
+        // Before any job row: sibling jobs finishing at once each see the other's outcome, and the order matches cancelBuild's.
+        await this._build.lockForJob(principal, rid);
+
         const job = await this._job.finish(principal, rid, outcome);
 
         if (!job)

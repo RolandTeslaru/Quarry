@@ -28,20 +28,20 @@ export class ForgeAgentService {
         private readonly runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
     ) {}
 
-    /** Take the job: once per attempt, from scheduled. 409 if this attempt isn't waiting to start. */
-    public async startJob(rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Start.Response> {
-        const started = await this.repository.startJob(AGENT, rid, attempt);
+    /** Grants the claim: once per attempt, from scheduled. 409 if this attempt isn't waiting to be claimed. */
+    public async claimJob(rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Claim.Response> {
+        const claimed = await this.repository.claimJob(AGENT, rid, attempt);
 
-        if (!started)
-            throw new ConflictException(`Job ${rid} attempt ${attempt} isn't waiting to start`);
+        if (!claimed)
+            throw new ConflictException(`Job ${rid} attempt ${attempt} isn't waiting to be claimed`);
 
         this.realtime.emitEvent({
-            ...Forge.Event.create('forge:job:updated', { job: started.job }),
-            channel: Forge.Event.getChannel(started.job.buildRid),
+            ...Forge.Event.create('forge:job:updated', { job: claimed.job }),
+            channel: Forge.Event.getChannel(claimed.job.buildRid),
         });
-        this.log.info(`Started ${rid} (attempt ${attempt})`);
+        this.log.info(`Claimed ${rid} (attempt ${attempt})`);
 
-        return started;
+        return claimed;
     }
 
     /** Renews the attempt's lease. `stop` once it isn't running — its build was canceled or failed. */

@@ -77,9 +77,9 @@ export class JobRepository extends Repository(ForgeDB.database) {
         return rows.map(ForgeDB.Job.toDomain);
     }
 
-    /** `scheduled` → `running`, once per attempt. Null if this attempt isn't waiting to start. */
+    /** The claim: `scheduled` → `running`, once per attempt. Null if this attempt isn't waiting to be claimed. */
     @Transactional()
-    public async start(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.Job.Schema | null> {
+    public async claim(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.Job.Schema | null> {
         const now = new Date();
 
         const row = await this.trx

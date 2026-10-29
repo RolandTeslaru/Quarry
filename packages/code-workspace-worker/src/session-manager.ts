@@ -6,7 +6,7 @@ import { Session } from './domain/Session';
 import { config } from './config';
 import { api } from '@quarry/shared/server/internal-api';
 
-/** The IDE's port in the runtime image (docker/code-workspace-runtime). */
+/** The IDE's port in the IDE image (docker/code-workspace-ide). */
 const IDE_PORT = 3000;
 
 /** Where a session's working copy is, in its container. */
@@ -24,7 +24,7 @@ const SETUP_TIMEOUT_MS = 300_000;
 
 /**
  * Code Workspace sessions (docs/design/transforms.md §6): one container per
- * user per workspace, from the runtime image, with a volume for the working
+ * user per workspace, from the IDE image, with a volume for the working
  * copy. Started on open, stopped when idle, started again on the next open.
  * The IDE proxy serves each one's IDE at `/s/<secret>/`; previews run in it,
  * started by the Quarry extension. Containers are labelled, so a restarted
@@ -68,7 +68,7 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
     }
 
     /**
-     * Replaces the session's container with a fresh one from the current runtime image — after an
+     * Replaces the session's container with a fresh one from the current IDE image — after an
      * image rebuild, or when the container is wedged. The volume (the working copy) stays. Waits for
      * opens in flight; opens arriving meanwhile wait for the restart.
      */

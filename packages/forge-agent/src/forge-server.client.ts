@@ -47,10 +47,10 @@ export class ForgeServerClient {
         }
     }
 
-    /** Null if this attempt isn't waiting to start — a duplicate message, or a canceled build. */
-    public async start(message: Forge.Queue.RunJob.Job): Promise<Agent.Start.Response | null> {
+    /** Null if this attempt isn't waiting to be claimed — a duplicate message, or a canceled build. */
+    public async claim(message: Forge.Queue.RunJob.Job): Promise<Agent.Claim.Response | null> {
         try {
-            return await Agent.start(this.api, message.jobRid, { attempt: message.attempt });
+            return await Agent.claim(this.api, message.jobRid, { attempt: message.attempt });
         }
         catch (error) {
             if (isAxiosError(error) && error.response?.status === 409)

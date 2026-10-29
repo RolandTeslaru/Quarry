@@ -59,6 +59,28 @@ export class BuildRepository extends Repository(ForgeDB.database) {
         return rows.map(ForgeDB.Build.toDomain);
     }
 
+    /** Holds the build's row until the transaction ends, so its jobs finishing at once take turns. */
+    @Transactional()
+    public async lock(principal: Principal, rid: Forge.Build.Rid): Promise<void> {
+        await this.trx
+            .selectFrom('forge.build')
+            .select('rid')
+            .where('rid', '=', rid)
+            .forUpdate()
+            .execute();
+    }
+
+    /** `lock`, for the build of this job. */
+    @Transactional()
+    public async lockForJob(principal: Principal, jobRid: Forge.Job.Rid): Promise<void> {
+        await this.trx
+            .selectFrom('forge.build')
+            .select('rid')
+            .where('rid', '=', this.trx.selectFrom('forge.job').select('build_rid').where('rid', '=', jobRid))
+            .forUpdate()
+            .execute();
+    }
+
     /** A running build ends with `status`. False if it had already ended. */
     @Transactional()
     public async end(

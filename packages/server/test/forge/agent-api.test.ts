@@ -4,7 +4,7 @@ import type { Principal } from '@/auth/principal';
 import { ForgeHarness } from '../support/forge-fixtures';
 
 /**
- * The rules ForgeAgents rely on: an attempt starts once (and its message is
+ * The rules ForgeAgents rely on: an attempt is claimed once (and its message is
  * acked then), a finish is idempotent, a stale attempt is refused (the fencing token).
  */
 describe('the ForgeAgent API', () => {
@@ -21,7 +21,7 @@ describe('the ForgeAgent API', () => {
         await harness.stop();
     });
 
-    /** One job, scheduled, its message sent — ready to start. */
+    /** One job, scheduled, its message sent — ready to be claimed. */
     async function scheduledJob() {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'out'], ['raw']);
 
@@ -32,37 +32,37 @@ describe('the ForgeAgent API', () => {
         return Object.values(jobs)[0];
     }
 
-    it('starts an attempt once: a second start is refused', async () => {
+    it('grants a claim once per attempt: a second claim is refused', async () => {
         const job = await scheduledJob();
 
-        const started = await harness.agent.startJob(job.rid, 1);
+        const claimed = await harness.agent.claimJob(job.rid, 1);
 
-        expect(started.job.status).toBe('running');
-        expect(started.recipe.rid).toBe(job.recipeRid);
-        await expect(harness.agent.startJob(job.rid, 1)).rejects.toBeInstanceOf(ConflictException);
+        expect(claimed.job.status).toBe('running');
+        expect(claimed.recipe.rid).toBe(job.recipeRid);
+        await expect(harness.agent.claimJob(job.rid, 1)).rejects.toBeInstanceOf(ConflictException);
     });
 
-    it('acks its message when it starts — the sweep stops sending it', async () => {
+    it('acks its message when it is claimed — the sweep stops sending it', async () => {
         const job = await scheduledJob();
 
         expect(await harness.getOutboxMessage(job)).not.toBeNull();
 
-        await harness.agent.startJob(job.rid, 1);
+        await harness.agent.claimJob(job.rid, 1);
 
         expect(await harness.getOutboxMessage(job)).toBeNull();
     });
 
-    it('keeps its message when the start is refused', async () => {
+    it('keeps its message when the claim is refused', async () => {
         const job = await scheduledJob();
 
-        await expect(harness.agent.startJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);    // not this attempt
+        await expect(harness.agent.claimJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);    // not this attempt
         expect(await harness.getOutboxMessage(job)).not.toBeNull();
     });
 
     it('accepts a repeated finish of the same outcome, and refuses a different one', async () => {
         const job = await scheduledJob();
 
-        await harness.agent.startJob(job.rid, 1);
+        await harness.agent.claimJob(job.rid, 1);
         await harness.agent.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null });
 
         await expect(harness.agent.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null }))
@@ -71,12 +71,12 @@ describe('the ForgeAgent API', () => {
             .rejects.toBeInstanceOf(ConflictException);
     });
 
-    it("refuses another attempt's start, heartbeat and finish — the attempt is the fencing token", async () => {
+    it("refuses another attempt's claim, heartbeat and finish — the attempt is the fencing token", async () => {
         const job = await scheduledJob();
 
-        await expect(harness.agent.startJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);
+        await expect(harness.agent.claimJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);
 
-        await harness.agent.startJob(job.rid, 1);
+        await harness.agent.claimJob(job.rid, 1);
 
         expect(await harness.agent.heartbeatJob(job.rid, 2)).toEqual({ action: 'stop' });
         await expect(harness.agent.finishJob(job.rid, { attempt: 2, status: 'succeeded', failure: null }))

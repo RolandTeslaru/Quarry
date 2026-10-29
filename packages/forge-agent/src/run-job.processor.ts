@@ -10,7 +10,7 @@ const SLOTS = Number(process.env.FORGE_AGENT_SLOTS ?? 2);
 /**
  * One attempt of one job, as the server hands it out:
  *
- *   start (scheduled → running)  →  run  →  finish (succeeded | failed)
+ *   claim (scheduled → running)  →  run  →  finish (succeeded | failed)
  *
  * Scaffold: there's no compute yet. "Run" is a single heartbeat — the server
  * aborts the job's outputs on finish rather than committing them.
@@ -27,15 +27,15 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
     }
 
     protected async handle(message: Forge.Queue.RunJob.Job): Promise<Forge.Queue.RunJob.Result> {
-        const started = await this.forgeServer.start(message);
+        const claimed = await this.forgeServer.claim(message);
 
-        if (!started) {
-            this.log.info(`Skipped ${message.jobRid} (attempt ${message.attempt}): not waiting to start`);
+        if (!claimed) {
+            this.log.info(`Skipped ${message.jobRid} (attempt ${message.attempt}): not waiting to be claimed`);
             
             return { status: 'skipped' };
         }
 
-        const { job, recipe } = started; 
+        const { job, recipe } = claimed;
 
         this.log.info(`Picked up ${message.jobRid} (attempt ${message.attempt})`, {
             build:     job.buildRid,

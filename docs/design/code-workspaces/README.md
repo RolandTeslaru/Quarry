@@ -67,7 +67,7 @@ flowchart LR
 |---|---|---|
 | API server | `packages/server` (`services/CodeWorkspace`, `services/Library`, `services/Catalog`) | Postgres, Redis, object storage, the bare repositories on disk |
 | Code workspace worker | `packages/code-workspace-worker` | Docker, the server's `/api/internal`, Redis (it takes check runs from `code-workspace.run-check`) — no database. Serves its API (`CODE_WORKSPACE_WORKER_PORT`, 4104 — for the server only) and the IDE proxy (`CODE_WORKSPACE_IDE_PROXY_PORT`, 4103 — for browsers) |
-| Session container | `docker/code-workspace-runtime` (image `quarry/code-workspace-runtime:dev`) | The server, as the user (git, previews, the extension) |
+| Session container | `docker/code-workspace-ide` (image `quarry/code-workspace-ide:dev`) | The server, as the user (git, previews, the extension) |
 | Browser | `packages/frontend` (`apps/code-workspaces`, `SDKs/CodeWorkspaceSDK`) | The server (REST), the worker's IDE proxy (the IDE iframe) |
 
 **Where the code is**
@@ -80,7 +80,7 @@ flowchart LR
 | Templates | `server/src/services/CodeWorkspace/templates/` |
 | Session tokens | `server/src/auth/session-tokens.ts` |
 | Sessions, IDE proxy, Docker | `code-workspace-worker/src/{session-manager,ide-proxy,docker-driver,config}.ts`, `src/http/` (the API: controller, service-token guard, error filter), `src/domain/Session.ts` |
-| Runtime image | `docker/code-workspace-runtime/` (Dockerfile, `bin/quarry-session-ide`, `bin/quarry-session-setup`) |
+| IDE image | `docker/code-workspace-ide/` (Dockerfile, `bin/quarry-session-ide`, `bin/quarry-session-setup`) |
 | Python library | `transforms-python/src/quarry/transforms/` |
 | VS Code extension | `code-workspace-extension/` |
 | Frontend | `frontend/src/apps/code-workspaces/`, `frontend/src/SDKs/CodeWorkspaceSDK/` |

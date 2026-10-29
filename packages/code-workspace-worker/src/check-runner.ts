@@ -29,7 +29,7 @@ class Canceled extends Error {}
 
 /**
  * One check run (docs/design/code-workspaces/checks.md §3), as RunCheckProcessor
- * takes it from the queue: in a throwaway container from the runtime image — clone
+ * takes it from the queue: in a throwaway container from the IDE image — clone
  * at the commit, then quarry-ci.yml's steps in order, each reported to the server
  * as it starts and ends.
  */

@@ -42,7 +42,7 @@ job     waiting ──▶ scheduled ──▶ running ──▶ succeeded | fail
 
 The **server orchestrates** — it decides what runs when. **ForgeAgents execute** — one per machine, starting and watching that machine's containers. **Each job runs in its own container**, which does the compute. In between, the **job table** in Postgres and a **queue** in Redis carry "run this job".
 
-**Delivery is a durable queue** ([durable-queues.md](durable-queues.md); moved onto it 2026-10-28). The server decides a job may run by setting it `scheduled`, and **in the same transaction adds its message** (`run job X, attempt N`) to the platform's outbox, `foundations.outbox` — the dual write between Postgres and Redis can't split: a commit has its message, a rollback has none. After the commit `relay()` sends it to BullMQ (`forge.run-job`, job id `<rid>_<attempt>`) — the fast path, best effort. Every minute the system worker's **durable-queue sweep** sends again what wasn't sent, or was sent over 2 minutes ago and never acked — Redis runs without persistence, so a restart loses its messages; a message still there has the same job id and is ignored. The message is **acked** (deleted from the outbox) in the transaction that **starts** the job — `start` moves it `scheduled → running` once per attempt, so a duplicate message gets a 409 — or that **cancels** it (a canceled or failed build). Postgres stays the source of truth; Redis only delivers.
+**Delivery is a durable queue** ([durable-queues.md](durable-queues.md); moved onto it 2026-10-28). The server decides a job may run by setting it `scheduled`, and **in the same transaction adds its message** (`run job X, attempt N`) to the platform's outbox, `foundations.outbox` — the dual write between Postgres and Redis can't split: a commit has its message, a rollback has none. After the commit `relay()` sends it to BullMQ (`forge.run-job`, job id `<rid>_<attempt>`) — the fast path, best effort. Every minute the system worker's **durable-queue sweep** sends again what wasn't sent, or was sent over 2 minutes ago and never acked — Redis runs without persistence, so a restart loses its messages; a message still there has the same job id and is ignored. The message is **acked** (deleted from the outbox) in the transaction that **starts** the job — `claim` moves it `scheduled → running` once per attempt, so a duplicate message gets a 409 — or that **cancels** it (a canceled or failed build). Postgres stays the source of truth; Redis only delivers.
 
 
 ```mermaid
@@ -75,7 +75,7 @@ flowchart TB
 | **Server** — `ForgeService` | Creates builds (collect the plan, validate, lock the outputs, persist), advances them when a job finishes (commit its outputs, ask D2 which jobs are now ready, mark them scheduled, relay them), cancels them, fails silent jobs (reaper) | the API |
 | **Delivery** — the durable queue `Forge.DurableQueue.RunJob` | A scheduled job's message is added to `foundations.outbox` with the change that schedules it, relayed to BullMQ (job id `<rid>_<attempt>`) after the commit and by the platform's every-minute sweep, and acked when the job starts or its build ends — [durable-queues.md](durable-queues.md) | — |
 | **Queue** — BullMQ on Redis | Delivers "run job X" to one agent: one queue, `forge.run-job` | — |
-| **ForgeAgent** | Takes a job when it has a free slot, calls `start`, starts the image of the runtime its recipe names (`recipe.runtime.type`) with the recipe's compute, sends it the job, heartbeats, streams logs, waits for the exit, calls `finish`; kills the container on cancel. Never moves data | one per machine |
+| **ForgeAgent** | Takes a job when it has a free slot, calls `claim`, starts the image of the runtime its recipe names (`recipe.runtime.type`) with the recipe's compute, sends it the job, heartbeats, streams logs, waits for the exit, calls `finish`; kills the container on cancel. Never moves data | one per machine |
 | **Job container** | The runtime, as its main process — for `code-workspace`: fetches the code at the commit, reads the inputs, runs the function, uploads and registers the output files, exits 0 or 1 | one per job, removed after |
 | **Catalog** | Datasets, their transactions and files — what jobs read and write | — |
 
@@ -85,7 +85,7 @@ flowchart TB
 
 | Endpoint | What |
 |---|---|
-| `POST /api/forge-agent/jobs/:rid/start` | take the job (`scheduled` → `running`, once per attempt; its message acked), pin its inputs; returns `start.json` and the job's scoped token |
+| `POST /api/forge-agent/jobs/:rid/claim` | claim the job (`scheduled` → `running`, once per attempt; its message acked), pin its inputs; returns `claim.json` and the job's scoped token |
 | `POST /api/forge-agent/jobs/:rid/heartbeat` | still running; the reply says carry on or stop |
 | `POST /api/forge-agent/jobs/:rid/finish` | succeeded or failed (with a message); idempotent per attempt |
 
@@ -198,7 +198,7 @@ sequenceDiagram
     Q->>A: job A (when a slot is free)
     A->>S: start A
     S->>PG: pin inputs · A running · A_1 acked (one transaction)
-    S-->>A: start.json (recipe, pinned inputs, output transactions) · scoped token
+    S-->>A: claim.json (recipe, pinned inputs, output transactions) · scoped token
     A->>C: docker run (image, cpu, memory, token)
     loop every 30 s
         A->>S: heartbeat A
@@ -212,7 +212,7 @@ sequenceDiagram
     Note over R,Q: B and C are delivered, and so on until every job is done
 ```
 
-**Starting** (`POST /api/forge-agent/jobs/:rid/start`): accepted once per attempt, from `scheduled` (`UPDATE … SET status = 'running' WHERE rid = … AND attempt = … AND status = 'scheduled'`), acking its message in the same transaction — `running` is what decides ownership. A duplicate message finds the job running and gets a 409. Then the server pins each input to its newest committed version — for an input built in this build, the version its parent just committed — records them in the job's `inputs`, marks the job `running`, and returns `start.json` with a short-lived token scoped to the job's inputs and outputs.
+**Claiming** (`POST /api/forge-agent/jobs/:rid/claim`): accepted once per attempt, from `scheduled` (`UPDATE … SET status = 'running' WHERE rid = … AND attempt = … AND status = 'scheduled'`), acking its message in the same transaction — `running` is what decides ownership. A duplicate message finds the job running and gets a 409. Then the server pins each input to its newest committed version — for an input built in this build, the version its parent just committed — records them in the job's `inputs`, marks the job `running`, and returns `claim.json` with a short-lived token scoped to the job's inputs and outputs.
 
 **Finishing** (`POST /api/forge-agent/jobs/:rid/finish`), in one database transaction:
 
@@ -254,11 +254,11 @@ stateDiagram-v2
 | server, after the commit, before relaying | `scheduled`, its message unsent | nothing | the durable-queue sweep sends it within a minute |
 | server, after sending, before marking the message sent | `scheduled`, its message unsent | `rid_attempt` | an agent starts it; the sweep's resend is ignored (same id) |
 | Redis loses the message — any Redis restart, as it has no persistence | `scheduled`, its message sent, not acked | nothing | the sweep sends again a message unacked for over 2 minutes |
-| agent, after `start`, while the container runs | `running` | done | heartbeats stop → the reaper: retry (`attempt + 1`, `scheduled`) or `failed` |
+| agent, after `claim`, while the container runs | `running` | done | heartbeats stop → the reaper: retry (`attempt + 1`, `scheduled`) or `failed` |
 | the container (non-zero exit, out of memory) | `running` | done | the agent reports `finish(failed)` → retry or `failed` |
 | agent, after the container exited, before `finish` arrives | `running` | done | the agent retries `finish` when it can; if it died, the reaper fails or retries the job — the outputs stay uncommitted |
 | server, during `finish` | `running` (rolled back) | done | the agent retries `finish`; it's idempotent per attempt |
-| a stale agent's late `finish`, after a retry began | `running`, a newer `attempt` | — | rejected: `start` and `finish` only count for the current attempt (the fencing token) |
+| a stale agent's late `finish`, after a retry began | `running`, a newer `attempt` | — | rejected: `claim` and `finish` only count for the current attempt (the fencing token) |
 
 `attempt` counts executions, not deliveries: only a retry raises it. Duplicate sends and refused duplicate messages leave it alone.
 
@@ -282,9 +282,9 @@ docker run
   --cpus 1 --memory 4g                                  ← the recipe's compute
   -e QUARRY_SERVER_URL=…  -e QUARRY_TOKEN=…             ← short-lived, scoped to this job
   -e QUARRY_JOB_RID=ri.forge.main.job.…
-  -v /tmp/forge/<job>/start.json:/job/start.json:ro     ← what `start` returned
+  -v /tmp/forge/<job>/claim.json:/job/claim.json:ro     ← what `claim` returned
   <the environment image for the recipe>
-  python -m quarry.transforms.run /job/start.json
+  python -m quarry.transforms.run /job/claim.json
 ```
 
 The container: (1) fetches the code at the recipe's commit over Git; (2) imports the pipeline, finds the transform, and checks its `Input` / `Output` refs resolve to exactly the recipe's datasets — a path renamed or moved since checks **fails the job** ("push again") rather than reading the wrong data; refs written as RIDs never drift; (3) reads the inputs at their pinned versions; (4) runs the function; (5) uploads the output files and registers them on their transactions; (6) exits 0, or 1 with the error printed.
@@ -364,11 +364,11 @@ The dataset viewer then shows, as in Foundry's About panel: **Updated … by** t
 
 Publishing has no endpoint: producers call `forge.recipes.publish(principal, producerRid, branch, recipes)` in-process — nothing does yet (checks will).
 
-**Live updates** (`Forge.Event`, realtime.md). Every change to a job is announced on its build's channel, `forge:build:<buildRid>`, as `forge:job:updated` with the job as it is now (`Forge.Event.Job.Updated`) — emitted by the server, whoever changed the row, right after the commit: initializing (all jobs), `start`, `finish` (the job and the children it scheduled), failing and canceling (the canceled jobs). Not heartbeats. It's a nudge for the UI, not the record: a lost event only means a later refetch, and nothing acts on these events but pages. ForgeAgents never publish. Subscribing needs to see the build (discover on one of its targets).
+**Live updates** (`Forge.Event`, realtime.md). Every change to a job is announced on its build's channel, `forge:build:<buildRid>`, as `forge:job:updated` with the job as it is now (`Forge.Event.Job.Updated`) — emitted by the server, whoever changed the row, right after the commit: initializing (all jobs), `claim`, `finish` (the job and the children it scheduled), failing and canceling (the canceled jobs). Not heartbeats. It's a nudge for the UI, not the record: a lost event only means a later refetch, and nothing acts on these events but pages. ForgeAgents never publish. Subscribing needs to see the build (discover on one of its targets).
 
 **Server layout** (`server/src/services/Forge/`): `forge.service.ts` — `ForgeService`, what users and other services do (initialize, list, get, cancel builds; `recipes`); `agent/` — `ForgeAgentController` and `ForgeAgentService`, what ForgeAgents do (start, heartbeat, finish, advancing and failing builds); `repository/` — `forge.repository.ts`, the facade (`initializeBuild`, `cancelBuild`, `failBuild`, `startJob`, `finishJob`: the writes that commit builds and jobs together) over `build.repository.ts`, `job.repository.ts`, `recipe.repository.ts` — it adds and acks jobs' messages (`Forge.DurableQueue.RunJob`) in those same transactions; `forge.db.ts`, `recipes.ts`. Each service emits its job events and aborts its transactions inline: `realtime.emitEvent({ ...Forge.Event.create('forge:job:updated', { job }), channel: Forge.Event.getChannel(job.buildRid) })`, `catalog.transaction.abortBatch(principal, Forge.Job.getOutputTransactions(job))`.
 
-**ForgeAgent scaffold** (`packages/forge-agent`, `npm run dev:forge-agent`, health on `FORGE_AGENT_PORT`, default 4105). Initializing a build schedules its roots (their messages in the outbox), and the durable queue sends them to `forge.run-job` (BullMQ id `<rid>_<attempt>`). The agent's `RunJobProcessor` (concurrency `FORGE_AGENT_SLOTS`, default 2) calls `start`, logs the job, sends one heartbeat and calls `finish(succeeded)` — **no compute**. `finish` then:
+**ForgeAgent scaffold** (`packages/forge-agent`, `npm run dev:forge-agent`, health on `FORGE_AGENT_PORT`, default 4105). Initializing a build schedules its roots (their messages in the outbox), and the durable queue sends them to `forge.run-job` (BullMQ id `<rid>_<attempt>`). The agent's `RunJobProcessor` (concurrency `FORGE_AGENT_SLOTS`, default 2) calls `claim`, logs the job, sends one heartbeat and calls `finish(succeeded)` — **no compute**. `finish` then:
 
 - **aborts the job's output transactions** (`catalog.transaction.abortBatch`) — nothing was written, and committing would publish empty snapshots; committing comes with the compute. A repeated finish redoes this cleanup (and failing the build): both skip what's already done, so a cleanup that failed is finished by the agent's retry;
 - on success, schedules each child whose parents have all succeeded (`Forge.Build.Plan.getReadyChildren`), adding its message, and relays it;
@@ -377,7 +377,7 @@ Publishing has no endpoint: producers call `forge.recipes.publish(principal, pro
 
 | ForgeAgent API | What |
 |---|---|
-| `POST /api/forge-agent/jobs/:rid/start` | `scheduled` → `running`, once per attempt (409 otherwise), its message acked; returns the job and its recipe. Inputs aren't pinned yet |
+| `POST /api/forge-agent/jobs/:rid/claim` | `scheduled` → `running`, once per attempt (409 otherwise), its message acked; returns the job and its recipe. Inputs aren't pinned yet |
 | `POST /api/forge-agent/jobs/:rid/heartbeat` | renews `heartbeat_at`; `stop` once the job isn't running |
 | `POST /api/forge-agent/jobs/:rid/finish` | records the outcome and advances the build; a repeat of a recorded outcome is accepted, another attempt's is a 409 |
 
@@ -385,6 +385,6 @@ Relay sweep verified 2026-10-27 (before the move to the durable queue, which rep
 
 Verified 2026-10-27 with the agent running — events: `A:scheduled → B:waiting → A:queued → A:running → A:succeeded → B:scheduled → B:queued → B:running → B:succeeded`; through `/socket`, the build's channel accepted and an unknown build's refused. Also: a two-recipe build (B reads A's output) ran A, then B; both went scheduled → queued → running → succeeded; the build succeeded; the outputs were aborted and the datasets left at sequence 0; a repeated finish was accepted, a wrong attempt and a second start refused (409).
 
-**Unverified (noted 2026-10-27, during the repository split — not yet checked against the design):** two sibling jobs finishing at once may leave their build stuck. `finishJob` reads the build's jobs, then schedules children and ends the build; under READ COMMITTED with no lock, each transaction may still see the other job as `running`, so neither ends the build, and a child of both is never scheduled. A candidate fix is locking the build row (`select … for update`) at the start of `finishJob` and `failBuild`, as Catalog's commit locks the branch.
+**Sibling jobs finishing at once** (noted 2026-10-27, fixed 2026-10-29): `finishJob` reads the build's jobs, then schedules children and ends the build; under READ COMMITTED with no lock, two siblings finishing together could each still see the other `running`, so neither ended the build and a child of both was never scheduled. Now `finishJob`, `failBuild` and `cancelBuild` lock the build row (`SELECT … FOR UPDATE`) before touching any job row — always build first, so they can't deadlock — and siblings take turns. Not covered by a test: two finishes in the test harness didn't overlap even without the lock, so a test couldn't fail.
 
-**Next:** the compute (the runner, containers, staging inputs and outputs, pinning inputs at `start`); committing outputs (`catalog.transaction.commitBatch`); `log_key` and logs; the reaper; retries; canceling descendants only, and D2; `environment` on code-workspace recipes. **Later:** upstream and connecting builds (a recursive query collecting the plan), staleness and `forceBuild`, dataset branches other than main, syncs publishing recipes, the Scheduler.
+**Next:** the compute (the runner, containers, staging inputs and outputs, pinning inputs at `claim`); committing outputs (`catalog.transaction.commitBatch`); `log_key` and logs; the reaper; retries; canceling descendants only, and D2; `environment` on code-workspace recipes. **Later:** upstream and connecting builds (a recursive query collecting the plan), staleness and `forceBuild`, dataset branches other than main, syncs publishing recipes, the Scheduler.

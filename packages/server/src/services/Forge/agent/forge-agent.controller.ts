@@ -8,7 +8,7 @@ import Agent = Forge.API.Agent;
 const JobRidParam = new ZodPipe(Forge.Job.Rid);
 
 /**
- * ForgeAgents only (`/api/forge-agent/…`, the ForgeAgent token): starting,
+ * ForgeAgents only (`/api/forge-agent/…`, the ForgeAgent token): claiming,
  * heartbeating and finishing jobs. Mirrors Forge.API.Agent in @quarry/shared.
  */
 @ForgeAgentOnly()
@@ -17,13 +17,13 @@ export class ForgeAgentController {
 
     constructor(private readonly agent: ForgeAgentService) {}
 
-    @Post('jobs/:rid/start')
+    @Post('jobs/:rid/claim')
     @HttpCode(200)
-    public async start(
+    public async claim(
         @Param('rid', JobRidParam) rid: Forge.Job.Rid,
-        @Body(new ZodPipe(Agent.Start.Request)) body: Agent.Start.Request,
-    ): Promise<Agent.Start.Response> {
-        return this.agent.startJob(rid, body.attempt);
+        @Body(new ZodPipe(Agent.Claim.Request)) body: Agent.Claim.Request,
+    ): Promise<Agent.Claim.Response> {
+        return this.agent.claimJob(rid, body.attempt);
     }
 
     @Post('jobs/:rid/heartbeat')

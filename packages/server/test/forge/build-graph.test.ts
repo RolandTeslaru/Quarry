@@ -5,7 +5,7 @@ import { ForgeHarness } from '../support/forge-fixtures';
 /**
  * Builds of several jobs that depend on each other: the plan, the order they
  * become runnable, and how a failure or a cancel ends the build. The test plays
- * the ForgeAgent (start, finish), so the order is the test's, not a race.
+ * the ForgeAgent (claim, finish), so the order is the test's, not a race.
  */
 describe('a build of several dependent datasets', () => {
 
@@ -169,7 +169,7 @@ describe('a build of several dependent datasets', () => {
         const { build } = await harness.build(user, [datasets.a, datasets.b]);
         const { jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
 
-        await harness.agent.startJob(jobs.A.rid, 1);                                   // A running, B waiting
+        await harness.agent.claimJob(jobs.A.rid, 1);                                   // A running, B waiting
 
         const canceled = await harness.forge.cancelBuild(user, build.rid);
 

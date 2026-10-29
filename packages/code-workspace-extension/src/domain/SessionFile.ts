@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { z } from 'zod'
 
 /**
- * What the session's setup (docker/code-workspace-runtime/bin/quarry-session-setup)
+ * What the session's setup (docker/code-workspace-ide/bin/quarry-session-setup)
  * hands the extension on every open: the session's token, and where Quarry is.
  */
 export namespace SessionFile {

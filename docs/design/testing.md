@@ -45,7 +45,7 @@ A test that pins down a **known bug** is `it.fails`: it passes while the bug is 
 
 Conventions: test through public service methods, not private helpers; no `sleep` — drive the steps, or poll with a timeout; one behaviour per test, named as a sentence.
 
-**Check a new test can fail.** Break the rule it guards and run it: when written, the diamond test caught readiness changed from "every parent" to "some parent", and the start-once test caught `start` accepting a running job — each failed alone, the rest passed.
+**Check a new test can fail.** Break the rule it guards and run it: when written, the diamond test caught readiness changed from "every parent" to "some parent", and the claim-once test caught `claim` accepting a running job — each failed alone, the rest passed.
 
 Data Connection's, checked the same way (each mutation failed only the tests named): complete/fail only while running (the two fail tests — a second complete is also refused by Catalog's own open-transaction check); the `sync_run_one_running` index (the second-start test); heartbeat only on a running run; the reaper only for stale heartbeats; the state from the last *successful* run (both state tests); registering only the run's own prefix; run history needs read, not discover; a run uses the credential as its delegate, not the system; a failed run is announced (the two event tests).
 
@@ -101,7 +101,7 @@ The end-to-end file lives in the server package for now (it drives the server an
 ## Next
 
 - The realtime gateway's authorization through a real socket (a build's channel for members who can and can't see it).
-- End to end with compute, once ForgeAgents run containers: committed outputs, inputs pinned at start.
+- End to end with compute, once ForgeAgents run containers: committed outputs, inputs pinned at claim.
 - Catalog uploads and the Library — untested so far.
 - Data Connection: a real sync run end to end (the worker copying with DuckDB to the bucket, then complete).
 - CI: Testcontainers (throwaway Postgres and Redis per run) instead of the dev ones.

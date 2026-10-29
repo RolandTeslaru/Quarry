@@ -110,7 +110,7 @@ describe('a real ForgeAgent', () => {
         const { build } = await harness.build(user, [datasets.a, datasets.b]);
         const outcome = await harness.forge.cancelBuild(user, build.rid).then(() => 'canceled', (error: Error) => error.message);
 
-        // Give the agent time to try to finish whatever it had started.
+        // Give the agent time to try to finish whatever it had claimed.
         await new Promise((resolve) => setTimeout(resolve, 1_000));
 
         const { build: after, jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
@@ -136,11 +136,11 @@ describe('a real ForgeAgent', () => {
 
         await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
 
-        // Built without the agent's help: start it as an agent would, cancel, then try to finish.
+        // Built without the agent's help: claim it as an agent would, cancel, then try to finish.
         const { build, jobs } = await harness.build(user, [datasets.a]);
         const [job] = Object.values(jobs);
 
-        await harness.agent.startJob(job.rid, 1).catch(() => undefined);        // the real agent may have taken it first
+        await harness.agent.claimJob(job.rid, 1).catch(() => undefined);        // the real agent may have taken it first
         await harness.forge.cancelBuild(user, build.rid).catch(() => undefined);
 
         const late = harness.agent.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null });

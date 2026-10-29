@@ -8,7 +8,7 @@ const Env = z.object({
     CODE_WORKSPACE_IDE_PROXY_PORT:       z.coerce.number().int().positive().default(4103),
     CODE_WORKSPACE_IDE_PROXY_URL:        z.url(),
     CODE_WORKSPACE_APP_URL:              z.url().default('http://127.0.0.1:5173'),
-    CODE_WORKSPACE_RUNTIME_IMAGE:        z.string().min(1).default('quarry/code-workspace-runtime:dev'),
+    CODE_WORKSPACE_IDE_IMAGE:            z.string().min(1).default('quarry/code-workspace-ide:dev'),
     CODE_WORKSPACE_SESSION_SERVER_URL:   z.url().default('http://host.docker.internal:4000'),
     CODE_WORKSPACE_SESSION_IDLE_MINUTES: z.coerce.number().positive().default(30),
     CODE_WORKSPACE_SESSION_MEMORY:       z.string().regex(/^\d+[kmg]$/i, 'a size like 4g').default('4g'),
@@ -38,7 +38,7 @@ function load() {
         appUrl:       env.CODE_WORKSPACE_APP_URL.replace(/\/$/, ''),
 
         sessions: {
-            image:     env.CODE_WORKSPACE_RUNTIME_IMAGE,
+            image:     env.CODE_WORKSPACE_IDE_IMAGE,
             /** The server as session containers reach it — for git and previews' reads. */
             serverUrl: env.CODE_WORKSPACE_SESSION_SERVER_URL.replace(/\/$/, ''),
             /** A session unused this long is stopped. */
