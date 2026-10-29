@@ -1,11 +1,12 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Catalog, type Platform } from '@quarry/shared/domain';
+import { Catalog, Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { FileStorage } from '@/infra/file-storage';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@/services/Gatekeeper/security-gate';
 import { Audit } from '@/services/Audit/audit.decorator';
 import { AuditService } from '@/services/Audit/audit.service';
+import { LibraryService } from '@/services/Library/library.service';
 import { DatasetRepository } from './dataset.repository';
 import { OutboxRepository } from './outbox/outbox.repository';
 import { CatalogStorage } from './storage/catalog-storage.service';
@@ -29,6 +30,7 @@ export class CatalogService {
         private readonly transactionRepository: TransactionRepository,
         private readonly outboxRepository:      OutboxRepository,
         private readonly files:                 FileStorage,
+        private readonly library:               LibraryService,
     ) {}
 
     /** Creating = writing into the parent folder — RLS's call on the insert. */
@@ -53,6 +55,40 @@ export class CatalogService {
             throw new NotFoundException('Not found');
 
         return dataset;
+    }
+
+    /** A dataset by RID or library path. */
+    async getByReference(principal: Principal, reference: string): Promise<Catalog.Dataset.Schema> {
+        const rid = Catalog.Dataset.Rid.safeParse(reference);
+
+        if (rid.success)
+            return this.get(principal, rid.data);
+
+        const resource = await this.library.getByPath(principal, reference);
+
+        return this.get(principal, Catalog.Dataset.Rid.parse(resource.rid));
+    }
+
+    /** A dataset by RID or library path — or, for a path nothing is at yet, a new empty one there. */
+    async getOrCreateByReference(principal: Principal, reference: string): Promise<Catalog.Dataset.Schema> {
+        const rid = Catalog.Dataset.Rid.safeParse(reference);
+
+        if (rid.success)
+            return this.get(principal, rid.data);
+
+        const existing = await this.library.getByPath(principal, reference).catch(() => null);
+
+        if (existing)
+            return this.get(principal, Catalog.Dataset.Rid.parse(existing.rid));
+
+        const segments = Library.Resource.parsePath(reference);
+        const folder = await this.library.getByPath(principal, `/${segments.slice(0, -1).join('/')}`);
+
+        return this.createDataset(principal, {
+            parentRid:   folder.rid,
+            name:        Library.Resource.Name.parse(segments.at(-1)),
+            description: null,
+        });
     }
 
     /**

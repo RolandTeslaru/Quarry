@@ -24,7 +24,7 @@ sequenceDiagram
     participant S as CodeWorkspaceService
     participant G as GatekeeperService
     participant L as LibraryService
-    participant R as GitRepositories
+    participant R as GitRepos
     participant T as python-transforms template
     participant DB as CodeWorkspaceRepository (Postgres, RLS)
 

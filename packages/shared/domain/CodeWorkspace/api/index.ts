@@ -5,8 +5,6 @@ import { Dataset as DatasetD } from "../../Catalog/Dataset"
 import { Resource as ResourceD } from "../../Library/Resource"
 import { Template as TemplateD } from "../Template"
 import { Workspace as WorkspaceD } from "../Workspace"
-import { CheckRun as CheckRunD } from "../CheckRun"
-import { Foundations } from "../../Foundations"
 import * as InternalMod from "./internal"
 import * as WorkerMod from "./worker"
 
@@ -70,27 +68,6 @@ export namespace API {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** The workspace's check runs, newest first — a page of them: `before` is the last RID seen. Needs read on the workspace. */
-    export namespace ListCheckRuns {
-        export const Query = z.object({
-            branch: Foundations.Branch.optional(),
-            before: CheckRunD.Rid.optional(),
-            limit:  z.coerce.number().int().min(1).max(100).default(25),
-        })
-        export type  Query = z.infer<typeof Query>
-
-        export const Response = z.object({
-            checkRuns:  CheckRunD.Schema.array(),
-            nextBefore: CheckRunD.Rid.nullable(),        // the next page's `before`; null: this was the last
-        })
-        export type  Response = z.infer<typeof Response>
-    }
-
-    export namespace GetCheckRun {
-        export const Response = z.object({ checkRun: CheckRunD.Schema })
-        export type  Response = z.infer<typeof Response>
-    }
-
     export async function listTemplates(api: AxiosInstance): Promise<ListTemplates.Response> {
         const { data } = await api.get("/api/code-workspaces/templates")
         return ListTemplates.Response.parse(data)
@@ -124,16 +101,6 @@ export namespace API {
     export async function restartSession(api: AxiosInstance, rid: WorkspaceD.Rid): Promise<RestartSession.Response> {
         const { data } = await api.post(`/api/code-workspaces/${rid}/session/restart`)
         return RestartSession.Response.parse(data)
-    }
-
-    export async function listCheckRuns(api: AxiosInstance, rid: WorkspaceD.Rid, query: z.input<typeof ListCheckRuns.Query> = {}): Promise<ListCheckRuns.Response> {
-        const { data } = await api.get(`/api/code-workspaces/${rid}/check-runs`, { params: query })
-        return ListCheckRuns.Response.parse(data)
-    }
-
-    export async function getCheckRun(api: AxiosInstance, rid: WorkspaceD.Rid, checkRunRid: CheckRunD.Rid): Promise<GetCheckRun.Response> {
-        const { data } = await api.get(`/api/code-workspaces/${rid}/check-runs/${checkRunRid}`)
-        return GetCheckRun.Response.parse(data)
     }
 
     /** Code-workspace-worker-only endpoints (`/api/internal/…`). */

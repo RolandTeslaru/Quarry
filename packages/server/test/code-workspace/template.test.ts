@@ -9,6 +9,8 @@ import { CodeWorkspace } from '@quarry/shared/domain';
 import { pythonTransforms } from '@/services/CodeWorkspace/templates/python-transforms';
 import type { TemplateParams } from '@/services/CodeWorkspace/templates';
 
+import CI = CodeWorkspace.CI;
+
 const run = promisify(execFile);
 
 /** quarry.transforms and the engines, as the runtime image has them — transforms-python's own environment. */
@@ -59,7 +61,7 @@ describe('the python-transforms template', () => {
     }
 
     it.each([['with', WITH_EXAMPLE], ['without', WITHOUT_EXAMPLE]])('writes a valid quarry-ci.yml (%s the example)', async (_, params) => {
-        const config = CodeWorkspace.Check.Config.Schema.parse(parseYaml(pythonTransforms.files(params)['quarry-ci.yml']));
+        const config = CI.Check.Config.Schema.parse(parseYaml(pythonTransforms.files(params)['quarry-ci.yml']));
 
         expect(config.steps.map((step) => step.name)).toEqual(['Environment', 'Tests', 'Publish transforms']);
         expect(config.steps.at(-1)).toMatchObject({ uses: 'quarry/publish-transforms' });
@@ -79,7 +81,7 @@ describe('the python-transforms template', () => {
             const directory = await render(WITH_EXAMPLE);
 
             const { stdout } = await python(directory, ['-m', 'quarry.transforms.manifest']);
-            const manifest = CodeWorkspace.Check.Manifest.Schema.parse(JSON.parse(stdout));
+            const manifest = CI.Check.Manifest.Schema.parse(JSON.parse(stdout));
 
             expect(manifest.transforms).toEqual([{
                 name:      'sales_cleaning.datasets.example.example',
@@ -94,7 +96,7 @@ describe('the python-transforms template', () => {
 
             const { stdout } = await python(directory, ['-m', 'quarry.transforms.manifest']);
 
-            expect(CodeWorkspace.Check.Manifest.Schema.parse(JSON.parse(stdout))).toEqual({ transforms: [] });
+            expect(CI.Check.Manifest.Schema.parse(JSON.parse(stdout))).toEqual({ transforms: [] });
         });
     });
 });

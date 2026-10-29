@@ -7,7 +7,8 @@ import { CodeWorkspaceDB } from '../code-workspace.db';
 import { CheckRunRepository, type NewCheckRun, type QueuedCheckRuns } from './check-run.repository';
 import { WorkspaceRepository } from './workspace.repository';
 
-import CheckRun = CodeWorkspace.CheckRun;
+import CI = CodeWorkspace.CI;
+import CheckRun = CodeWorkspace.CI.CheckRun;
 
 /**
  * The `code_workspace` schema. A write that spans tables — or a check run and its
@@ -29,8 +30,8 @@ export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database
     constructor(
         _workspace: WorkspaceRepository,
         private readonly _checkRun: CheckRunRepository,
-        @InjectDurableQueue(CodeWorkspace.DurableQueue.RunCheck)
-        private readonly _runCheckQueue: DurableQueueHandle<typeof CodeWorkspace.Queue.RunCheck.Definition>,
+        @InjectDurableQueue(CI.DurableQueue.RunCheck)
+        private readonly _runCheckQueue: DurableQueueHandle<typeof CI.Queue.RunCheck.Definition>,
     ) {
         super();
 
@@ -103,5 +104,5 @@ export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database
 }
 
 function getJobId(run: Pick<CheckRun.Schema, 'rid'>): string {
-    return CodeWorkspace.Queue.RunCheck.getJobId(run);
+    return CI.Queue.RunCheck.getJobId(run);
 }

@@ -1,6 +1,8 @@
 import type { BadgeProps } from '@quarry/standard-ui/foundations/Badge'
 import type { IconName } from '@quarry/standard-ui/icons'
-import type { CodeWorkspace } from '@quarry/shared/domain'
+import { CodeWorkspace } from '@quarry/shared/domain'
+
+import CI = CodeWorkspace.CI
 
 /** A workspace's tabs — each a route under routes/$rid/. */
 export type WorkspaceTab = 'code' | 'branches' | 'checks' | 'pull-requests' | 'settings'
@@ -15,7 +17,7 @@ export const WORKSPACE_TABS = {
 } as const satisfies Record<WorkspaceTab, { label: string; to: string }>
 
 /** How each check run status shows: its badge. */
-export const CHECK_RUN_STATUSES: Record<CodeWorkspace.CheckRun.Status, CheckRunStatusLook> = {
+export const CHECK_RUN_STATUSES: Record<CI.CheckRun.Status, CheckRunStatusLook> = {
     waiting:   { label: 'Waiting',   icon: 'time',    variant: 'secondary' },
     scheduled: { label: 'Scheduled', icon: 'time',    variant: 'secondary' },
     running:   { label: 'Running',   icon: 'refresh', variant: 'active' },
@@ -25,7 +27,7 @@ export const CHECK_RUN_STATUSES: Record<CodeWorkspace.CheckRun.Status, CheckRunS
 }
 
 /** How each step status shows: its icon, in its colour. */
-export const CHECK_STEP_STATUSES: Record<CodeWorkspace.CheckRun.Step.Status, { label: string; icon: IconName; className: string }> = {
+export const CHECK_STEP_STATUSES: Record<CI.CheckRun.Step.Status, { label: string; icon: IconName; className: string }> = {
     waiting:   { label: 'Waiting',   icon: 'circle',  className: 'text-muted-foreground' },
     running:   { label: 'Running',   icon: 'refresh', className: 'text-sky-600' },
     succeeded: { label: 'Passed',    icon: 'tick',    className: 'text-emerald-600' },

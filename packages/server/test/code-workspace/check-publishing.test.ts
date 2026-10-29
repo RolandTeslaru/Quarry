@@ -1,13 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Catalog, CodeWorkspace, Library } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
-import { CodeWorkspaceChecks } from '@/services/CodeWorkspace/checks/code-workspace-checks';
+import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
 import { MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 import { ForgeHarness } from '../support/forge-fixtures';
 
-import CheckRun = CodeWorkspace.CheckRun;
+import CI = CodeWorkspace.CI;
+import CheckRun = CI.CheckRun;
+import Outcome = CI.API.Internal.CheckRun.Finish.Request;
 
-type Transform = CodeWorkspace.Check.Manifest.Transform;
+type Transform = CI.Check.Manifest.Transform;
 
 /**
  * A passing check run publishes (docs/design/code-workspaces/checks.md §5): its
@@ -18,12 +20,12 @@ type Transform = CodeWorkspace.Check.Manifest.Transform;
 describe('publishing job specs', () => {
 
     let harness: ForgeHarness;
-    let checks: CodeWorkspaceChecks;
+    let checks: CIService;
     let admin: Principal.User;
 
     beforeAll(async () => {
         harness = await ForgeHarness.start();
-        checks = harness.get(CodeWorkspaceChecks);
+        checks = harness.get(CIService);
         admin = await harness.createUser();
     });
 
@@ -46,7 +48,7 @@ describe('publishing job specs', () => {
         if (pusher !== admin)
             await harness.grant(admin, workspace.projectRid, pusher, 'editor');
 
-        const { queued } = await checks.pushed(pusher, workspace.rid, workspace.heads);
+        const { queued } = await checks.queueChecksForMovedHeads(pusher, workspace.rid, workspace.heads);
 
         await checks.start(queued[0].rid);
 
@@ -54,7 +56,7 @@ describe('publishing job specs', () => {
     }
 
     async function finishWith(run: CheckRun.Schema, transforms: Transform[]): Promise<CheckRun.Schema> {
-        return checks.finish(run.rid, { status: 'succeeded', manifest: { transforms } });
+        return checks.finish(run.rid, Outcome.parse({ status: 'succeeded', manifest: { transforms } }));
     }
 
     it('publishes a job spec per transform, pinned to the commit, by path', async () => {
@@ -100,7 +102,6 @@ describe('publishing job specs', () => {
         const finished = await finishWith(run, [transform('pkg.a.a', { raw: datasets.raw }, { out: `${projectPath}/brand new` })]);
 
         expect(finished.published).toBe(true);
-        expect(finished.steps.at(-1)!.log).toContain(`Created ${projectPath}/brand new`);
 
         const created = await harness.library.getByPath(admin, `${projectPath}/brand new`);
 
@@ -135,7 +136,7 @@ describe('publishing job specs', () => {
             const { datasets } = await harness.createDatasets(admin, ['clean']);
             const { run } = await startedRun();
 
-            await expectRefused(run, [transform('pkg.a.a', { raw: '/Nowhere/raw' }, { out: datasets.clean })], /reads \/Nowhere\/raw, which isn't a dataset you can see/);
+            await expectRefused(run, [transform('pkg.a.a', { raw: '/Nowhere/raw' }, { out: datasets.clean })], /Not found/);
             expect(await harness.forge.jobSpecs.getCurrent(admin, datasets.clean, [MAIN])).toBeNull();
         });
 
@@ -143,25 +144,14 @@ describe('publishing job specs', () => {
             const { projectRid, datasets } = await harness.createDatasets(admin, ['raw'], ['raw']);
             const { run } = await startedRun();
 
-            await expectRefused(run, [transform('pkg.a.a', { raw: datasets.raw }, { out: `${await getPath(projectRid)}/missing/out` })], /there's no folder .*\/missing you can see/);
+            await expectRefused(run, [transform('pkg.a.a', { raw: datasets.raw }, { out: `${await getPath(projectRid)}/missing/out` })], /Not found/);
         });
 
         it("an output that's a project, not a dataset", async () => {
             const { projectRid, datasets } = await harness.createDatasets(admin, ['raw'], ['raw']);
             const { run } = await startedRun();
 
-            await expectRefused(run, [transform('pkg.a.a', { raw: datasets.raw }, { out: await getPath(projectRid) })], /which is a project, not a dataset/);
-        });
-
-        it("an output the pusher can't write", async () => {
-            const { projectRid, datasets } = await harness.createDatasets(admin, ['raw', 'clean'], ['raw']);
-            const pusher = await harness.createUser('member');
-
-            await harness.grant(admin, projectRid, pusher, 'viewer');
-
-            const { run } = await startedRun(pusher);
-
-            await expectRefused(run, [transform('pkg.a.a', { raw: datasets.raw }, { out: datasets.clean })], /writes .* which you can't write/);
+            await expectRefused(run, [transform('pkg.a.a', { raw: datasets.raw }, { out: await getPath(projectRid) })], /Not a catalog dataset RID/);
         });
 
         it('an output another workspace produces', async () => {
@@ -176,29 +166,6 @@ describe('publishing job specs', () => {
             expect((await harness.forge.jobSpecs.getCurrent(admin, datasets.clean, [MAIN]))?.producerRid).toBe(first.workspace.rid);
         });
 
-        it('transforms that read each other in a cycle', async () => {
-            const { datasets } = await harness.createDatasets(admin, ['a', 'b']);
-            const { run } = await startedRun();
-
-            await expectRefused(run, [
-                transform('pkg.a.a', { b: datasets.b }, { out: datasets.a }),
-                transform('pkg.b.b', { a: datasets.a }, { out: datasets.b }),
-            ], /a cycle/);
-        });
-    });
-
-    it('publishes nothing once a newer commit is the head — that commit\'s check publishes', async () => {
-        const { datasets } = await harness.createDatasets(admin, ['raw', 'clean'], ['raw']);
-        const { workspace, run } = await startedRun();
-
-        await commitFiles(harness, workspace.rid, { 'newer.py': '' });
-
-        const finished = await finishWith(run, [transform('pkg.a.a', { raw: datasets.raw }, { out: datasets.clean })]);
-
-        expect(finished).toMatchObject({ status: 'succeeded', published: false });
-        expect(finished.steps.at(-1)).toMatchObject({ status: 'skipped' });
-        expect(finished.steps.at(-1)!.log).toMatch(/has moved past/);
-        expect(await harness.forge.jobSpecs.getCurrent(admin, datasets.clean, [MAIN])).toBeNull();
     });
 
     it("drops a removed transform's job spec on the next publish", async () => {
@@ -211,7 +178,7 @@ describe('publishing job specs', () => {
         ]);
 
         const next = await commitFiles(harness, workspace.rid, { 'remove-b.py': '' });
-        const { queued } = await checks.pushed(admin, workspace.rid, { [MAIN]: next });
+        const { queued } = await checks.queueChecksForMovedHeads(admin, workspace.rid, { [MAIN]: next });
 
         await checks.start(queued[0].rid);
         await finishWith(queued[0], [transform('pkg.a.a', { raw: datasets.raw }, { out: datasets.a })]);

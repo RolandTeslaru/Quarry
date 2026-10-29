@@ -4,6 +4,8 @@ import type { Principal } from '@/auth/principal';
 import { ForgeRepository } from './repository/forge.repository';
 import type { PublishedJobSpec } from './repository/job-spec.repository';
 
+export type { PublishedJobSpec };
+
 /**
  * Publishing job specs and reading the current one. Reached as `forge.jobSpecs`
  * — producers call it in-process (a workspace's checks, later Pipeline Builder's

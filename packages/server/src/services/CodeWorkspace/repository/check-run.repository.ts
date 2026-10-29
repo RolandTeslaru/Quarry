@@ -6,7 +6,7 @@ import { Repository, Transactional } from '@/db/repository';
 import { json } from '@/db/table';
 import { CodeWorkspaceDB } from '../code-workspace.db';
 
-import CheckRun = CodeWorkspace.CheckRun;
+import CheckRun = CodeWorkspace.CI.CheckRun;
 
 /** A pushed head's run, its quarry-ci.yml already read: steps laid out — or, if the file is missing or invalid, failed at Parse. */
 export interface NewCheckRun {

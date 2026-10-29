@@ -25,7 +25,7 @@ sequenceDiagram
     autonumber
     participant V as VS Code (session)
     participant G as GitController (server)
-    participant S as CodeWorkspaceChecks (server)
+    participant S as CIService (server)
     participant W as Worker (CheckRunner)
     participant C as Check container
     participant F as Forge (JobSpecs)
@@ -45,32 +45,32 @@ sequenceDiagram
     end
     C-->>W: manifest.json (from quarry/publish-transforms)
     W->>S: POST …/finish { status, manifest }
-    S->>S: validate the manifest as the pusher<br/>(resolve, create outputs, producers, cycles, still head)
+    S->>S: publish the manifest as the pusher<br/>(resolve inputs, get or create outputs)
     S->>F: jobSpecs.publish(pusher, workspace, branch, specs)
     S-->>V: realtime: code-workspace:check:updated
 ```
 
 ## 1. Seeing the push
 
-`git.controller.ts`, around `serveGit`, for a `POST git-receive-pack` only:
+`GitService.servePush` (`git/git.service.ts`, gated write on the live workspace), around `serveGit`, for a `POST git-receive-pack` only:
 
 ```ts
-// git.controller.ts
-const before = rest === 'git-receive-pack' ? await this.service.getHeads(rid) : null;   // git for-each-ref refs/heads
+// git.service.ts
+const before = rest === 'git-receive-pack' ? await this.gitRepos.getHeads(rid) : null;   // git for-each-ref refs/heads
 
 await serveGit(request, response, {
     …,
-    afterServe: before ? () => this.service.pushed(principal, rid, before) : undefined,
+    afterServe: before ? () => this.ci.queueChecksForPush(principal, rid, before) : undefined,
 });
 
-// CodeWorkspaceService.pushed: the heads again, CodeWorkspace.Git.getMovedHeads(before, after) → checks.pushed(principal, rid, moved)
+// CIService.queueChecksForPush: gitRepos.getMovedHeads(rid, before) → queueChecksForMovedHeads(principal, rid, moved)
 ```
 
 - `afterServe` runs once `git http-backend` has exited and **before the response ends**: when the user's `git push` returns, its runs are queued. A rejected push (non-fast-forward, say) moves nothing.
-- `pushed` never throws — the push already succeeded; a run that couldn't be queued is logged.
-- `CodeWorkspaceChecks.pushed` → `CodeWorkspaceRepository.queueCheckRuns`, as the pusher, one transaction: cancel the branches' unfinished runs (acking their messages), insert a `waiting` run per head.
+- `queueChecksForPush` never throws — the push already succeeded; a run that couldn't be queued is logged.
+- `CIService.queueChecksForMovedHeads` → `CodeWorkspaceRepository.queueCheckRuns`, as the pusher, one transaction: cancel the branches' unfinished runs (acking their messages), insert a `waiting` run per head.
 - **Deleted branches** run nothing. Their specs stay until branch deletion is designed (open question).
-- **The template's first commit** doesn't pass through the controller (`repositories.ts` pushes straight to the bare repository); creating a workspace calls `checks.pushed` for `main` itself.
+- **The template's first commit** doesn't pass through the controller (`git-repos.ts` pushes straight to the bare repository); creating a workspace calls `ci.queueChecksForMovedHeads` for `main` itself.
 - **Push on commit**: `docker/code-workspace-runtime/configuration-defaults.json` gets `"git.postCommitCommand": "push"`. `git commit` in the terminal still needs a `git push` — ordinary Git.
 
 ## 2. `quarry-ci.yml`
@@ -103,7 +103,7 @@ Lint isn't in it yet — `ruff` would have to join the template's dev dependenci
 
 Rules — a file breaking one fails the run at **Parse**, before anything runs:
 
-- Valid YAML matching the schema (`CodeWorkspace.Check.Config`, zod, in `@quarry/shared`); a step has exactly one of `run` and `uses`.
+- Valid YAML matching the schema (`CodeWorkspace.CI.Check.Config`, zod, in `@quarry/shared`); a step has exactly one of `run` and `uses`.
 - Exactly one `uses: quarry/publish-transforms`, and it's the **last** step. A repository that wants no publishing can't opt out silently — every workspace is a producer.
 - No file → the run fails: "No quarry-ci.yml at the root".
 
@@ -124,7 +124,7 @@ One Code Workspace worker per machine serves every workspace — sessions and ch
 
 ### Scheduling — in the transaction that frees the workspace
 
-No scheduler process: like Forge's `finishJob`, every write that frees a workspace schedules its next run in the same transaction (`CodeWorkspaceRepository._scheduleNext`): its oldest `waiting` run → `scheduled`, `scheduled_at`, **and its message added** to the durable queue `CodeWorkspace.DurableQueue.RunCheck` (job id = the run's RID). Those writes:
+No scheduler process: like Forge's `finishJob`, every write that frees a workspace schedules its next run in the same transaction (`CodeWorkspaceRepository._scheduleNext`): its oldest `waiting` run → `scheduled`, `scheduled_at`, **and its message added** to the durable queue `CodeWorkspace.CI.DurableQueue.RunCheck` (job id = the run's RID). Those writes:
 
 - **a push** (`queueCheckRuns`): its runs inserted — `quarry-ci.yml` is read per head *before* the transaction, so a missing or invalid file inserts the run already **failed at Parse** — the branches' older runs canceled (acked), then the next scheduled if the workspace is free;
 - **a finish** (`finishCheckRun`), and **the sweep failing a silent run** (`failSilentCheckRuns`).
@@ -173,25 +173,23 @@ Each failed run's workspace gets its next run scheduled. A `scheduled` run waits
 }
 ```
 
-`CodeWorkspace.Check.Manifest` in `@quarry/shared` (zod): `name` a `ModuleFunctionPath`, references `CodeTransform.DatasetReference` (a RID or a library path). Fails the step: the pipeline doesn't import, a decorator is malformed (traceback on stderr, exit 1, nothing on stdout). The server refuses a manifest where two transforms write the same output. **No transforms is fine**: there's nothing to publish (a new workspace without an example).
+`CodeWorkspace.CI.Check.Manifest` in `@quarry/shared` (zod): `name` a `ModuleFunctionPath`, references `CodeTransform.DatasetReference` (a RID or a library path). Fails the step: the pipeline doesn't import, a decorator is malformed (traceback on stderr, exit 1, nothing on stdout). The server refuses a manifest where two transforms write the same output. **No transforms is fine**: there's nothing to publish (a new workspace without an example).
 
 ## 5. Validating and publishing — the server
 
-**Built 2026-10-28.** `CodeWorkspaceChecks.finish`, when the worker reports success and the manifest parses, calls `CheckPublisher.publish(run, manifest)` (`services/CodeWorkspace/checks/check-publisher.ts`) — its steps in order, in one method. **As the pusher**, through a delegate `check-run:<rid>` (what audit records as `via`). Each step is its own call, not one transaction: a dataset created at step 3 stays if a later step refuses.
+**Built 2026-10-28; simplified 2026-10-29.** `CIService.finish`, when the worker reports success, calls `CheckPublisher.publish(run, manifest)` (`services/CodeWorkspace/ci/check-publisher.ts`) **as the pusher**, through a delegate `check-run:<rid>`. The publisher checks nothing itself; the services it calls do:
 
-| # | Check | Fails the run when |
-|---|---|---|
-| 1 | **Still the head** | `refs/heads/<branch>` no longer points at the commit — a newer push won. The run is `succeeded` but **not published** (`published: false`); the newer run publishes |
-| 2 | **Resolve inputs** | a path or RID isn't a dataset the pusher can see (`Library.getByPath`, `Catalog.get`) — "pkg.a.clean reads /Sales/raw/orders, which isn't a dataset you can see" |
-| 3 | **Resolve outputs** | a RID that doesn't exist; a path that exists but isn't a dataset. A path that doesn't exist → **create** an empty dataset there (`Catalog.createDataset`), if its folder (or project) exists and the pusher can write it — else fail ("there's no folder /Sales/clean you can see"); a one-segment path (a project's place) is refused |
-| 4 | **Write outputs** | the pusher can't write an output (Gatekeeper `write`) |
-| 5 | **One producer** | an output's current spec on this branch belongs to another producer — Forge refuses the publish (409, "… is already produced by …"); the run fails with that message |
-| 6 | **No cycles** | a transform reads, through this workspace's own transforms, its own output (checked before publishing — step 5 is Forge's, during it) |
-| 7 | **Publish** | `forge.jobSpecs.publish(pusher, workspaceRid, branch, specs)` — one spec per transform: `logic { type: 'code-workspace', workspaceRid, commit, transform: name }`, the resolved RIDs, its resources. RLS has the final say (write on the producer and outputs, read on inputs) |
+1. Parse the manifest (`CI.Check.Manifest`).
+2. Inputs: `catalog.getByReference` (a RID or a library path), which 404s if the pusher can't see a dataset there.
+3. Outputs: `catalog.getOrCreateByReference`, which creates an empty dataset at a path nothing is at yet. Library 404s a missing folder; `createDataset` enforces write on it and a valid name.
+4. Publish: `forge.jobSpecs.publish(pusher, workspaceRid, branch, specs)`, one spec per transform. Forge refuses an output another producer owns.
 
-Publishing replaces the branch's specs for this producer: outputs no longer declared lose their current spec (a deleted transform stops being buildable). Outputs created at step 3 stay if a later step fails — empty datasets, harmless, and the next run finds them.
+Anything thrown fails the run at **Validate & publish** with the error's message, and the branch keeps its previous specs. Datasets created before the failure stay empty, which is harmless. On success the step's log is "Published N job spec(s)".
 
-Any refusal → the run is `failed` with `failure { step: 'Validate & publish', message }` naming the transform and the dataset, the step's log the same, and **nothing is published**: the branch keeps its previous specs. Published → the step `succeeded`, its log listing each transform → its outputs and any dataset created; the run's `published` is true. A newer head → the step `skipped`, the run `succeeded`, `published` false.
+Not checked here, because something else covers it:
+- **Still the head:** a newer push cancels this run, and a canceled run's finish is a 409.
+- **Write on existing outputs:** a build checks write on every output when it starts.
+- **Cycles:** a build refuses specs that read each other in a cycle. Today it only catches a cycle with no way in; every cycle is planned for D2.
 
 ## 6. Model
 
@@ -243,7 +241,12 @@ Whether a `scheduled` run's message has reached Redis yet is the durable queue's
 - **Delivery**: a durable queue — the run's message is added when it's scheduled and acked when a worker starts it (or it's canceled); the platform relays and resends it (§3, [durable-queues.md](../durable-queues.md)).
 - **RLS**: read with read on the workspace; inserts and updates only through the service (the internal endpoints, as the system).
 
-Domain: `CodeWorkspace.CheckRun` (`Rid`, `Status`, `Step`, `Schema`), `CodeWorkspace.Check.Config` (the file), `CodeWorkspace.Check.Manifest`.
+Domain: `CodeWorkspace.CI.CheckRun` (`Rid`, `Status`, `Step`, `Schema`), `CodeWorkspace.CI.Check.Config` (the file), `CodeWorkspace.CI.Check.Manifest`.
+
+Everything CI is under one name, in each layer:
+
+- **Shared domain**: `CodeWorkspace.CI` (`shared/domain/CodeWorkspace/CI/`): `CheckRun`, `Check`, `Queue`, `DurableQueue`, and `API` (the check-run endpoints, with `API.Internal` the worker's). Code imports it as `import CI = CodeWorkspace.CI`. `CodeWorkspace.Event` keeps `CheckRunUpdated`, since the channel is the workspace's.
+- **Server**: `services/CodeWorkspace/ci/`, with `CIService` (the run's life), `CheckPublisher` and `check-config.ts`. Other code reaches it as `CodeWorkspaceService.ci`. The table stays behind the `CodeWorkspaceRepository` facade (`repository/check-run.repository.ts`), because it's in the `code_workspace` schema.
 
 ## 7. Reaching the user
 
@@ -267,10 +270,10 @@ Domain: `CodeWorkspace.CheckRun` (`Rid`, `Status`, `Step`, `Schema`), `CodeWorks
 ## Build order
 
 1. Domain and table — `CheckRun`, `Check.Config`, `Check.Manifest`; `code_workspace.check_run` in `code_workspace/001_initial.sql` (a living file until launch). **Built 2026-10-27.**
-2. Push detection + `postCommitCommand` — `GitController`, `repositories.getHeads`, runs inserted `waiting`. **Built 2026-10-27.**
+2. Push detection + `postCommitCommand` — `GitController`, `GitRepos.getHeads`, runs inserted `waiting`. **Built 2026-10-27.**
 3. Scheduling and the worker's runner — inline scheduling (adds `code-workspace.run-check` messages; a durable queue since 2026-10-28), the internal endpoints, the sweep and its timer, `run-check.processor.ts`, `check-runner.ts`, `quarry-check-setup`. **Built 2026-10-27**; until step 5, a run whose manifest parses ends `succeeded` with its publish step `skipped`.
 4. `quarry.transforms.manifest` and the template's `quarry-ci.yml` and `tests/test_pipeline.py`. **Built 2026-10-28**; tested by rendering the template and running its tests and its manifest (`test/code-workspace/template`).
-5. Validate and publish — `CheckPublisher`, called by `CodeWorkspaceChecks.finish`. **Built 2026-10-28.**
+5. Validate and publish — `CheckPublisher`, called by `CIService.finish`. **Built 2026-10-28.**
 6. Checks tab and events.
 7. Tests — the harness pattern from [testing.md](../testing.md): push to a real bare repository, play the worker, assert specs.
 

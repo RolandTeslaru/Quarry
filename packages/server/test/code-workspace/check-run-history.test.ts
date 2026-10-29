@@ -3,12 +3,15 @@ import Redis from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
-import { CodeWorkspaceChecks } from '@/services/CodeWorkspace/checks/code-workspace-checks';
+import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
 import { MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 import { ForgeHarness } from '../support/forge-fixtures';
 
-import CheckRun = CodeWorkspace.CheckRun;
+import CI = CodeWorkspace.CI;
+import CheckRun = CI.CheckRun;
+import StepReport = CI.API.Internal.CheckRun.Step.Request;
+import Outcome = CI.API.Internal.CheckRun.Finish.Request;
 
 const MANIFEST = { transforms: [] };
 
@@ -21,7 +24,7 @@ describe('check run history', () => {
 
     let harness: ForgeHarness;
     let service: CodeWorkspaceService;
-    let checks: CodeWorkspaceChecks;
+    let checks: CIService;
     let admin: Principal.User;
     let listener: Redis;
     const received: CodeWorkspace.Event[] = [];
@@ -29,7 +32,7 @@ describe('check run history', () => {
     beforeAll(async () => {
         harness = await ForgeHarness.start();
         service = harness.get(CodeWorkspaceService);
-        checks = harness.get(CodeWorkspaceChecks);
+        checks = harness.get(CIService);
         admin = await harness.createUser();
 
         listener = new Redis(process.env.REDIS_URL ?? '');
@@ -50,7 +53,7 @@ describe('check run history', () => {
         for (let index = 0; index < count; index++) {
             const commit = await commitFiles(harness, workspace.rid, { [`${index}.py`]: '' });
 
-            runs.push((await checks.pushed(admin, workspace.rid, { [MAIN]: commit })).queued[0]);
+            runs.push((await checks.queueChecksForMovedHeads(admin, workspace.rid, { [MAIN]: commit })).queued[0]);
         }
 
         return { ...workspace, runs };
@@ -76,9 +79,9 @@ describe('check run history', () => {
             const { rid, runs } = await pushedWorkspace(5);
             const newestFirst = runs.map((run) => run.rid).reverse();
 
-            const first = await service.listCheckRuns(admin, rid, { limit: 2 });
-            const second = await service.listCheckRuns(admin, rid, { limit: 2, before: first.nextBefore! });
-            const third = await service.listCheckRuns(admin, rid, { limit: 2, before: second.nextBefore! });
+            const first = await service.ci.listCheckRuns(admin, rid, { limit: 2 });
+            const second = await service.ci.listCheckRuns(admin, rid, { limit: 2, before: first.nextBefore! });
+            const third = await service.ci.listCheckRuns(admin, rid, { limit: 2, before: second.nextBefore! });
 
             expect(first.checkRuns.map((run) => run.rid)).toEqual(newestFirst.slice(0, 2));
             expect(second.checkRuns.map((run) => run.rid)).toEqual(newestFirst.slice(2, 4));
@@ -88,11 +91,11 @@ describe('check run history', () => {
 
         it("keeps its pages when new runs arrive meanwhile (keyset, not offset)", async () => {
             const { rid, runs } = await pushedWorkspace(3);
-            const first = await service.listCheckRuns(admin, rid, { limit: 1 });
+            const first = await service.ci.listCheckRuns(admin, rid, { limit: 1 });
 
-            await commitFiles(harness, rid, { 'new.py': '' }).then((commit) => checks.pushed(admin, rid, { [MAIN]: commit }));
+            await commitFiles(harness, rid, { 'new.py': '' }).then((commit) => checks.queueChecksForMovedHeads(admin, rid, { [MAIN]: commit }));
 
-            const second = await service.listCheckRuns(admin, rid, { limit: 1, before: first.nextBefore! });
+            const second = await service.ci.listCheckRuns(admin, rid, { limit: 1, before: first.nextBefore! });
 
             expect(second.checkRuns.map((run) => run.rid)).toEqual([runs[1].rid]);
         });
@@ -102,17 +105,17 @@ describe('check run history', () => {
             const feature = Foundations.Branch.parse('feature');
             const commit = await commitFiles(harness, rid, { 'f.py': '' }, feature);
 
-            await checks.pushed(admin, rid, { [feature]: commit });
+            await checks.queueChecksForMovedHeads(admin, rid, { [feature]: commit });
 
-            expect((await service.listCheckRuns(admin, rid, { branch: feature, limit: 25 })).checkRuns.map((run) => run.commit)).toEqual([commit]);
+            expect((await service.ci.listCheckRuns(admin, rid, { branch: feature, limit: 25 })).checkRuns.map((run) => run.commit)).toEqual([commit]);
         });
 
         it('gets one run — only through its own workspace', async () => {
             const { rid, runs } = await pushedWorkspace(1);
             const other = await pushedWorkspace(1);
 
-            expect((await service.getCheckRun(admin, rid, runs[0].rid)).rid).toBe(runs[0].rid);
-            await expect(service.getCheckRun(admin, other.rid, runs[0].rid)).rejects.toBeInstanceOf(NotFoundException);
+            expect((await service.ci.getCheckRun(admin, rid, runs[0].rid)).rid).toBe(runs[0].rid);
+            await expect(service.ci.getCheckRun(admin, other.rid, runs[0].rid)).rejects.toBeInstanceOf(NotFoundException);
         });
     });
 
@@ -127,11 +130,11 @@ describe('check run history', () => {
             await harness.grant(admin, projectRid, viewer, 'viewer');
             await harness.grant(admin, projectRid, discoverer, 'discoverer');
 
-            expect((await service.listCheckRuns(viewer, rid, { limit: 25 })).checkRuns).toHaveLength(1);
-            expect((await service.getCheckRun(viewer, rid, runs[0].rid)).rid).toBe(runs[0].rid);
-            await expect(service.listCheckRuns(discoverer, rid, { limit: 25 })).rejects.toBeInstanceOf(ForbiddenException);
-            await expect(service.listCheckRuns(outsider, rid, { limit: 25 })).rejects.toBeInstanceOf(NotFoundException);
-            await expect(service.getCheckRun(outsider, rid, runs[0].rid)).rejects.toBeInstanceOf(NotFoundException);
+            expect((await service.ci.listCheckRuns(viewer, rid, { limit: 25 })).checkRuns).toHaveLength(1);
+            expect((await service.ci.getCheckRun(viewer, rid, runs[0].rid)).rid).toBe(runs[0].rid);
+            await expect(service.ci.listCheckRuns(discoverer, rid, { limit: 25 })).rejects.toBeInstanceOf(ForbiddenException);
+            await expect(service.ci.listCheckRuns(outsider, rid, { limit: 25 })).rejects.toBeInstanceOf(NotFoundException);
+            await expect(service.ci.getCheckRun(outsider, rid, runs[0].rid)).rejects.toBeInstanceOf(NotFoundException);
         });
     });
 
@@ -142,8 +145,8 @@ describe('check run history', () => {
 
             await harness.library.trash(admin, rid);
 
-            await expect(service.listCheckRuns(admin, rid, { limit: 25 })).rejects.toBeInstanceOf(NotFoundException);
-            await expect(service.getCheckRun(admin, rid, runs[0].rid)).rejects.toBeInstanceOf(NotFoundException);
+            await expect(service.ci.listCheckRuns(admin, rid, { limit: 25 })).rejects.toBeInstanceOf(NotFoundException);
+            await expect(service.ci.getCheckRun(admin, rid, runs[0].rid)).rejects.toBeInstanceOf(NotFoundException);
         });
     });
 
@@ -151,14 +154,14 @@ describe('check run history', () => {
 
         it("announces a run's whole life on its workspace's channel, in order", async () => {
             const workspace = await createWorkspace(harness, admin, { 'quarry-ci.yml': QUARRY_CI });
-            const { queued } = await checks.pushed(admin, workspace.rid, workspace.heads);
+            const { queued } = await checks.queueChecksForMovedHeads(admin, workspace.rid, workspace.heads);
             const run = queued[0];
             const short = run.commit.slice(0, 7);
 
             await checks.start(run.rid);
-            await checks.reportStep(run.rid, 0, { status: 'running', startedAt: new Date() });
-            await checks.reportStep(run.rid, 0, { status: 'succeeded', exitCode: 0, startedAt: new Date(), finishedAt: new Date() });
-            await checks.finish(run.rid, { status: 'succeeded', manifest: MANIFEST });
+            await checks.reportStep(run.rid, 0, StepReport.parse({ status: 'running', startedAt: new Date() }));
+            await checks.reportStep(run.rid, 0, StepReport.parse({ status: 'succeeded', exitCode: 0, startedAt: new Date(), finishedAt: new Date() }));
+            await checks.finish(run.rid, Outcome.parse({ status: 'succeeded', manifest: MANIFEST }));
 
             // Pushed into a free workspace: queued and scheduled in one commit — one event, as it is after it.
             expect(await eventsOf(workspace.rid, 5)).toEqual([
@@ -174,7 +177,7 @@ describe('check run history', () => {
             const { rid, runs } = await pushedWorkspace(1);
             const newer = await commitFiles(harness, rid, { 'b.py': '' });
 
-            await checks.pushed(admin, rid, { [MAIN]: newer });
+            await checks.queueChecksForMovedHeads(admin, rid, { [MAIN]: newer });
 
             expect(await eventsOf(rid, 3)).toEqual([
                 `${runs[0].commit.slice(0, 7)}:scheduled`, `${runs[0].commit.slice(0, 7)}:canceled`, `${newer.slice(0, 7)}:scheduled`,
@@ -183,13 +186,13 @@ describe('check run history', () => {
 
         it("announces a waiting run, then its scheduling when the run before it finishes", async () => {
             const workspace = await createWorkspace(harness, admin, { 'quarry-ci.yml': QUARRY_CI });
-            const first = (await checks.pushed(admin, workspace.rid, workspace.heads)).queued[0];
+            const first = (await checks.queueChecksForMovedHeads(admin, workspace.rid, workspace.heads)).queued[0];
             const feature = Foundations.Branch.parse('feature');
             const commit = await commitFiles(harness, workspace.rid, { 'f.py': '' }, feature);
 
-            await checks.pushed(admin, workspace.rid, { [feature]: commit });
+            await checks.queueChecksForMovedHeads(admin, workspace.rid, { [feature]: commit });
             await checks.start(first.rid);
-            await checks.finish(first.rid, { status: 'failed', failure: { step: 'Tests', message: 'x' } });
+            await checks.finish(first.rid, Outcome.parse({ status: 'failed', failure: { step: 'Tests', message: 'x' } }));
 
             const events = await eventsOf(workspace.rid, 5);
 

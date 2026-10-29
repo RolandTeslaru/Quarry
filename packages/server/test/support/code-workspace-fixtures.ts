@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
-import { GitRepositories } from '@/services/CodeWorkspace/git/repositories';
+import { GitRepos } from '@/services/CodeWorkspace/git/git-repos';
 import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/repository/code-workspace.repository';
 import type { ForgeHarness } from './forge-fixtures';
 
@@ -39,9 +39,9 @@ export async function createWorkspace(
 ): Promise<TestWorkspace> {
     const { projectRid } = await harness.createDatasets(principal, []);
     const rid = CodeWorkspace.createRid();
-    const repositories = harness.get(GitRepositories);
+    const gitRepos = harness.get(GitRepos);
 
-    await repositories.create(rid, {
+    await gitRepos.create(rid, {
         author:   { name: 'Test', email: 'test@test.quarry' },
         message:  'Initial commit',
         populate: (directory) => writeFiles(directory, files),
@@ -55,7 +55,7 @@ export async function createWorkspace(
         templateId:  'python-transforms',
     });
 
-    return { rid, projectRid, heads: await repositories.getHeads(rid) };
+    return { rid, projectRid, heads: await gitRepos.getHeads(rid) };
 }
 
 /**
@@ -68,7 +68,7 @@ export async function commitFiles(
     files:   Record<string, string>,
     branch:  Foundations.Branch = MAIN,
 ): Promise<CodeWorkspace.Git.Commit> {
-    const repository = harness.get(GitRepositories).getPath(rid);
+    const repository = harness.get(GitRepos).getPath(rid);
     const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'quarry-test-commit-'));
     const git = (...args: string[]) => run('git', ['-c', 'user.name=Test', '-c', 'user.email=test@test.quarry', '-C', directory, ...args])
         .then(({ stdout }) => stdout.trim());

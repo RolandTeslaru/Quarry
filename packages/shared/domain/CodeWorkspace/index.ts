@@ -3,11 +3,8 @@ import * as TemplateMod  from "./Template"
 import * as PreviewMod   from "./Preview"
 import * as ModuleFunctionPathMod from "./ModuleFunctionPath"
 import * as GitMod      from "./Git"
-import * as CheckRunMod from "./CheckRun"
-import * as CheckMod    from "./Check"
-import * as QueueMod    from "./queue"
-import * as DurableQueueMod from "./durable-queue"
 import * as EventMod    from "./Event"
+import * as CIMod       from "./CI"
 import * as ApiMod       from "./api"
 
 /**
@@ -24,10 +21,7 @@ export namespace CodeWorkspace {
     export import Preview  = PreviewMod.Preview
     export import ModuleFunctionPath = ModuleFunctionPathMod.ModuleFunctionPath
     export import Git      = GitMod.Git
-    export import CheckRun = CheckRunMod.CheckRun
-    export import Check    = CheckMod.Check
-    export import Queue    = QueueMod.Queue
-    export import DurableQueue = DurableQueueMod.DurableQueue
+    export import CI       = CIMod.CI
     export import Event    = EventMod.Event
 
     export import API = ApiMod.API

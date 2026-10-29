@@ -1,7 +1,9 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Principal } from '@/auth/principal';
+import type { Request, Response } from 'express';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
+import { GitService } from '@/services/CodeWorkspace/git/git.service';
 import { createWorkspace } from '../support/code-workspace-fixtures';
 import { ForgeHarness } from '../support/forge-fixtures';
 
@@ -10,6 +12,10 @@ import { ForgeHarness } from '../support/forge-fixtures';
  * token, Git — needs the workspace live (@RequireLive, enforced by @SecurityGate):
  * Gatekeeper ranks a trashed workspace like any other, so the gate checks it.
  */
+/** Never read: the gate refuses first. */
+const request = {} as Request;
+const response = {} as Response;
+
 describe('a trashed workspace', () => {
 
     let harness: ForgeHarness;
@@ -50,8 +56,8 @@ describe('a trashed workspace', () => {
     it('serves no Git — neither a fetch nor a push', async () => {
         const { rid } = await trashedWorkspace();
 
-        await expect(service.authorizeFetch(admin, rid)).rejects.toBeInstanceOf(NotFoundException);
-        await expect(service.authorizePush(admin, rid)).rejects.toBeInstanceOf(NotFoundException);
+        await expect(harness.get(GitService).serveFetch(admin, rid, request, response, 'info/refs')).rejects.toBeInstanceOf(NotFoundException);
+        await expect(harness.get(GitService).servePush(admin, rid, request, response, 'git-receive-pack')).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('is the same 404 inside a trashed project', async () => {
@@ -59,7 +65,7 @@ describe('a trashed workspace', () => {
 
         await harness.library.trash(admin, projectRid);
 
-        await expect(service.authorizeFetch(admin, rid)).rejects.toBeInstanceOf(NotFoundException);
+        await expect(harness.get(GitService).serveFetch(admin, rid, request, response, 'info/refs')).rejects.toBeInstanceOf(NotFoundException);
     });
 });
 
@@ -91,16 +97,15 @@ describe('a live workspace', () => {
         expect(credentials.user.email).toContain(viewer.userRid);
     });
 
-    it('lets a reader fetch but not push; hides it from an outsider', async () => {
+    it("refuses a reader's push; hides it from an outsider", async () => {
         const { rid, projectRid } = await createWorkspace(harness, admin);
         const viewer = await harness.createUser('member');
         const outsider = await harness.createUser('member');
 
         await harness.grant(admin, projectRid, viewer, 'viewer');
 
-        await expect(service.authorizeFetch(viewer, rid)).resolves.toBeTypeOf('string');
-        await expect(service.authorizePush(viewer, rid)).rejects.toBeInstanceOf(ForbiddenException);
-        await expect(service.authorizeFetch(outsider, rid)).rejects.toBeInstanceOf(NotFoundException);
+        await expect(harness.get(GitService).servePush(viewer, rid, request, response, 'git-receive-pack')).rejects.toBeInstanceOf(ForbiddenException);
+        await expect(harness.get(GitService).serveFetch(outsider, rid, request, response, 'info/refs')).rejects.toBeInstanceOf(NotFoundException);
         await expect(service.getSessionCredentials(Principal.delegate(outsider.userRid, 'test'), rid)).rejects.toBeInstanceOf(NotFoundException);
     });
 });

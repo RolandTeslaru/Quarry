@@ -28,7 +28,7 @@ export interface InitialCommit {
  * (git http-backend, behind the server); this class creates, reads and removes them.
  */
 @Injectable()
-export class GitRepositories {
+export class GitRepos {
 
     private readonly log = System.log.withContext('CodeWorkspace.Git');
 
@@ -83,6 +83,11 @@ export class GitRepositories {
         }
 
         return heads;
+    }
+
+    /** Created branches count as moved; deleted ones don't. */
+    public async getMovedHeads(rid: CodeWorkspace.Rid, before: CodeWorkspace.Git.Heads): Promise<CodeWorkspace.Git.Heads> {
+        return CodeWorkspace.Git.getMovedHeads(before, await this.getHeads(rid));
     }
 
     /** A file as committed, or null if the commit hasn't got it. */

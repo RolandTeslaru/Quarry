@@ -48,7 +48,7 @@ describe('@RequireLive', () => {
 
         expect(marked).toEqual(expect.arrayContaining([
             'CodeWorkspaceService.openSession',
-            'CodeWorkspaceService.authorizePush',
+            'GitService.servePush',
             'CodeWorkspaceService.getSessionCredentials',
         ]));
     });

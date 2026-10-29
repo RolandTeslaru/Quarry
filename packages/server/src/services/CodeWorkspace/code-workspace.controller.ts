@@ -5,6 +5,7 @@ import { Principal } from '@/auth/principal';
 import { ZodPipe } from '@/http/zod.pipe';
 import { CodeWorkspaceService } from './code-workspace.service';
 
+import CI = CodeWorkspace.CI;
 import API = CodeWorkspace.API;
 const WorkspaceRidParam = new ZodPipe(CodeWorkspace.Rid);
 
@@ -61,18 +62,18 @@ export class CodeWorkspaceController {
     async listCheckRuns(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid,
-        @Query(new ZodPipe(API.ListCheckRuns.Query)) query: API.ListCheckRuns.Query,
-    ): Promise<API.ListCheckRuns.Response> {
-        return this.service.listCheckRuns(principal, rid, query);
+        @Query(new ZodPipe(CI.API.ListCheckRuns.Query)) query: CI.API.ListCheckRuns.Query,
+    ): Promise<CI.API.ListCheckRuns.Response> {
+        return this.service.ci.listCheckRuns(principal, rid, query);
     }
 
     @Get(':rid/check-runs/:checkRunRid')
     async getCheckRun(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', WorkspaceRidParam) rid: CodeWorkspace.Rid,
-        @Param('checkRunRid', new ZodPipe(CodeWorkspace.CheckRun.Rid)) checkRunRid: CodeWorkspace.CheckRun.Rid,
-    ): Promise<API.GetCheckRun.Response> {
-        return { checkRun: await this.service.getCheckRun(principal, rid, checkRunRid) };
+        @Param('checkRunRid', new ZodPipe(CI.CheckRun.Rid)) checkRunRid: CI.CheckRun.Rid,
+    ): Promise<CI.API.GetCheckRun.Response> {
+        return { checkRun: await this.service.ci.getCheckRun(principal, rid, checkRunRid) };
     }
 
     @Get(':rid')

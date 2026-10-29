@@ -1,12 +1,12 @@
 import { z } from "zod"
-import { Foundations } from "../Foundations"
+import { Foundations } from "../../Foundations"
 import { CheckRun as CheckRunD } from "./CheckRun"
 
-/** Code Workspaces' background-job contracts. docs/design/code-workspaces/checks.md §3. */
+/** CI's background-job contracts. docs/design/code-workspaces/checks.md §3. */
 export namespace Queue {
 
     /**
-     * Run one scheduled check run — delivered through the durable queue (CodeWorkspace.DurableQueue.RunCheck),
+     * Run one scheduled check run — delivered through the durable queue (CodeWorkspace.CI.DurableQueue.RunCheck),
      * consumed by the code workspace worker (its concurrency is its slots). The BullMQ job id is the run's
      * RID: sending it again while it waits is ignored.
      */

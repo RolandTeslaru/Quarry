@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { execFile } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import type { AddressInfo } from 'node:net';
@@ -15,9 +16,11 @@ import type { Principal } from '@/auth/principal';
 import { SessionTokens } from '@/auth/session-tokens';
 import { db } from '@/db/pool';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
-import { CodeWorkspaceChecks } from '@/services/CodeWorkspace/checks/code-workspace-checks';
+import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
 import { QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 import { ForgeHarness } from '../support/forge-fixtures';
+
+import CI = CodeWorkspace.CI;
 
 const run = promisify(execFile);
 
@@ -48,14 +51,14 @@ describe('check runs', () => {
     });
 
     /** Every run of the workspace (one branch's, or all), newest first — up to a page of 100. */
-    function listRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CodeWorkspace.CheckRun.Schema[]> {
-        return harness.get(CodeWorkspaceChecks).listCheckRuns(principal, rid, { branch, limit: 100 }).then((page) => page.checkRuns);
+    function listRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CI.CheckRun.Schema[]> {
+        return harness.get(CIService).listCheckRuns(principal, rid, { branch, limit: 100 }).then((page) => page.checkRuns);
     }
 
     /** A workspace whose commits can be checked (they hold quarry-ci.yml). */
     const checkedWorkspace = () => createWorkspace(harness, admin, { 'quarry-ci.yml': QUARRY_CI });
 
-    async function getByCommit(rid: CodeWorkspace.Rid): Promise<Record<string, CodeWorkspace.CheckRun.Schema>> {
+    async function getByCommit(rid: CodeWorkspace.Rid): Promise<Record<string, CI.CheckRun.Schema>> {
         return Object.fromEntries((await listRuns(admin, rid)).map((run) => [run.commit, run]));
     }
 
@@ -64,27 +67,27 @@ describe('check runs', () => {
         it('queues a run per moved branch, as the pusher — scheduled at once in a free workspace', async () => {
             const { rid, heads } = await checkedWorkspace();
 
-            await service.pushed(admin, rid, {});
+            await service.ci.queueChecksForPush(admin, rid, {});
 
             const runs = await listRuns(admin, rid);
 
             expect(runs).toHaveLength(1);
             expect(runs[0]).toMatchObject({ branch: MAIN, commit: heads[MAIN], status: 'scheduled', pushedBy: admin.userRid, published: false });
-            expect(runs[0].steps.map((step) => step.name)).toEqual([CodeWorkspace.CheckRun.PARSE_STEP, 'Tests', 'Publish transforms', CodeWorkspace.CheckRun.PUBLISH_STEP]);
+            expect(runs[0].steps.map((step) => step.name)).toEqual([CI.CheckRun.PARSE_STEP, 'Tests', 'Publish transforms', CI.CheckRun.PUBLISH_STEP]);
         });
 
         it('fails a head without a valid quarry-ci.yml at Parse, at once', async () => {
             const { rid } = await createWorkspace(harness, admin);                       // README only
 
-            await service.pushed(admin, rid, {});
+            await service.ci.queueChecksForPush(admin, rid, {});
 
-            expect(await listRuns(admin, rid)).toMatchObject([{ status: 'failed', failure: { step: CodeWorkspace.CheckRun.PARSE_STEP } }]);
+            expect(await listRuns(admin, rid)).toMatchObject([{ status: 'failed', failure: { step: CI.CheckRun.PARSE_STEP } }]);
         });
 
         it("queues nothing when the push moved nothing", async () => {
             const { rid, heads } = await checkedWorkspace();
 
-            await service.pushed(admin, rid, heads);
+            await service.ci.queueChecksForPush(admin, rid, heads);
 
             expect(await listRuns(admin, rid)).toEqual([]);
         });
@@ -94,12 +97,12 @@ describe('check runs', () => {
             const a = await commitFiles(harness, rid, { 'a.py': '' });
             const f = await commitFiles(harness, rid, { 'f.py': '' }, FEATURE);
 
-            await service.checks.pushed(admin, rid, { [MAIN]: a });                          // scheduled
-            await service.checks.pushed(admin, rid, { [FEATURE]: f });                       // waiting: the workspace is busy
+            await service.ci.queueChecksForMovedHeads(admin, rid, { [MAIN]: a });                          // scheduled
+            await service.ci.queueChecksForMovedHeads(admin, rid, { [FEATURE]: f });                       // waiting: the workspace is busy
             await setRunning((await getByCommit(rid))[a].rid);
 
             const b = await commitFiles(harness, rid, { 'b.py': '' });
-            const second = await service.checks.pushed(admin, rid, { [MAIN]: b });
+            const second = await service.ci.queueChecksForMovedHeads(admin, rid, { [MAIN]: b });
 
             expect(second.canceled.map((run) => run.commit)).toEqual([a]);
 
@@ -115,11 +118,11 @@ describe('check runs', () => {
             const { rid } = await checkedWorkspace();
             const a = await commitFiles(harness, rid, { 'a.py': '' });
 
-            await service.checks.pushed(admin, rid, { [MAIN]: a });
+            await service.ci.queueChecksForMovedHeads(admin, rid, { [MAIN]: a });
             await finish((await getByCommit(rid))[a].rid);
 
             const b = await commitFiles(harness, rid, { 'b.py': '' });
-            const second = await service.checks.pushed(admin, rid, { [MAIN]: b });
+            const second = await service.ci.queueChecksForMovedHeads(admin, rid, { [MAIN]: b });
 
             expect(second.canceled).toEqual([]);
             expect((await listRuns(admin, rid, MAIN)).map((run) => run.status)).toEqual(['scheduled', 'failed']);
@@ -130,11 +133,11 @@ describe('check runs', () => {
             const a = await commitFiles(harness, rid, { 'a.py': '' });
             const f = await commitFiles(harness, rid, { 'f.py': '' }, FEATURE);
 
-            await service.checks.pushed(admin, rid, { [MAIN]: a, [FEATURE]: f });
+            await service.ci.queueChecksForMovedHeads(admin, rid, { [MAIN]: a, [FEATURE]: f });
 
             const b = await commitFiles(harness, rid, { 'b.py': '' });
 
-            await service.checks.pushed(admin, rid, { [MAIN]: b });
+            await service.ci.queueChecksForMovedHeads(admin, rid, { [MAIN]: b });
 
             expect((await listRuns(admin, rid, MAIN)).map((run) => run.commit)).toEqual([b, a]);
             expect((await listRuns(admin, rid, FEATURE)).map((run) => run.commit)).toEqual([f]);
@@ -148,11 +151,11 @@ describe('check runs', () => {
             const b = await commitFiles(harness, rid, { 'b.py': '' });
 
             await harness.grant(admin, projectRid, viewer, 'viewer');
-            await service.checks.pushed(admin, rid, { [MAIN]: a });
+            await service.ci.queueChecksForMovedHeads(admin, rid, { [MAIN]: a });
 
             expect(await listRuns(viewer, rid)).toHaveLength(1);
-            expect(await listRuns(outsider, rid)).toEqual([]);
-            await expect(service.checks.pushed(viewer, rid, { [MAIN]: b })).rejects.toThrow();
+            await expect(listRuns(outsider, rid)).rejects.toBeInstanceOf(NotFoundException);
+            await expect(service.ci.queueChecksForMovedHeads(viewer, rid, { [MAIN]: b })).rejects.toThrow();
             expect(await listRuns(admin, rid)).toHaveLength(1);
         });
 
@@ -162,7 +165,7 @@ describe('check runs', () => {
 
             await harness.grant(admin, projectRid, viewer, 'viewer');
 
-            await expect(service.pushed(viewer, rid, {})).resolves.toBeUndefined();
+            await expect(service.ci.queueChecksForPush(viewer, rid, {})).resolves.toBeUndefined();
             expect(await listRuns(admin, rid)).toEqual([]);
         });
     });
@@ -215,6 +218,20 @@ describe('check runs', () => {
                 },
             };
         }
+
+        it('lets a reader clone but not push', async () => {
+            const { rid, projectRid } = await checkedWorkspace();
+            const viewer = await harness.createUser('member');
+
+            await harness.grant(admin, projectRid, viewer, 'viewer');
+
+            const clone = await cloneAs(viewer, rid);
+
+            await clone.commit('orders.py');
+
+            await expect(clone.git('push', '--quiet', 'origin', 'main')).rejects.toThrow();
+            expect(await listRuns(admin, rid)).toEqual([]);
+        });
 
         it('queues a run for the pushed commit', async () => {
             const { rid } = await checkedWorkspace();
@@ -319,11 +336,11 @@ interface Git {
 }
 
 /** As the worker will, once it takes the run. */
-async function setRunning(rid: CodeWorkspace.CheckRun.Rid): Promise<void> {
+async function setRunning(rid: CI.CheckRun.Rid): Promise<void> {
     await sql`update code_workspace.check_run set status = 'running', scheduled_at = now(), started_at = now(), reported_at = now() where rid = ${rid}`.execute(db());
 }
 
-async function finish(rid: CodeWorkspace.CheckRun.Rid): Promise<void> {
+async function finish(rid: CI.CheckRun.Rid): Promise<void> {
     await sql`
         update code_workspace.check_run
            set status = 'failed', started_at = now(), finished_at = now(),

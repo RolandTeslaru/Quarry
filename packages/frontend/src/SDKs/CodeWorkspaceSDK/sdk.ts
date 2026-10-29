@@ -1,4 +1,4 @@
-import type { CodeWorkspace } from '@quarry/shared/domain'
+import { CodeWorkspace } from '@quarry/shared/domain'
 import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
@@ -7,6 +7,8 @@ import { CodeWorkspaceActions } from './actions'
 import { _createCodeWorkspaceDialogs_, type _CodeWorkspaceSDKDialogs } from './dialogs'
 import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 import { observeCodeWorkspace, type CodeWorkspaceObserver, type ObserveOptions as ObserveOptions_ } from './observe'
+
+import CI = CodeWorkspace.CI
 
 const TEMPLATES_STALE_TIME = Infinity
 
@@ -111,9 +113,9 @@ export namespace CodeWorkspaceSDK {
     export type State = {
         templates:  Record<CodeWorkspace.Template.Id, CodeWorkspace.Template.Schema>
         workspaces: Record<CodeWorkspace.Rid, CodeWorkspace.Schema>
-        checkRuns:  Record<CodeWorkspace.CheckRun.Rid, CodeWorkspace.CheckRun.Schema>
+        checkRuns:  Record<CI.CheckRun.Rid, CI.CheckRun.Schema>
         /** Each workspace's loaded check runs, newest first (order matters: a list), and the next page's cursor. */
-        checkRunHistory: Record<CodeWorkspace.Rid, { rids: CodeWorkspace.CheckRun.Rid[]; nextBefore: CodeWorkspace.CheckRun.Rid | null }>
+        checkRunHistory: Record<CodeWorkspace.Rid, { rids: CI.CheckRun.Rid[]; nextBefore: CI.CheckRun.Rid | null }>
         /** The workspace whose page is open (the route sets it); its check runs are followed live. */
         openWorkspaceRid: CodeWorkspace.Rid | null
     }

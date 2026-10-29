@@ -6,8 +6,9 @@ import { api } from '@quarry/shared/server/internal-api';
 import { DockerDriver, type ExecResult } from './docker-driver';
 import { config } from './config';
 
-import Internal = CodeWorkspace.API.Internal;
-import CheckRun = CodeWorkspace.CheckRun;
+import CI = CodeWorkspace.CI;
+import Internal = CI.API.Internal;
+import CheckRun = CodeWorkspace.CI.CheckRun;
 
 /** Labels a check run's container — how a restarted worker finds leftovers. */
 const CHECK_LABEL = 'quarry.check-run';
@@ -19,7 +20,7 @@ const REPOSITORY = '/workspace/repo';
 const SETUP_TIMEOUT_MS = 10 * 60_000;
 
 /** What `uses:` runs: stdout is its result (the manifest), stderr its log. */
-const USES_COMMANDS: Record<CodeWorkspace.Check.Uses, string> = {
+const USES_COMMANDS: Record<CI.Check.Uses, string> = {
     'quarry/publish-transforms': 'python -m quarry.transforms.manifest',
 };
 
@@ -48,7 +49,7 @@ export class CheckRunner implements OnModuleInit {
     }
 
     /** Runs it to the end; `skipped` if it wasn't this worker's to run, or was canceled meanwhile. */
-    public async run(rid: CheckRun.Rid): Promise<CodeWorkspace.Queue.RunCheck.Result['status']> {
+    public async run(rid: CheckRun.Rid): Promise<CI.Queue.RunCheck.Result['status']> {
         let started: Internal.CheckRun.Start.Response;
 
         try {
@@ -138,7 +139,7 @@ export class CheckRunner implements OnModuleInit {
     }
 
     /** One step: `run` in sh (stderr merged), `uses` as Quarry's command (stdout its JSON result). */
-    private async runStep(container: string, step: CodeWorkspace.Check.Config.Step, token: string): Promise<StepOutcome> {
+    private async runStep(container: string, step: CI.Check.Config.Step, token: string): Promise<StepOutcome> {
         const uses = 'uses' in step;
         const script = uses
             ? `. .venv/bin/activate && exec ${USES_COMMANDS[step.uses]}`
@@ -177,13 +178,16 @@ export class CheckRunner implements OnModuleInit {
         }
     }
 
-    private async report(rid: CheckRun.Rid, index: number, step: Internal.CheckRun.Step.Request): Promise<void> {
+    private async report(rid: CheckRun.Rid, index: number, step: Internal.CheckRun.Step.Input): Promise<void> {
         await this.toServer(() => Internal.reportCheckStep(api, rid, index, step));
     }
 
-    private async finish(rid: CheckRun.Rid, outcome: Internal.CheckRun.Finish.Request): Promise<'succeeded' | 'failed'> {
+    private async finish(rid: CheckRun.Rid, outcome: Internal.CheckRun.Finish.Input): Promise<'succeeded' | 'failed'> {
         await this.toServer(() => Internal.finishCheckRun(api, rid, outcome));
-        this.log.info(`Finished ${rid}: ${outcome.status}`, { failure: outcome.failure });
+        if (outcome.status === 'failed')
+            this.log.info(`Finished ${rid}: failed`, { failure: outcome.failure });
+        else
+            this.log.info(`Finished ${rid}: succeeded`);
 
         return outcome.status;
     }

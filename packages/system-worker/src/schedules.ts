@@ -21,7 +21,7 @@ export class Schedules implements OnApplicationBootstrap {
         @InjectQueue(Catalog.Queue.StorageGc.Definition.name)         private readonly storageGc:   Queue,
         @InjectQueue(DataConnection.Queue.SyncReaper.Definition.name) private readonly syncReaper:  Queue,
         @InjectQueue(DataConnection.Queue.Sync.Definition.name)       private readonly sync:        Queue,
-        @InjectQueue(CodeWorkspace.Queue.CheckSweep.Definition.name)  private readonly checkSweep:  Queue,
+        @InjectQueue(CodeWorkspace.CI.Queue.CheckSweep.Definition.name)  private readonly checkSweep:  Queue,
         @InjectQueue(Foundations.DurableQueue.Sweep.Definition.name)  private readonly durableQueueSweep: Queue,
     ) {}
 
@@ -30,7 +30,7 @@ export class Schedules implements OnApplicationBootstrap {
             [this.outboxRelay, Catalog.Queue.OutboxRelay.Definition,       5_000],           // every 5 s
             [this.storageGc,   Catalog.Queue.StorageGc.Definition,         60 * 60_000],     // hourly
             [this.syncReaper,  DataConnection.Queue.SyncReaper.Definition, 2 * 60_000],      // every 2 min
-            [this.checkSweep,  CodeWorkspace.Queue.CheckSweep.Definition,  60_000],          // every minute
+            [this.checkSweep,  CodeWorkspace.CI.Queue.CheckSweep.Definition,  60_000],          // every minute
             [this.durableQueueSweep, Foundations.DurableQueue.Sweep.Definition, 60_000],     // every minute — every durable queue
         ];
 

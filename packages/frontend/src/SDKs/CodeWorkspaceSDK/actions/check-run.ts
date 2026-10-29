@@ -5,6 +5,8 @@ import { AsyncEventQueueHandler } from '@/SDKs/RealtimeSDK/EventQueue'
 import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import type { CodeWorkspaceSDKImpl } from '../sdk'
 
+import CI = CodeWorkspace.CI
+
 /** Runs fetched per page — the Checks tab's first screen, and each "Load older". */
 const PAGE_SIZE = 25
 
@@ -14,8 +16,8 @@ export class CheckRunActions extends ActionGroup<CodeWorkspaceSDKImpl> {
     protected readonly log = log.withContext('CodeWorkspace.Actions.CheckRun')
 
     /** The newest page — replaces the workspace's history (a refetch starts over). */
-    public async list(rid: CodeWorkspace.Rid): Promise<CodeWorkspace.API.ListCheckRuns.Response> {
-        const data = await CodeWorkspace.API.listCheckRuns(api, rid, { limit: PAGE_SIZE })
+    public async list(rid: CodeWorkspace.Rid): Promise<CI.API.ListCheckRuns.Response> {
+        const data = await CI.API.listCheckRuns(api, rid, { limit: PAGE_SIZE })
 
         this.sdk.setState(state => {
             for (const run of data.checkRuns)
@@ -34,7 +36,7 @@ export class CheckRunActions extends ActionGroup<CodeWorkspaceSDKImpl> {
         if (!before)
             return
 
-        const data = await CodeWorkspace.API.listCheckRuns(api, rid, { limit: PAGE_SIZE, before })
+        const data = await CI.API.listCheckRuns(api, rid, { limit: PAGE_SIZE, before })
 
         this.sdk.setState(state => {
             const history = state.checkRunHistory[rid]

@@ -8,6 +8,8 @@ import { SessionController } from './http/session.controller';
 import { RunCheckProcessor } from './run-check.processor';
 import { SessionManager } from './session-manager';
 
+import CI = CodeWorkspace.CI;
+
 /** For container probes: the worker's API is up. */
 @Controller('health')
 export class HealthController {
@@ -28,7 +30,7 @@ export class HealthController {
 @Module({
     imports: [
         BullModule.forRootAsync({ useFactory: () => ({ connection: redisConnection(), prefix: QUEUE_PREFIX }) }),
-        BullModule.registerQueue({ name: CodeWorkspace.Queue.RunCheck.Definition.name }),
+        BullModule.registerQueue({ name: CI.Queue.RunCheck.Definition.name }),
     ],
     controllers: [HealthController, SessionController],
     providers:   [DockerDriver, SessionManager, CheckRunner, RunCheckProcessor],

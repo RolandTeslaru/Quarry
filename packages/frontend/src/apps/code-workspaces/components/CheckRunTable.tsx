@@ -3,17 +3,19 @@ import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Icon } from '@quarry/standard-ui/icons'
 import { cn } from '@quarry/standard-ui/utils/cn'
-import type { CodeWorkspace } from '@quarry/shared/domain'
+import { CodeWorkspace } from '@quarry/shared/domain'
 import { ago, dateTime } from '@/utils/format'
 import { CHECK_RUN_STATUSES, CHECK_STEP_STATUSES } from '../constants'
 
+import CI = CodeWorkspace.CI
+
 interface CheckRunTableProps {
-    checkRuns: CodeWorkspace.CheckRun.Schema[]
+    checkRuns: CI.CheckRun.Schema[]
 }
 
 /** A workspace's check runs, newest first; a row opens to its steps and their logs. */
 export function CheckRunTable({ checkRuns }: CheckRunTableProps) {
-    const [openRid, setOpenRid] = useState<CodeWorkspace.CheckRun.Rid | null>(null)
+    const [openRid, setOpenRid] = useState<CI.CheckRun.Rid | null>(null)
 
     return (
         <Table.Root>
@@ -66,7 +68,7 @@ export function CheckRunTable({ checkRuns }: CheckRunTableProps) {
 }
 
 interface CheckRunStatusProps {
-    status: CodeWorkspace.CheckRun.Status
+    status: CI.CheckRun.Status
 }
 
 function CheckRunStatus({ status }: CheckRunStatusProps) {
@@ -81,7 +83,7 @@ function CheckRunStatus({ status }: CheckRunStatusProps) {
 }
 
 interface CheckRunStepsProps {
-    run: CodeWorkspace.CheckRun.Schema
+    run: CI.CheckRun.Schema
 }
 
 /** Each step: its status, how long it took, its exit code — and its output, opened on demand. */
@@ -120,7 +122,7 @@ function CheckRunSteps({ run }: CheckRunStepsProps) {
     )
 }
 
-function getRunDuration(run: CodeWorkspace.CheckRun.Schema): string {
+function getRunDuration(run: CI.CheckRun.Schema): string {
     if (!run.startedAt)
         return '—'
 
@@ -130,7 +132,7 @@ function getRunDuration(run: CodeWorkspace.CheckRun.Schema): string {
     return formatDuration(run.finishedAt.getTime() - run.startedAt.getTime())
 }
 
-function getStepDuration(step: CodeWorkspace.CheckRun.Step.Schema): string {
+function getStepDuration(step: CI.CheckRun.Step.Schema): string {
     if (!step.startedAt || !step.finishedAt)
         return step.status === 'running' ? 'running…' : ''
 

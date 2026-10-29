@@ -10,6 +10,8 @@ import { StorageGcProcessor } from './processors/storage-gc.processor';
 import { SyncReaperProcessor } from './processors/sync-reaper.processor';
 import { Schedules } from './schedules';
 
+import CI = CodeWorkspace.CI;
+
 /** For container probes: up, and able to reach Redis (where its schedules and jobs live). */
 @Controller('health')
 export class HealthController {
@@ -48,7 +50,7 @@ export class HealthController {
             { name: Catalog.Queue.DatasetUpdated.Definition.name },          // produced: relayed outbox events
             { name: DataConnection.Queue.SyncReaper.Definition.name },
             { name: DataConnection.Queue.Sync.Definition.name },             // produced: cron schedulers only
-            { name: CodeWorkspace.Queue.CheckSweep.Definition.name },
+            { name: CI.Queue.CheckSweep.Definition.name },
             { name: Foundations.DurableQueue.Sweep.Definition.name },
         ),
     ],

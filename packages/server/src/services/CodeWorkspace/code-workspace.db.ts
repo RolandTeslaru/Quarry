@@ -5,6 +5,8 @@ import type { Table } from '@/db/table';
 import type { IdentityDB } from '@/services/Identity/identity.db';
 import { LibraryDB } from '@/services/Library/library.db';
 
+import CI = CodeWorkspace.CI;
+
 /** The `code_workspace` schema: Code Workspaces. */
 export namespace CodeWorkspaceDB {
 
@@ -24,14 +26,14 @@ export namespace CodeWorkspaceDB {
 
     export namespace CheckRun {
         export const Row = z.object({
-            rid:           CodeWorkspace.CheckRun.Rid,
+            rid:           CI.CheckRun.Rid,
             workspace_rid: CodeWorkspace.Rid,
             branch:        Foundations.Branch,
             commit:        CodeWorkspace.Git.Commit,
-            status:        CodeWorkspace.CheckRun.Status,
-            steps:         CodeWorkspace.CheckRun.Step.Schema.array(),
+            status:        CI.CheckRun.Status,
+            steps:         CI.CheckRun.Step.Schema.array(),
             published:     z.boolean(),
-            failure:       CodeWorkspace.CheckRun.Failure.nullable(),
+            failure:       CI.CheckRun.Failure.nullable(),
             pushed_by:     Identity.User.Rid.nullable(),
             created_at:    z.date(),
             scheduled_at:  z.date().nullable(),
@@ -41,7 +43,7 @@ export namespace CodeWorkspaceDB {
         });
         export type Row = z.infer<typeof Row>;
 
-        export const toDomain = (row: Row) => CodeWorkspace.CheckRun.Schema.parse({
+        export const toDomain = (row: Row) => CI.CheckRun.Schema.parse({
             rid:          row.rid,
             workspaceRid: row.workspace_rid,
             branch:       row.branch,

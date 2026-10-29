@@ -3,8 +3,7 @@ import type { Request, Response } from 'express';
 import { CodeWorkspace } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
-import { CodeWorkspaceService } from '../code-workspace.service';
-import { serveGit } from './http-backend';
+import { GitService } from './git.service';
 
 /** The smart-HTTP endpoints; the dumb protocol (raw object files) isn't served. */
 const SMART_PATHS = ['info/refs', 'git-upload-pack', 'git-receive-pack'];
@@ -18,7 +17,7 @@ const SMART_PATHS = ['info/refs', 'git-upload-pack', 'git-receive-pack'];
 @Controller('git')
 export class GitController {
 
-    constructor(private readonly service: CodeWorkspaceService) {}
+    constructor(private readonly git: GitService) {}
 
     @All(':repository/*path')
     async serve(
@@ -34,19 +33,10 @@ export class GitController {
         if (!SMART_PATHS.includes(rest))
             throw new NotFoundException('Not found');
 
-        const projectRoot = isPush(request, rest)
-            ? await this.service.authorizePush(principal, rid)
-            : await this.service.authorizeFetch(principal, rid);
-
-        // The push itself, not its advertisement: compare the heads around it to see what it moved.
-        const before = rest === 'git-receive-pack' ? await this.service.getHeads(rid) : null;
-
-        await serveGit(request, response, {
-            projectRoot,
-            pathInfo:   `/${rid}.git/${rest}`,
-            remoteUser: principal.userRid,
-            afterServe: before ? () => this.service.pushed(principal, rid, before) : undefined,   // never throws
-        });
+        if (isPush(request, rest))
+            await this.git.servePush(principal, rid, request, response, rest);
+        else
+            await this.git.serveFetch(principal, rid, request, response, rest);
     }
 }
 

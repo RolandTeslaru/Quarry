@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { Realtime } from "../Realtime/Realtime"
 import { Workspace } from "./Workspace"
-import { CheckRun } from "./CheckRun"
+import { CheckRun } from "./CI/CheckRun"
 
 /** Live changes in one Code Workspace, for whoever can read it. */
 export namespace Event {

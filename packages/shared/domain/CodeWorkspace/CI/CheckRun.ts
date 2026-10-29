@@ -1,8 +1,8 @@
 import { z } from "zod"
-import { Foundations } from "../Foundations"
-import { User } from "../Identity/User"
-import { Workspace } from "./Workspace"
-import { Git } from "./Git"
+import { Foundations } from "../../Foundations"
+import { User } from "../../Identity/User"
+import { Workspace } from "../Workspace"
+import { Git } from "../Git"
 
 /**
  * CI for one pushed branch head: the steps of its quarry-ci.yml, then — if
@@ -42,6 +42,20 @@ export namespace CheckRun {
 
         /** How much of a step's output is kept. */
         export const LOG_TAIL_BYTES = 64 * 1024
+
+        /** A finished run's steps: those that never ran (or never ended) become skipped. */
+        export function skipUnfinished(steps: Schema[]): Schema[] {
+            const result: Schema[] = []
+
+            for (const step of steps) {
+                if (step.status === "waiting" || step.status === "running")
+                    result.push({ ...step, status: "skipped" })
+                else
+                    result.push(step)
+            }
+
+            return result
+        }
     }
 
     /** The server's own steps around the file's: reading quarry-ci.yml, and validating and publishing the manifest. */

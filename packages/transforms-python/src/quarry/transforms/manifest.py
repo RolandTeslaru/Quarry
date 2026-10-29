@@ -35,7 +35,7 @@ def main() -> int:
 
 
 def get_manifest(pipeline: Pipeline) -> dict[str, Any]:
-    """`{ transforms: [...] }`, as CodeWorkspace.Check.Manifest reads it."""
+    """`{ transforms: [...] }`, as CodeWorkspace.CI.Check.Manifest reads it."""
     return {"transforms": [describe(candidate) for candidate in pipeline.transforms.values()]}
 
 
