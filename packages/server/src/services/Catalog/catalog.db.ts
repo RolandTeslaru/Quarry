@@ -70,7 +70,7 @@ export namespace CatalogDB {
             logical_path:    z.string(),
             op:              Catalog.Transaction.FileChange.Op,
             format:          Storage.File.Format.nullable(),
-            key:             z.string().nullable(),
+            key:             Storage.File.Key.nullable(),
             bytes:           z.number().int().nullable(),
             row_count:       z.number().int().nullable(),
         });

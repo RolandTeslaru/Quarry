@@ -293,7 +293,7 @@ services/Catalog/
 ├── catalog.internal.controller.ts  system worker only: /api/internal/outbox, /storage-gc
 ├── dataset.repository.ts         create (library row + dataset + branch main), get
 ├── transaction/
-│   ├── dataset-transactions.ts   the write protocol, reached as catalog.transaction: open → upload under storagePrefix → registerChanges → commit / abort
+│   ├── dataset-transactions.ts   the write protocol, reached as catalog.transaction: open → upload under Catalog.Dataset.getStoragePrefix → registerChanges → commit / abort
 │   └── transaction.repository.ts open, registerChanges, commit, abort, resolveView, housekeeping queries
 ```
 

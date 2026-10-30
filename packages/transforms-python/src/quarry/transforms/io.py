@@ -3,26 +3,27 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any, Callable, Literal, overload
 
 import duckdb
 import polars as pl
 import pyarrow as pa
-import pyarrow.dataset as ds
 
 
 class TransformInput:
-    """One input, pinned to one version: every loader reads the same files."""
+    """
+    One input, pinned to one version: its Parquet files, which every loader reads.
+    In a job they're signed URLs, read straight from storage; in a preview, local paths.
+    """
 
-    def __init__(self, *, rid: str, sequence: int, directory: Path):
+    def __init__(self, *, rid: str, sequence: int, files: list[str]):
         self.rid = rid
         self.sequence = sequence
-        self._directory = directory
+        self._files = files
 
-    def path(self) -> str:
-        """The directory of this version's Parquet files — for any other engine."""
-        return str(self._directory)
+    def files(self) -> list[str]:
+        """This version's Parquet files, as URLs or paths — for any other engine."""
+        return list(self._files)
 
     @overload
     def polars(self, lazy: Literal[False] = False) -> pl.DataFrame: ...
@@ -31,18 +32,15 @@ class TransformInput:
     def polars(self, lazy: Literal[True]) -> pl.LazyFrame: ...
 
     def polars(self, lazy: bool = False) -> pl.DataFrame | pl.LazyFrame:
-        frame = pl.scan_parquet(self._files())
+        frame = pl.scan_parquet(self._files)
 
         return frame if lazy else frame.collect()
 
     def pandas(self) -> Any:
-        return self.arrow().to_pandas()
+        return self.polars().to_pandas()
 
     def arrow(self) -> pa.Table:
-        return ds.dataset(self._directory, format="parquet").to_table()
-
-    def _files(self) -> str:
-        return str(self._directory / "*.parquet")
+        return self.polars().to_arrow()
 
 
 class TransformOutput:
@@ -64,10 +62,11 @@ class DuckDbContext:
     def __init__(self, inputs: dict[str, TransformInput]):
         self.conn = duckdb.connect()
 
+        # A view can't take the list as a parameter, so it's written into the statement, quoted.
         for name, transform_input in inputs.items():
-            files = str(Path(transform_input.path()) / "*.parquet").replace("'", "''")
+            files = ", ".join("'" + file.replace("'", "''") + "'" for file in transform_input.files())
 
-            self.conn.execute(f"CREATE VIEW \"{name}\" AS SELECT * FROM read_parquet('{files}')")
+            self.conn.execute(f"CREATE VIEW \"{name}\" AS SELECT * FROM read_parquet([{files}])")
 
 
 class TransformContext:

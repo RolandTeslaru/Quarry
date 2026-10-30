@@ -22,19 +22,24 @@ export class CheckPublisher {
         const recipes: PublishedRecipe[] = [];
 
         for (const transform of manifest.transforms) {
+            const inputs: Record<string, Catalog.Dataset.Rid> = {};
+            const outputs: Record<string, Catalog.Dataset.Rid> = {};
             const inputDatasetRids: Catalog.Dataset.Rid[] = [];
             const outputDatasetRids: Catalog.Dataset.Rid[] = [];
 
-            for (const reference of Object.values(transform.inputs)) {
+            for (const [parameter, reference] of Object.entries(transform.inputs)) {
                 const dataset = await this.catalog.getByReference(principal, reference);
+
+                inputs[parameter] = dataset.rid;
 
                 if (!inputDatasetRids.includes(dataset.rid))
                     inputDatasetRids.push(dataset.rid);
             }
 
-            for (const reference of Object.values(transform.outputs)) {
+            for (const [parameter, reference] of Object.entries(transform.outputs)) {
                 const dataset = await this.catalog.getOrCreateByReference(principal, reference);
 
+                outputs[parameter] = dataset.rid;
                 outputDatasetRids.push(dataset.rid);
             }
 
@@ -44,6 +49,8 @@ export class CheckPublisher {
                     workspaceRid: run.workspaceRid,
                     commit:       run.commit,
                     transform:    transform.name,
+                    inputs,
+                    outputs,
                 },
                 inputDatasetRids,
                 outputDatasetRids,

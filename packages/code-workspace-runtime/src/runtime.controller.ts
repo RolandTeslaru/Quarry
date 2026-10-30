@@ -1,8 +1,10 @@
 import { spawn } from 'node:child_process';
+import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
+import axios from 'axios';
 import { Forge, Stdio } from '@quarry/shared/domain';
 import { requireEnv } from '@quarry/shared/server/env';
 import { sendEvent } from '@quarry/shared/server/stdio/stdio-server';
@@ -20,6 +22,9 @@ const CHECKOUT = '/work/repo';
 
 /** The workspace's environment: `transform`'s own, so nothing is written into the checkout. */
 const VENV = `${TRANSFORM_USER.home}/venv`;
+
+/** What Python is told to run: the transform, its inputs by parameter as read passes. Readable by `transform`. */
+const JOB_FILE = '/work/job.json';
 
 /** The cache volume the ForgeAgent mounts for this runtime type, owned by `transform` (the image's `/cache`). */
 const CACHE = '/cache';
@@ -42,6 +47,14 @@ const TRANSFORM_ENV = {
     UV_LINK_MODE:           'copy',          // the cache is another filesystem
     UV_PYTHON_DOWNLOADS:    'never',         // the image's Python
 };
+
+/** `JOB_FILE`'s contents, read by `quarry.transforms.run`. */
+interface JobFile {
+    readonly jobRid:    string;
+    readonly transform: string;
+    readonly inputs:    Record<string, { readonly rid: string; readonly sequence: number; readonly files: string[] }>;
+    readonly outputs:   Record<string, { readonly rid: string }>;
+}
 
 interface Step {
     readonly name:    string;
@@ -136,14 +149,6 @@ export class RuntimeController {
                 cwd:     CHECKOUT,
                 user:    transformUser,
             },
-            {
-                name:    'Run the transform',
-                command: path.join(VENV, 'bin/python'),
-                args:    ['-m', 'quarry.transforms.run', transform],
-                env:     TRANSFORM_ENV,
-                cwd:     CHECKOUT,
-                user:    transformUser,
-            },
         ];
 
         for (const step of steps) {
@@ -155,6 +160,48 @@ export class RuntimeController {
                     failure: { message: `${step.name} failed with exit code ${code}` },
                 };
             }
+        }
+
+        const api = axios.create({
+            baseURL: requireEnv('QUARRY_SERVER_URL'),
+            headers: { authorization: `Bearer ${token}` },
+        });
+        const { inputs: passes } = await Forge.API.getInputPasses(api, job.rid);
+        const jobFile: JobFile = {
+            jobRid:  job.rid,
+            transform,
+            inputs:  {},
+            outputs: {},
+        };
+
+        for (const [parameter, datasetRid] of Object.entries(recipe.runtime.inputs)) {
+            jobFile.inputs[parameter] = {
+                rid:      datasetRid,
+                sequence: passes[datasetRid].sequence,
+                files:    passes[datasetRid].files.map((file) => file.url),
+            };
+        }
+
+        for (const [parameter, datasetRid] of Object.entries(recipe.runtime.outputs))
+            jobFile.outputs[parameter] = { rid: datasetRid };
+
+        await fs.writeFile(JOB_FILE, JSON.stringify(jobFile));
+
+        const run: Step = {
+            name:    'Run the transform',
+            command: path.join(VENV, 'bin/python'),
+            args:    ['-m', 'quarry.transforms.run', JOB_FILE],
+            env:     TRANSFORM_ENV,
+            cwd:     CHECKOUT,
+            user:    transformUser,
+        };
+        const code = await runStep(run);
+
+        if (code !== 0) {
+            return {
+                status:  'failed',
+                failure: { message: `${run.name} failed with exit code ${code}` },
+            };
         }
 
         return {

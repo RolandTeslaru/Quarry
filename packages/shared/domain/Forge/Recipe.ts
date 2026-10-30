@@ -26,6 +26,8 @@ export namespace Recipe {
             workspaceRid: Workspace.Rid,
             commit:       Git.Commit,
             transform:    ModuleFunctionPath.Schema,
+            inputs:       z.record(z.string(), Dataset.Rid),     // the transform's parameter → the dataset it reads
+            outputs:      z.record(z.string(), Dataset.Rid),     // the transform's parameter → the dataset it writes
         }),
     ])
     export type Runtime = z.infer<typeof Runtime>

@@ -85,7 +85,7 @@ CREATE TABLE forge.job (
                   CHECK (status IN ('waiting', 'scheduled', 'running', 'succeeded', 'failed', 'canceled')),
     attempt       integer NOT NULL DEFAULT 1 CHECK (attempt >= 1),
     failure       jsonb,                          -- { message }
-    inputs        jsonb,                          -- { <dataset rid>: <transaction rid> }: the versions it read, pinned when it starts
+    inputs        jsonb,                          -- { <dataset rid>: <sequence> }: the versions it reads, pinned when it's claimed
     outputs       jsonb NOT NULL,                 -- { <dataset rid>: <transaction rid> }: opened when the build is created
     scheduled_at  timestamptz,                    -- may run from here: a root at initialization, a child when its last parent finished — its message added to foundations.outbox
     started_at    timestamptz,                    -- a ForgeAgent took it

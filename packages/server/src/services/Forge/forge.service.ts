@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Forge, Foundations } from '@quarry/shared/domain';
+import { Catalog, Forge, Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import type { Principal } from '@/auth/principal';
 import { CatalogService } from '@/services/Catalog/catalog.service';
@@ -149,6 +149,25 @@ export class ForgeService {
             throw new NotFoundException('Not found');
 
         return job;
+    }
+
+    /**
+     * The running job's pinned inputs as read passes: what its runtime asks for, with the job's token.
+     * Catalog checks read on each input.
+     */
+    public async getInputPasses(principal: Principal, rid: Forge.Job.Rid): Promise<Forge.API.GetInputPasses.Response> {
+        const job = await this.getJob(principal, rid);
+
+        if (job.status !== 'running')
+            throw new ConflictException(`Job ${rid} isn't running`);
+
+        const inputs: Forge.API.GetInputPasses.Response['inputs'] = {};
+        const pinned = job.inputs!;                           // pinned when it was claimed, which made it running
+
+        for (const datasetRid of Object.keys(pinned) as Catalog.Dataset.Rid[])
+            inputs[datasetRid] = await this.catalog.storage.getReadPasses(principal, datasetRid, pinned[datasetRid]);
+
+        return { inputs };
     }
 
     // ── creating a build, phase by phase ────────────────────────────────

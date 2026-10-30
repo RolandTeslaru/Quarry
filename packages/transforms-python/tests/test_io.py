@@ -41,15 +41,18 @@ def test_write_table_refuses_anything_else():
 
 
 def test_loaders_and_duckdb_read_the_same_files(tmp_path):
-    pq.write_table(ROWS, tmp_path / "sample.parquet")
+    pq.write_table(ROWS, tmp_path / "part-0.parquet")
+    pq.write_table(ROWS, tmp_path / "part-1.parquet")
 
-    source = TransformInput(rid="ri.catalog.main.dataset.x", sequence=1, directory=tmp_path)
+    files = [str(tmp_path / "part-0.parquet"), str(tmp_path / "part-1.parquet")]
+    source = TransformInput(rid="ri.catalog.main.dataset.x", sequence=1, files=files)
     ctx = TransformContext(inputs={"source": source}, job_rid=None, log=None)
 
-    assert source.polars().shape == (3, 2)
-    assert source.polars(lazy=True).collect().shape == (3, 2)
-    assert source.arrow().num_rows == 3
-    assert ctx.duckdb().conn.execute("SELECT count(*) FROM source").fetchall() == [(3,)]
+    assert source.polars().shape == (6, 2)
+    assert source.polars(lazy=True).collect().shape == (6, 2)
+    assert source.arrow().num_rows == 6
+    assert len(source.pandas()) == 6
+    assert ctx.duckdb().conn.execute("SELECT count(*) FROM source").fetchall() == [(6,)]
 
 
 @pytest.mark.parametrize(

@@ -1,12 +1,17 @@
 import { Transform, type Readable } from 'node:stream';
 import { Injectable, PayloadTooLargeException } from '@nestjs/common';
-import { DeleteObjectsCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Storage } from '@quarry/shared/domain';
 import { requireEnv } from '@/db/table';
+
+/** How long a read pass works: as long as the job token it's handed out with. */
+const READ_PASS_TTL_SECONDS = 12 * 60 * 60;
 
 /** What a bucket listing knows about an object — its key and size, not its format's metadata. */
 export interface StoredObject {
-    key:   string;
+    key:   Storage.File.Key;
     bytes: number;
 }
 
@@ -19,6 +24,8 @@ export interface StoredObject {
 export class FileStorage {
 
     private client: S3Client | undefined;
+
+    private jobClient: S3Client | undefined;
 
     get bucket(): string {
         return requireEnv('S3_BUCKET');
@@ -38,16 +45,16 @@ export class FileStorage {
         };
     }
 
-    /** `s3://bucket/key` — how DuckDB addresses a file. */
-    url(key: string): string {
-        return `s3://${this.bucket}/${key}`;
+    /** `s3://bucket/path` — how DuckDB addresses a file (a key), or a folder to write into (a prefix). */
+    url(path: string): string {
+        return `s3://${this.bucket}/${path}`;
     }
 
     /**
      * Streams `body` to `key` — multipart, never held in memory — and returns
      * its size. QUARRY_UPLOAD_MAX_BYTES, if set, caps it (413); unset, there's no cap.
      */
-    async upload(key: string, body: Readable, contentType: string): Promise<StoredObject> {
+    async upload(key: Storage.File.Key, body: Readable, contentType: string): Promise<StoredObject> {
         const max = process.env.QUARRY_UPLOAD_MAX_BYTES ? Number(process.env.QUARRY_UPLOAD_MAX_BYTES) : Infinity;
         let bytes = 0;
 
@@ -68,6 +75,28 @@ export class FileStorage {
         return { key, bytes };
     }
 
+    /**
+     * A URL that reads `key` without credentials until it expires. Signed for storage as job containers
+     * reach it (STORAGE_ENDPOINT, the agent's machine by default): the host is part of the signature.
+     */
+    async presignGet(key: Storage.File.Key): Promise<string> {
+        const { region, accessKey, secretKey } = this.settings;
+
+        this.jobClient ??= new S3Client({
+            endpoint:       process.env.STORAGE_ENDPOINT ?? 'http://host.docker.internal:9000',
+            region,
+            credentials:    { accessKeyId: accessKey, secretAccessKey: secretKey },
+            forcePathStyle: true,
+        });
+
+        const command = new GetObjectCommand({
+            Bucket: this.bucket,
+            Key:    key,
+        });
+
+        return getSignedUrl(this.jobClient, command, { expiresIn: READ_PASS_TTL_SECONDS });
+    }
+
     async list(prefix: string): Promise<StoredObject[]> {
         const objects: StoredObject[] = [];
         let token: string | undefined;
@@ -81,7 +110,7 @@ export class FileStorage {
 
             for (const object of page.Contents ?? [])
                 if (object.Key)
-                    objects.push({ key: object.Key, bytes: object.Size ?? 0 });
+                    objects.push({ key: Storage.File.Key.parse(object.Key), bytes: object.Size ?? 0 });
 
             token = page.IsTruncated ? page.NextContinuationToken : undefined;
         } while (token);
@@ -89,7 +118,7 @@ export class FileStorage {
         return objects;
     }
 
-    async delete(keys: string[]): Promise<void> {
+    async delete(keys: Storage.File.Key[]): Promise<void> {
         for (let i = 0; i < keys.length; i += 1000)
             await this.s3().send(new DeleteObjectsCommand({
                 Bucket: this.bucket,

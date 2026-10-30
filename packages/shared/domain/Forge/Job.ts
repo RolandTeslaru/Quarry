@@ -27,7 +27,7 @@ export namespace Job {
         recipeRid:             Recipe.Rid,
         status:                Status,
         attempt:               z.number().int().positive(),         // 1, then each retry
-        inputs:                z.record(Dataset.Rid, Transaction.Rid).nullable(),   // the version of each input it read, pinned when it starts
+        inputs:                z.record(Dataset.Rid, z.number().int()).nullable(),  // each input's version (its sequence), pinned when it's claimed
         outputs:               z.record(Dataset.Rid, Transaction.Rid),              // each output's transaction, opened when the build is created
         failure:               z.object({ message: z.string() }).nullable(),
         scheduledAt:           z.coerce.date().nullable(),

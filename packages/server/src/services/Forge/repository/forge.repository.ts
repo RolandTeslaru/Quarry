@@ -101,28 +101,22 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
     // ── running jobs (ForgeAgents) ──────────────────────────────────────
 
-    /**
-     * A ForgeAgent claims the job and gets its recipe — in one transaction, so a
-     * job is never left running without its agent knowing what to run — and its
-     * message is acked. Null if this attempt isn't waiting to be claimed.
-     */
+    /** A ForgeAgent claims the job, its inputs pinned, and its message is acked. Null if this attempt isn't waiting to be claimed. */
     @Transactional()
     public async claimJob(
         principal: Principal,
         rid:       Forge.Job.Rid,
         attempt:   number,
-    ): Promise<{ job: Forge.Job.Schema; recipe: Forge.Recipe.Schema } | null> {
-        const job = await this._job.claim(principal, rid, attempt);
+        inputs:    NonNullable<Forge.Job.Schema['inputs']>,
+    ): Promise<Forge.Job.Schema | null> {
+        const job = await this._job.claim(principal, rid, attempt, inputs);
 
         if (!job)
             return null;
 
-        // The FK guarantees it exists; a failure here undoes the claim.
-        const recipe = await this._recipe.get(principal, job.recipeRid);
-
         await this._ackRunJobs([job]);
 
-        return { job, recipe: recipe! };
+        return job;
     }
 
     /**

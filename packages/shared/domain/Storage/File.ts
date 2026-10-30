@@ -11,7 +11,7 @@ import { z } from "zod"
 export namespace File {
 
     /** The object's key in the bucket. Written once, never reused. */
-    export const Key = z.string().min(1)
+    export const Key = z.string().min(1).brand("Storage.File.Key")
     export type  Key = z.infer<typeof Key>
 
     const Base = z.object({
@@ -46,9 +46,9 @@ export namespace File {
     export const Format = z.enum(["parquet", "csv"])
     export type  Format = z.infer<typeof Format>
 
-    /** The format a key's extension says it is, or null if it's not one we know. */
-    export const formatOf = (key: Key): Format | null => {
-        const lower = key.toLowerCase()
+    /** The format a key's or a file name's extension says it is, or null if it's not one we know. */
+    export const formatOf = (name: string): Format | null => {
+        const lower = name.toLowerCase()
 
         if (lower.endsWith(".parquet")) return "parquet"
         if (lower.endsWith(".csv"))     return "csv"

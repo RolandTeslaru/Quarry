@@ -32,27 +32,38 @@ export class ForgeAgentService {
 
     /**
      * Grants the claim: once per attempt, from scheduled. 409 if this attempt isn't waiting to be claimed.
-     * With it, a token for the build's starter: the job's runtime acts as them.
+     * Each input is pinned to its latest version now. With the claim, a token for the build's starter:
+     * the job's runtime acts as them.
      */
     public async claimJob(rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Claim.Response> {
-        const claimed = await this.repository.claimJob(AGENT, rid, attempt);
+        const waiting = await this.repository.job.get(AGENT, rid);
 
-        if (!claimed)
+        if (!waiting)
+            throw new ConflictException(`Job ${rid} attempt ${attempt} isn't waiting to be claimed`);
+
+        // The FKs guarantee the recipe and the build; builds are started by people until schedules exist.
+        const recipe = (await this.repository.recipe.get(AGENT, waiting.recipeRid))!;
+        const build = (await this.repository.build.get(AGENT, waiting.buildRid))!;
+        const inputs: NonNullable<Forge.Job.Schema['inputs']> = {};
+
+        for (const datasetRid of recipe.inputDatasetRids)
+            inputs[datasetRid] = (await this.catalog.get(AGENT, datasetRid)).lastSequence;
+
+        const job = await this.repository.claimJob(AGENT, rid, attempt, inputs);
+
+        if (!job)
             throw new ConflictException(`Job ${rid} attempt ${attempt} isn't waiting to be claimed`);
 
         this.realtime.emitEvent({
-            ...Forge.Event.create('forge:job:updated', { job: claimed.job }),
-            channel: Forge.Event.getChannel(claimed.job.buildRid),
+            ...Forge.Event.create('forge:job:updated', { job }),
+            channel: Forge.Event.getChannel(job.buildRid),
         });
         this.log.info(`Claimed ${rid} (attempt ${attempt})`);
 
-        // The job's FK guarantees its build; builds are started by people until schedules exist.
-        const build = await this.repository.build.get(AGENT, claimed.job.buildRid);
-        const token = await this.sessionTokens.mint(build!.createdBy!, 'forge-job');
-
         return {
-            ...claimed,
-            token,
+            job,
+            recipe,
+            token: await this.sessionTokens.mint(build.createdBy!, 'forge-job'),
         };
     }
 

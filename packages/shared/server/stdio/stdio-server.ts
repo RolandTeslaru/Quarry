@@ -1,7 +1,8 @@
 /// <reference types="node" />
 import * as readline from 'node:readline';
+import { Catch, type RpcExceptionFilter } from '@nestjs/common';
 import { BaseRpcContext, type CustomTransportStrategy, Server } from '@nestjs/microservices';
-import { lastValueFrom } from 'rxjs';
+import { lastValueFrom, type Observable, throwError } from 'rxjs';
 import { Stdio } from '../../domain';
 
 /** stdout carries only protocol messages, one per line. Logs go to stderr (`System.log.useStderr()`). */
@@ -14,6 +15,18 @@ export function sendEvent(event: Stdio.Payload<Stdio.Event.Schema>): void {
         ...event,
         type: 'event',
     });
+}
+
+/**
+ * Errors through unchanged, for StdioServer to answer with their message. Nest's own RPC filter would
+ * replace them with `{ status: 'error', message: 'Internal server error' }`.
+ */
+@Catch()
+export class StdioErrors implements RpcExceptionFilter {
+
+    public catch(exception: unknown): Observable<never> {
+        return throwError(() => exception);
+    }
 }
 
 /**

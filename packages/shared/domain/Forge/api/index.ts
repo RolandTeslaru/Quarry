@@ -74,6 +74,12 @@ export namespace API {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** The running job's pinned inputs, each as read passes — for its runtime, with the job's token. */
+    export namespace GetInputPasses {
+        export const Response = z.object({ inputs: z.record(DatasetD.Rid, DatasetD.ReadPasses.Schema) })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export async function createBuild(api: AxiosInstance, req: z.input<typeof CreateBuild.Request>): Promise<CreateBuild.Response> {
         const { data } = await api.post("/api/builds", req)
         return CreateBuild.Response.parse(data)
@@ -102,6 +108,11 @@ export namespace API {
     export async function getCurrentRecipe(api: AxiosInstance, query: z.input<typeof GetCurrentRecipe.Query>): Promise<GetCurrentRecipe.Response> {
         const { data } = await api.get("/api/recipes/current", { params: query })
         return GetCurrentRecipe.Response.parse(data)
+    }
+
+    export async function getInputPasses(api: AxiosInstance, rid: JobD.Rid): Promise<GetInputPasses.Response> {
+        const { data } = await api.get(`/api/jobs/${rid}/input-passes`)
+        return GetInputPasses.Response.parse(data)
     }
 
     /** ForgeAgents' own endpoints (`/api/forge-agent/…`). */

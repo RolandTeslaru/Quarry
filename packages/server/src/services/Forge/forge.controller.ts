@@ -56,6 +56,14 @@ export class ForgeController {
         return { job: await this.forge.getJob(principal, rid) };
     }
 
+    @Get('jobs/:rid/input-passes')
+    public async getInputPasses(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', JobRidParam) rid: Forge.Job.Rid,
+    ): Promise<API.GetInputPasses.Response> {
+        return this.forge.getInputPasses(principal, rid);
+    }
+
     @Get('recipes/current')
     public async getCurrentRecipe(
         @CurrentPrincipal() principal: Principal.User,

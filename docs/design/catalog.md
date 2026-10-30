@@ -70,7 +70,7 @@ Each source's columns are mapped onto these; unmappable types become `string` (w
 | | `catalog.*` | `catalog.transaction.*` |
 |---|---|---|
 | Deals with | the dataset as a resource | changing its contents |
-| Methods | `createDataset`, `get`, `view` | `open`, `openBatch`, `registerChanges`, `commit`, `abort`, `abortBatch`, `storagePrefix` |
+| Methods | `createDataset`, `get`, `view` | `open`, `openBatch`, `registerChanges`, `commit`, `abort`, `abortBatch` |
 | Called by | the API (users), other services | writers — the sync runner, the sync reaper, and `catalog.storage` |
 | Spans | one request | a job: open, minutes of uploading, commit |
 
@@ -118,8 +118,7 @@ sequenceDiagram
 
     W->>T: open(datasetRid, type, provenance)
     T-->>W: transaction (rid) — gate: write on the dataset
-    W->>T: storagePrefix(datasetRid, transactionRid)
-    T-->>W: "{datasetRid}/{transactionRid}/"
+    Note over W: Catalog.Dataset.getStoragePrefix(datasetRid, transactionRid) is "{datasetRid}/{transactionRid}/"
     W->>S3: upload Parquet under the prefix
     Note over W,S3: Catalog never sees the bytes
     W->>T: registerChanges(datasetRid, transactionRid, changes)
@@ -193,7 +192,7 @@ S3-compatible object storage, through `FileStorage` (`infra/file-storage.ts`) �
 ```
 s3://{S3_BUCKET}/
   {datasetRid}/
-    {transactionRid}/             catalog.transaction.storagePrefix
+    {transactionRid}/             Catalog.Dataset.getStoragePrefix; a file's key: getStorageKey
       data_0.parquet              written by the writer (sync: DuckDB COPY … PER_THREAD_OUTPUT)
       data_1.parquet
       sales.csv                   or an uploaded file, under its own name

@@ -433,6 +433,49 @@ The items below say what each part needs; the table says when.
 
 12. The extension's preview and the check worker's manifest go through the runtime instead of `preview.py` and `manifest.py`.
 
+### Phase 3: reading the inputs — plan (2026-10-29)
+
+**Goal:** a transform reads its pinned inputs from storage, by parameter name, with only signed URLs in Python. Nothing is written yet.
+
+```mermaid
+sequenceDiagram
+    participant A as ForgeAgent
+    participant S as Server
+    participant R as Runtime (root)
+    participant P as Python (transform)
+    participant O as Storage
+
+    A->>S: POST jobs/:rid/claim
+    Note over S: pins each input: its latest committed transaction on main → job.inputs
+    S-->>A: job (with inputs), recipe, token
+    A->>R: run { job, recipe, token }
+    Note over R: clone, uv sync (phase 2)
+    R->>S: GET /api/forge/jobs/:rid/input-passes (token)
+    Note over S: job running and read on each input, then each pinned version's files, presigned for the job host
+    S-->>R: { datasetRid: { sequence, schema, files: [{ url, bytes }] } }
+    R->>P: job.json: inputs by parameter (recipe.runtime.inputs) → their URLs
+    P->>O: range GETs, only the needed columns and row groups
+    P-->>R: exit 0
+```
+
+**1. The parameter mapping, in the recipe.** `Forge.Recipe.Runtime`'s `code-workspace` member gains `inputs: Record<parameter, Dataset.Rid>` and `outputs: Record<parameter, Dataset.Rid>`. `CheckPublisher` already resolves each ref by its parameter name; it keeps the names instead of dropping them. `inputDatasetRids` / `outputDatasetRids` stay the sets Forge plans and gates with. The runtime looks nothing up by path (the RIDs are trusted).
+
+**2. Pinning, at `claim`.** In the claim's transaction, each input's latest committed transaction on the build's branch (main) goes into `job.inputs` (`Record<Dataset.Rid, Transaction.Rid>`, which exists and is unfilled). Build creation already refuses an input with no data. *Until phase 4*, an input built earlier in the same build pins its old version, since outputs aren't committed yet.
+
+**3. Presigning, in Catalog.** `FileStorage` gains `presignGet(key)` (`@aws-sdk/s3-request-presigner`, new dependency). The URL's host is part of its signature, and `S3_ENDPOINT` (`localhost:9000`) means nothing inside a container, so presigning uses its own endpoint: **`STORAGE_ENDPOINT`** — storage as job containers reach it (`http://host.docker.internal:9000` locally, the real store's address in production). `CatalogStorageService.getReadPasses(principal, datasetRid, transactionRid)`: `@SecurityGate('read')`, `@Audit('read', { op: 'read-passes' })`, resolves that version's files (`resolveView` at the transaction's sequence) and presigns each. URLs live for the job's longest run (`QUARRY_READ_PASS_TTL`, default 12 h, as the token).
+
+**4. Input passes, in Forge.** `GET /api/forge/jobs/:rid/input-passes`, called by the runtime with the job token: the job must be running; for each of `job.inputs`, `catalog.storage.getReadPasses(...)`. Response by dataset RID: `{ sequence, schema, files: [{ url, bytes }] }`. One call per job.
+
+**5. The runtime.** After `uv sync`: one request for the input passes, then `job.json` in `transform`'s home — `{ "transform": name, "inputs": { parameter: { "rid", "sequence", "files": [url, …] } } }` — and `python -m quarry.transforms.run job.json`.
+
+**6. `quarry.transforms`.** `TransformInput(rid, sequence, files)` — a list of files, URLs or local paths alike (preview passes its downloaded sample as a one-item list). `polars(lazy)` is `pl.scan_parquet(files)`; `arrow()` and `pandas()` go through Polars (no new Python dependencies); the DuckDB context reads `read_parquet([files])`. `path()` (a local directory) is replaced by `files()`. `run.py` reads `job.json`, builds the inputs by parameter, and calls the transform; its outputs get a `TransformOutput` that does nothing yet (phase 4 writes them).
+
+**7. Tests.** Server: `claim` pins each input's latest committed transaction; input passes need the job running and read on the input; a pass is a working URL (fetch it, get the file's bytes). Python: `TransformInput` over several files. E2E: a real dataset (uploaded CSV, so its files exist), a transform that reads it lazily and prints its row count; the agent's log shows it.
+
+**Checked first (spike, 2026-10-29):** two Parquet files uploaded to the local store, GET URLs presigned for `host.docker.internal:9000`, read inside the runtime image as one list — no options needed, plain `http://` and query strings included. Polars `scan_parquet(urls)` lazy with a filter and two columns across both files: the right rows; count, `read_parquet`, `.to_arrow()`, `.to_pandas()`: all rows. DuckDB `read_parquet([...])`: right count and sum; a view over the list as a SQL literal, then a filter: right rows (a view can't take the list as a prepared parameter — DDL isn't preparable — so `DuckDbContext` keeps writing it as a literal). Not measured yet: how many bytes a lazy read fetches (the pushdown), on a big file.
+
+**Decided (2026-10-29):** `STORAGE_ENDPOINT`; presigning in Catalog, the job-level endpoint in Forge; `TransformInput.files()` replaces `path()`.
+
 ## 9. Open questions
 
 - **Narrowing the job token:** it's the build starter's full token for 12 h (`SessionTokens`). Narrowing it — this job's workspace, inputs and outputs — needs a scope claim and the verifier and guards enforcing it; renewing it for jobs longer than 12 h needs a way too (the heartbeat could).

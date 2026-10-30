@@ -96,7 +96,7 @@ export class CatalogStorage {
             if (current?.files.some((existing) => existing.logicalPath === filename))
                 throw new ConflictException(`The dataset already has a file named ${filename} — upload as a snapshot to replace its files`);
 
-            const key = `${this.transactions.storagePrefix(datasetRid, transaction.rid)}${filename}`;
+            const key = Catalog.Dataset.getStorageKey(datasetRid, transaction.rid, filename);
             const stored = await this.storage.upload(key, file.stream, format === 'csv' ? 'text/csv' : 'application/vnd.apache.parquet');
 
             if (stored.bytes === 0)
@@ -151,6 +151,27 @@ export class CatalogStorage {
         return { file, sequence: view.sequence };
     }
 
+    /** One version's files as read passes, for a job's runtime. Gated like sample: it hands out file contents. */
+    @Audit('read', (sequence: number) => ({ op: 'read-passes', sequence }))
+    @SecurityGate('read')
+    async getReadPasses(principal: Principal, datasetRid: Catalog.Dataset.Rid, sequence: number): Promise<Catalog.Dataset.ReadPasses.Schema> {
+        const view = await this.transactionRepository.resolveView(principal, datasetRid, 'main', sequence);
+        const files: Catalog.Dataset.ReadPasses.File[] = [];
+
+        for (const file of view.files) {
+            files.push({
+                url:   await this.storage.presignGet(file.key),
+                bytes: file.bytes,
+            });
+        }
+
+        return {
+            sequence: view.sequence,
+            schema:   view.schema,
+            files,
+        };
+    }
+
     /** The first `limit` rows of the latest view. Gated: it hands out file contents, and RLS alone would answer a discoverer with an empty view. */
     @Audit('read', (limit: number) => ({ op: 'preview', limit }))
     @SecurityGate('read')
@@ -200,7 +221,7 @@ export class CatalogStorage {
     // ── DuckDB ──────────────────────────────────────────────────────────
 
     /** What a stored file says about itself: a CSV's dialect and columns (sniffed), a Parquet file's columns and rows. */
-    private infer(format: Storage.File.Format, key: string): Promise<{ schema: ColumnSchema.Schema; rowCount: number | null }> {
+    private infer(format: Storage.File.Format, key: Storage.File.Key): Promise<{ schema: ColumnSchema.Schema; rowCount: number | null }> {
         const url = literal(this.storage.url(key));
 
         return this.duckdb.with(async (connection) => {

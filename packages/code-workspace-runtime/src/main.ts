@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Forge } from '@quarry/shared/domain';
-import { StdioServer } from '@quarry/shared/server/stdio/stdio-server';
+import { StdioErrors, StdioServer } from '@quarry/shared/server/stdio/stdio-server';
 import { System } from '@quarry/shared/server/system';
 import { RuntimeModule } from './runtime.module';
 
@@ -16,6 +16,8 @@ async function bootstrap(): Promise<void> {
         strategy: new StdioServer('code-workspace', [Forge.Runtime.Run.Request]),
         logger:   ['error'],
     });
+
+    app.useGlobalFilters(new StdioErrors());
 
     await app.listen();
 }

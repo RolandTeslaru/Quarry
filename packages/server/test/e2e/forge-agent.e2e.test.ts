@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import type { AddressInfo } from 'node:net';
 import * as path from 'node:path';
+import { Readable } from 'node:stream';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
 import { WsAdapter } from '@nestjs/platform-ws';
@@ -16,16 +17,31 @@ import { ForgeHarness, MAIN, type RecipeCode } from '../support/forge-fixtures';
 const AGENT_BOOT_MS = 60_000;
 const BUILD_DONE_MS = 60_000;
 
-/** The transform behind the harness's recipe `A` — `pkg.A.A` — writing nothing yet. */
-const transformFile = (name: string) => `from quarry.transforms import Output, transform
+/**
+ * The transform behind the harness's recipe `A` — `pkg.A.A` — its parameters named after the datasets it
+ * reads and writes, as the harness's recipes map them. Writes nothing yet.
+ */
+function transformFile(name: string, inputs: string[], outputs: string[], body = 'pass'): string {
+    const parameters = [...inputs, ...outputs];
+    const declared = [
+        ...inputs.map((input) => `${input}=Input("/Test/${input}")`),
+        ...outputs.map((output) => `${output}=Output("/Test/${output}")`),
+    ];
+
+    return `import polars as pl
+from quarry.transforms import Input, Output, transform
 
 
-@transform.using(out=Output("/Test/${name}"))
-def ${name}(out):
-    pass
+@transform.using(${declared.join(', ')})
+def ${name}(${parameters.join(', ')}):
+    ${body}
 `;
+}
 
-/** A workspace whose commit defines transforms A to D: no dependencies, so its lock is this short. */
+/**
+ * A workspace whose commit defines the transforms the tests build: a diamond (A → B, C → D), F beside A,
+ * and R, which reads its input. No dependencies, so its lock is this short.
+ */
 const WORKSPACE_FILES = {
     'pyproject.toml': `[project]
 name = "pkg"
@@ -52,14 +68,18 @@ from pkg.A import A
 from pkg.B import B
 from pkg.C import C
 from pkg.D import D
+from pkg.F import F
+from pkg.R import R
 
 pipeline = Pipeline()
-pipeline.add_transforms(A, B, C, D)
+pipeline.add_transforms(A, B, C, D, F, R)
 `,
-    'src/pkg/A.py': transformFile('A'),
-    'src/pkg/B.py': transformFile('B'),
-    'src/pkg/C.py': transformFile('C'),
-    'src/pkg/D.py': transformFile('D'),
+    'src/pkg/A.py': transformFile('A', ['raw'], ['a']),
+    'src/pkg/B.py': transformFile('B', ['a'], ['b']),
+    'src/pkg/C.py': transformFile('C', ['a'], ['c']),
+    'src/pkg/D.py': transformFile('D', ['b', 'c'], ['d']),
+    'src/pkg/F.py': transformFile('F', ['raw'], ['f']),
+    'src/pkg/R.py': transformFile('R', ['raw'], ['r'], 'print(f"rows {raw.polars(lazy=True).select(pl.len()).collect().item()}")'),
 };
 
 /**
@@ -118,11 +138,11 @@ describe('a real ForgeAgent', () => {
     }
 
     it('runs a one-job build to the end', async () => {
-        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'out'], ['raw']);
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a'], ['raw']);
 
-        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }], MAIN, code);
+        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }], MAIN, code);
 
-        const { build } = await harness.build(user, [datasets.out]);
+        const { build } = await harness.build(user, [datasets.a]);
         const done = await finished(build.rid);
         const [job] = Object.values(done.jobs);
 
@@ -130,15 +150,31 @@ describe('a real ForgeAgent', () => {
         expect(job.status).toBe('succeeded');
         expect(job.startedAt).not.toBeNull();
         expect(agentLog).toContain(`Picked up ${job.rid}`);
-        expect(agentLog).toContain('Found pkg.A.A');                // cloned, installed, and found at the commit
+        expect(agentLog).toContain('Ran pkg.A.A');                  // cloned, installed, found and called at the commit
+    });
+
+    it('reads its input from storage, through read passes', async () => {
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'r'], []);
+
+        await harness.catalog.storage.upload(user, datasets.raw, 'snapshot', {
+            filename: 'orders.csv',
+            stream:   Readable.from(['id,amount\n1,10\n2,20\n3,30\n']),
+        });
+        await harness.publish(user, projectRid, datasets, [{ name: 'R', inputs: ['raw'], outputs: ['r'] }], MAIN, code);
+
+        const { build } = await harness.build(user, [datasets.r]);
+        const done = await finished(build.rid);
+
+        expect(done.build.status).toBe('succeeded');
+        expect(agentLog).toContain('rows 3');
     });
 
     it("fails the job when the commit doesn't have its transform", async () => {
-        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'out'], ['raw']);
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'e'], ['raw']);
 
-        await harness.publish(user, projectRid, datasets, [{ name: 'E', inputs: ['raw'], outputs: ['out'] }], MAIN, code);
+        await harness.publish(user, projectRid, datasets, [{ name: 'E', inputs: ['raw'], outputs: ['e'] }], MAIN, code);
 
-        const { build } = await harness.build(user, [datasets.out]);
+        const { build } = await harness.build(user, [datasets.e]);
         const done = await finished(build.rid);
         const [job] = Object.values(done.jobs);
 
@@ -171,13 +207,13 @@ describe('a real ForgeAgent', () => {
     });
 
     it('cancels cleanly against a running agent — or loses the race to a build that finished first', async () => {
-        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b'], ['raw']);
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'f'], ['raw']);
         const recipes = await harness.publish(user, projectRid, datasets, [
             { name: 'A', inputs: ['raw'], outputs: ['a'] },
-            { name: 'B', inputs: ['raw'], outputs: ['b'] },
+            { name: 'F', inputs: ['raw'], outputs: ['f'] },
         ], MAIN, code);
 
-        const { build } = await harness.build(user, [datasets.a, datasets.b]);
+        const { build } = await harness.build(user, [datasets.a, datasets.f]);
         const outcome = await harness.forge.cancelBuild(user, build.rid).then(() => 'canceled', (error: Error) => error.message);
 
         // Give the agent time to try to finish whatever it had claimed.

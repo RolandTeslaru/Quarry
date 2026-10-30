@@ -4,7 +4,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Queue } from 'bullmq';
 import { sql } from 'kysely';
-import { type Catalog, DataConnection, type Gatekeeper, Identity, type Keychain, type Library } from '@quarry/shared/domain';
+import { Catalog, DataConnection, type Gatekeeper, Identity, type Keychain, type Library, Storage } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { ApiModule } from '@/api.module';
 import type { Principal } from '@/auth/principal';
@@ -167,13 +167,13 @@ export class DataConnectionHarness {
      * aren't real Parquet: the server only lists them, by key and extension.
      */
     public async writeCopy(run: StartedRun, rowsPerFile: number[], state: string | null): Promise<Internal.CompleteRun.Request> {
-        const prefix = this.catalog.transaction.storagePrefix(run.datasetRid, run.transactionRid);
+        const prefix = Catalog.Dataset.getStoragePrefix(run.datasetRid, run.transactionRid);
         const rowCounts: Record<string, number> = {};
 
         this.written.add(prefix);
 
         for (const [index, rows] of rowsPerFile.entries()) {
-            const key = `${prefix}data_${index}.parquet`;
+            const key = Catalog.Dataset.getStorageKey(run.datasetRid, run.transactionRid, `data_${index}.parquet`);
 
             await this.files.upload(key, Readable.from(Buffer.from(`rows:${rows}`)), 'application/vnd.apache.parquet');
             rowCounts[key] = rows;
@@ -195,7 +195,7 @@ export class DataConnectionHarness {
     /** Puts an object anywhere in the bucket — to check nothing outside a run's prefix is registered. */
     public async writeObject(key: string): Promise<void> {
         this.written.add(key);
-        await this.files.upload(key, Readable.from(Buffer.from('stray')), 'application/vnd.apache.parquet');
+        await this.files.upload(Storage.File.Key.parse(key), Readable.from(Buffer.from('stray')), 'application/vnd.apache.parquet');
     }
 
     // ── reading what happened ───────────────────────────────────────────

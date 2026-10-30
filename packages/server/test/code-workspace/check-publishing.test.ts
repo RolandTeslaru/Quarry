@@ -76,7 +76,14 @@ describe('publishing recipes', () => {
         expect(recipe).toMatchObject({
             producerRid:       workspace.rid,
             branch:            MAIN,
-            runtime:           { type: 'code-workspace', workspaceRid: workspace.rid, commit: run.commit, transform: 'sales.datasets.orders.clean' },
+            runtime:           {
+                type:         'code-workspace',
+                workspaceRid: workspace.rid,
+                commit:       run.commit,
+                transform:    'sales.datasets.orders.clean',
+                inputs:       { raw: datasets.raw },               // by parameter, as the code names them
+                outputs:      { out: datasets.clean },
+            },
             inputDatasetRids:  [datasets.raw],
             outputDatasetRids: [datasets.clean],
             compute:           { cpuCores: 1, memoryGb: 4 },
@@ -119,7 +126,14 @@ describe('publishing recipes', () => {
         const [job] = Object.values(jobs);
         const claimed = await harness.agent.claimJob(job.rid, 1);
 
-        expect(claimed.recipe.runtime).toEqual({ type: 'code-workspace', workspaceRid: run.workspaceRid, commit: run.commit, transform: 'pkg.a.clean' });
+        expect(claimed.recipe.runtime).toEqual({
+            type:         'code-workspace',
+            workspaceRid: run.workspaceRid,
+            commit:       run.commit,
+            transform:    'pkg.a.clean',
+            inputs:       { raw: datasets.raw },
+            outputs:      { out: datasets.clean },
+        });
     });
 
     describe('refusals — the run fails at its publish step, nothing published', () => {

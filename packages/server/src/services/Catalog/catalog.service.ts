@@ -128,7 +128,7 @@ export class CatalogService {
         let filesDeleted = 0;
 
         for (const transaction of sweep)
-            filesDeleted += await this.files.deletePrefix(this.transaction.storagePrefix(transaction.dataset_rid, transaction.rid));
+            filesDeleted += await this.files.deletePrefix(Catalog.Dataset.getStoragePrefix(transaction.dataset_rid, transaction.rid));
 
         return { aborted: aborted.length, filesDeleted };
     }

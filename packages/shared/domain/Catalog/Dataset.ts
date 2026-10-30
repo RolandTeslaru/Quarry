@@ -3,6 +3,7 @@ import { Storage } from "../Storage"
 import { Foundations } from "../Foundations"
 import { Resource } from "../Library/Resource"
 import { ColumnSchema } from "./ColumnSchema"
+import type { Transaction } from "./Transaction"
 
 /** A versioned table: immutable files + transactions + schema. The library fields plus the catalog's own. */
 export namespace Dataset {
@@ -39,4 +40,27 @@ export namespace Dataset {
         })
         export type Schema = z.infer<typeof Schema>
     }
+
+    /** One version's files as short-lived signed URLs: whoever holds them reads straight from storage. */
+    export namespace ReadPasses {
+        export const File = z.object({
+            url:   z.string(),
+            bytes: z.number().int().nonnegative(),
+        })
+        export type  File = z.infer<typeof File>
+
+        export const Schema = z.object({
+            sequence: z.number().int(),
+            schema:   ColumnSchema.Schema.nullable(),
+            files:    File.array(),
+        })
+        export type  Schema = z.infer<typeof Schema>
+    }
+
+    /** The bucket folder for one transaction's files. A new folder per transaction: keys are never reused. */
+    export const getStoragePrefix = (rid: Rid, transactionRid: Transaction.Rid): string => `${rid}/${transactionRid}/`
+
+    /** The bucket key of one of a transaction's files. */
+    export const getStorageKey = (rid: Rid, transactionRid: Transaction.Rid, filename: string): Storage.File.Key =>
+        Storage.File.Key.parse(`${getStoragePrefix(rid, transactionRid)}${filename}`)
 }

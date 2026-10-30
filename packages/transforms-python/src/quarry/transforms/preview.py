@@ -138,7 +138,7 @@ def sample_input(client: QuarryClient, ref: str, rows: int, directory: Path) -> 
 
     sequence = client.sample(rid, rows, directory / "sample.parquet")
 
-    return TransformInput(rid=rid, sequence=sequence, directory=directory)
+    return TransformInput(rid=rid, sequence=sequence, files=[str(directory / "sample.parquet")])
 
 
 def collector(written: dict[str, pa.Table], name: str):

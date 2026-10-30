@@ -5,7 +5,7 @@ import { CatalogDB } from '../catalog.db';
 import { TransactionRepository } from './transaction.repository';
 
 /**
- * The dataset write protocol: open → upload under `storagePrefix` →
+ * The dataset write protocol: open → upload under `Catalog.Dataset.getStoragePrefix` →
  * registerChanges → commit, or abort. Reached as `catalog.transaction` — not
  * exported from CatalogModule, so CatalogService stays Catalog's one entry point.
  *
@@ -21,11 +21,6 @@ import { TransactionRepository } from './transaction.repository';
 export class DatasetTransactions {
 
     constructor(private readonly repository: TransactionRepository) {}
-
-    /** Where a transaction's files go in the bucket. Physical keys are write-once. */
-    storagePrefix(datasetRid: Catalog.Dataset.Rid, transactionRid: Catalog.Transaction.Rid): string {
-        return `${datasetRid}/${transactionRid}/`;
-    }
 
     async open(
         principal:  Principal,

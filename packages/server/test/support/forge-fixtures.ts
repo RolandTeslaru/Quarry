@@ -113,7 +113,8 @@ export class ForgeHarness {
 
     /**
      * Publishes the recipes, producer = the project (any library resource will do). Returns them by recipe name.
-     * Recipe `A` runs transform `pkg.A.A` of `code` — a made-up workspace and commit unless a test gives a real one.
+     * Recipe `A` runs transform `pkg.A.A` of `code` — a made-up workspace and commit unless a test gives a real one —
+     * whose parameters are named after the datasets.
      */
     public async publish(
         principal:   Principal.User,
@@ -129,6 +130,8 @@ export class ForgeHarness {
                 workspaceRid: code.workspaceRid,
                 commit:       code.commit,
                 transform:    `pkg.${shape.name}.${shape.name}`,
+                inputs:       Object.fromEntries(shape.inputs.map((name) => [name, datasets[name]])),
+                outputs:      Object.fromEntries(shape.outputs.map((name) => [name, datasets[name]])),
             }),
             inputDatasetRids:  shape.inputs.map((name) => datasets[name]),
             outputDatasetRids: shape.outputs.map((name) => datasets[name]),
@@ -234,7 +237,7 @@ export class ForgeHarness {
             op:          'add',
             logicalPath: 'part-0.parquet',
             format:      'parquet',
-            key:         `${datasetRid}/${transaction.rid}/part-0.parquet`,
+            key:         Catalog.Dataset.getStorageKey(datasetRid, transaction.rid, 'part-0.parquet'),
             bytes:       1,
             rowCount:    0,
         }]);

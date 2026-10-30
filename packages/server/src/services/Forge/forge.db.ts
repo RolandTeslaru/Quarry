@@ -93,7 +93,7 @@ export namespace ForgeDB {
             status:       Forge.Job.Status,
             attempt:      z.number().int(),
             failure:      z.object({ message: z.string() }).nullable(),
-            inputs:       z.record(Catalog.Dataset.Rid, Catalog.Transaction.Rid).nullable(),
+            inputs:       z.record(Catalog.Dataset.Rid, z.number().int()).nullable(),
             outputs:      z.record(Catalog.Dataset.Rid, Catalog.Transaction.Rid),
             scheduled_at: z.date().nullable(),
             started_at:   z.date().nullable(),
