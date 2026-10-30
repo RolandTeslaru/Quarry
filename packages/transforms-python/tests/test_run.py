@@ -48,7 +48,14 @@ def run_transform(root: Path, name: str) -> subprocess.CompletedProcess[str]:
     job = {
         "jobRid":    "ri.forge.main.job.x",
         "transform": name,
-        "inputs":    {"raw": {"rid": "ri.catalog.main.dataset.raw", "sequence": 4, "files": [str(part_0), str(part_1)]}},
+        "inputs":    {
+            "raw": {
+                "rid":      "ri.catalog.main.dataset.raw",
+                "sequence": 4,
+                "files":    [str(part_0), str(part_1)],
+                "schema":   None,
+            },
+        },
         "outputs":   {"out": {"rid": "ri.catalog.main.dataset.out"}},
     }
 

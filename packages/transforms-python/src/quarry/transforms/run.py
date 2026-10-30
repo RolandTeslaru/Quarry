@@ -4,9 +4,10 @@
 
 Run by the runtime, as the transform user, in the workspace's checkout at the
 recipe's commit. The job file names the transform, and gives each input
-parameter its pinned version's files as signed URLs. Imports the pipeline and
-calls the transform; if anything fails, exits 1 with the reason on stderr.
-Outputs aren't written yet: what the transform writes is dropped.
+parameter its pinned version's files as signed URLs, with the dataset's schema
+(how to read them, for CSV). Imports the pipeline and calls the transform; if
+anything fails, exits 1 with the reason on stderr. Outputs aren't written yet:
+what the transform writes is dropped.
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ def main() -> int:
             rid=job["inputs"][name]["rid"],
             sequence=job["inputs"][name]["sequence"],
             files=job["inputs"][name]["files"],
+            schema=job["inputs"][name]["schema"],
         )
         for name in candidate.inputs
     }

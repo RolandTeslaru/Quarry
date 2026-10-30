@@ -5,7 +5,7 @@ import * as readline from 'node:readline';
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import axios from 'axios';
-import { Forge, Stdio } from '@quarry/shared/domain';
+import { Catalog, Forge, Stdio } from '@quarry/shared/domain';
 import { requireEnv } from '@quarry/shared/server/env';
 import { sendEvent } from '@quarry/shared/server/stdio/stdio-server';
 import { System } from '@quarry/shared/server/system';
@@ -48,11 +48,19 @@ const TRANSFORM_ENV = {
     UV_PYTHON_DOWNLOADS:    'never',         // the image's Python
 };
 
+/** One input in `JOB_FILE`: its pinned version's files, and the schema that says how to read them. */
+interface JobFileInput {
+    readonly rid:      string;
+    readonly sequence: number;
+    readonly files:    string[];
+    readonly schema:   Catalog.ColumnSchema.Schema | null;
+}
+
 /** `JOB_FILE`'s contents, read by `quarry.transforms.run`. */
 interface JobFile {
     readonly jobRid:    string;
     readonly transform: string;
-    readonly inputs:    Record<string, { readonly rid: string; readonly sequence: number; readonly files: string[] }>;
+    readonly inputs:    Record<string, JobFileInput>;
     readonly outputs:   Record<string, { readonly rid: string }>;
 }
 
@@ -179,6 +187,7 @@ export class RuntimeController {
                 rid:      datasetRid,
                 sequence: passes[datasetRid].sequence,
                 files:    passes[datasetRid].files.map((file) => file.url),
+                schema:   passes[datasetRid].schema,
             };
         }
 

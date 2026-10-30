@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import duckdb
 import polars as pl
 import pyarrow as pa
@@ -53,6 +55,43 @@ def test_loaders_and_duckdb_read_the_same_files(tmp_path):
     assert source.arrow().num_rows == 6
     assert len(source.pandas()) == 6
     assert ctx.duckdb().conn.execute("SELECT count(*) FROM source").fetchall() == [(6,)]
+
+
+CSV_SCHEMA = {
+    "columns": [
+        {"name": "id", "type": "long", "nullable": False},
+        {"name": "day", "type": "date", "nullable": True},
+        {"name": "price", "type": "decimal(10,2)", "nullable": True},
+        {"name": "name", "type": "string", "nullable": True},
+    ],
+    "reader": {"format": "csv", "delimiter": ";", "quote": '"', "escape": '"', "header": True},
+}
+
+
+def test_csv_inputs_are_read_with_the_datasets_schema(tmp_path):
+    (tmp_path / "a.csv").write_text('id;day;price;name\n1;2026-10-01;10.50;"x; y"\n')
+    (tmp_path / "b.csv").write_text("id;day;price;name\n2;2026-10-02;3.25;z\n")
+
+    files = [str(tmp_path / "a.csv"), str(tmp_path / "b.csv")]
+    source = TransformInput(rid="ri.catalog.main.dataset.x", sequence=1, files=files, schema=CSV_SCHEMA)
+    ctx = TransformContext(inputs={"source": source}, job_rid=None, log=None)
+
+    frame = source.polars(lazy=True).collect()
+
+    assert frame.schema == {"id": pl.Int64, "day": pl.Date, "price": pl.Decimal(10, 2), "name": pl.String}
+    assert frame["name"].to_list() == ["x; y", "z"]
+    assert source.arrow().num_rows == 2
+    assert ctx.duckdb().conn.execute("SELECT sum(price) FROM source").fetchall() == [(Decimal("13.75"),)]
+
+
+def test_a_csv_dialect_polars_cant_read_fails_clearly(tmp_path):
+    (tmp_path / "a.csv").write_text("id||name\n1||x\n")
+
+    schema = {**CSV_SCHEMA, "reader": {**CSV_SCHEMA["reader"], "delimiter": "||"}}
+    source = TransformInput(rid="ri.catalog.main.dataset.x", sequence=1, files=[str(tmp_path / "a.csv")], schema=schema)
+
+    with pytest.raises(ValueError, match=r"a CSV Polars can't read: a 2-character delimiter \(\|\|\)"):
+        source.polars()
 
 
 @pytest.mark.parametrize(

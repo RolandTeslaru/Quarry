@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Catalog, Dataset, Foundations, Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
@@ -8,7 +9,7 @@ import { Audit } from '@/services/Audit/audit.decorator';
 import { AuditService } from '@/services/Audit/audit.service';
 import { LibraryService } from '@/services/Library/library.service';
 import { DatasetRepository } from './dataset.repository';
-import { CatalogStorage } from './storage/catalog-storage.service';
+import { CatalogStorage, type IncomingFile, requireFormat } from './storage/catalog-storage.service';
 import { DatasetTransactions } from './transaction/dataset-transactions';
 import { TransactionRepository } from './transaction/transaction.repository';
 
@@ -39,6 +40,37 @@ export class CatalogService {
             description: request.description,
             parentRid:   request.parentRid,
         });
+    }
+
+    /** A new dataset from a file, named after it unless a name is given. Trashed again if the file can't be stored or read. */
+    async createFromFile(
+        principal: Principal,
+        fields:    Catalog.API.Dataset.Upload.NewFields,
+        file:      IncomingFile,
+    ): Promise<Catalog.API.Dataset.Upload.Response> {
+        const filename = requireFormat(file);
+        // "sales 2026.csv" → "sales 2026"
+        const stem = path.parse(filename).name.trim() || filename;
+
+        const dataset = await this.datasetRepository.create(principal, {
+            rid:         Dataset.createRid(),
+            name:        fields.name ?? stem.slice(0, 255),
+            description: fields.description,
+            parentRid:   fields.parentRid,
+        });
+
+        try {
+            return await this.storage.upload(principal, dataset.rid, 'snapshot', file);
+        }
+        catch (error) {
+            // A failed trash leaves an empty dataset behind: the upload's own error is the one to report.
+            try {
+                await this.library.trash(principal, dataset.rid);
+            }
+            catch {}
+
+            throw error;
+        }
     }
 
     /** Datasets the principal can discover (RLS). */

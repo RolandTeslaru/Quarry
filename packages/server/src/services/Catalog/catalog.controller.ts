@@ -36,7 +36,7 @@ export class CatalogController {
     async createFromFile(@CurrentPrincipal() principal: Principal.User, @Req() request: Request): Promise<API.Dataset.Upload.Response> {
         const { fields, file } = await readUpload(request, API.Dataset.Upload.NewFields);
 
-        return this.catalog.storage.createFromFile(principal, fields, file);
+        return this.catalog.createFromFile(principal, fields, file);
     }
 
     @Post(':rid/upload')
