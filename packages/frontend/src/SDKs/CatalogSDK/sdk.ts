@@ -1,4 +1,4 @@
-import type { Catalog } from '@quarry/shared/domain'
+import type { Catalog, Dataset } from '@quarry/shared/domain'
 import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
@@ -34,24 +34,24 @@ export class CatalogSDKImpl extends BaseSDK<CatalogSDK.State> {
             staleTime: 0,
         },
 
-        dataset: (rid: Catalog.Dataset.Rid) => ({
+        dataset: (rid: Dataset.Rid) => ({
             queryKey: ['catalog', 'dataset', rid] as const,
             queryFn: () => this.actions.dataset.get(rid),
             staleTime: 0,
         }),
 
-        view: (rid: Catalog.Dataset.Rid, sequence?: number) => ({
+        view: (rid: Dataset.Rid, sequence?: Dataset.Sequence) => ({
             queryKey: ['catalog', 'view', rid, sequence ?? 'latest'] as const,
             queryFn: () => this.actions.dataset.view(rid, sequence),
             staleTime: sequence === undefined ? LATEST_VIEW_STALE_TIME : PAST_VIEW_STALE_TIME,
         }),
 
         /** Every version's view of a dataset — the key prefix to invalidate after a write. */
-        views: (rid: Catalog.Dataset.Rid) => ({
+        views: (rid: Dataset.Rid) => ({
             queryKey: ['catalog', 'view', rid] as const,
         }),
 
-        preview: (rid: Catalog.Dataset.Rid) => ({
+        preview: (rid: Dataset.Rid) => ({
             queryKey: ['catalog', 'preview', rid] as const,
             queryFn: () => this.actions.dataset.preview(rid),
             staleTime: 0,
@@ -70,7 +70,7 @@ export const CatalogSDK = SDK.get<CatalogSDKImpl>('Catalog')
 export namespace CatalogSDK {
 
     export type State = {
-        datasets: Record<Catalog.Dataset.Rid, Catalog.Dataset.Schema>
+        datasets: Record<Dataset.Rid, Dataset.Schema>
     }
 
     export type Actions = CatalogActions

@@ -1,4 +1,4 @@
-import { Catalog, type Library, type Platform } from '@quarry/shared/domain'
+import { Catalog, Dataset, type Library, type Platform } from '@quarry/shared/domain'
 import { api } from '@/SDKs/api'
 import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
@@ -15,7 +15,7 @@ export class DatasetActions extends ActionGroup<CatalogSDKImpl> {
      * request: the dataset and its latest view, the open recorded (audit). Seeds
      * the page's queries, and the app's recents now start with it.
      */
-    public async open(rid: Catalog.Dataset.Rid, application: Platform.Application.Id): Promise<Catalog.API.Dataset.Open.Response> {
+    public async open(rid: Dataset.Rid, application: Platform.Application.Id): Promise<Catalog.API.Dataset.Open.Response> {
         const data = await Catalog.API.Dataset.open(api, rid, { application })
 
         this.sdk.setState(state => {
@@ -34,7 +34,7 @@ export class DatasetActions extends ActionGroup<CatalogSDKImpl> {
         return Catalog.API.Dataset.list(api)
     }
 
-    public async get(rid: Catalog.Dataset.Rid): Promise<Catalog.API.Dataset.Get.Response> {
+    public async get(rid: Dataset.Rid): Promise<Catalog.API.Dataset.Get.Response> {
         const data = await Catalog.API.Dataset.get(api, rid)
 
         this.sdk.setState(state => {
@@ -44,11 +44,11 @@ export class DatasetActions extends ActionGroup<CatalogSDKImpl> {
         return data
     }
 
-    public view(rid: Catalog.Dataset.Rid, sequence?: number): Promise<Catalog.API.Dataset.GetView.Response> {
+    public view(rid: Dataset.Rid, sequence?: Dataset.Sequence): Promise<Catalog.API.Dataset.GetView.Response> {
         return Catalog.API.Dataset.getView(api, rid, { sequence })
     }
 
-    public preview(rid: Catalog.Dataset.Rid): Promise<Catalog.API.Dataset.Preview.Response> {
+    public preview(rid: Dataset.Rid): Promise<Catalog.API.Dataset.Preview.Response> {
         return Catalog.API.Dataset.preview(api, rid)
     }
 
@@ -65,7 +65,7 @@ export class DatasetActions extends ActionGroup<CatalogSDKImpl> {
     }
 
     public async upload(
-        rid:  Catalog.Dataset.Rid,
+        rid:  Dataset.Rid,
         mode: Catalog.API.Dataset.Upload.Fields['mode'],
         file: File,
     ): Promise<Catalog.API.Dataset.Upload.Response> {

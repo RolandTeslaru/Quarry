@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Readable } from 'node:stream';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { Catalog, Storage } from '@quarry/shared/domain';
+import { Catalog, Dataset, Foundations, Storage } from '@quarry/shared/domain';
 import { fromColumnType, identifier, literal, toColumnType } from '@quarry/integrations/core/duckdb';
 import { Principal } from '@/auth/principal';
 import { FileStorage } from '@/infra/file-storage';
@@ -22,7 +22,7 @@ import ColumnSchema = Catalog.ColumnSchema;
 /** A sample written for one response: where it is, and which version it came from. */
 export interface DatasetSample {
     readonly file:     string;
-    readonly sequence: number;
+    readonly sequence: Dataset.Sequence;
 }
 
 /** A file as it arrives in a multipart request — read once, as a stream. */
@@ -62,7 +62,7 @@ export class CatalogStorage {
         const filename = requireFormat(file);
 
         const dataset = await this.datasetRepository.create(principal, {
-            rid:         Catalog.Dataset.createRid(),
+            rid:         Dataset.createRid(),
             name:        fields.name ?? datasetName(filename),
             description: fields.description,
             parentRid:   fields.parentRid,
@@ -82,7 +82,7 @@ export class CatalogStorage {
      * is added, and must have the dataset's format and columns — it's read with
      * the dataset's schema, not its own.
      */
-    async upload(principal: Principal, datasetRid: Catalog.Dataset.Rid, mode: 'snapshot' | 'append', file: IncomingFile): Promise<Catalog.API.Dataset.Upload.Response> {
+    async upload(principal: Principal, datasetRid: Dataset.Rid, mode: 'snapshot' | 'append', file: IncomingFile): Promise<Catalog.API.Dataset.Upload.Response> {
         const filename = requireFormat(file);
         const format = Storage.File.formatOf(filename)!;
         // Opening first: may this principal write here at all (RLS) — before anything about the dataset's contents is answered.
@@ -91,12 +91,12 @@ export class CatalogStorage {
         });
 
         try {
-            const current = mode === 'append' ? await this.transactionRepository.resolveView(principal, datasetRid, 'main') : null;
+            const current = mode === 'append' ? await this.transactionRepository.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH) : null;
 
             if (current?.files.some((existing) => existing.logicalPath === filename))
                 throw new ConflictException(`The dataset already has a file named ${filename} — upload as a snapshot to replace its files`);
 
-            const key = Catalog.Dataset.getStorageKey(datasetRid, transaction.rid, filename);
+            const key = Dataset.getStorageKey(datasetRid, transaction.rid, filename);
             const stored = await this.storage.upload(key, file.stream, format === 'csv' ? 'text/csv' : 'application/vnd.apache.parquet');
 
             if (stored.bytes === 0)
@@ -134,8 +134,8 @@ export class CatalogStorage {
      */
     @Audit('read', (rows: number) => ({ op: 'sample', rows }))
     @SecurityGate('read')
-    async sample(principal: Principal, datasetRid: Catalog.Dataset.Rid, rows: number): Promise<DatasetSample> {
-        const view = await this.transactionRepository.resolveView(principal, datasetRid, 'main');
+    async sample(principal: Principal, datasetRid: Dataset.Rid, rows: number): Promise<DatasetSample> {
+        const view = await this.transactionRepository.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH);
 
         if (!view.schema || view.files.length === 0)
             throw new ConflictException('The dataset has no committed data yet');
@@ -152,11 +152,11 @@ export class CatalogStorage {
     }
 
     /** One version's files as read passes, for a job's runtime. Gated like sample: it hands out file contents. */
-    @Audit('read', (sequence: number) => ({ op: 'read-passes', sequence }))
+    @Audit('read', (sequence: Dataset.Sequence) => ({ op: 'read-passes', sequence }))
     @SecurityGate('read')
-    async getReadPasses(principal: Principal, datasetRid: Catalog.Dataset.Rid, sequence: number): Promise<Catalog.Dataset.ReadPasses.Schema> {
-        const view = await this.transactionRepository.resolveView(principal, datasetRid, 'main', sequence);
-        const files: Catalog.Dataset.ReadPasses.File[] = [];
+    async getReadPasses(principal: Principal, datasetRid: Dataset.Rid, sequence: Dataset.Sequence): Promise<Dataset.ReadPasses.Schema> {
+        const view = await this.transactionRepository.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH, sequence);
+        const files: Dataset.ReadPasses.File[] = [];
 
         for (const file of view.files) {
             files.push({
@@ -175,8 +175,8 @@ export class CatalogStorage {
     /** The first `limit` rows of the latest view. Gated: it hands out file contents, and RLS alone would answer a discoverer with an empty view. */
     @Audit('read', (limit: number) => ({ op: 'preview', limit }))
     @SecurityGate('read')
-    async preview(principal: Principal, datasetRid: Catalog.Dataset.Rid, limit: number): Promise<Catalog.API.Dataset.Preview.Response> {
-        const view = await this.transactionRepository.resolveView(principal, datasetRid, 'main');
+    async preview(principal: Principal, datasetRid: Dataset.Rid, limit: number): Promise<Catalog.API.Dataset.Preview.Response> {
+        const view = await this.transactionRepository.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH);
 
         if (!view.schema || view.files.length === 0)
             return { schema: view.schema, rows: [] };
@@ -195,8 +195,8 @@ export class CatalogStorage {
      * format must stay the files' format; whether the new types parse is checked
      * by reading the first rows before committing.
      */
-    async setSchema(principal: Principal, datasetRid: Catalog.Dataset.Rid, schema: ColumnSchema.Schema): Promise<number> {
-        const view = await this.transactionRepository.resolveView(principal, datasetRid, 'main');
+    async setSchema(principal: Principal, datasetRid: Dataset.Rid, schema: ColumnSchema.Schema): Promise<Dataset.Sequence> {
+        const view = await this.transactionRepository.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH);
 
         if (view.files.length === 0)
             throw new BadRequestException('The dataset has no files to describe yet');

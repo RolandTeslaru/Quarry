@@ -235,7 +235,7 @@ public async openSession(principal: Principal.User, rid: CodeWorkspace.Rid) {
 
 @Audit('read', (rows: number) => ({ op: 'sample', rows }))   // outermost: records the access after the method succeeds
 @SecurityGate('read')                                        // so a refusal is the gate's `denied`, never a read
-public async sample(principal: Principal, datasetRid: Catalog.Dataset.Rid, rows: number) { … }
+public async sample(principal: Principal, datasetRid: Dataset.Rid, rows: number) { … }
 ```
 
 And in a repository creating a resource subtype:

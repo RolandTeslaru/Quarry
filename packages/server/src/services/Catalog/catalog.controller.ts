@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Req, Res } fr
 import type { Request, Response } from 'express';
 import { createReadStream, promises as fs } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { Catalog } from '@quarry/shared/domain';
+import { Catalog, Dataset } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
 import { readUpload } from '@/http/multipart';
@@ -10,7 +10,7 @@ import { ZodPipe } from '@/http/zod.pipe';
 import { CatalogService } from './catalog.service';
 
 import API = Catalog.API;
-const DatasetRidParam = new ZodPipe(Catalog.Dataset.Rid);
+const DatasetRidParam = new ZodPipe(Dataset.Rid);
 
 /** Mirrors Catalog.API in @quarry/shared. */
 @Controller('datasets')
@@ -42,7 +42,7 @@ export class CatalogController {
     @Post(':rid/upload')
     async upload(
         @CurrentPrincipal() principal: Principal.User,
-        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Param('rid', DatasetRidParam) rid: Dataset.Rid,
         @Req() request: Request,
     ): Promise<API.Dataset.Upload.Response> {
         const { fields, file } = await readUpload(request, API.Dataset.Upload.Fields);
@@ -53,7 +53,7 @@ export class CatalogController {
     @Get(':rid/preview')
     preview(
         @CurrentPrincipal() principal: Principal.User,
-        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Param('rid', DatasetRidParam) rid: Dataset.Rid,
         @Query(new ZodPipe(API.Dataset.Preview.Query)) query: API.Dataset.Preview.Query,
     ): Promise<API.Dataset.Preview.Response> {
         return this.catalog.storage.preview(principal, rid, query.limit);
@@ -63,7 +63,7 @@ export class CatalogController {
     @Get(':rid/sample')
     async sample(
         @CurrentPrincipal() principal: Principal.User,
-        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Param('rid', DatasetRidParam) rid: Dataset.Rid,
         @Query(new ZodPipe(API.Dataset.Sample.Query)) query: API.Dataset.Sample.Query,
         @Res() response: Response,
     ): Promise<void> {
@@ -83,14 +83,14 @@ export class CatalogController {
     @Put(':rid/schema')
     async setSchema(
         @CurrentPrincipal() principal: Principal.User,
-        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Param('rid', DatasetRidParam) rid: Dataset.Rid,
         @Body(new ZodPipe(API.Dataset.SetSchema.Request)) body: API.Dataset.SetSchema.Request,
     ): Promise<API.Dataset.SetSchema.Response> {
         return { sequence: await this.catalog.storage.setSchema(principal, rid, body.schema) };
     }
 
     @Get(':rid')
-    async get(@CurrentPrincipal() principal: Principal.User, @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid): Promise<API.Dataset.Get.Response> {
+    async get(@CurrentPrincipal() principal: Principal.User, @Param('rid', DatasetRidParam) rid: Dataset.Rid): Promise<API.Dataset.Get.Response> {
         return { dataset: await this.catalog.get(principal, rid) };
     }
 
@@ -99,7 +99,7 @@ export class CatalogController {
     @HttpCode(200)
     async open(
         @CurrentPrincipal() principal: Principal.User,
-        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Param('rid', DatasetRidParam) rid: Dataset.Rid,
         @Body(new ZodPipe(API.Dataset.Open.Request)) body: API.Dataset.Open.Request,
     ): Promise<API.Dataset.Open.Response> {
         return this.catalog.open(principal, rid, body.application);
@@ -108,7 +108,7 @@ export class CatalogController {
     @Get(':rid/view')
     async view(
         @CurrentPrincipal() principal: Principal.User,
-        @Param('rid', DatasetRidParam) rid: Catalog.Dataset.Rid,
+        @Param('rid', DatasetRidParam) rid: Dataset.Rid,
         @Query(new ZodPipe(API.Dataset.GetView.Query)) query: API.Dataset.GetView.Query,
     ): Promise<API.Dataset.GetView.Response> {
         return { view: await this.catalog.view(principal, rid, query.sequence) };

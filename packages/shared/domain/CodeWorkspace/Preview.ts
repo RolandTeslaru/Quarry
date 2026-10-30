@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { Dataset } from "../Catalog/Dataset"
+import { Dataset } from "../Dataset/Dataset"
 import { ColumnSchema } from "../Catalog/ColumnSchema"
 import { CodeTransform } from "../CodeTransform/CodeTransform"
 import { ModuleFunctionPath } from "./ModuleFunctionPath"
@@ -22,7 +22,7 @@ export namespace Preview {
     export const Result = z.union([
         z.object({
             transform: ModuleFunctionPath.Schema,
-            inputs:    z.record(z.string(), z.object({ rid: Dataset.Rid, sequence: z.number().int() })),
+            inputs:    z.record(z.string(), z.object({ rid: Dataset.Rid, sequence: Dataset.Sequence })),
             outputs:   z.record(z.string(), Output),
             logs:      z.string().array(),
         }),

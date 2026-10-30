@@ -2,8 +2,8 @@ import { z } from "zod"
 import { Storage } from "../Storage"
 import { Foundations } from "../Foundations"
 import { Resource } from "../Library/Resource"
-import { ColumnSchema } from "./ColumnSchema"
-import type { Transaction } from "./Transaction"
+import { ColumnSchema } from "../Catalog/ColumnSchema"
+import type { Transaction } from "../Catalog/Transaction"
 
 /** A versioned table: immutable files + transactions + schema. The library fields plus the catalog's own. */
 export namespace Dataset {
@@ -12,11 +12,15 @@ export namespace Dataset {
     export const Rid = Foundations.Rid.generateSchema("catalog", "dataset")
     export const createRid = () => Foundations.Rid.create("catalog", "dataset")
 
+    /** A version's number on its branch: 1, 2, … in commit order. 0 = nothing committed yet. */
+    export const Sequence = z.number().int().nonnegative().brand("Dataset.Sequence")
+    export type  Sequence = z.infer<typeof Sequence>
+
     export const Schema = Resource.Base.extend({
         rid:           Rid,
         type:          z.literal("dataset"),
         parentRid:     Resource.Rid,
-        lastSequence:  z.number().int(),            // on branch main; 0 = nothing committed yet
+        lastSequence:  Sequence,                    // on branch main
     })
     export type Schema = z.infer<typeof Schema>
 
@@ -32,8 +36,8 @@ export namespace Dataset {
         export type  File = z.infer<typeof File>
 
         export const Schema = z.object({
-            branch:   z.string(),
-            sequence: z.number().int(),             // 0 = nothing committed yet
+            branch:   Foundations.Branch,
+            sequence: Sequence,
             schema:   ColumnSchema.Schema.nullable(),
             files:    File.array(),
             rowCount: z.number().int().nullable(),
@@ -50,7 +54,7 @@ export namespace Dataset {
         export type  File = z.infer<typeof File>
 
         export const Schema = z.object({
-            sequence: z.number().int(),
+            sequence: Sequence,
             schema:   ColumnSchema.Schema.nullable(),
             files:    File.array(),
         })

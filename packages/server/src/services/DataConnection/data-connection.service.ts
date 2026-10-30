@@ -1,6 +1,6 @@
 import { ForbiddenException, BadRequestException, ConflictException, forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
-import { Catalog, DataConnection, Identity, Keychain, Storage, type Platform, Library } from '@quarry/shared/domain';
+import { Catalog, DataConnection, Dataset, Identity, Keychain, Library, type Platform, Storage } from '@quarry/shared/domain';
 import { findDefinition, SOURCE_DEFINITIONS_WIRE } from '@quarry/integrations/definitions';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
@@ -366,7 +366,7 @@ export namespace DataConnectionService {
                     credential,
                     syncConfig:     sync.config,
                     state:          stateFrom,
-                    destination:    this.files.url(Catalog.Dataset.getStoragePrefix(sync.output_dataset_rid, transaction.rid)),
+                    destination:    this.files.url(Dataset.getStoragePrefix(sync.output_dataset_rid, transaction.rid)),
                 };
             }
             catch (error) {
@@ -394,7 +394,7 @@ export namespace DataConnectionService {
             const principal = runPrincipal(run.triggered_by, sync);
             const datasetRid = sync.output_dataset_rid;
             const transactionRid = run.transaction_rid!;
-            const prefix = Catalog.Dataset.getStoragePrefix(datasetRid, transactionRid);
+            const prefix = Dataset.getStoragePrefix(datasetRid, transactionRid);
 
             const changes = (await this.files.list(prefix))
                 .filter((object) => Storage.File.formatOf(object.key) === 'parquet')

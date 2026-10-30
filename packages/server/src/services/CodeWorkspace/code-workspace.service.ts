@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
-import { CodeWorkspace, Library, type Catalog, type Identity, type Platform } from '@quarry/shared/domain';
+import { CodeWorkspace, type Dataset, type Identity, Library, type Platform } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@/auth/principal';
 import { RequireUserPrincipal } from '@/auth/require-user-principal';
@@ -153,7 +153,7 @@ export class CodeWorkspaceService {
         };
     }
 
-    private async getExamplePaths(principal: Principal, inputRid: Catalog.Dataset.Rid, parentRid: Library.Resource.Rid) {
+    private async getExamplePaths(principal: Principal, inputRid: Dataset.Rid, parentRid: Library.Resource.Rid) {
         const input = await this.library.path(principal, inputRid);
         const parent = await this.library.path(principal, parentRid);
         const inputName = input[input.length - 1].name;

@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { App } from '@/AppKit'
-import { Catalog } from '@quarry/shared/domain'
+import { Dataset } from '@quarry/shared/domain'
 import { DatasetApp } from '@/apps/datasets/components/DatasetApp'
 import { CatalogSDK } from '@/SDKs/CatalogSDK/sdk'
 import { orNotFound } from '@/utils/loader'
@@ -9,7 +9,7 @@ import { datasetsApp } from '../definition'
 export const Route = createFileRoute('/_workspace/datasets/$rid')({
     params: {
         parse: params => {
-            const parsed = Catalog.Dataset.Rid.safeParse(params.rid)
+            const parsed = Dataset.Rid.safeParse(params.rid)
 
             if (!parsed.success)
                 throw notFound()

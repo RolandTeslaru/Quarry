@@ -1,13 +1,11 @@
 import { z } from "zod"
 import type { AxiosInstance } from "axios"
-import { Branch } from "../../Foundations/Branch"
-import { Dataset as DatasetD } from "../../Catalog/Dataset"
+import { Branch, MAIN_BRANCH } from "../../Foundations/Branch"
+import { Dataset as DatasetD } from "../../Dataset/Dataset"
 import { Build as BuildD } from "../Build"
 import { Job as JobD } from "../Job"
 import { Recipe as RecipeD } from "../Recipe"
 import * as AgentMod from "./agent"
-
-const MAIN = Branch.parse("main")
 
 /** Forge's HTTP surface — mirrors forge.controller. */
 export namespace API {
@@ -21,7 +19,7 @@ export namespace API {
     /** Resolves the target into jobs and opens their outputs' transactions; the jobs wait for a runner. */
     export namespace CreateBuild {
         export const Request = z.object({
-            branch:           Branch.default(MAIN),
+            branch:           Branch.default(MAIN_BRANCH),
             fallbackBranches: Branch.array().default([]),
             target:           BuildD.Target,
             forceBuild:       z.boolean().default(false),
@@ -66,7 +64,7 @@ export namespace API {
     export namespace GetCurrentRecipe {
         export const Query = z.object({
             datasetRid: DatasetD.Rid,
-            branch:     Branch.default(MAIN),
+            branch:     Branch.default(MAIN_BRANCH),
         })
         export type  Query = z.infer<typeof Query>
 

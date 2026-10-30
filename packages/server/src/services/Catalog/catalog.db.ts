@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Catalog, Identity, Storage } from '@quarry/shared/domain';
+import { Catalog, Dataset as DatasetD, Foundations, Identity, Storage } from '@quarry/shared/domain';
 import { defineDatabase } from '@/db/pool';
 import type { Table } from '@/db/table';
 import type { IdentityDB } from '@/services/Identity/identity.db';
@@ -10,14 +10,14 @@ export namespace CatalogDB {
 
     export namespace Dataset {
         export const Row = z.object({
-            rid:  Catalog.Dataset.Rid,
+            rid:  DatasetD.Rid,
             type: z.literal('dataset'),
         });
         export type Row = z.infer<typeof Row>;
 
         /** The library fields + the catalog's own. */
-        export const toDomain = (row: Row, resource: LibraryDB.Resource.Row, lastSequence: number) =>
-            Catalog.Dataset.Schema.parse({
+        export const toDomain = (row: Row, resource: LibraryDB.Resource.Row, lastSequence: DatasetD.Sequence) =>
+            DatasetD.Schema.parse({
                 ...LibraryDB.Resource.toBase(resource),
                 lastSequence,
             });
@@ -25,9 +25,9 @@ export namespace CatalogDB {
 
     export namespace Branch {
         export const Row = z.object({
-            dataset_rid:   Catalog.Dataset.Rid,
-            name:          z.string(),
-            last_sequence: z.number().int(),
+            dataset_rid:   DatasetD.Rid,
+            name:          Foundations.Branch,
+            last_sequence: DatasetD.Sequence,
             created_at:    z.date(),
         });
         export type Row = z.infer<typeof Row>;
@@ -36,11 +36,11 @@ export namespace CatalogDB {
     export namespace Transaction {
         export const Row = z.object({
             rid:         Catalog.Transaction.Rid,
-            dataset_rid: Catalog.Dataset.Rid,
-            branch:      z.string(),
+            dataset_rid: DatasetD.Rid,
+            branch:      Foundations.Branch,
             type:        Catalog.Transaction.Type,
             status:      Catalog.Transaction.Status,
-            sequence:    z.number().int().nullable(),
+            sequence:    DatasetD.Sequence.nullable(),
             schema:      Catalog.ColumnSchema.Schema.nullable(),
             provenance:  z.record(z.string(), z.unknown()),
             started_by:  Identity.User.Rid.nullable(),

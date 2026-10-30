@@ -46,14 +46,14 @@ export class GitRepos {
         try {
             await fs.mkdir(this.root, { recursive: true });
 
-            await git(['init', '--bare', `--initial-branch=${CodeWorkspace.Git.DEFAULT_BRANCH}`, repository]);
+            await git(['init', '--bare', `--initial-branch=${Foundations.MAIN_BRANCH}`, repository]);
             await git(['-C', repository, 'config', 'http.receivepack', 'true']);       // pushes over HTTP
 
-            await git(['init', `--initial-branch=${CodeWorkspace.Git.DEFAULT_BRANCH}`, workdir]);
+            await git(['init', `--initial-branch=${Foundations.MAIN_BRANCH}`, workdir]);
             await commit.populate(workdir);
             await git(['-C', workdir, 'add', '--all']);
             await git(['-C', workdir, 'commit', '--message', commit.message], authorEnv(commit.author));
-            await git(['-C', workdir, 'push', repository, CodeWorkspace.Git.DEFAULT_BRANCH]);
+            await git(['-C', workdir, 'push', repository, Foundations.MAIN_BRANCH]);
 
             this.log.info(`Created repository for ${rid}`);
         }

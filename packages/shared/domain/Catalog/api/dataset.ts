@@ -3,7 +3,7 @@ import type { AxiosInstance } from "axios"
 import { Resource as ResourceD } from "../../Library/Resource"
 import { Application } from "../../Platform/Application"
 import { ColumnSchema } from "../ColumnSchema"
-import { Dataset as DatasetD } from "../Dataset"
+import { Dataset as DatasetD } from "../../Dataset/Dataset"
 
 export namespace Dataset {
 
@@ -33,7 +33,7 @@ export namespace Dataset {
 
     /** The file set at `sequence` (default: latest) on branch main. Needs read. */
     export namespace GetView {
-        export const Query = z.object({ sequence: z.coerce.number().int().positive().optional() })
+        export const Query = z.object({ sequence: z.coerce.number().int().positive().pipe(DatasetD.Sequence).optional() })
         export type  Query = z.infer<typeof Query>
 
         export const Response = z.object({ view: DatasetD.View.Schema })
@@ -104,7 +104,7 @@ export namespace Dataset {
     export namespace SetSchema {
         export const Request  = z.object({ schema: ColumnSchema.Schema })
         export type  Request  = z.infer<typeof Request>
-        export const Response = z.object({ sequence: z.number().int() })
+        export const Response = z.object({ sequence: DatasetD.Sequence })
         export type  Response = z.infer<typeof Response>
     }
 

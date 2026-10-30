@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { Foundations } from "../Foundations"
 import { Git } from "./Git"
 
-const MAIN = Foundations.Branch.parse("main")
+const MAIN = Foundations.MAIN_BRANCH
 const FEATURE = Foundations.Branch.parse("feature/orders")
 const sha = (character: string) => Git.Commit.parse(character.repeat(40))
 

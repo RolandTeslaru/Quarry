@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { sql } from 'kysely';
-import { Catalog } from '@quarry/shared/domain';
+import { Catalog, Dataset, Foundations } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { AllowTrashed, Repository, Transactional } from '@/db/repository';
 import { liveResources } from '@/db/liveness';
@@ -12,9 +12,9 @@ import { CatalogDB } from '../catalog.db';
 export class TransactionRepository extends Repository(CatalogDB.database) {
 
     @Transactional()
-    async open(principal: Principal, datasetRid: Catalog.Dataset.Rid, values: {
+    async open(principal: Principal, datasetRid: Dataset.Rid, values: {
         rid:        Catalog.Transaction.Rid;
-        branch:     string;
+        branch:     Foundations.Branch;
         type:       Catalog.Transaction.Type;
         provenance: Record<string, unknown>;
     }): Promise<CatalogDB.Transaction.Row> {
@@ -39,9 +39,9 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
      * written is a conflict, named (transaction_one_open is the backstop).
      */
     @Transactional()
-    public async openBatch(principal: Principal, branch: string, values: {
+    public async openBatch(principal: Principal, branch: Foundations.Branch, values: {
         rid:        Catalog.Transaction.Rid;
-        datasetRid: Catalog.Dataset.Rid;
+        datasetRid: Dataset.Rid;
         type:       Catalog.Transaction.Type;
         provenance: Record<string, unknown>;
     }[]): Promise<CatalogDB.Transaction.Row[]> {
@@ -86,7 +86,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
     @Transactional()
     async registerChanges(
         principal:      Principal,
-        datasetRid:     Catalog.Dataset.Rid,
+        datasetRid:     Dataset.Rid,
         rid:            Catalog.Transaction.Rid,
         changes:        Catalog.Transaction.FileChange.Schema[],
     ): Promise<void> {
@@ -108,10 +108,10 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
     @Transactional()
     async commit(
         principal:      Principal,
-        datasetRid:     Catalog.Dataset.Rid,
+        datasetRid:     Dataset.Rid,
         rid:            Catalog.Transaction.Rid,
         schema:         Catalog.ColumnSchema.Schema | null,
-    ): Promise<number> {
+    ): Promise<Dataset.Sequence> {
         const transaction = await this._requireOpen(datasetRid, rid);
 
         const branch = await this.trx
@@ -122,7 +122,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
             .forUpdate()
             .executeTakeFirstOrThrow();
 
-        const sequence = branch.last_sequence + 1;
+        const sequence = Dataset.Sequence.parse(branch.last_sequence + 1);
 
         await this.trx
             .updateTable('catalog.branch')
@@ -149,7 +149,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
      * addressed through its dataset, which may be trashed.
      */
     @Transactional()
-    public async abortBatch(principal: Principal, transactions: { rid: Catalog.Transaction.Rid; datasetRid: Catalog.Dataset.Rid }[]): Promise<void> {
+    public async abortBatch(principal: Principal, transactions: { rid: Catalog.Transaction.Rid; datasetRid: Dataset.Rid }[]): Promise<void> {
         if (transactions.length === 0)
             return;
 
@@ -169,7 +169,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
      * The dataset may be trashed: aborting is how a writer cleans up after one.
      */
     @Transactional()
-    async abort(principal: Principal, @AllowTrashed() datasetRid: Catalog.Dataset.Rid, rid: Catalog.Transaction.Rid): Promise<boolean> {
+    async abort(principal: Principal, @AllowTrashed() datasetRid: Dataset.Rid, rid: Catalog.Transaction.Rid): Promise<boolean> {
         const result = await this.trx
             .updateTable('catalog.transaction')
             .set({ status: 'aborted', finished_at: new Date() })
@@ -187,7 +187,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
      * transaction in order, applied by logical path.
      */
     @Transactional()
-    async resolveView(principal: Principal, datasetRid: Catalog.Dataset.Rid, branch: string, sequence?: number): Promise<Catalog.Dataset.View.Schema> {
+    async resolveView(principal: Principal, datasetRid: Dataset.Rid, branch: Foundations.Branch, sequence?: Dataset.Sequence): Promise<Dataset.View.Schema> {
         const head = sequence ?? (await this.trx
             .selectFrom('catalog.branch')
             .select('last_sequence')
@@ -196,7 +196,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
             .executeTakeFirstOrThrow()).last_sequence;
 
         if (head === 0)
-            return { branch, sequence: 0, schema: null, files: [], rowCount: 0 };
+            return { branch, sequence: head, schema: null, files: [], rowCount: 0 };
 
         const committed = this.trx
             .selectFrom('catalog.transaction')
@@ -210,7 +210,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
             .where('type', '=', 'snapshot')
             .executeTakeFirst();
 
-        const from = snapshot?.sequence ?? 1;
+        const from = snapshot?.sequence ?? Dataset.Sequence.parse(1);
 
         const changes = await this.trx
             .selectFrom('catalog.transaction as t')
@@ -224,7 +224,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
             .orderBy('t.sequence')
             .execute();
 
-        const view = new Map<string, Catalog.Dataset.View.File>();
+        const view = new Map<string, Dataset.View.File>();
 
         for (const change of changes)
             if (change.op === 'remove')
@@ -287,7 +287,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
      * (The dataset's liveness was checked by @Transactional — it's a top-level
      * argument — so a dataset trashed mid-write takes no more files or commits.)
      */
-    private async _requireOpen(datasetRid: Catalog.Dataset.Rid, rid: Catalog.Transaction.Rid): Promise<CatalogDB.Transaction.Row> {
+    private async _requireOpen(datasetRid: Dataset.Rid, rid: Catalog.Transaction.Rid): Promise<CatalogDB.Transaction.Row> {
         const row = await this.trx
             .selectFrom('catalog.transaction')
             .selectAll()

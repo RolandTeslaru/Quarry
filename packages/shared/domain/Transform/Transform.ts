@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { Dataset } from "../Catalog/Dataset"
+import { Dataset } from "../Dataset/Dataset"
 import { Resource } from "../Library/Resource"
 import { ModuleFunctionPath } from "../CodeWorkspace/ModuleFunctionPath"
 

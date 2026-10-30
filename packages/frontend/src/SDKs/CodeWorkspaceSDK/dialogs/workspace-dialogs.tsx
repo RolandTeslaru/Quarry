@@ -10,7 +10,7 @@ import { Input } from '@quarry/standard-ui/foundations/input'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Textarea } from '@quarry/standard-ui/foundations/textarea'
 import { cn } from '@quarry/standard-ui/utils/cn'
-import { Catalog, CodeWorkspace, Library } from '@quarry/shared/domain'
+import { CodeWorkspace, Dataset, Library } from '@quarry/shared/domain'
 import { errorMessage } from '@/SDKs/api'
 import { ResourceInput } from '@/SDKs/LibrarySDK/ui/ResourceInput'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -24,7 +24,7 @@ const Schema = CodeWorkspace.API.Create.Request.extend({
     name:            z.string().trim().min(1, 'Name the workspace').pipe(Library.Resource.Name),
     parentRid:       z.string({ error: 'Choose a project or folder' }).pipe(Library.Resource.Rid),
     description:     z.string().trim().transform(value => value || null),
-    exampleInputRid: Catalog.Dataset.Rid.nullable(),
+    exampleInputRid: Dataset.Rid.nullable(),
 })
 
 type FormInput  = z.input<typeof Schema>
@@ -168,7 +168,7 @@ function WorkspaceWizard({ parentRid, dialog }: Props) {
                                         </Form.Description>
                                         <Form.Control>
                                             <ResourceInput
-                                                value={(field.value as Catalog.Dataset.Rid | null | undefined) ?? null}
+                                                value={(field.value as Dataset.Rid | null | undefined) ?? null}
                                                 onChange={dataset => field.onChange(dataset.rid)}
                                                 accept='dataset'
                                                 placeholder='No example input'

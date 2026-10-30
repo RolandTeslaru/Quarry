@@ -1,5 +1,5 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Catalog, Library, type Platform } from '@quarry/shared/domain';
+import { Catalog, Dataset, Foundations, Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { FileStorage } from '@/infra/file-storage';
 import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
@@ -32,9 +32,9 @@ export class CatalogService {
     ) {}
 
     /** Creating = writing into the parent folder — RLS's call on the insert. */
-    async createDataset(principal: Principal, request: Catalog.API.Dataset.Create.Request): Promise<Catalog.Dataset.Schema> {
+    async createDataset(principal: Principal, request: Catalog.API.Dataset.Create.Request): Promise<Dataset.Schema> {
         return this.datasetRepository.create(principal, {
-            rid:         Catalog.Dataset.createRid(),
+            rid:         Dataset.createRid(),
             name:        request.name,
             description: request.description,
             parentRid:   request.parentRid,
@@ -42,11 +42,11 @@ export class CatalogService {
     }
 
     /** Datasets the principal can discover (RLS). */
-    async list(principal: Principal): Promise<Catalog.Dataset.Schema[]> {
+    async list(principal: Principal): Promise<Dataset.Schema[]> {
         return this.datasetRepository.list(principal);
     }
 
-    async get(principal: Principal, rid: Catalog.Dataset.Rid): Promise<Catalog.Dataset.Schema> {
+    async get(principal: Principal, rid: Dataset.Rid): Promise<Dataset.Schema> {
         const dataset = await this.datasetRepository.get(principal, rid);
 
         if (!dataset)
@@ -56,20 +56,20 @@ export class CatalogService {
     }
 
     /** A dataset by RID or library path. */
-    async getByReference(principal: Principal, reference: string): Promise<Catalog.Dataset.Schema> {
-        const rid = Catalog.Dataset.Rid.safeParse(reference);
+    async getByReference(principal: Principal, reference: string): Promise<Dataset.Schema> {
+        const rid = Dataset.Rid.safeParse(reference);
 
         if (rid.success)
             return this.get(principal, rid.data);
 
         const resource = await this.library.getByPath(principal, reference);
 
-        return this.get(principal, Catalog.Dataset.Rid.parse(resource.rid));
+        return this.get(principal, Dataset.Rid.parse(resource.rid));
     }
 
     /** A dataset by RID or library path — or, for a path nothing is at yet, a new empty one there. */
-    async getOrCreateByReference(principal: Principal, reference: string): Promise<Catalog.Dataset.Schema> {
-        const rid = Catalog.Dataset.Rid.safeParse(reference);
+    async getOrCreateByReference(principal: Principal, reference: string): Promise<Dataset.Schema> {
+        const rid = Dataset.Rid.safeParse(reference);
 
         if (rid.success)
             return this.get(principal, rid.data);
@@ -77,7 +77,7 @@ export class CatalogService {
         const existing = await this.library.findByPath(principal, reference);
 
         if (existing)
-            return this.get(principal, Catalog.Dataset.Rid.parse(existing.rid));
+            return this.get(principal, Dataset.Rid.parse(existing.rid));
 
         const destination = await this.library.getDestination(principal, reference);
 
@@ -89,10 +89,10 @@ export class CatalogService {
      * transactions, so RLS alone would answer with a silently empty view — and
      * the view hands out storage keys.
      */
-    @Audit('read', (sequence?: number) => ({ op: 'view', sequence: sequence ?? null }))
+    @Audit('read', (sequence?: Dataset.Sequence) => ({ op: 'view', sequence: sequence ?? null }))
     @SecurityGate('read')
-    async view(principal: Principal, rid: Catalog.Dataset.Rid, sequence?: number): Promise<Catalog.Dataset.View.Schema> {
-        return this.transactionRepository.resolveView(principal, rid, 'main', sequence);
+    async view(principal: Principal, rid: Dataset.Rid, sequence?: Dataset.Sequence): Promise<Dataset.View.Schema> {
+        return this.transactionRepository.resolveView(principal, rid, Foundations.MAIN_BRANCH, sequence);
     }
 
     /**
@@ -101,7 +101,7 @@ export class CatalogService {
      * hands out storage keys); only users open pages.
      */
     @SecurityGate('read')
-    async open(principal: Principal, rid: Catalog.Dataset.Rid, application: Platform.Application.Id): Promise<Catalog.API.Dataset.Open.Response> {
+    async open(principal: Principal, rid: Dataset.Rid, application: Platform.Application.Id): Promise<Catalog.API.Dataset.Open.Response> {
         if (principal.type !== 'user')
             throw new ForbiddenException('Only users open pages');
 
@@ -128,7 +128,7 @@ export class CatalogService {
         let filesDeleted = 0;
 
         for (const transaction of sweep)
-            filesDeleted += await this.files.deletePrefix(Catalog.Dataset.getStoragePrefix(transaction.dataset_rid, transaction.rid));
+            filesDeleted += await this.files.deletePrefix(Dataset.getStoragePrefix(transaction.dataset_rid, transaction.rid));
 
         return { aborted: aborted.length, filesDeleted };
     }

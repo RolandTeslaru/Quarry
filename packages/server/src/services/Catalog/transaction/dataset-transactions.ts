@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Catalog } from '@quarry/shared/domain';
+import { Catalog, Dataset, Foundations } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { CatalogDB } from '../catalog.db';
 import { TransactionRepository } from './transaction.repository';
 
 /**
- * The dataset write protocol: open → upload under `Catalog.Dataset.getStoragePrefix` →
+ * The dataset write protocol: open → upload under `Dataset.getStoragePrefix` →
  * registerChanges → commit, or abort. Reached as `catalog.transaction` — not
  * exported from CatalogModule, so CatalogService stays Catalog's one entry point.
  *
@@ -24,10 +24,10 @@ export class DatasetTransactions {
 
     async open(
         principal:  Principal,
-        datasetRid: Catalog.Dataset.Rid,
+        datasetRid: Dataset.Rid,
         type:       Catalog.Transaction.Type,
         provenance: Record<string, unknown> = {},
-        branch = 'main',
+        branch = Foundations.MAIN_BRANCH,
     ): Promise<Catalog.Transaction.Schema> {
         const row = await this.repository.open(principal, datasetRid, {
             rid:        Catalog.Transaction.createRid(),
@@ -45,8 +45,8 @@ export class DatasetTransactions {
      */
     public async openBatch(
         principal: Principal,
-        openings:  { datasetRid: Catalog.Dataset.Rid; type: Catalog.Transaction.Type; provenance?: Record<string, unknown> }[],
-        branch = 'main',
+        openings:  { datasetRid: Dataset.Rid; type: Catalog.Transaction.Type; provenance?: Record<string, unknown> }[],
+        branch = Foundations.MAIN_BRANCH,
     ): Promise<Catalog.Transaction.Schema[]> {
         const values = openings.map((opening) => ({
             rid:        Catalog.Transaction.createRid(),
@@ -67,7 +67,7 @@ export class DatasetTransactions {
     /** Adds stored files to the transaction (or removes logical paths from the view). */
     async registerChanges(
         principal:      Principal,
-        datasetRid:     Catalog.Dataset.Rid,
+        datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,
         changes:        Catalog.Transaction.FileChange.Schema[],
     ): Promise<void> {
@@ -76,10 +76,10 @@ export class DatasetTransactions {
 
     async commit(
         principal:      Principal,
-        datasetRid:     Catalog.Dataset.Rid,
+        datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,
         schema:         Catalog.ColumnSchema.Schema | null,
-    ): Promise<number> {
+    ): Promise<Dataset.Sequence> {
         return this.repository.commit(principal, datasetRid, transactionRid, schema);
     }
 
@@ -89,7 +89,7 @@ export class DatasetTransactions {
     }
 
     /** Works on a trashed dataset — aborting is how a writer cleans up after one. */
-    async abort(principal: Principal, datasetRid: Catalog.Dataset.Rid, transactionRid: Catalog.Transaction.Rid): Promise<void> {
+    async abort(principal: Principal, datasetRid: Dataset.Rid, transactionRid: Catalog.Transaction.Rid): Promise<void> {
         await this.repository.abort(principal, datasetRid, transactionRid);
     }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Catalog, CodeWorkspace, Forge } from '@quarry/shared/domain';
+import { Catalog, CodeWorkspace, Dataset, Forge } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { CatalogService } from '@/services/Catalog/catalog.service';
 import { ForgeService } from '@/services/Forge/forge.service';
@@ -22,10 +22,10 @@ export class CheckPublisher {
         const recipes: PublishedRecipe[] = [];
 
         for (const transform of manifest.transforms) {
-            const inputs: Record<string, Catalog.Dataset.Rid> = {};
-            const outputs: Record<string, Catalog.Dataset.Rid> = {};
-            const inputDatasetRids: Catalog.Dataset.Rid[] = [];
-            const outputDatasetRids: Catalog.Dataset.Rid[] = [];
+            const inputs: Record<string, Dataset.Rid> = {};
+            const outputs: Record<string, Dataset.Rid> = {};
+            const inputDatasetRids: Dataset.Rid[] = [];
+            const outputDatasetRids: Dataset.Rid[] = [];
 
             for (const [parameter, reference] of Object.entries(transform.inputs)) {
                 const dataset = await this.catalog.getByReference(principal, reference);

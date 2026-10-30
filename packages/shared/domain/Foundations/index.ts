@@ -17,5 +17,7 @@ export namespace Foundations {
     /** A branch name. */
     export import Branch = BranchMod.Branch
 
+    export const MAIN_BRANCH = BranchMod.MAIN_BRANCH
+
     export const uuidv7 = RidMod.uuidv7
 }

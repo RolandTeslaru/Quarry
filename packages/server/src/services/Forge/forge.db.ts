@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Catalog, Forge, Foundations, Identity, Library } from '@quarry/shared/domain';
+import { Catalog, Dataset, Forge, Foundations, Identity, Library } from '@quarry/shared/domain';
 import { defineDatabase } from '@/db/pool';
 import type { Table } from '@/db/table';
 import type { IdentityDB } from '@/services/Identity/identity.db';
@@ -20,7 +20,7 @@ export namespace ForgeDB {
         });
         export type Row = z.infer<typeof Row>;
 
-        export const toDomain = (row: Row, inputDatasetRids: Catalog.Dataset.Rid[], outputDatasetRids: Catalog.Dataset.Rid[]) =>
+        export const toDomain = (row: Row, inputDatasetRids: Dataset.Rid[], outputDatasetRids: Dataset.Rid[]) =>
             Forge.Recipe.Schema.parse({
                 rid:               row.rid,
                 producerRid:       row.producer_rid,
@@ -38,14 +38,14 @@ export namespace ForgeDB {
     export namespace RecipeDataset {
         export const Row = z.object({
             recipe_rid: Forge.Recipe.Rid,
-            dataset_rid:  Catalog.Dataset.Rid,
+            dataset_rid:  Dataset.Rid,
         });
         export type Row = z.infer<typeof Row>;
     }
 
     export namespace CurrentRecipe {
         export const Row = z.object({
-            dataset_rid:  Catalog.Dataset.Rid,
+            dataset_rid:  Dataset.Rid,
             branch:       Foundations.Branch,
             recipe_rid: Forge.Recipe.Rid,
         });
@@ -93,8 +93,8 @@ export namespace ForgeDB {
             status:       Forge.Job.Status,
             attempt:      z.number().int(),
             failure:      z.object({ message: z.string() }).nullable(),
-            inputs:       z.record(Catalog.Dataset.Rid, z.number().int()).nullable(),
-            outputs:      z.record(Catalog.Dataset.Rid, Catalog.Transaction.Rid),
+            inputs:       z.record(Dataset.Rid, Dataset.Sequence).nullable(),
+            outputs:      z.record(Dataset.Rid, Catalog.Transaction.Rid),
             scheduled_at: z.date().nullable(),
             started_at:   z.date().nullable(),
             heartbeat_at: z.date().nullable(),

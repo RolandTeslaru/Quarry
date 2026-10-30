@@ -293,7 +293,7 @@ services/Catalog/
 ├── catalog.internal.controller.ts  system worker only: /api/internal/outbox, /storage-gc
 ├── dataset.repository.ts         create (library row + dataset + branch main), get
 ├── transaction/
-│   ├── dataset-transactions.ts   the write protocol, reached as catalog.transaction: open → upload under Catalog.Dataset.getStoragePrefix → registerChanges → commit / abort
+│   ├── dataset-transactions.ts   the write protocol, reached as catalog.transaction: open → upload under Dataset.getStoragePrefix → registerChanges → commit / abort
 │   └── transaction.repository.ts open, registerChanges, commit, abort, resolveView, housekeeping queries
 ```
 
@@ -361,7 +361,7 @@ Two representations, as in Pretzel, joined by `toDomain`:
 
 | | Domain model | Row |
 |---|---|---|
-| Lives in | `@quarry/shared` — `Catalog.Dataset.Schema` | `@quarry/server` — `CatalogDB.Dataset.Row` in `catalog.db.ts` |
+| Lives in | `@quarry/shared` — `Dataset.Schema` | `@quarry/server` — `CatalogDB.Dataset.Row` in `catalog.db.ts` |
 | Shape | camelCase, what the API returns and the frontend renders | snake_case, column for column |
 | Used by | services, controllers, frontend | repositories only |
 
@@ -414,7 +414,7 @@ export namespace Resource {
 ### A subtype — Dataset
 
 ```ts
-// shared/domain/Catalog/Dataset.ts — pure domain
+// shared/domain/Dataset/Dataset.ts — pure domain: its own namespace, not under Catalog (the service)
 export namespace Dataset {
     export type  Rid = Foundations.Rid<"catalog", "dataset">
     export const Rid = Foundations.Rid.generateSchema("catalog", "dataset")
@@ -451,18 +451,19 @@ The domain `Dataset` is the **library fields + the catalog fields**. The reposit
 ### The DB module — rows and typed tables
 
 ```ts
-// server/src/services/Catalog/catalog.db.ts
+// server/src/services/Catalog/catalog.db.ts — imports the domain's as `Dataset as DatasetD`:
+// inside CatalogDB, a bare `Dataset` is CatalogDB.Dataset
 export namespace CatalogDB {
 
     export namespace Dataset {
         export const Row = z.object({
-            rid:  Catalog.Dataset.Rid,
+            rid:  DatasetD.Rid,
             type: z.literal('dataset'),
         });
         export type Row = z.infer<typeof Row>;
 
         export const toDomain = (row: Row, resource: LibraryDB.Resource.Row, latest: …) =>
-            Catalog.Dataset.Schema.parse({ ...LibraryDB.Resource.toBase(resource), … });
+            DatasetD.Schema.parse({ ...LibraryDB.Resource.toBase(resource), … });
     }
 
     // Transaction, TransactionFile, Branch — same pattern

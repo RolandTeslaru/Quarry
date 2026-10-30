@@ -2,7 +2,7 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Menubar } from '@quarry/standard-ui/foundations/menubar'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import { Icon } from '@quarry/standard-ui/icons'
-import type { Catalog } from '@quarry/shared/domain'
+import type { Dataset } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
 import { CatalogSDK } from '@/SDKs/CatalogSDK/sdk'
 import { DatasetPreview } from '@/SDKs/CatalogSDK/ui/DatasetPreview'
@@ -14,7 +14,7 @@ import { dateTime, fileSize, number } from '@/utils/format'
 import { datasetsApp } from '../definition'
 
 interface Props {
-    rid: Catalog.Dataset.Rid
+    rid: Dataset.Rid
 }
 
 /** The dataset app: the latest rows in the content, the dataset's details in the left sidebar. */
@@ -135,8 +135,8 @@ function ViewTabs() {
 }
 
 interface AboutPanelProps {
-    dataset: Catalog.Dataset.Schema
-    view:    Catalog.Dataset.View.Schema | undefined
+    dataset: Dataset.Schema
+    view:    Dataset.View.Schema | undefined
 }
 
 function AboutPanel({ dataset, view }: AboutPanelProps) {
@@ -169,7 +169,7 @@ function AboutPanel({ dataset, view }: AboutPanelProps) {
 }
 
 interface ColumnsPanelProps {
-    view: Catalog.Dataset.View.Schema
+    view: Dataset.View.Schema
 }
 
 function ColumnsPanel({ view }: ColumnsPanelProps) {
@@ -189,7 +189,7 @@ function ColumnsPanel({ view }: ColumnsPanelProps) {
 }
 
 /** "5 columns • 1 file • 229 KB" */
-function sizeSummary(view: Catalog.Dataset.View.Schema): string {
+function sizeSummary(view: Dataset.View.Schema): string {
     const columns = view.schema?.columns.length ?? 0
     const files = view.files.length
     const bytes = view.files.reduce((total, file) => total + file.bytes, 0)

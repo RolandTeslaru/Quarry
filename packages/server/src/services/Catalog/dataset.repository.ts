@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Catalog, Library, type Platform } from '@quarry/shared/domain';
+import { Dataset, Foundations, Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { EnsureResource } from '@/services/Library/ensure-resource';
@@ -24,11 +24,11 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
     @Transactional()
     @EnsureResource('dataset')
     async create(principal: Principal, values: {
-        rid:         Catalog.Dataset.Rid;
+        rid:         Dataset.Rid;
         name:        string;
         description: string | null;
         parentRid:   Library.Resource.Rid;
-    }): Promise<Catalog.Dataset.Schema> {
+    }): Promise<Dataset.Schema> {
         const dataset = await this.trx
             .insertInto('catalog.dataset')
             .values({ rid: values.rid })
@@ -37,19 +37,19 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
 
         await this.trx
             .insertInto('catalog.branch')
-            .values({ dataset_rid: values.rid, name: 'main' })
+            .values({ dataset_rid: values.rid, name: Foundations.MAIN_BRANCH })
             .execute();
 
-        return CatalogDB.Dataset.toDomain(dataset, this.resource, 0);
+        return CatalogDB.Dataset.toDomain(dataset, this.resource, Dataset.Sequence.parse(0));  // nothing committed yet
     }
 
     /** Live datasets only — trashed resources read as absent. */
     @Transactional()
-    async get(principal: Principal, rid: Catalog.Dataset.Rid): Promise<Catalog.Dataset.Schema | null> {
+    async get(principal: Principal, rid: Dataset.Rid): Promise<Dataset.Schema | null> {
         const row = await this.trx
             .selectFrom('catalog.dataset as d')
             .innerJoin('library.resource as r', 'r.rid', 'd.rid')
-            .innerJoin('catalog.branch as b', (join) => join.onRef('b.dataset_rid', '=', 'd.rid').on('b.name', '=', 'main'))
+            .innerJoin('catalog.branch as b', (join) => join.onRef('b.dataset_rid', '=', 'd.rid').on('b.name', '=', Foundations.MAIN_BRANCH))
             .selectAll('r')
             .select('b.last_sequence')
             .where('d.rid', '=', rid)
@@ -70,13 +70,13 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
      * unrecorded. Null: not there, or not the user's to see (nothing recorded).
      */
     @Transactional('user')
-    async open(principal: Principal.User, rid: Catalog.Dataset.Rid, application: Platform.Application.Id): Promise<{ dataset: Catalog.Dataset.Schema; view: Catalog.Dataset.View.Schema } | null> {
+    async open(principal: Principal.User, rid: Dataset.Rid, application: Platform.Application.Id): Promise<{ dataset: Dataset.Schema; view: Dataset.View.Schema } | null> {
         const dataset = await this.get(principal, rid);              // joins this transaction
 
         if (!dataset)
             return null;
 
-        const view = await this.transactions.resolveView(principal, rid, 'main');      // joins this transaction
+        const view = await this.transactions.resolveView(principal, rid, Foundations.MAIN_BRANCH);      // joins this transaction
 
         await this.audit.recordOpen(principal, { rid, type: 'dataset', application });   // joins this transaction
 
@@ -85,11 +85,11 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
 
     /** Every live dataset the user can discover (RLS), across projects. */
     @Transactional()
-    async list(principal: Principal): Promise<Catalog.Dataset.Schema[]> {
+    async list(principal: Principal): Promise<Dataset.Schema[]> {
         const rows = await this.trx
             .selectFrom('catalog.dataset as d')
             .innerJoin('library.resource as r', 'r.rid', 'd.rid')
-            .innerJoin('catalog.branch as b', (join) => join.onRef('b.dataset_rid', '=', 'd.rid').on('b.name', '=', 'main'))
+            .innerJoin('catalog.branch as b', (join) => join.onRef('b.dataset_rid', '=', 'd.rid').on('b.name', '=', Foundations.MAIN_BRANCH))
             .selectAll('r')
             .select(['d.rid as dataset_rid', 'b.last_sequence'])
             .where(isLive('r.rid'))

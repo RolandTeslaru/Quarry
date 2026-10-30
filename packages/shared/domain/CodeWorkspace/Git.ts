@@ -21,9 +21,6 @@ export namespace Git {
     })
     export type Author = z.infer<typeof Author>
 
-    /** Every workspace's history is on this branch until branches exist (docs/design/transforms.md §8). */
-    export const DEFAULT_BRANCH = Foundations.Branch.parse("main")
-
     /** The branches a push created or moved, at their new heads. Deleted branches aren't in it — they run nothing. */
     export const getMovedHeads = (before: Heads, after: Heads): Heads =>
         Object.fromEntries(

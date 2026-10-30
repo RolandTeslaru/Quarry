@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Catalog, CodeWorkspace, Library } from '@quarry/shared/domain';
+import { CodeWorkspace, Dataset, Library } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
 import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
 import { MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
@@ -113,7 +113,7 @@ describe('publishing recipes', () => {
         const created = await harness.library.getByPath(admin, `${projectPath}/brand new`);
 
         expect(created.type).toBe('dataset');
-        expect(await harness.forge.recipes.getCurrent(admin, created.rid as Catalog.Dataset.Rid, [MAIN])).not.toBeNull();
+        expect(await harness.forge.recipes.getCurrent(admin, created.rid as Dataset.Rid, [MAIN])).not.toBeNull();
     });
 
     it('builds what it published: the job runs the commit\'s transform', async () => {

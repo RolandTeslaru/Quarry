@@ -4,7 +4,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Queue } from 'bullmq';
 import { sql } from 'kysely';
-import { Catalog, DataConnection, type Gatekeeper, Identity, type Keychain, type Library, Storage } from '@quarry/shared/domain';
+import { Catalog, DataConnection, Dataset, type Gatekeeper, Identity, type Keychain, type Library, Storage } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { ApiModule } from '@/api.module';
 import type { Principal } from '@/auth/principal';
@@ -167,13 +167,13 @@ export class DataConnectionHarness {
      * aren't real Parquet: the server only lists them, by key and extension.
      */
     public async writeCopy(run: StartedRun, rowsPerFile: number[], state: string | null): Promise<Internal.CompleteRun.Request> {
-        const prefix = Catalog.Dataset.getStoragePrefix(run.datasetRid, run.transactionRid);
+        const prefix = Dataset.getStoragePrefix(run.datasetRid, run.transactionRid);
         const rowCounts: Record<string, number> = {};
 
         this.written.add(prefix);
 
         for (const [index, rows] of rowsPerFile.entries()) {
-            const key = Catalog.Dataset.getStorageKey(run.datasetRid, run.transactionRid, `data_${index}.parquet`);
+            const key = Dataset.getStorageKey(run.datasetRid, run.transactionRid, `data_${index}.parquet`);
 
             await this.files.upload(key, Readable.from(Buffer.from(`rows:${rows}`)), 'application/vnd.apache.parquet');
             rowCounts[key] = rows;
@@ -215,7 +215,7 @@ export class DataConnectionHarness {
     }
 
     /** The output dataset's current version on main. */
-    public async view(principal: Principal.User, datasetRid: Catalog.Dataset.Rid): Promise<Catalog.Dataset.View.Schema> {
+    public async view(principal: Principal.User, datasetRid: Dataset.Rid): Promise<Dataset.View.Schema> {
         return this.catalog.view(principal, datasetRid);
     }
 
@@ -227,7 +227,7 @@ export class DataConnectionHarness {
     }
 
     /** How many transactions are open on a dataset. */
-    public async openTransactions(datasetRid: Catalog.Dataset.Rid): Promise<number> {
+    public async openTransactions(datasetRid: Dataset.Rid): Promise<number> {
         const { rows } = await sql<{ n: number }>`
             select count(*)::int as n from catalog.transaction where dataset_rid = ${datasetRid} and status = 'open'`.execute(db());
 

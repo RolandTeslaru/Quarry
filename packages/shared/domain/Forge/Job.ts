@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
-import { Dataset } from "../Catalog/Dataset"
+import { Dataset } from "../Dataset/Dataset"
 import { Transaction } from "../Catalog/Transaction"
 import { Build } from "./Build"
 import { Recipe } from "./Recipe"
@@ -27,7 +27,7 @@ export namespace Job {
         recipeRid:             Recipe.Rid,
         status:                Status,
         attempt:               z.number().int().positive(),         // 1, then each retry
-        inputs:                z.record(Dataset.Rid, z.number().int()).nullable(),  // each input's version (its sequence), pinned when it's claimed
+        inputs:                z.record(Dataset.Rid, Dataset.Sequence).nullable(),  // each input's version, pinned when it's claimed
         outputs:               z.record(Dataset.Rid, Transaction.Rid),              // each output's transaction, opened when the build is created
         failure:               z.object({ message: z.string() }).nullable(),
         scheduledAt:           z.coerce.date().nullable(),

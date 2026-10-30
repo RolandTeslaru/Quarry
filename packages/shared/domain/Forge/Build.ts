@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
-import { Dataset } from "../Catalog/Dataset"
+import { Dataset } from "../Dataset/Dataset"
 import { User } from "../Identity/User"
 import { Recipe } from "./Recipe"
 

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
-import { Catalog, DataConnection, Identity } from '@quarry/shared/domain';
+import { Catalog, DataConnection, Dataset, Identity } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { json } from '@/db/table';
@@ -109,7 +109,7 @@ export class SyncRunRepository extends Repository(DataConnectionDB.database) {
 
     /** Running, but no heartbeat for `minutes` — the worker is gone. */
     @Transactional('service')
-    async stuck(principal: Principal.Service, minutes: number): Promise<(DataConnectionDB.SyncRun.Row & { output_dataset_rid: Catalog.Dataset.Rid })[]> {
+    async stuck(principal: Principal.Service, minutes: number): Promise<(DataConnectionDB.SyncRun.Row & { output_dataset_rid: Dataset.Rid })[]> {
         return this.trx
             .selectFrom('data_connection.sync_run as r')
             .innerJoin('data_connection.sync as s', 's.rid', 'r.sync_rid')

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
-import { Catalog, Forge } from '@quarry/shared/domain';
+import { Dataset, Forge } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { json } from '@/db/table';
@@ -44,7 +44,7 @@ export class BuildRepository extends Repository(ForgeDB.database) {
 
     /** Newest first; with a dataset, only builds targeting it. */
     @Transactional()
-    public async list(principal: Principal, filter: { datasetRid?: Catalog.Dataset.Rid; limit: number }): Promise<Forge.Build.Schema[]> {
+    public async list(principal: Principal, filter: { datasetRid?: Dataset.Rid; limit: number }): Promise<Forge.Build.Schema[]> {
         let query = this.trx
             .selectFrom('forge.build')
             .selectAll()

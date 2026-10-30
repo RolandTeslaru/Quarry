@@ -63,7 +63,7 @@ points to. Written 2026-10-18.
 ### RIDs
 - Format `ri.<service>.main.<type>.<uuid>` — Foundry style.
 - Template-literal types: `Foundations.Rid<S,T>` → `Library.Resource.Rid` →
-  e.g. `Catalog.Dataset.Rid`. `Rid.generateSchema`, `ofTypes`, `create`,
+  e.g. `Dataset.Rid`. `Rid.generateSchema`, `ofTypes`, `create`,
   `parse`, `uuidv7`.
 - Users: `ri.identity.main.user.<GoTrue sub>`; groups:
   `ri.identity.main.group.<uuidv7>`. Users/groups are RIDs but **not** library

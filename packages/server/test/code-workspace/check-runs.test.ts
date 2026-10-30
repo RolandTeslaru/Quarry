@@ -24,7 +24,7 @@ import CI = CodeWorkspace.CI;
 
 const run = promisify(execFile);
 
-const MAIN = Foundations.Branch.parse('main');
+const MAIN = Foundations.MAIN_BRANCH;
 const FEATURE = Foundations.Branch.parse('feature/orders');
 
 /**

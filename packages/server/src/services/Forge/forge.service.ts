@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Catalog, Forge, Foundations } from '@quarry/shared/domain';
+import { Catalog, Dataset, Forge, Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import type { Principal } from '@/auth/principal';
 import { CatalogService } from '@/services/Catalog/catalog.service';
@@ -10,7 +10,6 @@ import { ForgeRepository } from './repository/forge.repository';
 import type { NewJob } from './repository/job.repository';
 import { Recipes } from './recipes';
 
-const MAIN = Foundations.Branch.parse('main');
 
 /** A build's plan with the recipes it names, by RID. */
 interface CollectedPlan {
@@ -44,7 +43,7 @@ export class ForgeService {
 
     /** Needs write on every output and read on every input. */
     public async initializeBuild(principal: Principal, request: Forge.API.CreateBuild.Request): Promise<Forge.API.CreateBuild.Response> {
-        if (request.branch !== MAIN)
+        if (request.branch !== Foundations.MAIN_BRANCH)
             throw new BadRequestException('Builds run on main until datasets have other branches');
 
         const collected = await this._collectPlan(principal, request);
@@ -164,7 +163,7 @@ export class ForgeService {
         const inputs: Forge.API.GetInputPasses.Response['inputs'] = {};
         const pinned = job.inputs!;                           // pinned when it was claimed, which made it running
 
-        for (const datasetRid of Object.keys(pinned) as Catalog.Dataset.Rid[])
+        for (const datasetRid of Object.keys(pinned) as Dataset.Rid[])
             inputs[datasetRid] = await this.catalog.storage.getReadPasses(principal, datasetRid, pinned[datasetRid]);
 
         return { inputs };
@@ -246,7 +245,7 @@ export class ForgeService {
             provenance: { buildRid, jobRid: jobRids[recipeRid] },
         })));
 
-        const transactions = await this.catalog.transaction.openBatch(principal, openings, MAIN);
+        const transactions = await this.catalog.transaction.openBatch(principal, openings, Foundations.MAIN_BRANCH);
 
         return recipeRids.map((recipeRid) => ({
             rid:     jobRids[recipeRid],

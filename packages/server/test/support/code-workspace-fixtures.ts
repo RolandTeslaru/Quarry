@@ -11,7 +11,7 @@ import type { ForgeHarness } from './forge-fixtures';
 
 const run = promisify(execFile);
 
-export const MAIN = Foundations.Branch.parse('main');
+export const MAIN = Foundations.MAIN_BRANCH;
 
 /** The template's quarry-ci.yml, minus its environment steps: what a passing check runs. */
 export const QUARRY_CI = `steps:

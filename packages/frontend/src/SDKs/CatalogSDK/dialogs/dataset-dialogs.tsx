@@ -8,7 +8,7 @@ import { Dialog } from '@quarry/standard-ui/foundations/dialog'
 import { Form } from '@quarry/standard-ui/foundations/form'
 import { Input } from '@quarry/standard-ui/foundations/input'
 import { Select } from '@quarry/standard-ui/foundations/select'
-import { Catalog, type Library } from '@quarry/shared/domain'
+import { Catalog, Dataset, type Library } from '@quarry/shared/domain'
 import { errorMessage } from '@/SDKs/api'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { resourceRoute } from '@/shell/apps'
@@ -25,7 +25,7 @@ type FormOutput = z.output<typeof Schema>
 /** Where the file goes: a new dataset in a folder, or a new version of an existing dataset. */
 type UploadTarget =
     | { kind: 'new'; parentRid: Library.Resource.Rid }
-    | { kind: 'dataset'; datasetRid: Catalog.Dataset.Rid }
+    | { kind: 'dataset'; datasetRid: Dataset.Rid }
 
 interface Props {
     target: UploadTarget
@@ -42,7 +42,7 @@ export function openCreateDatasetFromFileDialog(args: { parentRid: Library.Resou
 }
 
 /** A new version of this dataset from a file: snapshot (replace) or append. */
-export function openUploadToDatasetDialog(args: { datasetRid: Catalog.Dataset.Rid }) {
+export function openUploadToDatasetDialog(args: { datasetRid: Dataset.Rid }) {
     DialogSDK.actions.push(`upload-${args.datasetRid}`, dialog => (
         <UploadDialog target={{ kind: 'dataset', datasetRid: args.datasetRid }} dialog={dialog} />
     ))

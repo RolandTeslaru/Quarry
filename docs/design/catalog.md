@@ -118,7 +118,7 @@ sequenceDiagram
 
     W->>T: open(datasetRid, type, provenance)
     T-->>W: transaction (rid) — gate: write on the dataset
-    Note over W: Catalog.Dataset.getStoragePrefix(datasetRid, transactionRid) is "{datasetRid}/{transactionRid}/"
+    Note over W: Dataset.getStoragePrefix(datasetRid, transactionRid) is "{datasetRid}/{transactionRid}/"
     W->>S3: upload Parquet under the prefix
     Note over W,S3: Catalog never sees the bytes
     W->>T: registerChanges(datasetRid, transactionRid, changes)
@@ -166,7 +166,7 @@ Writers act as the principal they were given: a sync run as a **delegate** of th
 
 Reading an old sequence is the same algorithm stopped earlier — time travel for free, until retention removes the files.
 
-The result (`Catalog.Dataset.View.Schema`) lists **files** — their keys, not their data. Readers (the preview endpoint, transforms later) fetch the files themselves.
+The result (`Dataset.View.Schema`) lists **files** — their keys, not their data. Readers (the preview endpoint, transforms later) fetch the files themselves.
 
 ---
 
@@ -178,7 +178,7 @@ The result (`Catalog.Dataset.View.Schema`) lists **files** — their keys, not t
 |---|---|---|
 | **`Storage.File`** | shared `Storage` | An object in storage: `key`, `bytes`, `format`, plus that format's metadata (`Storage.File.Parquet.Schema` adds `rowCount`). Knows nothing about datasets. `Storage.File.Schema` is the union, discriminated by `format`. |
 | **`Catalog.Transaction.FileChange`** | a transaction | An instruction, not a file: `add` a `Storage.File` at a logical path, or `remove` a logical path. Stored in `catalog.transaction_change`. |
-| **`Catalog.Dataset.View.File`** | a view | A `Storage.File` plus its **logical path** — its name within this dataset, unique within one view (two datasets can both have `part-0.parquet`). |
+| **`Dataset.View.File`** | a view | A `Storage.File` plus its **logical path** — its name within this dataset, unique within one view (two datasets can both have `part-0.parquet`). |
 
 The **key** is where the bytes are, written once and never reused. The **logical path** is the dataset's name for the file, stable across versions — an `update` can put new bytes (a new key) at the same logical path.
 
@@ -192,7 +192,7 @@ S3-compatible object storage, through `FileStorage` (`infra/file-storage.ts`) �
 ```
 s3://{S3_BUCKET}/
   {datasetRid}/
-    {transactionRid}/             Catalog.Dataset.getStoragePrefix; a file's key: getStorageKey
+    {transactionRid}/             Dataset.getStoragePrefix; a file's key: getStorageKey
       data_0.parquet              written by the writer (sync: DuckDB COPY … PER_THREAD_OUTPUT)
       data_1.parquet
       sales.csv                   or an uploaded file, under its own name

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Catalog, DataConnection, Identity, Keychain, Library } from '@quarry/shared/domain';
+import { Catalog, DataConnection, Dataset, Identity, Keychain, Library } from '@quarry/shared/domain';
 import type { Table } from '@/db/table';
 import { defineDatabase } from '@/db/pool';
 import type { IdentityDB } from '@/services/Identity/identity.db';
@@ -34,7 +34,7 @@ export namespace DataConnectionDB {
             source_rid:          DataConnection.Source.Rid,
             name:                z.string(),
             config:              DataConnection.Sync.Config,
-            output_dataset_rid:  Catalog.Dataset.Rid,
+            output_dataset_rid:  Dataset.Rid,
             schedule:            z.string().nullable(),
             enabled:             z.boolean(),
             created_by:          Identity.User.Rid.nullable(),

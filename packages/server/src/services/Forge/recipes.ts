@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Catalog, Forge, Foundations, Library } from '@quarry/shared/domain';
+import type { Dataset, Forge, Foundations, Library } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
 import { ForgeRepository } from './repository/forge.repository';
 import type { PublishedRecipe } from './repository/recipe.repository';
@@ -29,7 +29,7 @@ export class Recipes {
     /** What computes the dataset: the first of `branches` with a recipe for it wins. */
     public async getCurrent(
         principal:  Principal,
-        datasetRid: Catalog.Dataset.Rid,
+        datasetRid: Dataset.Rid,
         branches:   Foundations.Branch[],
     ): Promise<Forge.Recipe.Schema | null> {
         return this.repository.recipe.getCurrent(principal, datasetRid, branches);

@@ -3,7 +3,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Queue } from 'bullmq';
 import { sql } from 'kysely';
-import { Catalog, CodeWorkspace, Forge, Foundations, type Gatekeeper, Identity, type Library } from '@quarry/shared/domain';
+import { Catalog, CodeWorkspace, Dataset, Forge, Foundations, type Gatekeeper, Identity, type Library } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { ApiModule } from '@/api.module';
 import type { Principal } from '@/auth/principal';
@@ -15,7 +15,7 @@ import { ForgeService } from '@/services/Forge/forge.service';
 import { DurableQueues } from '@/infra/durable-queue';
 import { LibraryService } from '@/services/Library/library.service';
 
-export const MAIN = Foundations.Branch.parse('main');
+export const MAIN = Foundations.MAIN_BRANCH;
 
 /** A recipe to publish, by dataset name: what it reads, what it writes. */
 export interface RecipeShape {
@@ -95,9 +95,9 @@ export class ForgeHarness {
         principal: Principal.User,
         names:     string[],
         withData:  string[] = [],
-    ): Promise<{ projectRid: Catalog.Dataset.Schema['parentRid']; datasets: Record<string, Catalog.Dataset.Rid> }> {
+    ): Promise<{ projectRid: Dataset.Schema['parentRid']; datasets: Record<string, Dataset.Rid> }> {
         const project = await this.library.createProject(principal, { name: `Test ${randomUUID()}`, description: null });
-        const datasets: Record<string, Catalog.Dataset.Rid> = {};
+        const datasets: Record<string, Dataset.Rid> = {};
 
         for (const name of names) {
             const dataset = await this.catalog.createDataset(principal, { parentRid: project.rid, name, description: null });
@@ -118,8 +118,8 @@ export class ForgeHarness {
      */
     public async publish(
         principal:   Principal.User,
-        producerRid: Catalog.Dataset.Schema['parentRid'],
-        datasets:    Record<string, Catalog.Dataset.Rid>,
+        producerRid: Dataset.Schema['parentRid'],
+        datasets:    Record<string, Dataset.Rid>,
         shapes:      RecipeShape[],
         branch:      Foundations.Branch = MAIN,
         code:        RecipeCode = MADE_UP_CODE,
@@ -142,7 +142,7 @@ export class ForgeHarness {
     }
 
     /** A manual build of these datasets on main. */
-    public async build(principal: Principal.User, datasetRids: Catalog.Dataset.Rid[]): Promise<Forge.API.CreateBuild.Response> {
+    public async build(principal: Principal.User, datasetRids: Dataset.Rid[]): Promise<Forge.API.CreateBuild.Response> {
         return this.forge.initializeBuild(principal, {
             branch:           MAIN,
             fallbackBranches: [],
@@ -216,7 +216,7 @@ export class ForgeHarness {
     }
 
     /** How many transactions are open on a dataset — the lock a build or upload holds. */
-    public async openTransactions(datasetRid: Catalog.Dataset.Rid): Promise<number> {
+    public async openTransactions(datasetRid: Dataset.Rid): Promise<number> {
         const { rows } = await sql<{ n: number }>`
             select count(*)::int as n from catalog.transaction where dataset_rid = ${datasetRid} and status = 'open'`.execute(db());
 
@@ -230,14 +230,14 @@ export class ForgeHarness {
         return rows[0]?.status;
     }
 
-    private async _commitVersion(principal: Principal.User, datasetRid: Catalog.Dataset.Rid): Promise<void> {
+    private async _commitVersion(principal: Principal.User, datasetRid: Dataset.Rid): Promise<void> {
         const transaction = await this.catalog.transaction.open(principal, datasetRid, 'snapshot');
 
         await this.catalog.transaction.registerChanges(principal, datasetRid, transaction.rid, [{
             op:          'add',
             logicalPath: 'part-0.parquet',
             format:      'parquet',
-            key:         Catalog.Dataset.getStorageKey(datasetRid, transaction.rid, 'part-0.parquet'),
+            key:         Dataset.getStorageKey(datasetRid, transaction.rid, 'part-0.parquet'),
             bytes:       1,
             rowCount:    0,
         }]);

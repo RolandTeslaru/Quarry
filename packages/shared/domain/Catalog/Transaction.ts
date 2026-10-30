@@ -3,7 +3,7 @@ import { Storage } from "../Storage"
 import { Foundations } from "../Foundations"
 import { User } from "../Identity/User"
 import { ColumnSchema } from "./ColumnSchema"
-import { Dataset } from "./Dataset"
+import { Dataset } from "../Dataset/Dataset"
 
 /** One change to a dataset's file set. Only committed transactions are visible. */
 export namespace Transaction {
@@ -22,10 +22,10 @@ export namespace Transaction {
     export const Schema = z.object({
         rid:        Rid,
         datasetRid: Dataset.Rid,
-        branch:     z.string(),
+        branch:     Foundations.Branch,
         type:       Type,
         status:     Status,
-        sequence:   z.number().int().nullable(),
+        sequence:   Dataset.Sequence.nullable(),
         schema:     ColumnSchema.Schema.nullable(),
     provenance: z.record(z.string(), z.unknown()),
         startedBy:  User.Rid.nullable(),

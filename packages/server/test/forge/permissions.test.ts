@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Catalog, Forge, Library } from '@quarry/shared/domain';
+import type { Dataset, Forge, Library } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
 import { ForgeHarness, MAIN } from '../support/forge-fixtures';
 
@@ -24,7 +24,7 @@ describe('build and recipe permissions', () => {
     let outsider: Principal.User;
 
     let projectRid: Library.Resource.Rid;
-    let datasets: Record<string, Catalog.Dataset.Rid>;
+    let datasets: Record<string, Dataset.Rid>;
     let recipe: Forge.Recipe.Schema;
 
     beforeAll(async () => {

@@ -6,3 +6,6 @@ export const Branch = z.string()
     .regex(/^(?!-)(?!.*\.\.)(?!.*\/\/)[A-Za-z0-9._/-]+(?<!\/)(?<!\.lock)$/, "Not a valid branch name")
     .brand("Foundations.Branch")
 export type Branch = z.infer<typeof Branch>
+
+/** Every dataset's and workspace's first branch, and the only one builds run on so far. */
+export const MAIN_BRANCH = Branch.parse("main")

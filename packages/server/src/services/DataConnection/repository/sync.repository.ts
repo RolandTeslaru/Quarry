@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Catalog, DataConnection } from '@quarry/shared/domain';
+import { DataConnection, Dataset } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { json } from '@/db/table';
@@ -10,7 +10,7 @@ import { DataConnectionDB } from '../data-connection.db';
 export class SyncRepository extends Repository(DataConnectionDB.database) {
     /** Source and output dataset are top-level, so @Transactional checks both are live. */
     @Transactional()
-    async create(principal: Principal, sourceRid: DataConnection.Source.Rid, outputDatasetRid: Catalog.Dataset.Rid, values: {
+    async create(principal: Principal, sourceRid: DataConnection.Source.Rid, outputDatasetRid: Dataset.Rid, values: {
         rid:      DataConnection.Sync.Rid;
         name:     string;
         config:   DataConnection.Sync.Config;            // already validated against the integration's sync Config

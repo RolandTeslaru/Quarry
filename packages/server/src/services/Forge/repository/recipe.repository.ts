@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { Catalog, Forge, Foundations, Library } from '@quarry/shared/domain';
+import { Dataset, Forge, Foundations, Library } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { json } from '@/db/table';
@@ -8,8 +8,8 @@ import { ForgeDB } from '../forge.db';
 /** A recipe as a producer publishes it — Forge fills in the RID, branch, producer and who. */
 export interface PublishedRecipe {
     readonly runtime:           Forge.Recipe.Runtime;
-    readonly inputDatasetRids:  Catalog.Dataset.Rid[];
-    readonly outputDatasetRids: Catalog.Dataset.Rid[];
+    readonly inputDatasetRids:  Dataset.Rid[];
+    readonly outputDatasetRids: Dataset.Rid[];
     readonly compute:           Forge.Recipe.Compute;
 }
 
@@ -58,7 +58,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
     @Transactional()
     public async getCurrent(
         principal:  Principal,
-        datasetRid: Catalog.Dataset.Rid,
+        datasetRid: Dataset.Rid,
         branches:   Foundations.Branch[],
     ): Promise<Forge.Recipe.Schema | null> {
         const pointers = await this.trx
@@ -155,7 +155,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
      * One producer per dataset per branch. The pointer's primary key enforces it;
      * this names the producer when the caller can see it.
      */
-    private async _requireUnowned(producerRid: Library.Resource.Rid, branch: Foundations.Branch, outputs: Catalog.Dataset.Rid[]): Promise<void> {
+    private async _requireUnowned(producerRid: Library.Resource.Rid, branch: Foundations.Branch, outputs: Dataset.Rid[]): Promise<void> {
         if (outputs.length === 0)
             return;
 

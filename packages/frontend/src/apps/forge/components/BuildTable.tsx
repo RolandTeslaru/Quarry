@@ -1,7 +1,7 @@
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import { Icon } from '@quarry/standard-ui/icons'
-import type { Catalog, Forge } from '@quarry/shared/domain'
+import type { Dataset, Forge } from '@quarry/shared/domain'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { ResourceLink } from '@/components/ResourceLink'
 import { dateTime } from '@/utils/format'
@@ -60,7 +60,7 @@ function BuildStatus({ status }: BuildStatusProps) {
 }
 
 interface TargetDatasetProps {
-    rid: Catalog.Dataset.Rid
+    rid: Dataset.Rid
 }
 
 /** A target by name, linking to it — its library path is fetched once and cached. */

@@ -1,7 +1,7 @@
 import { z } from "zod"
 import type { AxiosInstance } from "axios"
 import { Application } from "../../Platform/Application"
-import { Dataset as DatasetD } from "../../Catalog/Dataset"
+import { Dataset as DatasetD } from "../../Dataset/Dataset"
 import { Resource as ResourceD } from "../../Library/Resource"
 import { Template as TemplateD } from "../Template"
 import { Workspace as WorkspaceD } from "../Workspace"
