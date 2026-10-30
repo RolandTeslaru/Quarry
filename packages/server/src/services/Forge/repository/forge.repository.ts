@@ -3,6 +3,7 @@ import { Forge } from '@quarry/shared/domain';
 import { Principal } from '@/auth/principal';
 import { Repository, Transactional } from '@/db/repository';
 import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
+import { TransactionRepository } from '@/services/Catalog/transaction/transaction.repository';
 import { ForgeDB } from '../forge.db';
 import { BuildRepository, type NewBuild } from './build.repository';
 import { JobRepository, type NewJob } from './job.repository';
@@ -34,6 +35,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         private readonly _build:   BuildRepository,
         private readonly _job:     JobRepository,
         private readonly _recipe: RecipeRepository,
+        private readonly _datasetTransactions: TransactionRepository,
         @InjectDurableQueue(Forge.DurableQueue.RunJob)
         private readonly _runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
     ) {
@@ -121,6 +123,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
     /**
      * Records how the running attempt ended, then advances its build: on success,
+     * its outputs are committed (Catalog's commitBatch, in this transaction) and
      * each child whose parents have all succeeded goes `waiting → scheduled`;
      * nothing left unfinished → the build is done. Null if this attempt wasn't
      * running. The scheduled jobs' messages are added; returns them.
@@ -139,9 +142,14 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         if (!job)
             return null;
 
-        const scheduled = outcome.status === 'succeeded'
-            ? await this._scheduleReadyChildren(principal, job)
-            : [];
+        let scheduled: Forge.Job.Schema[] = [];
+
+        // Its outputs become new versions before any child is scheduled: a child pins its inputs when it's claimed.
+        if (outcome.status === 'succeeded') {
+            await this._datasetTransactions.commitBatch(principal, Forge.Job.getOutputTransactions(job));
+
+            scheduled = await this._scheduleReadyChildren(principal, job);
+        }
 
         await this._addRunJobs(scheduled);
         await this._endBuildIfDone(principal, job.buildRid);

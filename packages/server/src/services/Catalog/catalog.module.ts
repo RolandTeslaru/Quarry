@@ -10,10 +10,12 @@ import { TransactionRepository } from './transaction/transaction.repository';
 /**
  * Providers only; controllers are registered by api.module. Other services
  * use CatalogService only (writes: catalog.transaction; uploads and previews: catalog.storage).
+ * TransactionRepository is exported too, for one thing: Forge commits a job's
+ * outputs inside the transaction that finishes the job (`commitBatch` joins it).
  */
 @Module({
     imports:   [LibraryModule],
     providers: [CatalogService, DatasetTransactions, CatalogStorage, DuckDb, DatasetRepository, TransactionRepository],
-    exports:   [CatalogService],
+    exports:   [CatalogService, TransactionRepository],
 })
 export class CatalogModule {}

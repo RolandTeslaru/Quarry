@@ -1,6 +1,6 @@
 # Forge — Runtimes and delegates
 
-_Design, 2026-10-29. **Phases 1 and 2 built 2026-10-29** (§8): the contract, the stdio transport, the code-workspace runtime and its image, the ForgeAgent running jobs in containers; the job token, and the runtime cloning the commit, installing its lock and finding the transform. Reading and writing data (phases 3–4) are design. Decided with the user: runtimes as Nest microservices over stdio; one container per job; inputs read through presigned URLs; one shared uv cache per ForgeAgent machine. Extends [forge.md](forge.md) §5 (ForgeAgents and job containers); preview today is described in [transforms.md](transforms.md)._
+_Design, 2026-10-29. **Built** (§8): phases 1–2 on 2026-10-29 — the contract, the stdio transport, the code-workspace runtime and its image, the ForgeAgent running jobs in containers, the job token, cloning and installing; phases 3–5 on 2026-10-30 — reading inputs through read passes (Parquet and CSV), writing outputs through upload passes (committed with the job), and the IDE's preview and transform list on the same runtime, in the session's container. The check worker's manifest still runs `manifest.py` directly._
 
 A **runtime** is what does a Quarry application's compute. Every application that produces recipes has one: Code Workspaces first, later Pipeline Builder and Data Connection. It runs inside a container, takes instructions over stdio, and is the one interface for everything that wants that application's compute — a ForgeAgent running a build job, the IDE running a preview, a check run listing transforms.
 
@@ -398,7 +398,7 @@ In phases, each small enough to read and review on its own (decided 2026-10-29):
 | **2. The code** — built 2026-10-29 | the job token at `claim`; the runtime clones the commit, `uv sync --frozen` with `/cache`, imports the pipeline and finds the transform | the right code runs in the right environment |
 | **3. Reading** | presigning; input passes; `TransformInput` from URLs; lazy reads | a transform reads its pinned inputs |
 | **4. Writing** | upload passes; rolling files and `file-ready`; registering files; `commitBatch` on `finish` | a build writes new versions |
-| **5. Callers** | the extension's preview and the check worker's manifest go through the runtime | one path for preview, checks and builds |
+| **5. Callers** — the IDE, built 2026-10-30 | the extension's preview and the check worker's manifest go through the runtime | one path for preview, checks and builds |
 
 The items below say what each part needs; the table says when.
 
@@ -477,6 +477,102 @@ sequenceDiagram
 **Checked first (spike, 2026-10-29):** two Parquet files uploaded to the local store, GET URLs presigned for `host.docker.internal:9000`, read inside the runtime image as one list — no options needed, plain `http://` and query strings included. Polars `scan_parquet(urls)` lazy with a filter and two columns across both files: the right rows; count, `read_parquet`, `.to_arrow()`, `.to_pandas()`: all rows. DuckDB `read_parquet([...])`: right count and sum; a view over the list as a SQL literal, then a filter: right rows (a view can't take the list as a prepared parameter — DDL isn't preparable — so `DuckDbContext` keeps writing it as a literal). Not measured yet: how many bytes a lazy read fetches (the pushdown), on a big file.
 
 **Decided (2026-10-29):** `STORAGE_ENDPOINT`; presigning in Catalog, the job-level endpoint in Forge; `TransformInput.files()` replaces `path()`.
+
+### Phase 4: writing outputs — built 2026-10-30
+
+**Goal:** a succeeded job's outputs become new versions of their datasets, and a child job in the same build reads its parent's fresh output. Builds materialize.
+
+```mermaid
+sequenceDiagram
+    participant P as Python (transform)
+    participant R as Runtime (root)
+    participant S as Server
+    participant O as Storage
+    participant A as ForgeAgent
+
+    P->>P: write_table: rolling Parquet files in its scratch folder
+    P-->>R: fd 3: file-ready (output, path)
+    R->>S: POST jobs/:rid/outputs/:dataset/upload-passes (token)
+    S-->>R: key + presigned PUT
+    R->>O: PUT the file, while Python writes the next
+    R->>S: POST jobs/:rid/outputs/:dataset/files (token)
+    Note over S: reads the file's footer (columns, rows), registers it on the output's open transaction
+    P-->>R: exit 0, every output written
+    R-->>A: response: succeeded
+    A->>S: POST jobs/:rid/finish
+    Note over S: one database transaction: job succeeded, outputs committed (commitBatch), ready children scheduled
+```
+
+**1. Python writes files.** `TransformOutput.write_table(data)` writes rolling Parquet files of about 256 MB to `transform`'s scratch folder (`<home>/out/<parameter>/part-N.parquet`), streaming: a LazyFrame through its batches, a DuckDB relation through `fetch_record_batch`, an Arrow table or DataFrame in slices. Each file is written as `.tmp`, closed, renamed, then announced on **file descriptor 3** — `{"type":"event","event":"file-ready","output":"<parameter>","path":"…"}` — a pipe of its own, since stdout and stderr carry the transform's prints. `run.py` replaces `drop` with this writer, and fails the job if a declared output wasn't written (as preview already refuses).
+
+**2. The runtime uploads them.** It reads fd 3; for each file, in parallel (a few at a time): an **upload pass** (`POST /api/jobs/:rid/outputs/:dataset/upload-passes { filename }` → `{ key, url }`), a `PUT` of the file to the URL, then **registering** it (`POST /api/jobs/:rid/outputs/:dataset/files { filename }`). After Python exits it waits for the last uploads; any failed upload or registration fails the job. One `PUT` per file — S3 takes up to 5 GB that way, and a file is ~256 MB, so no multipart upload.
+
+**3. The server.**
+
+- `FileStorage.presignPut(key)` — like `presignGet`, signed for `STORAGE_ENDPOINT`.
+- **Upload passes:** the job must be running, the dataset one of its outputs; the key is `Dataset.getStorageKey(dataset, job.outputs[dataset], filename)` — the output's own open transaction. Write on the dataset is the token's (checked again when the file is registered, by RLS).
+- **Registering a file:** DuckDB reads its footer — columns and row count, as an upload's Parquet is inferred (it also proves the file is Parquet) — and the file is registered on the output's open transaction (`catalog.transaction.registerChanges`).
+- **The output's schema** comes from its files: every file of one output must have the same columns, or the job fails; that schema is committed with the output.
+- **`commitBatch`** in Catalog (beside `openBatch` / `abortBatch`): commits several open transactions together, each taking the next sequence on its branch with the schema staged on it. A repeated `finish` never reaches it — the job is no longer running.
+- **`finish` commits, atomically.** On success, in **one database transaction**: the job is recorded succeeded, its outputs are committed (`commitBatch`, through the Catalog repository its module exports for sharing a transaction — AGENTS.md §10), and ready children are scheduled. Committing after scheduling would let a child be claimed, and pin its parent's *old* version, in between. On failure, outputs are still aborted.
+
+**4. Tests.** Python: `write_table` from a LazyFrame, a DuckDB relation and an Arrow table rolls files and announces each; a declared output not written fails. Server: upload passes need a running job and one of its outputs; registering reads the footer and refuses a non-Parquet file or a different set of columns; `finish` commits the outputs, and a repeat doesn't commit twice; a failed job's outputs are aborted. E2E: a chain A → B in one build — A writes, B reads A's new version and prints its rows; the outputs have new versions with schemas.
+
+**As built, where it differs from the plan above:**
+
+- **Uploads go one at a time**, in order, while Python writes the next file (`OutputUploads`, `code-workspace-runtime/src/output-uploads.ts`) — still overlapping writing and uploading, without a pool.
+- **The events pipe is named by `QUARRY_EVENTS_FD`** (3 under the runtime), so tests can hand `run.py` any pipe.
+- **An announced file must be a `.parquet` file directly in its output's folder** — the transform runs the workspace's code and the runtime uploads as root, so anything else (`/work/job.json`, any file root can read) fails the job instead of being uploaded.
+- **`write_table` streams and takes the whole output once:** a LazyFrame (`collect_batches`) or a DuckDB relation (`to_arrow_reader`) is computed as it's written; a second `write_table` on the same output raises. An output with no rows is still one file, with its columns.
+- **`commitBatch` doesn't skip committed transactions:** a repeated `finish` never reaches it (the job is no longer running), so there's nothing to skip.
+
+Tests: `test/forge/output-files` (upload passes need a running job and one of its outputs; registered files are committed with the job under their footers' schema; different columns are refused), `agent-api` and `build-graph` (a succeeded job's outputs committed once, a failed one's aborted), `tests/test_run.py` (files announced, rolling, an empty output, an unwritten output fails, write once), and the e2e chain: W reads an uploaded CSV and keeps 2 of 3 rows, X reads W's new version in the same build.
+
+**Decided with the plan (2026-10-30):**
+
+- **The schema comes from the server reading each file's footer**, not from Python reporting it: what's committed describes the bytes actually stored, whatever the transform claims.
+- **No backpressure yet:** Python doesn't wait for uploads, so the scratch disk must hold a whole output in the worst case. Waiting once N files are pending comes later, if disks fill.
+- **An output the transform didn't write fails the job**, rather than committing an empty version.
+
+### Phase 5: the IDE on the runtime — built 2026-10-30
+
+**Goal:** the IDE's Preview and its transform list go through the same runtime jobs use, running **inside the IDE session container** — no container of its own. The extension stops spawning Python itself; it talks to the runtime over stdio, and the runtime spawns Python, as in a job.
+
+```mermaid
+sequenceDiagram
+    participant E as Extension (IDE container)
+    participant R as Runtime (IDE container, the session's user)
+    participant P as Python (preview.py)
+    participant S as Server
+
+    E->>R: spawn node runtime.js (on first use, kept while the IDE is open)
+    R-->>E: stdout: ready
+    E->>R: describe { folder }
+    R->>P: python -m quarry.transforms.preview --list
+    P-->>R: the transforms
+    R-->>E: response: the transforms
+    E->>R: preview { folder, transform, rows, session }
+    R->>P: python -m quarry.transforms.preview <transform> (the session's token in its env)
+    P->>S: samples of the inputs
+    P-->>R: the result JSON
+    R-->>E: response: the result
+    E->>R: cancel (the user clicked stop, or a new preview replaced it)
+    R->>P: kill
+```
+
+**1. The contract: `CodeWorkspace.Runtime`**, extending `Stdio` like `Forge.Runtime`: `Describe` (`folder` → `CodeTransform.Listing`), `Preview` (`folder`, `transform`, `rows`, `session: { serverUrl, token }` → `CodeWorkspace.Preview.Result`), `Cancel` (kills the running preview). The runtime serves Forge's `run` and these three; each caller uses the calls that fit where it runs.
+
+**2. The runtime** gains three handlers, each spawning `quarry.transforms.preview` from the workspace's `.venv`, as today's extension does. In the IDE the runtime runs as the session's user (`quarry`, not root): no user switch, and the token is the session's own — the user's, in the user's IDE. One preview at a time: a new one, or `cancel`, kills the running one.
+
+**3. The IDE image** gets `runtime.js` (built before it, by `npm run build:code-workspace-ide`). The extension runs it with the Node it runs in itself (`process.execPath`, openvscode-server's Node 22).
+
+**4. The extension** keeps one runtime: started on the first describe or preview, through `StdioClient`; started again if it exits; closed with the extension. `runPreview` and `getTransformsFromFolder` become requests; their parsing of Python's output moves into the runtime.
+
+**5. Tests.** The runtime's handlers, driven over stdio with a real workspace folder (describe; a preview's result; cancel kills it). The extension has no tests today; it's checked by hand in a session.
+
+**As built:** `CodeWorkspace.Runtime` in `packages/shared/domain/CodeWorkspace/Runtime.ts`; the runtime's `PreviewController` (`code-workspace-runtime/src/preview.controller.ts`), served beside the job's `RuntimeController`; the extension's `session-runtime.ts` (one runtime, `process.execPath` + `/opt/quarry/runtime/runtime.js`) and `pipeline.ts` (requests instead of spawning Python); the IDE image copies `runtime.js` (`npm run build:code-workspace-ide` bundles it first). Tests: `code-workspace-runtime/test/preview.test.ts` starts the runtime from source and drives it with `StdioClient` — describe, a preview's output and logs, cancel returning null — part of `npm test`. Checked by hand in the IDE image: the openvscode Node runs it as `quarry`, against a `uv venv --system-site-packages` working copy. Sessions pick it up after **IDE → Restart** (a new container from the new image).
+
+**Not in this phase:** the check worker's manifest (`manifest.py`, by `docker exec`) stays as it is — moving it is the same change for another caller, later.
 
 ## 9. Open questions
 

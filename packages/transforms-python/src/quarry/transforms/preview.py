@@ -142,8 +142,8 @@ def sample_input(client: QuarryClient, ref: str, rows: int, directory: Path) -> 
 
 
 def collector(written: dict[str, pa.Table], name: str):
-    def write(table: pa.Table) -> None:
-        written[name] = table
+    def write(reader: pa.RecordBatchReader) -> None:
+        written[name] = reader.read_all()
 
     return write
 

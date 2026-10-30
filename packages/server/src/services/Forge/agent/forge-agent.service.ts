@@ -13,8 +13,8 @@ const AGENT = Principal.SELF('forge.agent');
 
 /**
  * What ForgeAgents do, through the ForgeAgent API only: claim a job, renew its
- * lease, finish it — and finishing advances the build. Nothing is written yet:
- * a finished job's outputs are aborted, not committed.
+ * lease, finish it — and finishing advances the build: a succeeded job's outputs
+ * become new versions, a failed one's are aborted.
  */
 @Injectable()
 export class ForgeAgentService {
@@ -75,11 +75,12 @@ export class ForgeAgentService {
     }
 
     /**
-     * Records how the attempt ended and advances its build: ready children are
-     * scheduled and relayed; a failure cancels the rest of the build. Idempotent:
-     * a repeat of an outcome already recorded redoes the cleanup (aborting is
-     * safe to repeat) — an agent retries finish until it's answered, so a cleanup
-     * that failed the first time is done by the retry.
+     * Records how the attempt ended and advances its build: on success its outputs
+     * are committed and ready children scheduled and relayed; a failure aborts its
+     * outputs and cancels the rest of the build. Idempotent: a repeat of an outcome
+     * already recorded redoes the cleanup (aborting is safe to repeat) — an agent
+     * retries finish until it's answered, so a cleanup that failed the first time
+     * is done by the retry.
      */
     public async finishJob(rid: Forge.Job.Rid, outcome: Forge.API.Agent.Finish.Request): Promise<Forge.API.Agent.Finish.Response> {
         const finished = await this.repository.finishJob(AGENT, rid, outcome);
@@ -93,11 +94,11 @@ export class ForgeAgentService {
                     channel: Forge.Event.getChannel(changed.buildRid),
                 });
 
-        // No compute yet: nothing was written, so the outputs are aborted rather than committed.
-        await this.catalog.transaction.abortBatch(AGENT, Forge.Job.getOutputTransactions(job));
-
-        if (outcome.status === 'failed')
+        // A succeeded job's outputs were committed with it; a failed one's are released.
+        if (outcome.status === 'failed') {
+            await this.catalog.transaction.abortBatch(AGENT, Forge.Job.getOutputTransactions(job));
             await this._failBuild(job.buildRid);
+        }
 
         if (!finished)
             return { job };

@@ -1,43 +1,28 @@
-import { execFile, spawn } from 'node:child_process'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
-import { CodeWorkspace, CodeTransform } from '@quarry/shared/domain'
+import { CodeWorkspace, type CodeTransform } from '@quarry/shared/domain'
+import { sessionRuntime } from './session-runtime'
 
-/** Importing the pipeline — the same limit the worker gives `--list`. */
-const LIST_TIMEOUT_MS = 60_000
-
-/** Sampling every input, then running the transform. */
-const PREVIEW_TIMEOUT_MS = 300_000
+import Calls = CodeWorkspace.Runtime
 
 /** Rows sampled from each input. */
 export const PREVIEW_ROWS = 1000
 
 /**
- * The workspace's pipeline, read in this container: `python -m
- * quarry.transforms.preview --list` with the working copy's environment — what
- * it declares as saved on disk. No Quarry call: listing only imports the code.
+ * The workspace's pipeline, as the working copy declares it — the session's
+ * runtime imports it. A pipeline that doesn't import is an answer (`{ error }`), not a failure.
  */
 export async function getTransformsFromFolder(folder: vscode.Uri): Promise<CodeTransform.Listing> {
-    const python = path.join(folder.fsPath, '.venv', 'bin', 'python')
+    const runtime = await sessionRuntime.get()
+    const { listing } = await runtime.request(Calls.Describe, { folder: folder.fsPath })
 
-    const stdout = await new Promise<string>((resolve, reject) => {
-        execFile(python, ['-m', 'quarry.transforms.preview', '--list'], { cwd: folder.fsPath, timeout: LIST_TIMEOUT_MS }, (error, out) => {
-            // A pipeline that doesn't import exits 1 with `{ error }` on stdout — an answer, not a failure.
-            if (error && !out)
-                reject(error)
-            else
-                resolve(out)
-        })
-    })
-
-    return CodeTransform.Listing.parse(JSON.parse(stdout))
+    return listing
 }
 
 /**
- * One transform, run here on samples of its inputs: `python -m
- * quarry.transforms.preview <name> --rows N`, reading the inputs from Quarry
- * as the user (the session's token). Its JSON is the answer even when it
- * exits 1 — the transform raised. Cancelling kills the process.
+ * One transform, run by the session's runtime on samples of its inputs, read
+ * from Quarry as the user (the session's token). Null if it was cancelled —
+ * cancelling stops it in the runtime.
  */
 export async function runPreview(
     folder:       vscode.Uri,
@@ -45,41 +30,22 @@ export async function runPreview(
     session:      { token: string; serverUrl: string },
     cancellation: vscode.CancellationToken,
 ): Promise<CodeWorkspace.Preview.Result | null> {
-    const python = path.join(folder.fsPath, '.venv', 'bin', 'python')
+    const runtime = await sessionRuntime.get()
+    const listener = cancellation.onCancellationRequested(() => void runtime.request(Calls.Cancel, {}))
 
-    const stdout = await new Promise<string | null>((resolve, reject) => {
-        const child = spawn(python, ['-m', 'quarry.transforms.preview', name, '--rows', String(PREVIEW_ROWS)], {
-            cwd: folder.fsPath,
-            env: { ...process.env, QUARRY_TOKEN: session.token, QUARRY_SERVER_URL: session.serverUrl },
+    try {
+        const { result } = await runtime.request(Calls.Preview, {
+            folder:    folder.fsPath,
+            transform: name,
+            rows:      PREVIEW_ROWS,
+            session,
         })
 
-        let out = ''
-        let err = ''
-        let cancelled = false
-
-        const timer = setTimeout(() => child.kill(), PREVIEW_TIMEOUT_MS)
-        const listener = cancellation.onCancellationRequested(() => {
-            cancelled = true
-            child.kill()
-        })
-
-        child.stdout.on('data', chunk => (out += chunk))
-        child.stderr.on('data', chunk => (err += chunk))
-        child.on('error', reject)
-        child.on('close', code => {
-            clearTimeout(timer)
-            listener.dispose()
-
-            if (cancelled)
-                resolve(null)
-            else if (out.trim())
-                resolve(out)
-            else
-                reject(new Error(err.trim() || `The preview printed no result (exit ${code})`))
-        })
-    })
-
-    return stdout === null ? null : CodeWorkspace.Preview.Result.parse(JSON.parse(stdout))
+        return result
+    }
+    finally {
+        listener.dispose()
+    }
 }
 
 /** `src/sales_cleaning/datasets/example.py` → `sales_cleaning.datasets.example` — the prefix of its transforms' names. */

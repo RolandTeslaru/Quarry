@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Callable, Literal, overload
+from typing import Any, Callable, Iterator, Literal, overload
 
 import duckdb
 import polars as pl
@@ -34,6 +34,9 @@ DUCKDB_TYPES: dict[str, str] = {
 }
 
 DECIMAL = re.compile(r"^decimal\((\d+),(\d+)\)$")
+
+# Rows per Arrow batch when an output is streamed.
+BATCH_ROWS = 64 * 1024
 
 
 class TransformInput:
@@ -135,15 +138,21 @@ class TransformInput:
 
 
 class TransformOutput:
-    """One output: `write_table` takes Polars, pandas, Arrow or a DuckDB relation."""
+    """
+    One output: `write_table` takes Polars, pandas, Arrow or a DuckDB relation, once.
+    A LazyFrame or a relation is computed as it's written, never held whole.
+    """
 
-    def __init__(self, *, rid: str | None, writer: Callable[[pa.Table], None]):
+    def __init__(self, *, rid: str | None, writer: Callable[[pa.RecordBatchReader], None]):
         self.rid = rid
         self.written = False
         self._writer = writer
 
     def write_table(self, data: Any) -> None:
-        self._writer(to_arrow(data))
+        if self.written:
+            raise RuntimeError(f"Output {self.rid} was already written: write_table takes the whole output, once")
+
+        self._writer(to_reader(data))
         self.written = True
 
 
@@ -172,6 +181,27 @@ class TransformContext:
             self._duckdb = DuckDbContext(self._inputs)
 
         return self._duckdb
+
+
+def to_reader(data: Any) -> pa.RecordBatchReader:
+    """Whatever a transform wrote, as Arrow batches: a LazyFrame or a DuckDB relation is computed as it's read."""
+    if isinstance(data, pl.LazyFrame):
+        schema = pl.DataFrame(schema=data.collect_schema()).to_arrow().schema
+
+        return pa.RecordBatchReader.from_batches(schema, polars_batches(data))
+
+    if isinstance(data, duckdb.DuckDBPyRelation):
+        return data.to_arrow_reader(BATCH_ROWS)
+
+    if isinstance(data, pa.RecordBatchReader):
+        return data
+
+    return to_arrow(data).to_reader(BATCH_ROWS)
+
+
+def polars_batches(frame: pl.LazyFrame) -> Iterator[pa.RecordBatch]:
+    for chunk in frame.collect_batches(chunk_size=BATCH_ROWS):
+        yield from chunk.to_arrow().to_batches()
 
 
 def to_arrow(data: Any) -> pa.Table:

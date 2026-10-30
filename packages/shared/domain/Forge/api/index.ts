@@ -78,6 +78,27 @@ export namespace API {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** A file of a job's output, as its runtime names it: plain, and Parquet. */
+    export const OutputFilename = z.string().regex(/^[A-Za-z0-9._-]+\.parquet$/, "a file name like part-0.parquet")
+
+    /** Where the running job's runtime uploads one file of an output: a URL that PUTs it, without credentials. */
+    export namespace CreateUploadPass {
+        export const Request = z.object({ filename: OutputFilename })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({ url: z.string() })
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** A file the runtime uploaded, registered on its output: its footer is read, and it joins the output's next version. */
+    export namespace RegisterOutputFile {
+        export const Request = z.object({
+            filename: OutputFilename,
+            bytes:    z.number().int().nonnegative(),
+        })
+        export type  Request = z.infer<typeof Request>
+    }
+
     export async function createBuild(api: AxiosInstance, req: z.input<typeof CreateBuild.Request>): Promise<CreateBuild.Response> {
         const { data } = await api.post("/api/builds", req)
         return CreateBuild.Response.parse(data)
@@ -111,6 +132,20 @@ export namespace API {
     export async function getInputPasses(api: AxiosInstance, rid: JobD.Rid): Promise<GetInputPasses.Response> {
         const { data } = await api.get(`/api/jobs/${rid}/input-passes`)
         return GetInputPasses.Response.parse(data)
+    }
+
+    export async function createUploadPass(
+        api:        AxiosInstance,
+        rid:        JobD.Rid,
+        datasetRid: DatasetD.Rid,
+        req:        CreateUploadPass.Request,
+    ): Promise<CreateUploadPass.Response> {
+        const { data } = await api.post(`/api/jobs/${rid}/outputs/${datasetRid}/upload-passes`, req)
+        return CreateUploadPass.Response.parse(data)
+    }
+
+    export async function registerOutputFile(api: AxiosInstance, rid: JobD.Rid, datasetRid: DatasetD.Rid, req: RegisterOutputFile.Request): Promise<void> {
+        await api.post(`/api/jobs/${rid}/outputs/${datasetRid}/files`, req)
     }
 
     /** ForgeAgents' own endpoints (`/api/forge-agent/…`). */

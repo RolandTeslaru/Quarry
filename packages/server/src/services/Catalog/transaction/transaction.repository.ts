@@ -102,6 +102,51 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
     }
 
     /**
+     * Adds one file to an open transaction whose files all share one schema — a job's output: the first file's
+     * schema is staged on the transaction (committed with it by `commitBatch`); a later file must have the same
+     * columns. The transaction's row lock serialises files registered at once.
+     */
+    @Transactional()
+    async registerFile(
+        principal:  Principal,
+        datasetRid: Dataset.Rid,
+        rid:        Catalog.Transaction.Rid,
+        file:       Catalog.Transaction.FileChange.Schema,
+        schema:     Catalog.ColumnSchema.Schema,
+    ): Promise<void> {
+        const transaction = await this._requireOpen(datasetRid, rid);
+
+        if (!transaction.schema) {
+            await this.trx
+                .updateTable('catalog.transaction')
+                .set({ schema: json(schema) })
+                .where('rid', '=', rid)
+                .execute();
+        }
+        else if (JSON.stringify(transaction.schema.columns) !== JSON.stringify(schema.columns)) {
+            throw new BadRequestException(`${file.logicalPath} doesn't have the same columns as the output's other files`);
+        }
+
+        await this.trx
+            .insertInto('catalog.transaction_change')
+            .values(CatalogDB.TransactionChange.fromDomain(rid, file))
+            .execute();
+    }
+
+    /** Commits these open transactions in this database transaction, each with the schema staged on it (`registerFile`). */
+    @Transactional()
+    async commitBatch(
+        principal:    Principal,
+        transactions: { rid: Catalog.Transaction.Rid; datasetRid: Dataset.Rid }[],
+    ): Promise<void> {
+        for (const transaction of transactions) {
+            const { schema } = await this._requireOpen(transaction.datasetRid, transaction.rid);
+
+            await this.commit(principal, transaction.datasetRid, transaction.rid, schema);
+        }
+    }
+
+    /**
      * Commits: next sequence on the branch (row lock serialises commits),
      * status committed, outbox event — all in one transaction.
      */

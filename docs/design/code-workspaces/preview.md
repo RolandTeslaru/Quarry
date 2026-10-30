@@ -2,7 +2,7 @@
 
 **Preview** runs one transform **as it is in the working copy** — saved, not necessarily committed — on **samples** of its inputs, and shows its outputs in the IDE's **Preview** panel (bottom panel, beside Problems and Terminal). It writes nothing anywhere.
 
-It all happens in the session: the **Quarry extension** (`code-workspace-extension`) runs the runner itself, in the container, as a child process. Neither the server's Code Workspace API nor the worker takes part; only the runner's reads of the inputs reach Quarry, as the user.
+It all happens in the session: the **Quarry extension** (`code-workspace-extension`) asks the **code-workspace runtime** — the same one Forge's jobs run, started by the extension in the session's container and kept while the IDE is open ([forge-runtimes.md](../forge-runtimes.md), phase 5) — and the runtime runs the runner as a child process. Neither the server's Code Workspace API nor the worker takes part; only the runner's reads of the inputs reach Quarry, as the user.
 
 ## End to end
 
@@ -11,18 +11,22 @@ sequenceDiagram
     autonumber
     participant E as Editor (title bar ▶ Preview)
     participant X as Quarry extension (PreviewView)
+    participant T as Runtime (in the session, over stdio)
     participant R as Runner (python -m quarry.transforms.preview)
     participant L as Library / Catalog
     participant O as Object storage
     participant P as Preview panel (webview, React)
 
     E->>X: quarry.preview (the file)
-    X->>R: --list (the pipeline as saved)
-    R-->>X: the transforms
+    X->>T: describe { folder }
+    T->>R: --list (the pipeline as saved)
+    R-->>T: the transforms
+    T-->>X: the transforms
     Note over X: this file's only one → straight on,<br/>else a Quick Pick (this file's first)
     X->>X: save all editors · resolve references' names (cached lookups)
     X->>P: running { transform, labels }
-    X->>R: {transform} --rows 1000<br/>env: QUARRY_TOKEN, QUARRY_SERVER_URL (~/.quarry/session.json)
+    X->>T: preview { folder, transform, rows, session } (~/.quarry/session.json)
+    T->>R: {transform} --rows 1000<br/>env: QUARRY_TOKEN, QUARRY_SERVER_URL
     R->>R: import src/{package}/pipeline.py — discover transforms
     loop each Input
         R->>L: GET /api/resources/by-path?path=… (or the RID as is)
@@ -34,13 +38,13 @@ sequenceDiagram
         R->>L: by-path → the RID, or none yet
     end
     R->>R: run the function (stdout and ctx.log captured)
-    R-->>X: one JSON object on stdout (exit 0, or 1 with { error })
-    X->>X: CodeWorkspace.Preview.Result.parse
+    R-->>T: one JSON object on stdout (exit 0, or 1 with { error })
+    T-->>X: response { result } (CodeWorkspace.Preview.Result)
     X->>P: result { transform, labels, result }
     P->>P: inputs and outputs on the left, the chosen output's rows (TableViewer), logs, or the traceback on the right
 ```
 
-`features/DatasetTransformPreview/preview-view.ts` runs it (`DatasetTransformPreview/pipeline.ts` `runPreview`); `webviews/preview/main.tsx` is the panel; `domain/PreviewMessage.ts` is what they say to each other. **Stop** kills the process; a new Preview replaces a running one. **Build** (beside Preview) picks a transform the same way (`features/transform-picker.ts`) — builds themselves aren't wired up yet.
+`features/DatasetTransformPreview/preview-view.ts` runs it (`DatasetTransformPreview/pipeline.ts` `runPreview`, through `session-runtime.ts`); `webviews/preview/main.tsx` is the panel; `domain/PreviewMessage.ts` is what they say to each other. The runtime's side is `code-workspace-runtime/src/preview.controller.ts` (calls `CodeWorkspace.Runtime.Describe` / `Preview` / `Cancel`). **Stop** sends `cancel`, and the runtime kills the runner; a new Preview replaces a running one. **Build** (beside Preview) picks a transform the same way (`features/transform-picker.ts`) — builds themselves aren't wired up yet.
 
 ## The runner
 

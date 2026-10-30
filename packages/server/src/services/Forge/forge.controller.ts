@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
-import { Forge } from '@quarry/shared/domain';
+import { Dataset, Forge } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@/auth/current-principal';
 import { Principal } from '@/auth/principal';
 import { ZodPipe } from '@/http/zod.pipe';
@@ -8,6 +8,7 @@ import { ForgeService } from './forge.service';
 import API = Forge.API;
 const BuildRidParam = new ZodPipe(Forge.Build.Rid);
 const JobRidParam = new ZodPipe(Forge.Job.Rid);
+const DatasetRidParam = new ZodPipe(Dataset.Rid);
 
 /** Mirrors Forge.API in @quarry/shared. */
 @Controller()
@@ -62,6 +63,27 @@ export class ForgeController {
         @Param('rid', JobRidParam) rid: Forge.Job.Rid,
     ): Promise<API.GetInputPasses.Response> {
         return this.forge.getInputPasses(principal, rid);
+    }
+
+    @Post('jobs/:rid/outputs/:datasetRid/upload-passes')
+    public async createUploadPass(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', JobRidParam) rid: Forge.Job.Rid,
+        @Param('datasetRid', DatasetRidParam) datasetRid: Dataset.Rid,
+        @Body(new ZodPipe(API.CreateUploadPass.Request)) body: API.CreateUploadPass.Request,
+    ): Promise<API.CreateUploadPass.Response> {
+        return this.forge.createUploadPass(principal, rid, datasetRid, body);
+    }
+
+    @Post('jobs/:rid/outputs/:datasetRid/files')
+    @HttpCode(204)
+    public async registerOutputFile(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', JobRidParam) rid: Forge.Job.Rid,
+        @Param('datasetRid', DatasetRidParam) datasetRid: Dataset.Rid,
+        @Body(new ZodPipe(API.RegisterOutputFile.Request)) body: API.RegisterOutputFile.Request,
+    ): Promise<void> {
+        await this.forge.registerOutputFile(principal, rid, datasetRid, body);
     }
 
     @Get('recipes/current')

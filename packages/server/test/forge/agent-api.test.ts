@@ -1,5 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { Dataset } from '@quarry/shared/domain';
 import type { Principal } from '@/auth/principal';
 import { TokenVerifier } from '@/auth/token-verifier';
 import { ForgeHarness } from '../support/forge-fixtures';
@@ -98,13 +99,24 @@ describe('the ForgeAgent API', () => {
         expect(await harness.agent.heartbeatJob(job.rid, 1)).toEqual({ action: 'continue' });
     });
 
-    it('releases the outputs on finish — no compute yet, so they are aborted, not committed', async () => {
+    it("commits a succeeded job's outputs: each becomes the dataset's next version, once", async () => {
+        const job = await scheduledJob();
+        const [datasetRid] = Object.keys(job.outputs) as Dataset.Rid[];
+
+        expect(await harness.transactionStatus(job.outputs[datasetRid])).toBe('open');
+
+        await harness.run(job);
+        await harness.agent.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null });    // the agent's retry
+
+        expect(await harness.transactionStatus(job.outputs[datasetRid])).toBe('committed');
+        expect((await harness.catalog.get(user, datasetRid)).lastSequence).toBe(1);
+    });
+
+    it("aborts a failed job's outputs", async () => {
         const job = await scheduledJob();
         const [transactionRid] = Object.values(job.outputs);
 
-        expect(await harness.transactionStatus(transactionRid)).toBe('open');
-
-        await harness.run(job);
+        await harness.run(job, 'failed');
 
         expect(await harness.transactionStatus(transactionRid)).toBe('aborted');
     });

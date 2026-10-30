@@ -19,10 +19,12 @@ const BUILD_DONE_MS = 60_000;
 
 /**
  * The transform behind the harness's recipe `A` — `pkg.A.A` — its parameters named after the datasets it
- * reads and writes, as the harness's recipes map them. Writes nothing yet.
+ * reads and writes, as the harness's recipes map them. Unless told otherwise, it writes one row to each output
+ * without reading its inputs (the harness's versions have no real files).
  */
-function transformFile(name: string, inputs: string[], outputs: string[], body = 'pass'): string {
+function transformFile(name: string, inputs: string[], outputs: string[], lines?: string[]): string {
     const parameters = [...inputs, ...outputs];
+    const body = lines ?? outputs.map((output) => `${output}.write_table(pl.DataFrame({"n": [1]}))`);
     const declared = [
         ...inputs.map((input) => `${input}=Input("/Test/${input}")`),
         ...outputs.map((output) => `${output}=Output("/Test/${output}")`),
@@ -34,13 +36,13 @@ from quarry.transforms import Input, Output, transform
 
 @transform.using(${declared.join(', ')})
 def ${name}(${parameters.join(', ')}):
-    ${body}
+    ${body.join('\n    ')}
 `;
 }
 
 /**
  * A workspace whose commit defines the transforms the tests build: a diamond (A → B, C → D), F beside A,
- * and R, which reads its input. No dependencies, so its lock is this short.
+ * R, which reads its input, and a chain W → X that reads real data. No dependencies, so its lock is this short.
  */
 const WORKSPACE_FILES = {
     'pyproject.toml': `[project]
@@ -70,16 +72,28 @@ from pkg.C import C
 from pkg.D import D
 from pkg.F import F
 from pkg.R import R
+from pkg.W import W
+from pkg.X import X
 
 pipeline = Pipeline()
-pipeline.add_transforms(A, B, C, D, F, R)
+pipeline.add_transforms(A, B, C, D, F, R, W, X)
 `,
     'src/pkg/A.py': transformFile('A', ['raw'], ['a']),
     'src/pkg/B.py': transformFile('B', ['a'], ['b']),
     'src/pkg/C.py': transformFile('C', ['a'], ['c']),
     'src/pkg/D.py': transformFile('D', ['b', 'c'], ['d']),
     'src/pkg/F.py': transformFile('F', ['raw'], ['f']),
-    'src/pkg/R.py': transformFile('R', ['raw'], ['r'], 'print(f"rows {raw.polars(lazy=True).select(pl.len()).collect().item()}")'),
+    'src/pkg/R.py': transformFile('R', ['raw'], ['r'], [
+        'print(f"rows {raw.polars(lazy=True).select(pl.len()).collect().item()}")',
+        'r.write_table(pl.DataFrame({"n": [1]}))',
+    ]),
+    'src/pkg/W.py': transformFile('W', ['raw'], ['w'], [
+        'w.write_table(raw.polars(lazy=True).filter(pl.col("amount") > 10))',
+    ]),
+    'src/pkg/X.py': transformFile('X', ['w'], ['x'], [
+        'print(f"x read {w.polars().height} rows written by W")',
+        'x.write_table(w.polars(lazy=True))',
+    ]),
 };
 
 /**
@@ -167,6 +181,32 @@ describe('a real ForgeAgent', () => {
 
         expect(done.build.status).toBe('succeeded');
         expect(agentLog).toContain('rows 3');
+    });
+
+    it("writes its outputs as new versions, which the next job in the build reads", async () => {
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'w', 'x'], []);
+
+        await harness.catalog.storage.upload(user, datasets.raw, 'snapshot', {
+            filename: 'orders.csv',
+            stream:   Readable.from(['id,amount\n1,10\n2,20\n3,30\n']),
+        });
+        await harness.publish(user, projectRid, datasets, [
+            { name: 'W', inputs: ['raw'], outputs: ['w'] },
+            { name: 'X', inputs: ['w'],   outputs: ['x'] },
+        ], MAIN, code);
+
+        const { build } = await harness.build(user, [datasets.w, datasets.x]);
+        const done = await finished(build.rid);
+
+        expect(done.build.status).toBe('succeeded');
+        expect(agentLog).toContain('x read 2 rows written by W');            // W kept amount > 10: 2 of 3
+
+        const w = await harness.catalog.view(user, datasets.w);
+        const x = await harness.catalog.view(user, datasets.x);
+
+        expect(w).toMatchObject({ sequence: 1, rowCount: 2 });
+        expect(x).toMatchObject({ sequence: 1, rowCount: 2 });
+        expect(w.schema?.columns.map((column) => column.name)).toEqual(['id', 'amount']);
     });
 
     it("fails the job when the commit doesn't have its transform", async () => {

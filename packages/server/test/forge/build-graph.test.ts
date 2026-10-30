@@ -131,7 +131,7 @@ describe('a build of several dependent datasets', () => {
         expect(await harness.statuses(user, build.rid, recipes)).toEqual({ A: 'succeeded', B: 'scheduled', C: 'scheduled' });
     });
 
-    it('cancels the rest when a job fails, and aborts their outputs', async () => {
+    it("cancels the rest when a job fails, and aborts their outputs — the one that succeeded keeps its version", async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b', 'c', 'd'], ['raw']);
         const recipes = await harness.publish(user, projectRid, datasets, [
             { name: 'A', inputs: ['raw'],    outputs: ['a'] },
@@ -154,7 +154,9 @@ describe('a build of several dependent datasets', () => {
         expect(await harness.statuses(user, build.rid, recipes)).toEqual({ A: 'succeeded', B: 'failed', C: 'canceled', D: 'canceled' });
         expect(after.jobs.B.failure).toEqual({ message: 'test failure' });
 
-        for (const job of Object.values(after.jobs))
+        expect(await harness.transactionStatus(after.jobs.A.outputs[datasets.a])).toBe('committed');
+
+        for (const job of [after.jobs.B, after.jobs.C, after.jobs.D])
             for (const transactionRid of Object.values(job.outputs))
                 expect(await harness.transactionStatus(transactionRid)).toBe('aborted');
     });

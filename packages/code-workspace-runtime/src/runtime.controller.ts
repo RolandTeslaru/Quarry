@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
+import type { Readable } from 'node:stream';
 import { Controller } from '@nestjs/common';
 import { MessagePattern, Payload } from '@nestjs/microservices';
 import axios from 'axios';
@@ -9,6 +10,7 @@ import { Catalog, Forge, Stdio } from '@quarry/shared/domain';
 import { requireEnv } from '@quarry/shared/server/env';
 import { sendEvent } from '@quarry/shared/server/stdio/stdio-server';
 import { System } from '@quarry/shared/server/system';
+import { type OutputFolder, OutputUploads } from './output-uploads';
 
 /** The image's `transform` user (docker/code-workspace-runtime/Dockerfile): the workspace's code runs as it. */
 const TRANSFORM_USER = {
@@ -25,6 +27,9 @@ const VENV = `${TRANSFORM_USER.home}/venv`;
 
 /** What Python is told to run: the transform, its inputs by parameter as read passes. Readable by `transform`. */
 const JOB_FILE = '/work/job.json';
+
+/** Where Python writes each output's files, one folder per output parameter. */
+const OUTPUTS = `${TRANSFORM_USER.home}/out`;
 
 /** The cache volume the ForgeAgent mounts for this runtime type, owned by `transform` (the image's `/cache`). */
 const CACHE = '/cache';
@@ -61,7 +66,7 @@ interface JobFile {
     readonly jobRid:    string;
     readonly transform: string;
     readonly inputs:    Record<string, JobFileInput>;
-    readonly outputs:   Record<string, { readonly rid: string }>;
+    readonly outputs:   Record<string, { readonly rid: string; readonly directory: string }>;
 }
 
 interface Step {
@@ -72,6 +77,8 @@ interface Step {
     readonly cwd?:    string;
     /** Unset: the runtime itself (root). */
     readonly user?:   { readonly uid: number; readonly gid: number };
+    /** Each line the child writes on file descriptor 3 (`QUARRY_EVENTS_FD`), if it has one. */
+    readonly onEvent?: (line: string) => void;
 }
 
 /** Runs a step as a child process, every line it prints relayed as a `log` event. Its exit code. */
@@ -80,16 +87,24 @@ function runStep(step: Step): Promise<number | null> {
         ...step.user,
         cwd:   step.cwd,
         env:   step.env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
     });
 
-    readline.createInterface({ input: child.stdout }).on('line', (line) => sendEvent({
+    // All piped, so none is null: stdout, stderr, and the events pipe on file descriptor 3.
+    const stdout = child.stdio[1] as Readable;
+    const stderr = child.stdio[2] as Readable;
+    const events = child.stdio[3] as Readable;
+
+    if (step.onEvent)
+        readline.createInterface({ input: events }).on('line', step.onEvent);
+
+    readline.createInterface({ input: stdout }).on('line', (line) => sendEvent({
         event:  'log',
         stream: 'stdout',
         line,
     }));
 
-    readline.createInterface({ input: child.stderr }).on('line', (line) => sendEvent({
+    readline.createInterface({ input: stderr }).on('line', (line) => sendEvent({
         event:  'log',
         stream: 'stderr',
         line,
@@ -191,25 +206,50 @@ export class RuntimeController {
             };
         }
 
-        for (const [parameter, datasetRid] of Object.entries(recipe.runtime.outputs))
-            jobFile.outputs[parameter] = { rid: datasetRid };
+        const folders: Record<string, OutputFolder> = {};
+
+        for (const [parameter, datasetRid] of Object.entries(recipe.runtime.outputs)) {
+            const directory = path.join(OUTPUTS, parameter);
+
+            folders[parameter] = {
+                datasetRid,
+                directory,
+            };
+            jobFile.outputs[parameter] = {
+                rid: datasetRid,
+                directory,
+            };
+        }
 
         await fs.writeFile(JOB_FILE, JSON.stringify(jobFile));
 
+        const uploads = new OutputUploads(api, job.rid, folders);
         const run: Step = {
             name:    'Run the transform',
             command: path.join(VENV, 'bin/python'),
             args:    ['-m', 'quarry.transforms.run', JOB_FILE],
-            env:     TRANSFORM_ENV,
+            env:     {
+                ...TRANSFORM_ENV,
+                QUARRY_EVENTS_FD: '3',
+            },
             cwd:     CHECKOUT,
             user:    transformUser,
+            onEvent: (line) => uploads.announce(line),
         };
         const code = await runStep(run);
+        const uploadFailure = await uploads.finish();
 
         if (code !== 0) {
             return {
                 status:  'failed',
                 failure: { message: `${run.name} failed with exit code ${code}` },
+            };
+        }
+
+        if (uploadFailure) {
+            return {
+                status:  'failed',
+                failure: { message: uploadFailure },
             };
         }
 

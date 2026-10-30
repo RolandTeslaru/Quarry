@@ -3,7 +3,7 @@
 # quarry.transforms and its engines installed system-wide. A workspace's own
 # .venv sees them (--system-site-packages), so its lock lists only what it adds.
 #
-#   npm run build:code-workspace-ide     (packages the Quarry extension first, then builds this)
+#   npm run build:code-workspace-ide     (bundles the runtime and packages the Quarry extension first, then builds this)
 #
 # Versions are pinned to releases at least two weeks old.
 
@@ -41,6 +41,10 @@ RUN useradd --create-home --uid 1000 quarry \
     && chown quarry:quarry /workspace
 
 COPY docker/code-workspace-ide/bin/ /usr/local/bin/
+
+# The code-workspace runtime (packages/code-workspace-runtime, bundled before this build): the Quarry extension
+# runs it with the extension host's own Node, for previews and the transform list.
+COPY packages/code-workspace-runtime/dist/runtime.js /opt/quarry/runtime/runtime.js
 
 # Default settings, at every scope: the browser keeps user settings itself (IndexedDB), so a server-side
 # settings file can't set application ones — product.json's configurationDefaults can.

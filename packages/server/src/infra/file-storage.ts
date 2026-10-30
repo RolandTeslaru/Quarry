@@ -1,13 +1,13 @@
 import { Transform, type Readable } from 'node:stream';
 import { Injectable, PayloadTooLargeException } from '@nestjs/common';
-import { DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Storage } from '@quarry/shared/domain';
 import { requireEnv } from '@/db/table';
 
-/** How long a read pass works: as long as the job token it's handed out with. */
-const READ_PASS_TTL_SECONDS = 12 * 60 * 60;
+/** How long a pass works: as long as the job token it's handed out with. */
+const PASS_TTL_SECONDS = 12 * 60 * 60;
 
 /** What a bucket listing knows about an object — its key and size, not its format's metadata. */
 export interface StoredObject {
@@ -80,21 +80,22 @@ export class FileStorage {
      * reach it (STORAGE_ENDPOINT, the agent's machine by default): the host is part of the signature.
      */
     async presignGet(key: Storage.File.Key): Promise<string> {
-        const { region, accessKey, secretKey } = this.settings;
-
-        this.jobClient ??= new S3Client({
-            endpoint:       process.env.STORAGE_ENDPOINT ?? 'http://host.docker.internal:9000',
-            region,
-            credentials:    { accessKeyId: accessKey, secretAccessKey: secretKey },
-            forcePathStyle: true,
-        });
-
         const command = new GetObjectCommand({
             Bucket: this.bucket,
             Key:    key,
         });
 
-        return getSignedUrl(this.jobClient, command, { expiresIn: READ_PASS_TTL_SECONDS });
+        return getSignedUrl(this.forJobs(), command, { expiresIn: PASS_TTL_SECONDS });
+    }
+
+    /** A URL that writes `key` with one PUT (up to 5 GB) without credentials until it expires — signed like `presignGet`. */
+    async presignPut(key: Storage.File.Key): Promise<string> {
+        const command = new PutObjectCommand({
+            Bucket: this.bucket,
+            Key:    key,
+        });
+
+        return getSignedUrl(this.forJobs(), command, { expiresIn: PASS_TTL_SECONDS });
     }
 
     async list(prefix: string): Promise<StoredObject[]> {
@@ -132,6 +133,18 @@ export class FileStorage {
         await this.delete(keys);
 
         return keys.length;
+    }
+
+    /** The client that signs for job containers: STORAGE_ENDPOINT, the host they reach storage by. */
+    private forJobs(): S3Client {
+        const { region, accessKey, secretKey } = this.settings;
+
+        return (this.jobClient ??= new S3Client({
+            endpoint:       process.env.STORAGE_ENDPOINT ?? 'http://host.docker.internal:9000',
+            region,
+            credentials:    { accessKeyId: accessKey, secretAccessKey: secretKey },
+            forcePathStyle: true,
+        }));
     }
 
     private s3(): S3Client {

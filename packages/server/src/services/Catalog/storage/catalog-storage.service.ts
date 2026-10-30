@@ -246,6 +246,43 @@ export class CatalogStorage {
         };
     }
 
+    /** Where a job writes one file of an output: a URL that PUTs it into the output's open transaction. */
+    @SecurityGate('write')
+    async getUploadPass(
+        principal:      Principal,
+        datasetRid:     Dataset.Rid,
+        transactionRid: Catalog.Transaction.Rid,
+        filename:       string,
+    ): Promise<string> {
+        return this.storage.presignPut(Dataset.getStorageKey(datasetRid, transactionRid, filename));
+    }
+
+    /**
+     * A file a job uploaded, registered on its output's open transaction: its footer gives its columns and rows
+     * (and proves it's Parquet). Every file of the output must have the same columns.
+     */
+    async registerFile(
+        principal:      Principal,
+        datasetRid:     Dataset.Rid,
+        transactionRid: Catalog.Transaction.Rid,
+        filename:       string,
+        bytes:          number,
+    ): Promise<void> {
+        const key = Dataset.getStorageKey(datasetRid, transactionRid, filename);
+        const inferred = await this.infer('parquet', key);
+
+        const file: Catalog.Transaction.FileChange.Schema = {
+            op:          'add',
+            logicalPath: filename,
+            format:      'parquet',
+            key,
+            bytes,
+            rowCount:    inferred.rowCount,
+        };
+
+        await this.transactionRepository.registerFile(principal, datasetRid, transactionRid, file, inferred.schema);
+    }
+
     /** The first `limit` rows of the latest view. RLS alone would answer a discoverer with an empty view. */
     @Audit('read', (limit: number) => ({ op: 'preview', limit }))
     @SecurityGate('read')

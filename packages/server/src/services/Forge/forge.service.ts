@@ -169,6 +169,46 @@ export class ForgeService {
         return { inputs };
     }
 
+    /** A URL to PUT one file of a running job's output into the output's open transaction. Catalog checks write on it. */
+    public async createUploadPass(
+        principal:  Principal,
+        rid:        Forge.Job.Rid,
+        datasetRid: Dataset.Rid,
+        request:    Forge.API.CreateUploadPass.Request,
+    ): Promise<Forge.API.CreateUploadPass.Response> {
+        const job = await this.getJob(principal, rid);
+
+        if (job.status !== 'running')
+            throw new ConflictException(`Job ${rid} isn't running`);
+
+        const transactionRid = job.outputs[datasetRid];
+
+        if (!transactionRid)
+            throw new NotFoundException(`${datasetRid} isn't an output of job ${rid}`);
+
+        return { url: await this.catalog.storage.getUploadPass(principal, datasetRid, transactionRid, request.filename) };
+    }
+
+    /** A file the running job's runtime uploaded, registered on its output: it's committed with the job, if it succeeds. */
+    public async registerOutputFile(
+        principal:  Principal,
+        rid:        Forge.Job.Rid,
+        datasetRid: Dataset.Rid,
+        request:    Forge.API.RegisterOutputFile.Request,
+    ): Promise<void> {
+        const job = await this.getJob(principal, rid);
+
+        if (job.status !== 'running')
+            throw new ConflictException(`Job ${rid} isn't running`);
+
+        const transactionRid = job.outputs[datasetRid];
+
+        if (!transactionRid)
+            throw new NotFoundException(`${datasetRid} isn't an output of job ${rid}`);
+
+        await this.catalog.storage.registerFile(principal, datasetRid, transactionRid, request.filename, request.bytes);
+    }
+
     // ── creating a build, phase by phase ────────────────────────────────
 
     /**
