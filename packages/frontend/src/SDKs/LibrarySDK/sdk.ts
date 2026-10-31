@@ -35,12 +35,12 @@ export class LibrarySDKImpl extends BaseSDK<LibrarySDK.State> {
 
         children: (rid: Library.Resource.Rid) => ({
             queryKey: ['library', 'children', rid] as const,
-            queryFn: () => this.actions.resource.children(rid),
+            queryFn: () => this.actions.resource.getChildren(rid),
         }),
 
         path: (rid: Library.Resource.Rid) => ({
             queryKey: ['library', 'path', rid] as const,
-            queryFn: () => this.actions.resource.path(rid),
+            queryFn: () => this.actions.resource.getPath(rid),
         }),
     }
 

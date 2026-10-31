@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import type { CodeWorkspace } from '@quarry/shared/domain'
@@ -21,6 +22,15 @@ export function IDESessionFrame({ rid, restarting = false }: Props) {
         () => null,
         query => [query.session(rid)],
     )
+    const frame = useRef<HTMLIFrameElement>(null)
+
+    // The workbench inside asks this page for things (a dataset from the Library); each new editor is connected anew.
+    useEffect(() => {
+        if (!frame.current)
+            return
+
+        return CodeWorkspaceSDK.actions.workbench.connect(frame.current)
+    }, [sessionRequest.dataUpdatedAt, restarting])
 
     if (sessionRequest.isPending)
         return <SessionStarting label='Starting your session — the first time takes a minute.' />
@@ -39,6 +49,7 @@ export function IDESessionFrame({ rid, restarting = false }: Props) {
 
     return (
         <iframe
+            ref={frame}
             // A reconnect may have restarted the session: reload the editor with it.
             key={sessionRequest.dataUpdatedAt}
             src={sessionRequest.data.url}

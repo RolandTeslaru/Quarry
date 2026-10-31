@@ -8,6 +8,8 @@ A **Code Workspace** is a Git repository of Python transforms plus its environme
 |---|---|
 | [creating.md](creating.md) | `POST /api/code-workspaces` → the template rendered, locked, committed, the row inserted |
 | [sessions.md](sessions.md) | A session's life: container, setup, credentials, idle stop, restore after a restart |
+| [client-and-server.md](client-and-server.md) | What runs in the browser and what in the container, what each exposes, every channel between them (and the missing ones) |
+| [workbench-bridge.md](workbench-bridge.md) | The IDE asking Quarry's page (pick a dataset in the Library selector) and getting the answer as a command's result |
 | [ide-proxy.md](ide-proxy.md) | How the browser reaches VS Code: the secret path, the HTTP and WebSocket proxy |
 | [authorization.md](authorization.md) | Every entry point and what Gatekeeper / RLS check there; tokens and their reach |
 | [preview.md](preview.md) | Running a transform: the button → the worker's API → `docker exec` → samples → the panel |

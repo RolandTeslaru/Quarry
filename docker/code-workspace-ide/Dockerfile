@@ -52,6 +52,11 @@ COPY docker/code-workspace-ide/configuration-defaults.json /tmp/configuration-de
 RUN python3 -c "import json; p='/opt/openvscode-server/product.json'; product=json.load(open(p)); product['configurationDefaults']=json.load(open('/tmp/configuration-defaults.json')); json.dump(product, open(p, 'w'), indent=2)" \
     && rm /tmp/configuration-defaults.json
 
+# Commands the workbench answers by asking the Quarry page around it (docs/design/code-workspaces/workbench-bridge.md).
+COPY docker/code-workspace-ide/workbench/ /tmp/workbench/
+RUN python3 /tmp/workbench/patch-workbench.py /tmp/workbench/quarry-bridge.js \
+    && rm -r /tmp/workbench
+
 USER quarry
 WORKDIR /workspace
 

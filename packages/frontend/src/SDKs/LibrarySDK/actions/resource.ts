@@ -25,7 +25,7 @@ export class ResourceActions extends ActionGroup<LibrarySDKImpl> {
         return data
     }
 
-    public async children(rid: Library.Resource.Rid): Promise<Library.API.Resource.Children.Response> {
+    public async getChildren(rid: Library.Resource.Rid): Promise<Library.API.Resource.Children.Response> {
         const data = await Library.API.Resource.children(api, rid)
 
         this.sdk.setState(state => {
@@ -38,7 +38,7 @@ export class ResourceActions extends ActionGroup<LibrarySDKImpl> {
         return data
     }
 
-    public async path(rid: Library.Resource.Rid): Promise<Library.API.Resource.Path.Response> {
+    public async getPath(rid: Library.Resource.Rid): Promise<Library.API.Resource.Path.Response> {
         const data = await Library.API.Resource.path(api, rid)
 
         this.sdk.setState(state => {

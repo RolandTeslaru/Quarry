@@ -5,6 +5,7 @@ import { ComponentsView } from './features/components-view'
 import { ReferenceDiagnostics } from './features/diagnostics'
 import { ReferenceHover } from './features/hover'
 import { ReferenceLenses } from './features/lenses'
+import { ReferenceLinks } from './features/links'
 import { PreviewView } from './features/DatasetTransformPreview/preview-view'
 import { adoptQuarryTheme } from './features/theme'
 import { Quarry } from './quarry'
@@ -24,6 +25,7 @@ export function activate(context: vscode.ExtensionContext): void {
         quarry,
         vscode.languages.registerCodeLensProvider(PYTHON, new ReferenceLenses(quarry)),
         vscode.languages.registerHoverProvider(PYTHON, new ReferenceHover(quarry)),
+        vscode.languages.registerDocumentLinkProvider(PYTHON, new ReferenceLinks()),
         new ReferenceDiagnostics(quarry),
         ...registerCommands(quarry),
         vscode.window.registerWebviewViewProvider(PreviewView.ID, previewView, { webviewOptions: { retainContextWhenHidden: true } }),

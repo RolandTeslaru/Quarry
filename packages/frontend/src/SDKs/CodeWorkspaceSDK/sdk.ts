@@ -38,6 +38,12 @@ export class CodeWorkspaceSDKImpl extends BaseSDK<CodeWorkspaceSDK.State> {
     public readonly runtime = {
         /** Ends following the open workspace's check runs. */
         stopFollowing: null as (() => void) | null,
+        /** The IDE's iframe the page is connected to (`actions.workbench.connect`), and the commands it's executing for the page. */
+        workbench: null as {
+            frame:     HTMLIFrameElement
+            origin:    string
+            executing: Record<string, (executed: CodeWorkspace.Workbench.Executed) => void>
+        } | null,
     }
 
     public readonly useStore: BaseSDK.Store<CodeWorkspaceSDK.State> = createWithEqualityFn(

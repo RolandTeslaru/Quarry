@@ -5,6 +5,7 @@ import { cn } from '@quarry/standard-ui/utils/cn'
 import { LibrarySDK } from '../../../sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { matchesQuery, useLibraryExplorer } from '../root'
+import { LibraryContextMenu } from '../context-menus'
 import { ItemCard } from './items'
 
 // Sections in this order; anything else the server lists comes after.
@@ -119,26 +120,28 @@ function Items({ resources, pending, error, onRetry, emptyText, className }: Ite
         return <p className={cn('text-sm text-muted-foreground', className)}>Nothing matches “{searchQuery}”.</p>
 
     return (
-        <div className={cn('flex flex-col gap-5', className)}>
-            {groupByType(matching).map(([type, group]) => (
-                <section key={type} className='flex flex-col gap-2'>
-                    <h3 className='text-xs font-medium text-muted-foreground'>
-                        {group.length} {TYPE_LABELS[type]}{group.length === 1 ? '' : 's'}
-                    </h3>
+        <LibraryContextMenu>
+            <div className={cn('flex flex-col gap-5', className)}>
+                {groupByType(matching).map(([type, group]) => (
+                    <section key={type} className='flex flex-col gap-2'>
+                        <h3 className='text-xs font-medium text-muted-foreground'>
+                            {group.length} {TYPE_LABELS[type]}{group.length === 1 ? '' : 's'}
+                        </h3>
 
-                    <div className={GRID}>
-                        {group.map(resource => (
-                            <ItemCard
-                                key={resource.rid}
-                                resource={resource}
-                                disabled={isItemDisabled?.(resource) ?? false}
-                                onOpen={() => open(resource)}
-                            />
-                        ))}
-                    </div>
-                </section>
-            ))}
-        </div>
+                        <div className={GRID}>
+                            {group.map(resource => (
+                                <ItemCard
+                                    key={resource.rid}
+                                    resource={resource}
+                                    disabled={isItemDisabled?.(resource) ?? false}
+                                    onOpen={() => open(resource)}
+                                />
+                            ))}
+                        </div>
+                    </section>
+                ))}
+            </div>
+        </LibraryContextMenu>
     )
 }
 

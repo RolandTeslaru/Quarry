@@ -4,7 +4,7 @@ import { FolderIllustration } from '@quarry/standard-ui/icons'
 import type { Library } from '@quarry/shared/domain'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { cn } from '@quarry/standard-ui/utils/cn'
-import { matchesQuery, useLibraryExplorer } from '@/SDKs/LibrarySDK/ui/LibraryExplorer'
+import { LibraryContextMenu, matchesQuery, useLibraryExplorer } from '@/SDKs/LibrarySDK/ui/LibraryExplorer'
 import { ErrorNotice } from '@/components/ErrorNotice'
 
 const SKELETON_CARDS = [0, 1, 2, 3]
@@ -46,9 +46,11 @@ export function ProjectCards({ className }: Props) {
                 <p className='text-sm text-muted-foreground'>No projects match “{searchQuery}”.</p>
             )}
 
-            <div className={GRID}>
-                {matching.map(project => <ProjectCard key={project.rid} project={project} />)}
-            </div>
+            <LibraryContextMenu>
+                <div className={GRID}>
+                    {matching.map(project => <ProjectCard key={project.rid} project={project} />)}
+                </div>
+            </LibraryContextMenu>
         </div>
     )
 }

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound, Outlet, useMatchRoute } from '@tanstack/react-router'
+import { Button } from '@quarry/standard-ui/foundations/button'
 import { Menubar } from '@quarry/standard-ui/foundations/menubar'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import { Icon } from '@quarry/standard-ui/icons'
@@ -56,7 +57,8 @@ interface WorkspaceLayoutProps {
  * mounted on every tab and is only hidden away from Code, so the editor never
  * reloads (previews run in it — the Quarry extension's ▶ Preview). The other
  * tabs render into the outlet. The IDE menu reconnects the session, or restarts
- * it on a fresh container (after a runtime image rebuild).
+ * it on a fresh container (after a runtime image rebuild). Preview and Build, on
+ * the Code tab, are the IDE's own — they open its transform picker in the editor.
  */
 function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
     const tab = useWorkspaceTab(rid)
@@ -123,6 +125,25 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
                         ))}
                     </Tabs.List>
                 </Tabs.Root>
+
+                {tab === 'code' && (
+                    <App.Navbar.Actions>
+                        <Button
+                            icon='play'
+                            disabled={sessionBusy}
+                            onClick={() => void CodeWorkspaceSDK.actions.workbench.execute('quarry.preview')}
+                        >
+                            Preview
+                        </Button>
+                        <Button
+                            icon='build'
+                            disabled={sessionBusy}
+                            onClick={() => void CodeWorkspaceSDK.actions.workbench.execute('quarry.build')}
+                        >
+                            Build
+                        </Button>
+                    </App.Navbar.Actions>
+                )}
             </App.Navbar>
 
             <App.Content className='overflow-hidden'>

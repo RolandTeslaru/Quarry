@@ -6,6 +6,7 @@ import { Breadcrumbs, Header as ViewHeader, SearchInput as ViewSearchInput } fro
 import { CreateBtn } from './View/create-button'
 
 export { matchesQuery, useLibraryExplorer, type Cwd } from './root'
+export { LibraryContextMenu } from './context-menus'
 
 /**
  * The Library as composable parts (after PretzelGraph's LibraryBrowser): a Root

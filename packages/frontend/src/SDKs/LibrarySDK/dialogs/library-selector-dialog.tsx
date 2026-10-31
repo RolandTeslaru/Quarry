@@ -18,6 +18,8 @@ export namespace LibrarySelector {
         /** The folder it opens in; by default, the projects. */
         initialCwd?: Library.Resource.Rid
         onSelect:    (resource: Library.Resource.Base) => void
+        /** It closed, however: after a choice (after `onSelect`), or by Cancel, Escape or the overlay. */
+        onClose?:    () => void
     }
 }
 
@@ -52,6 +54,18 @@ export function openLibrarySelectorDialog(options: LibrarySelector.Options) {
             onSelect={options.onSelect}
         />
     ))
+
+    if (!options.onClose)
+        return
+
+    const onClose = options.onClose
+    const unsubscribe = DialogSDK.subscribe(state => {
+        if (state.dialogs.get(LIBRARY_SELECTOR_DIALOG_ID)?.isOpen)
+            return
+
+        unsubscribe()
+        onClose()
+    })
 }
 
 interface Props {

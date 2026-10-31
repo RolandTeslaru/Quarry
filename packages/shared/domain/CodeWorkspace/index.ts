@@ -2,6 +2,7 @@ import * as WorkspaceMod from "./Workspace"
 import * as TemplateMod  from "./Template"
 import * as PreviewMod   from "./Preview"
 import * as RuntimeMod   from "./Runtime"
+import * as WorkbenchMod from "./Workbench"
 import * as ModuleFunctionPathMod from "./ModuleFunctionPath"
 import * as GitMod      from "./Git"
 import * as EventMod    from "./Event"
@@ -21,6 +22,7 @@ export namespace CodeWorkspace {
     export import Template = TemplateMod.Template
     export import Preview  = PreviewMod.Preview
     export import Runtime  = RuntimeMod.Runtime
+    export import Workbench = WorkbenchMod.Workbench
     export import ModuleFunctionPath = ModuleFunctionPathMod.ModuleFunctionPath
     export import Git      = GitMod.Git
     export import CI       = CIMod.CI
