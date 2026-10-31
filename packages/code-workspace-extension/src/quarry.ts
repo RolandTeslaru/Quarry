@@ -57,6 +57,11 @@ export class Quarry implements vscode.Disposable {
         return this.session
     }
 
+    /** The API client, as the session's user — null until the setup has handed over its token. */
+    public getApi(): AxiosInstance | null {
+        return this.api
+    }
+
     /** Whether the session has handed over its token yet. */
     public isConnected(): boolean {
         return this.api !== null

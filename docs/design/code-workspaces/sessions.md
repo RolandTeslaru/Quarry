@@ -56,7 +56,7 @@ sequenceDiagram
     end
     W->>C: wait until VS Code answers on /s/{secret}/
     W->>D: docker exec quarry-session-setup (token, URLs, author — by env name)
-    Note over C: ~/.gitconfig: Authorization header for the git URL<br/>~/.quarry/session.json (600): token, serverUrl, appUrl<br/>first open: git clone, uv venv --system-site-packages<br/>every open: uv sync
+    Note over C: ~/.gitconfig: Authorization header for the git URL<br/>~/.quarry/session.json (600): token, workspaceRid, serverUrl, appUrl<br/>first open: git clone, uv venv --system-site-packages<br/>every open: uv sync
     W-->>S: { url: {ideProxy}/s/{secret}/?tkn={secret} }
     S-->>B: { url }
     B->>B: the iframe loads url — see ide-proxy.md

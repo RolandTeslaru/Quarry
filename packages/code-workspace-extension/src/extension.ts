@@ -1,5 +1,5 @@
 import * as vscode from 'vscode'
-import { pickTransformToBuild } from './features/build'
+import { buildTransform } from './features/build'
 import { registerCommands } from './features/commands'
 import { ComponentsView } from './features/components-view'
 import { ReferenceDiagnostics } from './features/diagnostics'
@@ -30,7 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
         ...registerCommands(quarry),
         vscode.window.registerWebviewViewProvider(PreviewView.ID, previewView, { webviewOptions: { retainContextWhenHidden: true } }),
         vscode.commands.registerCommand('quarry.preview', (uri?: vscode.Uri) => previewView.preview(uri)),
-        vscode.commands.registerCommand('quarry.build', (uri?: vscode.Uri) => pickTransformToBuild(uri)),
+        vscode.commands.registerCommand('quarry.build', (uri?: vscode.Uri) => buildTransform(quarry, uri)),
         vscode.window.registerWebviewViewProvider(ComponentsView.ID, new ComponentsView(context.extensionUri)),
     )
 

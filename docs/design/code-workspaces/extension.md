@@ -11,6 +11,8 @@
 | Hover card | `features/hover.ts` | name, type, location, description, updated, RID, "Open in Quarry" |
 | Warnings | `features/diagnostics.ts` | an input that doesn't resolve; a reference to something that isn't a dataset |
 | Open in Quarry | `features/commands.ts` | a new tab on `<appUrl>/library/<rid>` — Library redirects to the app that opens it |
+| Pick from the Library | `features/links.ts`, `features/commands.ts` | ⌘/Ctrl+click a reference's string: Quarry's Library selector opens on the page, the pick becomes the RID with its path as the comment ([workbench-bridge.md](workbench-bridge.md)) |
+| Build | `features/build.ts` | pick a transform, then build it **as of its last commit**: uncommitted changes → a warning first (they're left out; *Build last commit* or cancel); `git push` (unpushed commits run the checks); wait for that commit's check run — it must pass and publish; the transform's outputs → dataset RIDs (by path, or as written); `Forge.API.createBuild` (`manual`, the current branch); follow the build in a progress notification until it succeeds or fails (with the failed jobs' messages). Each job clones the repository at the published commit. Also Quarry's navbar Build, through the bridge |
 | Themes | `themes/`, `features/theme.ts` | **Quarry Light** / **Quarry Dark** (Modern, with Quarry's palette); Quarry Light made the user's theme once, if they haven't chosen one |
 
 ## How it reaches Quarry
@@ -23,7 +25,7 @@ sequenceDiagram
     participant E as Quarry extension
     participant S as Server
 
-    W->>C: quarry-session-setup (every open): token, serverUrl, appUrl
+    W->>C: quarry-session-setup (every open): token, workspaceRid, serverUrl, appUrl
     C->>F: write (tmp + rename)
     F-->>E: fs.watch → reload: new axios client, cache cleared, lenses refresh
     E->>S: Library.API.Resource.getByPath / path (Bearer: the session token)

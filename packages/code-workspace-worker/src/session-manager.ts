@@ -115,12 +115,13 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
 
         const setup = await this.dockerDriver.exec(session.container, ['quarry-session-setup'], {
             env: {
-                QUARRY_TOKEN:      credentials.token,
-                QUARRY_GIT_URL:    this.getGitUrl(workspaceRid),
-                QUARRY_SERVER_URL: config.sessions.serverUrl,
-                QUARRY_APP_URL:    config.appUrl,
-                QUARRY_USER_NAME:  credentials.user.name,
-                QUARRY_USER_EMAIL: credentials.user.email,
+                QUARRY_TOKEN:         credentials.token,
+                QUARRY_WORKSPACE_RID: workspaceRid,
+                QUARRY_GIT_URL:       this.getGitUrl(workspaceRid),
+                QUARRY_SERVER_URL:    config.sessions.serverUrl,
+                QUARRY_APP_URL:       config.appUrl,
+                QUARRY_USER_NAME:     credentials.user.name,
+                QUARRY_USER_EMAIL:    credentials.user.email,
             },
             timeoutMs: SETUP_TIMEOUT_MS,
         });

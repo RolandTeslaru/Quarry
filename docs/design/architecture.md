@@ -1,5 +1,7 @@
 # Quarry — Architecture & File Structure
 
+_For the system as built today — every process, schema, check and channel — see [architecture-today.md](architecture-today.md)._
+
 _Draft, 2026-10-13. Scope: layer 1 — Identity, Library, Gatekeeper, Keychain (credentials), Catalog (datasets), Data Connection (sources → syncs). Ontology, transforms and builds come later and aren't laid out here._
 
 Related: [database.md](database.md) (all DDL) · [jobs.md](jobs.md) (queues) · [gatekeeper.md](gatekeeper.md) (authorization) · [keychain.md](keychain.md) (credentials) · [catalog.md](catalog.md) (datasets) · [data-connection.md](data-connection.md) (sources, syncs) · [research notes](../research/palantir-foundry-ontology.md).
