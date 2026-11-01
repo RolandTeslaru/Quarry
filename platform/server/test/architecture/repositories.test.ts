@@ -13,10 +13,23 @@ const FACADES = [
     'applications/code-workspace/server/src/services/code-workspace/repository/code-workspace.repository.ts',
 ];
 
+/** Sub-repositories in their concept's folder, not beside a facade: only their service, the facade if it composes them, and the module that provides them may import these. */
+const CONCEPT_SUB_REPOSITORIES: Record<string, string[]> = {
+    'applications/forge/server/src/services/job/job.repository.ts': [
+        'applications/forge/server/src/services/job/job.service.ts',
+        'applications/forge/server/src/services/forge/repository/forge.repository.ts',
+        'applications/forge/server/src/services/forge/forge.module.ts',
+    ],
+    'applications/forge/server/src/services/recipe/recipe.repository.ts': [
+        'applications/forge/server/src/services/recipe/recipe.service.ts',
+        'applications/forge/server/src/services/forge/forge.module.ts',
+    ],
+};
+
 /**
- * A service split into sub-repositories (`repository/` folder) is reached only
- * through its facade: the sub-repositories hold the pieces of multi-table writes
- * (start, finish, end, …), which only the facade may combine in one transaction.
+ * A service split into sub-repositories is reached only through its facade: the
+ * sub-repositories hold the pieces of multi-table writes (start, finish, end, …),
+ * which only the facade may combine in one transaction.
  */
 describe('repositories', () => {
 
@@ -49,15 +62,23 @@ describe('repositories', () => {
 
 /** The facade and its siblings, and the service's module — which registers them as providers. */
 function mayImport(file: string, subRepository: string): boolean {
+    const importers = CONCEPT_SUB_REPOSITORIES[path.relative(ROOT, subRepository)];
+
+    if (importers)
+        return importers.includes(path.relative(ROOT, file));
+
     const folder = path.dirname(subRepository);
 
     return path.dirname(file) === folder
         || (path.dirname(file) === path.dirname(folder) && file.endsWith('.module.ts'));
 }
 
-/** In a `repository/` folder, and not its facade. */
+/** In a `repository/` folder and not its facade, or kept in its concept's folder. */
 function isSubRepository(file: string): boolean {
     const relative = path.relative(ROOT, file);
+
+    if (relative in CONCEPT_SUB_REPOSITORIES)
+        return true;
 
     return path.basename(path.dirname(file)) === 'repository'
         && file.endsWith('.repository.ts')
@@ -74,7 +95,7 @@ function resolveImport(from: string, specifier: string): string | null {
     if (specifier.startsWith('@/'))
         return `${path.join(SOURCES.find((source) => from.startsWith(source))!, specifier.slice(2))}.ts`;
 
-    const service = /^@quarry\/(catalog|data-connection|forge)-server\/(.*)$/.exec(specifier);
+    const service = /^@quarry\/(catalog|data-connection|forge|code-workspace)-server\/(.*)$/.exec(specifier);
 
     if (service)
         return `${path.join(ROOT, 'applications', service[1], 'server/src', service[2])}.ts`;

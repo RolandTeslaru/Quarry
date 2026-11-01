@@ -3,7 +3,7 @@ import { Forge } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
-import { ForgeDB } from '../forge.db';
+import { ForgeDB } from '../forge/forge.db';
 
 /** A job of the build's plan, one per node, before it's a row: its RID minted, its outputs' transactions already open. */
 export type PlannedJob = Pick<Forge.Job, 'rid' | 'recipeRid' | 'outputs'>;

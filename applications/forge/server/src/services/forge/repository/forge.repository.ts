@@ -6,19 +6,14 @@ import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/
 import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
 import { ForgeDB } from '../forge.db';
 import { BuildRepository, type NewBuild } from './build.repository';
-import { JobRepository, type PlannedJob } from './job.repository';
-import { RecipeRepository } from './recipe.repository';
+import { JobRepository, type PlannedJob } from '../../job/job.repository';
 
 /**
- * The `forge` schema. A write that spans builds and jobs is a method here, so
- * it is one transaction — the sub-repositories' calls join it. `build`, `job`
- * and `recipe` expose only what is safe on its own: the pieces of those
- * writes (start, finish, end, …) stay private (`_build`, `_job`, `_recipe`),
- * so a service can't commit half.
- *
- * Expose a sub-repository method only if it is, by itself, a complete and valid
- * state change (or a read): `heartbeat` is; `schedule` isn't — it's only valid
- * once the parents succeeded, which `finishJob` decides.
+ * The `forge` schema's writes that span builds and jobs: each is a method here, so
+ * it is one transaction — the sub-repositories' calls join it. `build` exposes only
+ * what is safe on its own: the pieces of those writes (start, finish, end, …) stay
+ * private (`_build`, `_job`), so a service can't commit half. Jobs on their own are
+ * JobService's (its JobRepository), recipes RecipeService's.
  *
  * Jobs reach ForgeAgents through a durable queue (docs/design/durable-queues.md):
  * a job's message is added in the transaction that schedules it, and acked in the
@@ -27,14 +22,11 @@ import { RecipeRepository } from './recipe.repository';
 @Injectable()
 export class ForgeRepository extends Repository(ForgeDB.database) {
 
-    public readonly build:   Pick<BuildRepository, 'get' | 'list'>;
-    public readonly job:     Pick<JobRepository, 'get' | 'listByBuild' | 'heartbeat'>;
-    public readonly recipe: Pick<RecipeRepository, 'publish' | 'getCurrent' | 'get'>;
+    public readonly build: Pick<BuildRepository, 'get' | 'list'>;
 
     constructor(
         private readonly _build:   BuildRepository,
         private readonly _job:     JobRepository,
-        private readonly _recipe: RecipeRepository,
         private readonly _catalog: CatalogClient,
         @InjectDurableQueue(Forge.DurableQueue.RunJob)
         private readonly _runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
@@ -42,8 +34,6 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         super();
 
         this.build = _build;
-        this.job = _job;
-        this.recipe = _recipe;
     }
 
     // ── builds ──────────────────────────────────────────────────────────

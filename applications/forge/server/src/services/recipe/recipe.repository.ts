@@ -3,7 +3,7 @@ import { Dataset, Forge, Foundations, Library } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
-import { ForgeDB } from '../forge.db';
+import { ForgeDB } from '../forge/forge.db';
 
 /** A recipe as a producer publishes it — Forge fills in the RID, branch, producer and who. */
 export interface PublishedRecipe {
@@ -27,7 +27,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         principal:   Principal,
         producerRid: Library.Resource.Rid,
         branch:      Foundations.Branch,
-        recipes:       PublishedRecipe[],
+        recipes:     PublishedRecipe[],
     ): Promise<Forge.Recipe[]> {
         const outputs = recipes.flatMap((recipe) => recipe.outputDatasetRids);
 

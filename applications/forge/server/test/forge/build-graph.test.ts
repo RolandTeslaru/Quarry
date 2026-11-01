@@ -203,7 +203,7 @@ describe('a build of several dependent datasets', () => {
         const { build } = await harness.build(user, [datasets.a, datasets.b]);
         const { jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
 
-        await harness.jobs.claimJob(jobs.A.rid, 1);                                   // A running, B waiting
+        await harness.forge.claimJob(jobs.A.rid, 1);                                   // A running, B waiting
 
         const canceled = await harness.forge.cancelBuild(user, build.rid);
 

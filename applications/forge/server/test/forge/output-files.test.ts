@@ -36,7 +36,7 @@ describe('output files', () => {
         await harness.publish(admin, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }]);
 
         const { jobs } = await harness.build(admin, [datasets.out]);
-        const { job } = await harness.jobs.claimJob(Object.values(jobs)[0].rid, 1);
+        const { job } = await harness.forge.claimJob(Object.values(jobs)[0].rid, 1);
 
         return { datasets, job };
     }

@@ -188,7 +188,7 @@ export class ForgeHarness {
 
     /** Plays a ForgeAgent for one job: claim, then finish with this outcome. */
     public async run(job: Forge.Job, status: 'succeeded' | 'failed' = 'succeeded'): Promise<void> {
-        await this.jobs.claimJob(job.rid, job.attempt);
+        await this.forge.claimJob(job.rid, job.attempt);
         await this.forge.finishJob(job.rid, {
             attempt: job.attempt,
             status,

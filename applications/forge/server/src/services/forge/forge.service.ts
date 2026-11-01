@@ -5,14 +5,11 @@ import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { RealtimeService } from '@quarry/platform-kernel/services/Realtime/realtime.service';
 import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable-queue';
-import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
+import { CatalogClient, IdentityClient } from '@quarry/platform-kernel/microservice/clients';
 import { ForgeRepository } from './repository/forge.repository';
-import type { PlannedJob } from './repository/job.repository';
+import type { PlannedJob } from '../job/job.repository';
 import { RecipeService } from '../recipe/recipe.service';
-
-
-/** ForgeAgents act through the server as the system: they carry no user. */
-export const AGENT = Principal.SELF('forge.agent');
+import { AGENT, JobService } from '../job/job.service';
 
 /**
  * Forge's one entry point for other services: builds here, recipes under
@@ -21,7 +18,7 @@ export const AGENT = Principal.SELF('forge.agent');
  * Initializing a build: its plan from the targets' recipes, validated, its outputs locked (a
  * snapshot transaction on each, so no other writer gets in), persisted with
  * its roots scheduled (their messages in the outbox), relayed. Running the jobs is the
- * ForgeAgents' side: they claim and heartbeat through JobService, and finish here (finishJob), which advances the build.
+ * ForgeAgents' side: they claim here (claimJob), heartbeat through JobService, and finish here (finishJob), which advances the build.
  */
 @Injectable()
 export class ForgeService {
@@ -31,7 +28,9 @@ export class ForgeService {
     constructor(
         public readonly gatekeeper:  GatekeeperService,
         public readonly recipes:     RecipeService,
+        private readonly jobs:       JobService,
         private readonly catalog:    CatalogClient,
+        private readonly identity:   IdentityClient,
         private readonly repository: ForgeRepository,
         private readonly realtime:   RealtimeService,
         @InjectDurableQueue(Forge.DurableQueue.RunJob)
@@ -121,7 +120,7 @@ export class ForgeService {
 
         const jobs: Forge.API.GetBuild.Response['jobs'] = {};
 
-        for (const job of await this.repository.job.listByBuild(principal, rid))
+        for (const job of await this.jobs.listByBuild(principal, rid))
             jobs[job.rid] = job;
 
         return { build, jobs };
@@ -156,6 +155,40 @@ export class ForgeService {
         this.log.info(`Canceled ${rid}`);
 
         return this.getBuild(principal, rid);
+    }
+
+    /**
+     * Grants the claim: once per attempt, from scheduled. 409 if this attempt isn't waiting to be claimed.
+     * Each input is pinned to its latest version now. With the claim, a token for the build's starter:
+     * the job's runtime acts as them.
+     */
+    public async claimJob(rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Claim.Response> {
+        const waiting = await this.jobs.getJob(AGENT, rid);
+
+        // The FKs guarantee the recipe and the build; builds are started by people until schedules exist.
+        const recipe = await this.recipes.get(AGENT, waiting.recipeRid);
+        const build = (await this.repository.build.get(AGENT, waiting.buildRid))!;
+        const inputs: NonNullable<Forge.Job['inputs']> = {};
+
+        for (const datasetRid of recipe.inputDatasetRids)
+            inputs[datasetRid] = (await this.catalog.get(AGENT, { rid: datasetRid })).lastSequence;
+
+        const job = await this.repository.claimJob(AGENT, rid, attempt, inputs);
+
+        if (!job)
+            throw new ConflictException(`Job ${rid} attempt ${attempt} isn't waiting to be claimed`);
+
+        this.realtime.emitEvent({
+            ...Forge.Event.create('forge:job:updated', { job }),
+            channel: Forge.Event.getChannel(job.buildRid),
+        });
+        this.log.info(`Claimed ${rid} (attempt ${attempt})`);
+
+        return {
+            job,
+            recipe,
+            token: (await this.identity.mintUserToken(AGENT, { userRid: build.createdBy!, via: 'forge-job' })).token,
+        };
     }
 
     /**

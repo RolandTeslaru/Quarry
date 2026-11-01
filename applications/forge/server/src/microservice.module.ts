@@ -16,10 +16,9 @@ import { RequestMemoMiddleware } from '@quarry/platform-kernel/services/Gatekeep
 import { RealtimeModule } from '@quarry/platform-kernel/services/Realtime/realtime.module';
 import { ForgeModule } from '@quarry/forge-server/services/forge/forge.module';
 import { ForgeController } from '@quarry/forge-server/services/forge/controllers/http.controller';
-import { JobModule } from '@quarry/forge-server/services/job/job.module';
+import { ForgeAgentController } from '@quarry/forge-server/services/forge/controllers/agent-http.controller';
 import { JobController } from '@quarry/forge-server/services/job/controllers/http.controller';
 import { JobRuntimeController } from '@quarry/forge-server/services/job/controllers/runtime-http.controller';
-import { ForgeAgentController } from '@quarry/forge-server/services/job/controllers/agent-http.controller';
 import { ForgeMicroserviceController } from '@quarry/forge-server/microservice.controller';
 
 /**
@@ -39,7 +38,6 @@ import { ForgeMicroserviceController } from '@quarry/forge-server/microservice.c
         LibraryModule,
         GatekeeperModule,
         ForgeModule,
-        JobModule,
     ],
     controllers: [
         HealthController,

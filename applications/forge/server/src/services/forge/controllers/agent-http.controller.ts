@@ -2,8 +2,8 @@ import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
 import { ForgeAgentOnly } from '@quarry/platform-kernel/auth/current-principal';
 import { ZodPipe } from '@quarry/platform-kernel/http/zod.pipe';
-import { ForgeService } from '../../forge/forge.service';
-import { JobService } from '../job.service';
+import { ForgeService } from '../forge.service';
+import { JobService } from '../../job/job.service';
 
 const JobRidParam = new ZodPipe(Forge.Job.Rid);
 
@@ -26,7 +26,7 @@ export class ForgeAgentController {
         @Param('rid', JobRidParam) rid: Forge.Job.Rid,
         @Body(new ZodPipe(Forge.API.Agent.Claim.Request)) body: Forge.API.Agent.Claim.Request,
     ): Promise<Forge.API.Agent.Claim.Response> {
-        return this.jobs.claimJob(rid, body.attempt);
+        return this.forge.claimJob(rid, body.attempt);
     }
 
     @Post('jobs/:rid/heartbeat')

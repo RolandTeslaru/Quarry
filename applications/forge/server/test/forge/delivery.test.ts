@@ -86,7 +86,7 @@ describe('delivering jobs', () => {
     it("stops sending a claimed job — its message was acked", async () => {
         const { jobs } = await chain();
 
-        await harness.jobs.claimJob(jobs.A.rid, 1);
+        await harness.forge.claimJob(jobs.A.rid, 1);
         await harness.runJobQueue.remove(`${jobs.A.rid}_1`);
 
         await harness.durableQueues.sweep();

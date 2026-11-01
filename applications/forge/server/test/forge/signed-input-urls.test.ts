@@ -36,7 +36,7 @@ describe('signed input URLs', () => {
     it('pins each input to its latest version when the job is claimed', async () => {
         const { datasets, job } = await scheduledJob();
 
-        const claimed = await harness.jobs.claimJob(job.rid, 1);
+        const claimed = await harness.forge.claimJob(job.rid, 1);
 
         expect(claimed.job.inputs).toEqual({ [datasets.raw]: 1 });
     });
@@ -44,7 +44,7 @@ describe('signed input URLs', () => {
     it("hands out a signed pass for each of the pinned version's files", async () => {
         const { datasets, job } = await scheduledJob();
 
-        await harness.jobs.claimJob(job.rid, 1);
+        await harness.forge.claimJob(job.rid, 1);
 
         const { inputs } = await harness.jobs.getSignedInputUrls(admin, job.rid);
 
@@ -63,7 +63,7 @@ describe('signed input URLs', () => {
         const { job } = await scheduledJob();
         const outsider = await harness.createUser('member');
 
-        await harness.jobs.claimJob(job.rid, 1);
+        await harness.forge.claimJob(job.rid, 1);
 
         await expect(harness.jobs.getSignedInputUrls(outsider, job.rid)).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -73,7 +73,7 @@ describe('signed input URLs', () => {
         const discoverer = await harness.createUser('member');
 
         await harness.grant(admin, projectRid, discoverer, 'discoverer');
-        await harness.jobs.claimJob(job.rid, 1);
+        await harness.forge.claimJob(job.rid, 1);
 
         await expect(harness.jobs.getSignedInputUrls(discoverer, job.rid)).rejects.toBeInstanceOf(ForbiddenException);
     });

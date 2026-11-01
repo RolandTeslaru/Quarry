@@ -1,33 +1,27 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Dataset, Forge } from '@quarry/shared/domain';
-import { System } from '@quarry/shared/server/system';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
-import { RealtimeService } from '@quarry/platform-kernel/services/Realtime/realtime.service';
-import { CatalogClient, IdentityClient } from '@quarry/platform-kernel/microservice/clients';
-import { ForgeRepository } from '../forge/repository/forge.repository';
-import { AGENT } from '../forge/forge.service';
-import { RecipeService } from '../recipe/recipe.service';
+import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
+import { JobRepository } from './job.repository';
+
+/** ForgeAgents act through the server as the system: they carry no user. */
+export const AGENT = Principal.SELF('forge.agent');
 
 /**
- * A job: claimed and kept alive by a ForgeAgent (as the system), and what its runtime does while it
- * runs — with the job's token, as the build's starter: its inputs' signed read URLs, a signed write URL
- * per output file, and registering those files.
+ * A job: kept alive by a ForgeAgent (as the system), and what its runtime does while it runs — with
+ * the job's token, as the build's starter: its inputs' signed read URLs, a signed write URL per output
+ * file, and registering those files. Claiming and finishing move the build, so they're ForgeService's.
  */
 @Injectable()
 export class JobService {
 
-    private readonly log = System.log.withContext('Job');
-
     constructor(
-        private readonly repository: ForgeRepository,
-        private readonly recipes:    RecipeService,
+        private readonly repository: JobRepository,
         private readonly catalog:    CatalogClient,
-        private readonly realtime:   RealtimeService,
-        private readonly identity:   IdentityClient,
     ) {}
 
     public async getJob(principal: Principal, rid: Forge.Job.Rid): Promise<Forge.Job> {
-        const job = await this.repository.job.get(principal, rid);
+        const job = await this.repository.get(principal, rid);
 
         if (!job)
             throw new NotFoundException('Not found');
@@ -35,46 +29,13 @@ export class JobService {
         return job;
     }
 
-    /**
-     * Grants the claim: once per attempt, from scheduled. 409 if this attempt isn't waiting to be claimed.
-     * Each input is pinned to its latest version now. With the claim, a token for the build's starter:
-     * the job's runtime acts as them.
-     */
-    public async claimJob(rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Claim.Response> {
-        const waiting = await this.repository.job.get(AGENT, rid);
-
-        if (!waiting)
-            throw new ConflictException(`Job ${rid} attempt ${attempt} isn't waiting to be claimed`);
-
-        // The FKs guarantee the recipe and the build; builds are started by people until schedules exist.
-        const recipe = await this.recipes.get(AGENT, waiting.recipeRid);
-        const build = (await this.repository.build.get(AGENT, waiting.buildRid))!;
-        const inputs: NonNullable<Forge.Job['inputs']> = {};
-
-        for (const datasetRid of recipe.inputDatasetRids)
-            inputs[datasetRid] = (await this.catalog.get(AGENT, { rid: datasetRid })).lastSequence;
-
-        const job = await this.repository.claimJob(AGENT, rid, attempt, inputs);
-
-        if (!job)
-            throw new ConflictException(`Job ${rid} attempt ${attempt} isn't waiting to be claimed`);
-
-        this.realtime.emitEvent({
-            ...Forge.Event.create('forge:job:updated', { job }),
-            channel: Forge.Event.getChannel(job.buildRid),
-        });
-        this.log.info(`Claimed ${rid} (attempt ${attempt})`);
-
-        return {
-            job,
-            recipe,
-            token: (await this.identity.mintUserToken(AGENT, { userRid: build.createdBy!, via: 'forge-job' })).token,
-        };
+    public async listByBuild(principal: Principal, buildRid: Forge.Build.Rid): Promise<Forge.Job[]> {
+        return this.repository.listByBuild(principal, buildRid);
     }
 
     /** Renews the attempt's lease. `stop` once it isn't running — its build was canceled or failed. */
     public async heartbeatJob(rid: Forge.Job.Rid, attempt: number): Promise<Forge.API.Agent.Heartbeat.Response> {
-        const job = await this.repository.job.heartbeat(AGENT, rid, attempt);
+        const job = await this.repository.heartbeat(AGENT, rid, attempt);
 
         return { action: job ? 'continue' : 'stop' };
     }

@@ -1,8 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Dataset, Forge, Foundations, Library } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
-import { ForgeRepository } from '../forge/repository/forge.repository';
-import type { PublishedRecipe } from '../forge/repository/recipe.repository';
+import { RecipeRepository, type PublishedRecipe } from './recipe.repository';
 
 export type { PublishedRecipe };
 
@@ -14,7 +13,7 @@ export type { PublishedRecipe };
 @Injectable()
 export class RecipeService {
 
-    constructor(private readonly repository: ForgeRepository) {}
+    constructor(private readonly repository: RecipeRepository) {}
 
     /** Write on the producer, read on every input, write on every output — RLS's call on the inserts. */
     public async publish(
@@ -23,7 +22,7 @@ export class RecipeService {
         branch:      Foundations.Branch,
         recipes:       PublishedRecipe[],
     ): Promise<Forge.Recipe[]> {
-        return this.repository.recipe.publish(principal, producerRid, branch, recipes);
+        return this.repository.publish(principal, producerRid, branch, recipes);
     }
 
     /** What computes the dataset: the first of `branches` with a recipe for it wins. */
@@ -32,7 +31,7 @@ export class RecipeService {
         datasetRid: Dataset.Rid,
         branches:   Foundations.Branch[],
     ): Promise<Forge.Recipe | null> {
-        return this.repository.recipe.getCurrent(principal, datasetRid, branches);
+        return this.repository.getCurrent(principal, datasetRid, branches);
     }
 
     /**
@@ -47,7 +46,7 @@ export class RecipeService {
         const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
 
         for (const datasetRid of datasetRids) {
-            const recipe = await this.repository.recipe.getCurrent(principal, datasetRid, branches);
+            const recipe = await this.repository.getCurrent(principal, datasetRid, branches);
 
             if (!recipe)
                 throw new ConflictException(`Nothing builds ${datasetRid} on ${branches.join(' or ')}`);
@@ -59,7 +58,7 @@ export class RecipeService {
     }
 
     public async get(principal: Principal, rid: Forge.Recipe.Rid): Promise<Forge.Recipe> {
-        const recipe = await this.repository.recipe.get(principal, rid);
+        const recipe = await this.repository.get(principal, rid);
 
         if (!recipe)
             throw new NotFoundException('Not found');

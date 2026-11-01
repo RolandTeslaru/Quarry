@@ -37,11 +37,11 @@ describe('the ForgeAgent API', () => {
     it('grants a claim once per attempt: a second claim is refused', async () => {
         const job = await scheduledJob();
 
-        const claimed = await harness.jobs.claimJob(job.rid, 1);
+        const claimed = await harness.forge.claimJob(job.rid, 1);
 
         expect(claimed.job.status).toBe('running');
         expect(claimed.recipe.rid).toBe(job.recipeRid);
-        await expect(harness.jobs.claimJob(job.rid, 1)).rejects.toBeInstanceOf(ConflictException);
+        await expect(harness.forge.claimJob(job.rid, 1)).rejects.toBeInstanceOf(ConflictException);
     });
 
     it("hands the runtime a token for the build's starter, not the recipe's publisher", async () => {
@@ -51,7 +51,7 @@ describe('the ForgeAgent API', () => {
         await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['out'] }]);
 
         const { jobs } = await harness.build(starter, [datasets.out]);
-        const claimed = await harness.jobs.claimJob(Object.values(jobs)[0].rid, 1);
+        const claimed = await harness.forge.claimJob(Object.values(jobs)[0].rid, 1);
         const actingAs = await harness.get(TokenVerifier).user(claimed.token);
 
         expect(actingAs.userRid).toBe(starter.userRid);
@@ -62,7 +62,7 @@ describe('the ForgeAgent API', () => {
 
         expect(await harness.getOutboxMessage(job)).not.toBeNull();
 
-        await harness.jobs.claimJob(job.rid, 1);
+        await harness.forge.claimJob(job.rid, 1);
 
         expect(await harness.getOutboxMessage(job)).toBeNull();
     });
@@ -70,16 +70,16 @@ describe('the ForgeAgent API', () => {
     it('keeps its message when the claim is refused', async () => {
         const job = await scheduledJob();
 
-        await expect(harness.jobs.claimJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);    // not this attempt
+        await expect(harness.forge.claimJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);    // not this attempt
         expect(await harness.getOutboxMessage(job)).not.toBeNull();
     });
 
     it("refuses another attempt's claim, heartbeat and finish — the attempt is the fencing token", async () => {
         const job = await scheduledJob();
 
-        await expect(harness.jobs.claimJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);
+        await expect(harness.forge.claimJob(job.rid, 2)).rejects.toBeInstanceOf(ConflictException);
 
-        await harness.jobs.claimJob(job.rid, 1);
+        await harness.forge.claimJob(job.rid, 1);
 
         expect(await harness.jobs.heartbeatJob(job.rid, 2)).toEqual({ action: 'stop' });
         await expect(harness.forge.finishJob(job.rid, { attempt: 2, status: 'succeeded', failure: null }))
