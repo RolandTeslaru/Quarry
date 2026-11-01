@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest';
 const ROOT = path.resolve(__dirname, '../../../..');
 
 /** Every package with services' code: the main server's, and each service's. */
-const SOURCES = ['platform/server', 'applications/catalog/server', 'applications/data-connection/server'].map((pkg) => path.join(ROOT, pkg, 'src'));
+const SOURCES = ['platform/server', 'applications/catalog/server', 'applications/data-connection/server', 'applications/forge/server'].map((pkg) => path.join(ROOT, pkg, 'src'));
 
 /** A service's facade repository: `…/repository/<name>.repository.ts` whose class composes the rest. */
 const FACADES = [
-    'platform/server/src/services/Forge/repository/forge.repository.ts',
+    'applications/forge/server/src/services/forge/repository/forge.repository.ts',
     'platform/server/src/services/CodeWorkspace/repository/code-workspace.repository.ts',
 ];
 
@@ -64,7 +64,7 @@ function isSubRepository(file: string): boolean {
         && !FACADES.includes(relative);
 }
 
-/** Value imports only: a type (`NewJob`, `PublishedRecipe`) can't call anything. */
+/** Value imports only: a type (`PlannedJob`, `PublishedRecipe`) can't call anything. */
 function getImports(source: string): string[] {
     return [...source.matchAll(/^(?:import|export)\s+(?!type\s)[^'"]*?from\s+['"]([^'"]+)['"]/gm)].map((match) => match[1]);
 }
@@ -74,7 +74,7 @@ function resolveImport(from: string, specifier: string): string | null {
     if (specifier.startsWith('@/'))
         return `${path.join(SOURCES.find((source) => from.startsWith(source))!, specifier.slice(2))}.ts`;
 
-    const service = /^@quarry\/(catalog|data-connection)-server\/(.*)$/.exec(specifier);
+    const service = /^@quarry\/(catalog|data-connection|forge)-server\/(.*)$/.exec(specifier);
 
     if (service)
         return `${path.join(ROOT, 'applications', service[1], 'server/src', service[2])}.ts`;

@@ -90,7 +90,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         rid:            Catalog.Transaction.Rid,
         changes:        Catalog.Transaction.FileChange.Schema[],
     ): Promise<void> {
-        await this._requireOpen(datasetRid, rid);
+        await this.requireOpen(datasetRid, rid);
 
         if (changes.length === 0)
             return;
@@ -114,7 +114,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         file:       Catalog.Transaction.FileChange.Schema,
         schema:     Catalog.ColumnSchema.Schema,
     ): Promise<void> {
-        const transaction = await this._requireOpen(datasetRid, rid);
+        const transaction = await this.requireOpen(datasetRid, rid);
 
         if (!transaction.schema) {
             await this.trx
@@ -140,7 +140,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         transactions: { rid: Catalog.Transaction.Rid; datasetRid: Dataset.Rid }[],
     ): Promise<void> {
         for (const transaction of transactions) {
-            const { schema } = await this._requireOpen(transaction.datasetRid, transaction.rid);
+            const { schema } = await this.requireOpen(transaction.datasetRid, transaction.rid);
 
             await this.commit(principal, transaction.datasetRid, transaction.rid, schema);
         }
@@ -157,7 +157,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         rid:            Catalog.Transaction.Rid,
         schema:         Catalog.ColumnSchema.Schema | null,
     ): Promise<Dataset.Sequence> {
-        const transaction = await this._requireOpen(datasetRid, rid);
+        const transaction = await this.requireOpen(datasetRid, rid);
 
         const branch = await this.trx
             .selectFrom('catalog.branch')
@@ -332,7 +332,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
      * (The dataset's liveness was checked by @Transactional — it's a top-level
      * argument — so a dataset trashed mid-write takes no more files or commits.)
      */
-    private async _requireOpen(datasetRid: Dataset.Rid, rid: Catalog.Transaction.Rid): Promise<CatalogDB.Transaction.Row> {
+    private async requireOpen(datasetRid: Dataset.Rid, rid: Catalog.Transaction.Rid): Promise<CatalogDB.Transaction.Row> {
         const row = await this.trx
             .selectFrom('catalog.transaction')
             .selectAll()

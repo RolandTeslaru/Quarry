@@ -65,7 +65,7 @@ CREATE TABLE forge.build (
     target            jsonb NOT NULL,             -- Forge.Build.Target: { type, datasetRids, inputRids? }
     plan              jsonb NOT NULL,             -- Forge.Build.Plan: { roots, children } — fixed at creation
     force_build       boolean NOT NULL DEFAULT false,
-    abort_on_failure  boolean NOT NULL DEFAULT false,
+    on_job_failure    text NOT NULL DEFAULT 'cancel-descendants' CHECK (on_job_failure IN ('cancel-descendants', 'cancel-build')),
     retry_count       integer NOT NULL DEFAULT 0 CHECK (retry_count >= 0),
     status            text NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'succeeded', 'failed', 'canceled')),
     created_by        identity.user_rid REFERENCES identity.user(rid),   -- NULL = the system
@@ -165,3 +165,7 @@ GRANT USAGE ON SCHEMA forge TO main_user;
 GRANT SELECT, INSERT ON forge.recipe, forge.recipe_input_dataset, forge.recipe_output_dataset TO main_user;
 GRANT SELECT, INSERT, DELETE ON forge.current_recipe TO main_user;
 GRANT SELECT, INSERT, UPDATE ON forge.build, forge.job TO main_user;
+
+-- ── the service's roles: forge_service, forge_user (foundations.create_service_roles) ──
+-- No resource types of its own: recipes, builds and jobs aren't Library resources.
+SELECT foundations.create_service_roles('forge', ARRAY[]::text[]);

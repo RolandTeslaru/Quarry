@@ -219,16 +219,16 @@ export class CatalogStorage {
         };
     }
 
-    /** One version's files as read passes, for a job's runtime. */
+    /** One version's files as signed read URLs, for a job's runtime. */
     @Audit('read', (sequence: Dataset.Sequence) => ({ op: 'read-passes', sequence }))
     @SecurityGate('read')
-    async getReadPasses(
+    async getSignedReadUrls(
         principal:  Principal,
         datasetRid: Dataset.Rid,
         sequence:   Dataset.Sequence,
-    ): Promise<Dataset.ReadPasses.Schema> {
+    ): Promise<Catalog.SignedUrl.Read> {
         const view = await this.transactions.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH, sequence);
-        const files: Dataset.ReadPasses.File[] = [];
+        const files: Catalog.SignedUrl.Read.File[] = [];
 
         for (const file of view.files) {
             files.push({
@@ -246,7 +246,7 @@ export class CatalogStorage {
 
     /** Where a job writes one file of an output: a URL that PUTs it into the output's open transaction. */
     @SecurityGate('write')
-    async getUploadPass(
+    async getSignedWriteUrl(
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,

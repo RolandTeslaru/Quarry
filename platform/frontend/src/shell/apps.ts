@@ -3,6 +3,7 @@ import type { Library } from '@quarry/shared/domain'
 import type { App } from '@/AppKit'
 import { dataConnectionApp } from '@/apps/data-connection/definition'
 import { datasetsApp } from '@/apps/datasets/definition'
+import { forgeApp } from '@/apps/forge/definition'
 import { keychainApp } from '@/apps/keychain/definition'
 import { layoutDemoApp } from '@/apps/layout-demo/definition'
 import { libraryApp } from '@/apps/library/definition'
@@ -19,10 +20,11 @@ export const APPS: App.Definition[] = [
     dataConnectionApp,
     datasetsApp,
     pipelineBuilderApp,
+    forgeApp,
     keychainApp,
-    // Paused by the split (docs/design/architecture-split.md): Code Workspaces and Forge are listed again
-    // when their services are back — their routes stay, their backends are off.
-    // codeWorkspacesApp, forgeApp
+    // Paused by the split (docs/design/architecture-split.md): Code Workspaces is listed again when its
+    // service is back — its routes stay, its backend is off.
+    // codeWorkspacesApp
     // Test apps for the shell and AppKit; no backend.
     layoutDemoApp,
     minimalDemoApp,

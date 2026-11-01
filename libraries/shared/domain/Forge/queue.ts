@@ -26,6 +26,6 @@ export namespace Queue {
             options: { removeOnComplete: 1000, removeOnFail: 1000 },
         })
 
-        export const getJobId = (job: Job): string => `${job.jobRid}_${job.attempt}`
+        export const getQueueJobId = (job: Job): string => `${job.jobRid}_${job.attempt}`
     }
 }

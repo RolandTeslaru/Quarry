@@ -1,7 +1,9 @@
 import { z } from "zod"
 import { Dataset } from "../Dataset/Dataset"
+import { Foundations } from "../Foundations"
 import { MicroserviceCall } from "../Foundations/MicroserviceCall"
 import { ColumnSchema } from "./ColumnSchema"
+import { SignedUrl } from "./SignedUrl"
 import { Transaction } from "./Transaction"
 import { API } from "./api"
 
@@ -86,6 +88,91 @@ export namespace Microservice {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Each dataset has data (a committed version): 409 naming the first that hasn't, 404 for one the caller can't see. */
+    export namespace AssertNotEmpty {
+        export const PATTERN = "catalog.assert-not-empty"
+
+        export const Request = z.object({ datasetRids: Dataset.Rid.array() })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({})
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** A transaction on each dataset, all opened in one database transaction or none — a build's outputs. */
+    export namespace OpenTransactions {
+        export const PATTERN = "catalog.open-transactions"
+
+        export const Request = z.object({
+            openings: z.record(Dataset.Rid, Transaction.Opening.Schema),
+            branch:   Foundations.Branch,
+        })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.record(Dataset.Rid, Transaction.Schema)
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** Commits these open transactions — one per dataset — in one database transaction, each with the schema staged on it. */
+    export namespace CommitTransactions {
+        export const PATTERN = "catalog.commit-transactions"
+
+        export const Request = z.object({ transactions: z.record(Dataset.Rid, Transaction.Rid) })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({})
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** Aborts the open ones among these — one per dataset; finished ones are skipped, so it's safe to repeat. */
+    export namespace AbortTransactions {
+        export const PATTERN = "catalog.abort-transactions"
+
+        export const Request = z.object({ transactions: z.record(Dataset.Rid, Transaction.Rid) })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({})
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** One version's files as signed read URLs, for a job's runtime. */
+    export namespace GetSignedReadUrls {
+        export const PATTERN = "catalog.get-signed-read-urls"
+
+        export const Request = z.object({ datasetRid: Dataset.Rid, sequence: Dataset.Sequence })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = SignedUrl.Read.Schema
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** A URL that PUTs one file into an open transaction. */
+    export namespace GetSignedWriteUrl {
+        export const PATTERN = "catalog.get-signed-write-url"
+
+        export const Request = z.object({ datasetRid: Dataset.Rid, transactionRid: Transaction.Rid, filename: z.string().min(1) })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = SignedUrl.Write.Schema
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** A file uploaded to a signed write URL, registered on its open transaction (its Parquet footer read). */
+    export namespace RegisterFile {
+        export const PATTERN = "catalog.register-file"
+
+        export const Request = z.object({
+            datasetRid:     Dataset.Rid,
+            transactionRid: Transaction.Rid,
+            filename:       z.string().min(1),
+            bytes:          z.number().int().nonnegative(),
+        })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({})
+        export type  Response = z.infer<typeof Response>
+    }
+
     export const Calls = {
         createDataset:     CreateDataset,
         get:               Get,
@@ -93,5 +180,12 @@ export namespace Microservice {
         registerChanges:   RegisterChanges,
         commitTransaction: CommitTransaction,
         abortTransaction:  AbortTransaction,
+        assertNotEmpty:     AssertNotEmpty,
+        openTransactions:   OpenTransactions,
+        commitTransactions: CommitTransactions,
+        abortTransactions:  AbortTransactions,
+        getSignedReadUrls:  GetSignedReadUrls,
+        getSignedWriteUrl:  GetSignedWriteUrl,
+        registerFile:       RegisterFile,
     } satisfies MicroserviceCall.Calls
 }

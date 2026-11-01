@@ -1,15 +1,15 @@
 import type { IncomingMessage } from 'node:http';
 import type { OnModuleDestroy } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
 import { type OnGatewayConnection, type OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
 import { WebSocket } from 'ws';
 import { CodeWorkspace, DataConnection, Forge, Identity, Realtime } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
+import { RequestIdentity } from '@quarry/platform-kernel/auth/request-identity';
 import { TokenVerifier } from '@quarry/platform-kernel/auth/token-verifier';
 import { redisSubscriber } from '@quarry/platform-kernel/infra/redis';
+import { ForgeClient } from '@quarry/platform-kernel/microservice/clients';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
-import { ForgeService } from '@/services/Forge/forge.service';
 
 const log = System.log.withContext('Realtime');
 
@@ -33,10 +33,13 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     private readonly principals = new WeakMap<WebSocket, Principal.User>();
 
+    /** The token each socket connected with — what a microservice call made for it acts with. */
+    private readonly tokenOf = new WeakMap<WebSocket, string>();
+
     constructor(
         private readonly tokens:     TokenVerifier,
         private readonly gatekeeper: GatekeeperService,
-        private readonly moduleRef:  ModuleRef,
+        private readonly forge:      ForgeClient,
     ) {
         this.redis.on('message', (channel: string, message: string) => {
             for (const socket of this.subscriptions.get(Realtime.Channel.parse(channel)) ?? []) {
@@ -73,6 +76,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
         try {
             this.principals.set(socket, await this.tokens.user(token));
+            this.tokenOf.set(socket, token);
         }
         catch {
             socket.close(1008, 'Invalid token, or not a member of this workspace');
@@ -119,7 +123,10 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     private async subscribe(socket: WebSocket, channel: Realtime.Channel): Promise<void> {
         const principal = this.principals.get(socket);
 
-        if (!principal || !(await this.mayListen(principal, channel))) {
+        // As on a request: a microservice call the check makes acts with the socket's own token.
+        const allowed = principal && await RequestIdentity.run({ userRid: principal.userRid, token: this.tokenOf.get(socket)! }, () => this.mayListen(principal, channel));
+
+        if (!allowed) {
             const refusal: Realtime.Event.Forbidden = { channel, type: 'forbidden', message: 'Not allowed on this channel' };
 
             socket.send(JSON.stringify(refusal));
@@ -160,15 +167,9 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         return false;
     }
 
-    /**
-     * A build isn't a library resource: whether the user sees it is Forge's call
-     * (RLS on forge.build). Resolved at use, not injected — Forge emits through
-     * Realtime, so a module import would be a cycle.
-     */
+    /** A build isn't a library resource: whether the user sees it is Forge's call (RLS on forge.build), a microservice call. */
     private async maySeeBuild(principal: Principal.User, buildRid: Forge.Build.Rid): Promise<boolean> {
-        const forge = this.moduleRef.get(ForgeService, { strict: false });
-
-        return forge.getBuild(principal, buildRid).then(() => true, () => false);
+        return this.forge.getBuild(principal, { rid: buildRid }).then(() => true, () => false);
     }
 
     private remove(socket: WebSocket, channel: Realtime.Channel): void {

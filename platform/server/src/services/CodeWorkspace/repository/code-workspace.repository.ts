@@ -44,9 +44,9 @@ export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database
     public async queueCheckRuns(principal: Principal.User, rid: CodeWorkspace.Rid, runs: NewCheckRun[]): Promise<QueuedCheckRuns> {
         const queued = await this._checkRun.queue(principal, rid, runs);
 
-        await this._runCheckQueue.ack(queued.canceled.map(getJobId));
+        await this._runCheckQueue.ack(queued.canceled.map(getQueueJobId));
 
-        return { ...queued, scheduled: await this._scheduleNext(principal, rid) };
+        return { ...queued, scheduled: await this.scheduleNext(principal, rid) };
     }
 
     /** A worker takes it: `scheduled → running` once, and its message acked. Null if it isn't scheduled. */
@@ -55,7 +55,7 @@ export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database
         const run = await this._checkRun.start(principal, rid);
 
         if (run)
-            await this._runCheckQueue.ack([getJobId(run)]);
+            await this._runCheckQueue.ack([getQueueJobId(run)]);
 
         return run;
     }
@@ -69,7 +69,7 @@ export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database
     ): Promise<{ run: CheckRun.Schema; scheduled: CheckRun.Schema | null } | null> {
         const run = await this._checkRun.finish(principal, rid, outcome);
 
-        return run ? { run, scheduled: await this._scheduleNext(principal, run.workspaceRid) } : null;
+        return run ? { run, scheduled: await this.scheduleNext(principal, run.workspaceRid) } : null;
     }
 
     /** Running runs silent for `minutes` → failed; each workspace's next run scheduled. */
@@ -83,7 +83,7 @@ export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database
         const scheduled: CheckRun.Schema[] = [];
 
         for (const workspaceRid of new Set(failed.map(run => run.workspaceRid))) {
-            const next = await this._scheduleNext(principal, workspaceRid);
+            const next = await this.scheduleNext(principal, workspaceRid);
 
             if (next)
                 scheduled.push(next);
@@ -93,16 +93,16 @@ export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database
     }
 
     /** The workspace's next run → `scheduled`, its message added — in the caller's transaction. */
-    private async _scheduleNext(principal: Principal, workspaceRid: CodeWorkspace.Rid): Promise<CheckRun.Schema | null> {
+    private async scheduleNext(principal: Principal, workspaceRid: CodeWorkspace.Rid): Promise<CheckRun.Schema | null> {
         const run = await this._checkRun.scheduleNext(principal, workspaceRid);
 
         if (run)
-            await this._runCheckQueue.add([{ message: { checkRunRid: run.rid }, jobId: getJobId(run) }]);
+            await this._runCheckQueue.add([{ message: { checkRunRid: run.rid }, jobId: getQueueJobId(run) }]);
 
         return run;
     }
 }
 
-function getJobId(run: Pick<CheckRun.Schema, 'rid'>): string {
-    return CI.Queue.RunCheck.getJobId(run);
+function getQueueJobId(run: Pick<CheckRun.Schema, 'rid'>): string {
+    return CI.Queue.RunCheck.getQueueJobId(run);
 }

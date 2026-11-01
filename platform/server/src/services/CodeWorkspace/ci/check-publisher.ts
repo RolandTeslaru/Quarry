@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Catalog, CodeWorkspace, Dataset, Forge } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { CatalogService } from '@quarry/catalog-server/catalog/catalog.service';
-import { ForgeService } from '@/services/Forge/forge.service';
-import type { PublishedRecipe } from '@/services/Forge/recipes';
+import { ForgeService } from '@quarry/forge-server/services/forge/forge.service';
+import type { PublishedRecipe } from '@quarry/forge-server/services/recipe/recipe.service';
 
 import CI = CodeWorkspace.CI;
 

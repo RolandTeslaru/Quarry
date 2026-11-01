@@ -25,7 +25,7 @@ const CHECKOUT = '/work/repo';
 /** The workspace's environment: `transform`'s own, so nothing is written into the checkout. */
 const VENV = `${TRANSFORM_USER.home}/venv`;
 
-/** What Python is told to run: the transform, its inputs by parameter as read passes. Readable by `transform`. */
+/** What Python is told to run: the transform, its inputs by parameter as signed read URLs. Readable by `transform`. */
 const JOB_FILE = '/work/job.json';
 
 /** Where Python writes each output's files, one folder per output parameter. */
@@ -189,7 +189,7 @@ export class RuntimeController {
             baseURL: requireEnv('QUARRY_SERVER_URL'),
             headers: { authorization: `Bearer ${token}` },
         });
-        const { inputs: passes } = await Forge.API.getInputPasses(api, job.rid);
+        const { inputs: inputUrls } = await Forge.API.Runtime.getSignedInputUrls(api, job.rid);
         const jobFile: JobFile = {
             jobRid:  job.rid,
             transform,
@@ -200,9 +200,9 @@ export class RuntimeController {
         for (const [parameter, datasetRid] of Object.entries(recipe.runtime.inputs)) {
             jobFile.inputs[parameter] = {
                 rid:      datasetRid,
-                sequence: passes[datasetRid].sequence,
-                files:    passes[datasetRid].files.map((file) => file.url),
-                schema:   passes[datasetRid].schema,
+                sequence: inputUrls[datasetRid].sequence,
+                files:    inputUrls[datasetRid].files.map((file) => file.url),
+                schema:   inputUrls[datasetRid].schema,
             };
         }
 

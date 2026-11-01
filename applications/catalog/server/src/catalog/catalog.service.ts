@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Catalog, Dataset, Foundations, Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { FileStorage } from '@quarry/platform-kernel/infra/file-storage';
@@ -82,6 +82,16 @@ export class CatalogService {
             throw new NotFoundException('Not found');
 
         return dataset;
+    }
+
+    /** Each of these has data — a committed version — or a conflict, naming the first that hasn't. NotFound for one the principal can't see. */
+    async assertNotEmpty(principal: Principal, rids: Set<Dataset.Rid>): Promise<void> {
+        for (const rid of rids) {
+            const dataset = await this.get(principal, rid);
+
+            if (dataset.lastSequence === 0)
+                throw new ConflictException(`${rid} has no data yet`);
+        }
     }
 
     /** A dataset by RID or library path. */

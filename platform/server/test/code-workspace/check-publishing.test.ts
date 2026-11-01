@@ -3,7 +3,7 @@ import { CodeWorkspace, Dataset, Library } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
 import { MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../support/forge-fixtures';
+import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
 
 import CI = CodeWorkspace.CI;
 import CheckRun = CI.CheckRun;
@@ -124,7 +124,7 @@ describe('publishing recipes', () => {
 
         const { jobs } = await harness.build(admin, [datasets.clean]);
         const [job] = Object.values(jobs);
-        const claimed = await harness.agent.claimJob(job.rid, 1);
+        const claimed = await harness.jobs.claimJob(job.rid, 1);
 
         expect(claimed.recipe.runtime).toEqual({
             type:         'code-workspace',

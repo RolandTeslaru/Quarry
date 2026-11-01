@@ -1,10 +1,10 @@
 import { Processor } from '@nestjs/bullmq';
 import { Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import { api } from '@quarry/shared/server/internal-api';
+import { api, getForgeApi } from '@quarry/shared/server/internal-api';
 import { JobProcessor } from '@quarry/shared/server/queue';
 
-/** Every durable queue's sweep, in one call: the server sends again what's unsent or stale in the outbox. */
+/** Every durable queue's sweep: the main server and Forge — each relays its own queues — send again what's unsent or stale in the outbox. */
 @Processor(Foundations.DurableQueue.Sweep.Definition.name, { concurrency: 1 })
 export class DurableQueueSweepProcessor extends JobProcessor<typeof Foundations.DurableQueue.Sweep.Definition> {
 
@@ -13,7 +13,9 @@ export class DurableQueueSweepProcessor extends JobProcessor<typeof Foundations.
     private readonly log = System.log.withContext('DurableQueueSweep');
 
     protected async handle(): Promise<Foundations.DurableQueue.Sweep.Result> {
-        const result = await Foundations.DurableQueue.API.sweep(api);
+        const main = await Foundations.DurableQueue.API.sweep(api);
+        const forge = await Foundations.DurableQueue.API.sweep(getForgeApi());
+        const result = { relayed: main.relayed + forge.relayed };
 
         if (result.relayed > 0)
             this.log.info(`Relayed ${result.relayed} outbox message(s)`);

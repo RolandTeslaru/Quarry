@@ -114,7 +114,7 @@ export class OutputUploads {
         const { datasetRid } = this.outputs[file.output];
         const filename = path.basename(file.path);
         const { size } = await fs.stat(file.path);
-        const { url } = await Forge.API.createUploadPass(this.api, this.jobRid, datasetRid, { filename });
+        const { url } = await Forge.API.Runtime.getSignedOutputUrl(this.api, this.jobRid, datasetRid, { filename });
 
         await axios.put(url, createReadStream(file.path), {
             headers:          { 'content-length': String(size) },
@@ -122,7 +122,7 @@ export class OutputUploads {
             maxContentLength: Infinity,
         });
 
-        await Forge.API.registerOutputFile(this.api, this.jobRid, datasetRid, {
+        await Forge.API.Runtime.registerOutputFile(this.api, this.jobRid, datasetRid, {
             filename,
             bytes: size,
         });

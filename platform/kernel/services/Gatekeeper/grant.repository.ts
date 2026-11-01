@@ -65,11 +65,11 @@ export class GrantRepository extends Repository(GatekeeperDB.database) {
 
     @Transactional()
     async revoke(principal: Principal, rid: Library.Resource.Rid, subject: Gatekeeper.Grant.Subject): Promise<void> {
-        await this._delete(rid, subject);
+        await this.delete(rid, subject);
     }
 
     /** No grant, or not yours to revoke (RLS) — 404 either way. */
-    private async _delete(rid: Library.Resource.Rid, subject: Gatekeeper.Grant.Subject): Promise<void> {
+    private async delete(rid: Library.Resource.Rid, subject: Gatekeeper.Grant.Subject): Promise<void> {
         requireAffected(await this.trx
             .deleteFrom('gatekeeper.role_grant')
             .where('resource_rid', '=', rid)

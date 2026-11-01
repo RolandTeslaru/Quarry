@@ -33,17 +33,26 @@ export class GatekeeperService {
      * Forbidden otherwise. Either way the refusal is recorded (audit `denied`).
      */
     async assert(principal: Principal, action: Gatekeeper.Action.Name, rid: Library.Resource.Rid): Promise<void> {
-        const rank = await this.rank(principal, rid);
+        await this.assertAll(principal, action, new Set([rid]));
+    }
 
-        if (Gatekeeper.Action.isAllowed(rank, action))
-            return;
+    /** `assert` on each of these, in one query for any number: the first refused is recorded and throws, as `assert` does. */
+    async assertAll(principal: Principal, action: Gatekeeper.Action.Name, rids: Set<Library.Resource.Rid>): Promise<void> {
+        const ranks = await this.ranks(principal, [...rids]);
 
-        await this.audit.recordDenied(principal, rid, action);
+        for (const rid of rids) {
+            const rank = ranks.get(rid) ?? 0;
 
-        if (!Gatekeeper.Action.isAllowed(rank, 'discover'))
-            throw new NotFoundException('Not found');
+            if (Gatekeeper.Action.isAllowed(rank, action))
+                continue;
 
-        throw new ForbiddenException(`Requires ${action} access`);
+            await this.audit.recordDenied(principal, rid, action);
+
+            if (!Gatekeeper.Action.isAllowed(rank, 'discover'))
+                throw new NotFoundException('Not found');
+
+            throw new ForbiddenException(`Requires ${action} access`);
+        }
     }
 
     /** Which of these the principal may act on — one query for any number. */

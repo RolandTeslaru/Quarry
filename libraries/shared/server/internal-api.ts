@@ -41,6 +41,9 @@ export const getCatalogApi = (): AxiosInstance => getServiceApi('CATALOG_URL');
 /** The Data Connection service's /internal API — its worker's run lifecycle, the system worker's reaper and schedules. */
 export const getDataConnectionApi = (): AxiosInstance => getServiceApi('DATA_CONNECTION_URL');
 
+/** The Forge service's /internal API — the system worker's sweep of its outbox. */
+export const getForgeApi = (): AxiosInstance => getServiceApi('FORGE_URL');
+
 /** Blocks until the server — or the service a worker works for — answers its health check: started together, a worker may come up first. */
 export async function waitForServer(target: AxiosInstance = api): Promise<void> {
     for (let attempt = 1; ; attempt++) {

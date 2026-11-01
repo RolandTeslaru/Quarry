@@ -38,14 +38,15 @@ export namespace Job {
     export type Schema = z.infer<typeof Schema>
 
     /** Its run-job message: this attempt's. */
-    export const getMessage = (job: Pick<Schema, "rid" | "attempt">) => ({ jobRid: job.rid, attempt: job.attempt })
+    export const getQueueMessage = (job: Pick<Schema, "rid" | "attempt">) => ({ jobRid: job.rid, attempt: job.attempt })
 
-    /** The job's output transactions, each with its dataset — how Catalog addresses them. */
-    export function getOutputTransactions(job: Pick<Schema, "outputs">): { rid: Transaction.Rid; datasetRid: Dataset.Rid }[] {
-        const transactions: { rid: Transaction.Rid; datasetRid: Dataset.Rid }[] = []
+    /** These jobs' output transactions, by dataset — how Catalog addresses them. A dataset is one job's output in a build. */
+    export function getOutputTransactions(jobs: Pick<Schema, "outputs">[]): Record<Dataset.Rid, Transaction.Rid> {
+        const transactions: Record<Dataset.Rid, Transaction.Rid> = {}
 
-        for (const datasetRid of Object.keys(job.outputs) as Dataset.Rid[])
-            transactions.push({ rid: job.outputs[datasetRid], datasetRid })
+        for (const job of jobs)
+            for (const datasetRid of Object.keys(job.outputs) as Dataset.Rid[])
+                transactions[datasetRid] = job.outputs[datasetRid]
 
         return transactions
     }

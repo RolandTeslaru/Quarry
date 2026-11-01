@@ -3,6 +3,7 @@ import { Foundations } from "../Foundations"
 import { Dataset } from "../Dataset/Dataset"
 import { User } from "../Identity/User"
 import { Recipe } from "./Recipe"
+import * as HelpersMod from "./helpers"
 
 /** One request to bring datasets up to date on a branch: the jobs it resolved to, run in dependency order. */
 export namespace Build {
@@ -35,10 +36,9 @@ export namespace Build {
             roots:    Recipe.Rid.array().min(1),
             children: z.record(Recipe.Rid, Recipe.Rid.array()),   // every node; a leaf has none
         })
-        export type Schema = z.infer<typeof Schema>
 
         /** The nodes the node waits for. */
-        export function getParents(plan: Schema, node: Recipe.Rid): Recipe.Rid[] {
+        export function getParents(plan: Plan, node: Recipe.Rid): Recipe.Rid[] {
             const parents: Recipe.Rid[] = []
 
             for (const parent of Object.keys(plan.children) as Recipe.Rid[])
@@ -48,11 +48,53 @@ export namespace Build {
             return parents
         }
 
+        export import CycleError = HelpersMod.PlanCycleError
+        export import create = HelpersMod.createPlan
+
+        /** Every node downstream of the node: its children, theirs, and so on. */
+        export function getDescendants(plan: Plan, node: Recipe.Rid): Set<Recipe.Rid> {
+            const descendants = new Set<Recipe.Rid>()
+            const next = [...plan.children[node]]
+
+            while (next.length > 0) {
+                const child = next.pop()!
+
+                if (descendants.has(child))
+                    continue
+
+                descendants.add(child)
+                next.push(...plan.children[child])
+            }
+
+            return descendants
+        }
+
         /** The finished node's children whose parents have all succeeded — they may run now. */
-        export function getReadyChildren(plan: Schema, finished: Recipe.Rid, succeeded: Set<Recipe.Rid>): Recipe.Rid[] {
-            return plan.children[finished].filter((child) => getParents(plan, child).every((parent) => succeeded.has(parent)))
+        export function getReadyChildren(plan: Plan, finished: Recipe.Rid, succeeded: Set<Recipe.Rid>): Recipe.Rid[] {
+            const ready: Recipe.Rid[] = []
+
+            for (const child of plan.children[finished]) {
+                let allSucceeded = true
+
+                for (const parent of getParents(plan, child))
+                    if (!succeeded.has(parent))
+                        allSucceeded = false
+
+                if (allSucceeded)
+                    ready.push(child)
+            }
+
+            return ready
         }
     }
+    export type Plan = z.infer<typeof Plan.Schema>
+
+    /**
+     * What a job's failure cancels: only its descendants — the jobs that need its outputs, directly or
+     * further down; independent branches run on, and the build fails once they've finished — or the whole build, at once.
+     */
+    export const OnJobFailure = z.enum(["cancel-descendants", "cancel-build"])
+    export type  OnJobFailure = z.infer<typeof OnJobFailure>
 
     export const Status = z.enum(["running", "succeeded", "failed", "canceled"])
     export type  Status = z.infer<typeof Status>
@@ -64,7 +106,7 @@ export namespace Build {
         target:           Target,
         plan:             Plan.Schema,
         forceBuild:       z.boolean(),                  // build fresh outputs too
-        abortOnFailure:   z.boolean(),                  // a failed job cancels the rest, not just its downstream
+        onJobFailure:     OnJobFailure,
         retryCount:       z.number().int().nonnegative(),
         status:           Status,
         createdBy:        User.Rid.nullable(),          // null = the system

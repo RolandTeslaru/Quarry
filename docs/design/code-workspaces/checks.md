@@ -28,7 +28,7 @@ sequenceDiagram
     participant S as CIService (server)
     participant W as Worker (CheckRunner)
     participant C as Check container
-    participant F as Forge (Recipes)
+    participant F as Forge (RecipeService)
 
     V->>V: Commit → git push (postCommitCommand)
     V->>G: POST /api/git/<rid>.git/git-receive-pack (Bearer: session token)

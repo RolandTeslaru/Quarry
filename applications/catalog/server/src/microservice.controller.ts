@@ -1,5 +1,5 @@
 import { Controller } from '@nestjs/common';
-import { Catalog } from '@quarry/shared/domain';
+import { Catalog, Dataset } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { MicroserviceCall } from '@quarry/platform-kernel/microservice/microservice-call.decorator';
 import { MicroserviceCallReceiver } from '@quarry/platform-kernel/microservice/microservice-call-receiver';
@@ -21,12 +21,12 @@ export class CatalogMicroserviceController {
         private readonly transaction: TransactionService,
     ) {}
 
-    @MicroserviceCall(Calls.CreateDataset, { from: ['data-connection'] })
+    @MicroserviceCall(Calls.CreateDataset, { from: ['data-connection', 'forge'] })
     public createDataset(principal: Principal, request: Calls.CreateDataset.Request) {
         return this.catalog.createDataset(principal, request);
     }
 
-    @MicroserviceCall(Calls.Get, { from: ['data-connection'] })
+    @MicroserviceCall(Calls.Get, { from: ['data-connection', 'forge'] })
     public get(principal: Principal, request: Calls.Get.Request) {
         return this.catalog.get(principal, request.rid);
     }
@@ -52,6 +52,69 @@ export class CatalogMicroserviceController {
     @MicroserviceCall(Calls.AbortTransaction, { from: ['data-connection'] })
     public async abortTransaction(principal: Principal, request: Calls.AbortTransaction.Request) {
         await this.transaction.abort(principal, request.datasetRid, request.transactionRid);
+
+        return {};
+    }
+
+    @MicroserviceCall(Calls.AssertNotEmpty, { from: ['forge'] })
+    public async assertNotEmpty(principal: Principal, request: Calls.AssertNotEmpty.Request) {
+        await this.catalog.assertNotEmpty(principal, new Set(request.datasetRids));
+
+        return {};
+    }
+
+    @MicroserviceCall(Calls.OpenTransactions, { from: ['forge'] })
+    public async openTransactions(principal: Principal, request: Calls.OpenTransactions.Request) {
+        const openings: Parameters<TransactionService['openBatch']>[1] = [];
+
+        for (const datasetRid of Object.keys(request.openings) as Dataset.Rid[])
+            openings.push({ datasetRid, ...request.openings[datasetRid] });
+
+        const opened: Calls.OpenTransactions.Response = {};
+
+        for (const transaction of await this.transaction.openBatch(principal, openings, request.branch))
+            opened[transaction.datasetRid] = transaction;
+
+        return opened;
+    }
+
+    @MicroserviceCall(Calls.CommitTransactions, { from: ['forge'] })
+    public async commitTransactions(principal: Principal, request: Calls.CommitTransactions.Request) {
+        const transactions: Parameters<TransactionService['commitBatch']>[1] = [];
+
+        for (const datasetRid of Object.keys(request.transactions) as Dataset.Rid[])
+            transactions.push({ datasetRid, rid: request.transactions[datasetRid] });
+
+        await this.transaction.commitBatch(principal, transactions);
+
+        return {};
+    }
+
+    @MicroserviceCall(Calls.AbortTransactions, { from: ['forge'] })
+    public async abortTransactions(principal: Principal, request: Calls.AbortTransactions.Request) {
+        const transactions: Parameters<TransactionService['abortBatch']>[1] = [];
+
+        for (const datasetRid of Object.keys(request.transactions) as Dataset.Rid[])
+            transactions.push({ datasetRid, rid: request.transactions[datasetRid] });
+
+        await this.transaction.abortBatch(principal, transactions);
+
+        return {};
+    }
+
+    @MicroserviceCall(Calls.GetSignedReadUrls, { from: ['forge'] })
+    public getSignedReadUrls(principal: Principal, request: Calls.GetSignedReadUrls.Request) {
+        return this.catalog.storage.getSignedReadUrls(principal, request.datasetRid, request.sequence);
+    }
+
+    @MicroserviceCall(Calls.GetSignedWriteUrl, { from: ['forge'] })
+    public async getSignedWriteUrl(principal: Principal, request: Calls.GetSignedWriteUrl.Request) {
+        return { url: await this.catalog.storage.getSignedWriteUrl(principal, request.datasetRid, request.transactionRid, request.filename) };
+    }
+
+    @MicroserviceCall(Calls.RegisterFile, { from: ['forge'] })
+    public async registerFile(principal: Principal, request: Calls.RegisterFile.Request) {
+        await this.catalog.storage.registerFile(principal, request.datasetRid, request.transactionRid, request.filename, request.bytes);
 
         return {};
     }

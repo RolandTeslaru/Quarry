@@ -21,6 +21,9 @@
             ],
             "@quarry/data-connection-server/*": [
                 "../../applications/data-connection/server/src/*"
+            ],
+            "@quarry/forge-server/*": [
+                "../../applications/forge/server/src/*"
             ]
         },
         "rootDir": "../..",

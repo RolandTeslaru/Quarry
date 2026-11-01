@@ -7,7 +7,7 @@ import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { GitRepos } from '@/services/CodeWorkspace/git/git-repos';
 import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/repository/code-workspace.repository';
-import type { ForgeHarness } from './forge-fixtures';
+import type { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
 
 const run = promisify(execFile);
 

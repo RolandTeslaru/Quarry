@@ -9,11 +9,12 @@ import { CodeWorkspaceModule } from '@/services/CodeWorkspace/code-workspace.mod
 import { SourceModule } from '@quarry/data-connection-server/source/source.module';
 import { SyncModule } from '@quarry/data-connection-server/sync/sync.module';
 import { SyncRunModule } from '@quarry/data-connection-server/sync-run/sync-run.module';
-import { ForgeModule } from '@/services/Forge/forge.module';
+import { ForgeModule } from '@quarry/forge-server/services/forge/forge.module';
+import { JobModule } from '@quarry/forge-server/services/job/job.module';
 import { isGated } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
 
 /** Every service module — the main server's, Catalog's, and those paused by phase 1 of the split: the rule is the code's, not a deployment's. */
-@Module({ imports: [MainServerModule, CatalogModule, SourceModule, SyncModule, SyncRunModule, CodeWorkspaceModule, ForgeModule] })
+@Module({ imports: [MainServerModule, CatalogModule, SourceModule, SyncModule, SyncRunModule, CodeWorkspaceModule, ForgeModule, JobModule] })
 class EveryServiceModule {}
 
 /**

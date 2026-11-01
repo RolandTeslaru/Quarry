@@ -18,7 +18,7 @@ import { db } from '@quarry/platform-kernel/db/pool';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
 import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
 import { QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../support/forge-fixtures';
+import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
 
 import CI = CodeWorkspace.CI;
 

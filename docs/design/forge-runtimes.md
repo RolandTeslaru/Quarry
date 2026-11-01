@@ -238,7 +238,7 @@ A runtime **carries** permissions; it can't **enforce** them. It runs in the sam
 
 | Where | Token | Narrowed to |
 |---|---|---|
-| Build job | the **job token**, minted at `claim` (`SessionTokens.mint`, `via: 'forge-job'`) | the **build's starter** — a full user token for now, like a check run's; narrowing it to the job's inputs and outputs needs a scope claim the verifier enforces (later) |
+| Build job | the **job token**, minted at `claim` by the main server (`IdentityClient.mintUserToken`, `via: 'forge-job'` — Forge is its own service since phase 3 of the split) | the **build's starter** — a full user token for now, like a check run's; narrowing it to the job's inputs and outputs needs a scope claim the verifier enforces (later) |
 | Preview (IDE) | the session's token | the user |
 | Check run | the run's token | the pusher |
 
@@ -505,7 +505,7 @@ sequenceDiagram
 
 **1. Python writes files.** `TransformOutput.write_table(data)` writes rolling Parquet files of about 256 MB to `transform`'s scratch folder (`<home>/out/<parameter>/part-N.parquet`), streaming: a LazyFrame through its batches, a DuckDB relation through `fetch_record_batch`, an Arrow table or DataFrame in slices. Each file is written as `.tmp`, closed, renamed, then announced on **file descriptor 3** — `{"type":"event","event":"file-ready","output":"<parameter>","path":"…"}` — a pipe of its own, since stdout and stderr carry the transform's prints. `run.py` replaces `drop` with this writer, and fails the job if a declared output wasn't written (as preview already refuses).
 
-**2. The runtime uploads them.** It reads fd 3; for each file, in parallel (a few at a time): an **upload pass** (`POST /api/jobs/:rid/outputs/:dataset/upload-passes { filename }` → `{ key, url }`), a `PUT` of the file to the URL, then **registering** it (`POST /api/jobs/:rid/outputs/:dataset/files { filename }`). After Python exits it waits for the last uploads; any failed upload or registration fails the job. One `PUT` per file — S3 takes up to 5 GB that way, and a file is ~256 MB, so no multipart upload.
+**2. The runtime uploads them.** It reads fd 3; for each file, in parallel (a few at a time): an **upload pass** (`POST /api/forge/jobs/:rid/outputs/:dataset/upload-passes { filename }` → `{ key, url }`), a `PUT` of the file to the URL, then **registering** it (`POST /api/forge/jobs/:rid/outputs/:dataset/files { filename }`). After Python exits it waits for the last uploads; any failed upload or registration fails the job. One `PUT` per file — S3 takes up to 5 GB that way, and a file is ~256 MB, so no multipart upload.
 
 **3. The server.**
 
@@ -524,9 +524,9 @@ sequenceDiagram
 - **The events pipe is named by `QUARRY_EVENTS_FD`** (3 under the runtime), so tests can hand `run.py` any pipe.
 - **An announced file must be a `.parquet` file directly in its output's folder** — the transform runs the workspace's code and the runtime uploads as root, so anything else (`/work/job.json`, any file root can read) fails the job instead of being uploaded.
 - **`write_table` streams and takes the whole output once:** a LazyFrame (`collect_batches`) or a DuckDB relation (`to_arrow_reader`) is computed as it's written; a second `write_table` on the same output raises. An output with no rows is still one file, with its columns.
-- **`commitBatch` doesn't skip committed transactions:** a repeated `finish` never reaches it (the job is no longer running), so there's nothing to skip.
+- **`commitBatch` doesn't skip committed transactions:** a repeated `finish` never reaches it (the job is no longer running), so there's nothing to skip. Since phase 3 of the split, Forge reaches it through Catalog's `commitTransactions` call, which commits before Forge's own transaction does — if Forge's commit then fails, a repeated `finish` *does* reach it, and is refused (*Unverified* in architecture-split.md, phase 3).
 
-Tests: `test/forge/output-files` (upload passes need a running job and one of its outputs; registered files are committed with the job under their footers' schema; different columns are refused), `agent-api` and `build-graph` (a succeeded job's outputs committed once, a failed one's aborted), `tests/test_run.py` (files announced, rolling, an empty output, an unwritten output fails, write once), and the e2e chain: W reads an uploaded CSV and keeps 2 of 3 rows, X reads W's new version in the same build.
+Tests (`applications/forge/server/` since phase 3 of the split): `test/forge/output-files` (upload passes need a running job and one of its outputs; registered files are committed with the job under their footers' schema; different columns are refused), `agent-api` and `build-graph` (a succeeded job's outputs committed once, a failed one's aborted), `tests/test_run.py` (files announced, rolling, an empty output, an unwritten output fails, write once), and the e2e chain: W reads an uploaded CSV and keeps 2 of 3 rows, X reads W's new version in the same build.
 
 **Decided with the plan (2026-10-30):**
 

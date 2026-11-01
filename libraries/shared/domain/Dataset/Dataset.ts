@@ -45,22 +45,6 @@ export namespace Dataset {
         export type Schema = z.infer<typeof Schema>
     }
 
-    /** One version's files as short-lived signed URLs: whoever holds them reads straight from storage. */
-    export namespace ReadPasses {
-        export const File = z.object({
-            url:   z.string(),
-            bytes: z.number().int().nonnegative(),
-        })
-        export type  File = z.infer<typeof File>
-
-        export const Schema = z.object({
-            sequence: Sequence,
-            schema:   ColumnSchema.Schema.nullable(),
-            files:    File.array(),
-        })
-        export type  Schema = z.infer<typeof Schema>
-    }
-
     /** The bucket folder for one transaction's files. A new folder per transaction: keys are never reused. */
     export const getStoragePrefix = (rid: Rid, transactionRid: Transaction.Rid): string => `${rid}/${transactionRid}/`
 

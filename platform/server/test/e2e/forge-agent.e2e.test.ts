@@ -1,17 +1,16 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import type { AddressInfo } from 'node:net';
 import * as path from 'node:path';
-import { Readable } from 'node:stream';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
 import { WsAdapter } from '@nestjs/platform-ws';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Forge } from '@quarry/shared/domain';
+import { Catalog, type Forge } from '@quarry/shared/domain';
 import { MainServerModule } from '@/main-server.module';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { destroyPool } from '@quarry/platform-kernel/db/pool';
 import { createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness, MAIN, type RecipeCode } from '../support/forge-fixtures';
+import { ForgeHarness, MAIN, type RecipeCode } from '../../../../applications/forge/server/test/support/forge-fixtures';
 
 /** How long a ForgeAgent gets to boot (ts-node compiles it first) and to finish a build (a container per job). */
 const AGENT_BOOT_MS = 60_000;
@@ -170,10 +169,8 @@ describe('a real ForgeAgent', () => {
     it('reads its input from storage, through read passes', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'r'], []);
 
-        await harness.catalog.storage.upload(user, datasets.raw, 'snapshot', {
-            filename: 'orders.csv',
-            stream:   Readable.from(['id,amount\n1,10\n2,20\n3,30\n']),
-        });
+        await Catalog.API.Dataset.upload(await harness.getApi(user, process.env.CATALOG_URL), datasets.raw, { mode: 'snapshot' },
+            new Blob(['id,amount\n1,10\n2,20\n3,30\n']), 'orders.csv');
         await harness.publish(user, projectRid, datasets, [{ name: 'R', inputs: ['raw'], outputs: ['r'] }], MAIN, code);
 
         const { build } = await harness.build(user, [datasets.r]);
@@ -186,10 +183,8 @@ describe('a real ForgeAgent', () => {
     it("writes its outputs as new versions, which the next job in the build reads", async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'w', 'x'], []);
 
-        await harness.catalog.storage.upload(user, datasets.raw, 'snapshot', {
-            filename: 'orders.csv',
-            stream:   Readable.from(['id,amount\n1,10\n2,20\n3,30\n']),
-        });
+        await Catalog.API.Dataset.upload(await harness.getApi(user, process.env.CATALOG_URL), datasets.raw, { mode: 'snapshot' },
+            new Blob(['id,amount\n1,10\n2,20\n3,30\n']), 'orders.csv');
         await harness.publish(user, projectRid, datasets, [
             { name: 'W', inputs: ['raw'], outputs: ['w'] },
             { name: 'X', inputs: ['w'],   outputs: ['x'] },
@@ -201,8 +196,8 @@ describe('a real ForgeAgent', () => {
         expect(done.build.status).toBe('succeeded');
         expect(agentLog).toContain('x read 2 rows written by W');            // W kept amount > 10: 2 of 3
 
-        const w = await harness.catalog.view(user, datasets.w);
-        const x = await harness.catalog.view(user, datasets.x);
+        const w = await harness.view(user, datasets.w);
+        const x = await harness.view(user, datasets.x);
 
         expect(w).toMatchObject({ sequence: 1, rowCount: 2 });
         expect(x).toMatchObject({ sequence: 1, rowCount: 2 });
@@ -286,14 +281,14 @@ describe('a real ForgeAgent', () => {
         const { build, jobs } = await harness.build(user, [datasets.a]);
         const [job] = Object.values(jobs);
 
-        await harness.agent.claimJob(job.rid, 1).catch(() => undefined);        // the real agent may have taken it first
+        await harness.jobs.claimJob(job.rid, 1).catch(() => undefined);        // the real agent may have taken it first
         await harness.forge.cancelBuild(user, build.rid).catch(() => undefined);
 
-        const refusal = await harness.agent.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null }).then(
+        const refusal = await harness.forge.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null }).then(
             () => null,
             (error: unknown) => error,
         );
-        const after = await harness.forge.getJob(user, job.rid);
+        const after = await harness.jobs.getJob(user, job.rid);
 
         if (after.status === 'canceled')
             expect(refusal).toMatchObject({ message: expect.stringMatching(/isn't running/) });

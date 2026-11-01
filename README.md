@@ -40,7 +40,8 @@ Three folders (docs/design/architecture-split.md): **`platform/`** — what ever
 | `applications/data-connection/server` | Sources, syncs and their runs — its own process and login; Catalog and Keychain through microservice calls |
 | `applications/data-connection/worker` | Runs syncs and source probes — the only process that reaches source systems |
 | `applications/code-workspace/{worker,runtime,vscode-extension,transforms-python}` | IDE sessions and checks (Docker); the runtime in a session or a job; the VS Code extension; the Python transforms library. Its server code is still in the main server, paused by the split |
-| `applications/forge/agent` | Runs build jobs in containers. Forge's server code is still in the main server, paused by the split |
+| `applications/forge/server` | Recipes, builds and jobs — its own process and login; Catalog and token minting through microservice calls; the ForgeAgents' API |
+| `applications/forge/agent` | Runs build jobs in containers, reporting to the Forge service |
 | `libraries/shared` | Domain types + API contracts (zod), server helpers |
 | `libraries/standard-ui` | Shared React components, theme styles, icons, and DialogSDK |
 | `libraries/integrations` | One folder per external system (Postgres, …): source definition, credential template, runtime |

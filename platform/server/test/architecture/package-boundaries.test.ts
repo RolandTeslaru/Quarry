@@ -26,11 +26,13 @@ function getImports(pkg: string, forbidden: RegExp): string[] {
 describe('package boundaries', () => {
 
     it("the kernel imports no server, service or product — and no `@/`, which would resolve into its importer's package", () => {
-        expect(getImports('platform/kernel', /^@\/|^@quarry\/(platform-server|catalog-server|data-connection-server)\b|\/(platform\/server|applications)\//)).toEqual([]);
+        expect(getImports('platform/kernel', /^@\/|^@quarry\/(platform-server|catalog-server|data-connection-server|forge-server)\b|\/(platform\/server|applications)\//)).toEqual([]);
     });
 
     it("the services import nothing of the main server's, nor each other's", () => {
-        expect(getImports('applications/catalog/server', /^@\/|^@quarry\/(platform-server|data-connection-server)\b|platform\/server\/src\//)).toEqual([]);
-        expect(getImports('applications/data-connection/server', /^@\/|^@quarry\/(platform-server|catalog-server)\b|platform\/server\/src\//)).toEqual([]);
+        expect(getImports('applications/catalog/server', /^@\/|^@quarry\/(platform-server|data-connection-server|forge-server)\b|platform\/server\/src\//)).toEqual([]);
+        expect(getImports('applications/data-connection/server', /^@\/|^@quarry\/(platform-server|catalog-server|forge-server)\b|platform\/server\/src\//)).toEqual([]);
+        // Its code only: its tests write real Parquet with Catalog's DuckDB, where a job's runtime would.
+        expect(getImports('applications/forge/server/src', /^@\/|^@quarry\/(platform-server|catalog-server|data-connection-server)\b|platform\/server\/src\//)).toEqual([]);
     });
 });

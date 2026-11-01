@@ -8,7 +8,7 @@ import { z } from "zod"
 export namespace MicroserviceCall {
 
     /** The services that call or are called — each one's token says which it is. */
-    export const Microservice = z.enum(["main", "catalog", "data-connection"])
+    export const Microservice = z.enum(["main", "catalog", "data-connection", "forge"])
     export type  Microservice = z.infer<typeof Microservice>
 
     export interface Definition<Req extends z.ZodType = z.ZodType, Res extends z.ZodType = z.ZodType> {

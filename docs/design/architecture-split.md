@@ -159,7 +159,7 @@ Inside one service nothing changes: its rows, its Library rows, its outbox messa
 | Data Connection gets a run's credential (`getEncryptedBlob`, decrypted in the worker) | Keychain's API returns the **decrypted** credential for that run, checked by Keychain | the key leaves the worker |
 | Audit records (`recordOpen`, `recordDenied`, `@Audit`) in the caller's transaction | an **audit event in the caller's outbox**, in its transaction; Audit consumes and stores it | **not fire-and-forget**: a crash or a Redis restart can't lose a record (credential reveals, data reads are evidence) |
 | Realtime emits | the shared kernel publishes to Redis, as today | best effort, as today |
-| The gateway authorizes a build's channel through Forge's service | the gateway (main server) reads `forge.build` under the user's RLS — granted select | no call to Forge |
+| The gateway authorizes a build's channel through Forge's service | **as built (phase 3):** a microservice call, `forge.get-build`, as the user with the socket's own token — the in-process `ForgeService.getBuild` it was, so RLS on `forge.build` still decides. (The plan was a read of `forge.build` in the main server, under the user's RLS — more new code than the port needed) | one call per subscribe to a build's channel |
 
 ## 8. Calls between services
 
@@ -186,7 +186,7 @@ Why NATS: a request goes to **one** instance of a queue group, so a service scal
 In the shared domain, next to each domain's public API, in the `Stdio` style:
 
 ```ts
-export namespace Forge.Service {
+export namespace Forge.Microservice {
     export namespace PublishRecipes {
         export const PATTERN  = 'forge.publish-recipes'
         export const Request  = z.object({ workspaceRid: CodeWorkspace.Rid, branch: Foundations.Branch, recipes: PublishedRecipe.array() })
@@ -203,7 +203,7 @@ export namespace Forge.Service {
 }
 ```
 
-`Forge.Service.Calls` is **the whole service-only surface of Forge**, in one place.
+`Forge.Microservice.Calls` is **the whole service-only surface of Forge**, in one place.
 
 ### The client: an injectable module per service
 
@@ -218,7 +218,7 @@ export class CIService {
 }
 ```
 
-- **Generated from `Calls`**, not written by hand: a mapped type plus one helper (`createMicroserviceClient(Forge.Service.Calls)`) turn each entry into a method `(principal, request) => Promise<Response>`, typed from the contract. Adding a call to `Calls` adds the method — no per-method wrapper to keep in step.
+- **Generated from `Calls`**, not written by hand: a mapped type plus one helper (`createMicroserviceClient(Forge.Microservice.Calls)`) turn each entry into a method `(principal, request) => Promise<Response>`, typed from the contract. Adding a call to `Calls` adds the method — no per-method wrapper to keep in step.
 - **Each method** sends `{ principal, request }` with the call's `PATTERN`, attaches the identities (below), and parses the response with the contract.
 - **`ForgeClientModule`** provides `ForgeClient`, configured with the transport and the calling service's credentials; a service imports the clients of the services it calls. Clients and their modules live in a shared server package; contracts in `@quarry/shared/domain/<Domain>`.
 
@@ -232,8 +232,8 @@ export class ForgeMicroserviceController {
 
     constructor(private readonly forge: ForgeService) {}
 
-    @MicroserviceCall(Forge.Service.PublishRecipes, { from: ['code-workspace'] })
-    publishRecipes(@Caller() principal: Principal.User, @Payload() request: Forge.Service.PublishRecipes.Request) {
+    @MicroserviceCall(Forge.Microservice.PublishRecipes, { from: ['code-workspace'] })
+    publishRecipes(@Caller() principal: Principal.User, @Payload() request: Forge.Microservice.PublishRecipes.Request) {
         return this.forge.recipes.publish(principal, request.workspaceRid, request.branch, request.recipes)
     }
 }
@@ -279,9 +279,11 @@ Each step lands on its own and leaves Quarry working; the services only become s
 1. **Roles in the monolith.** Each module's repositories use its own `<module>_service` / `<module>_user` roles (§5), with the restrictive Library policies and narrowed grants. Proves the permission model with no network change. Settles §5's open point.
 2. **The shared kernel package.** Move Auth, IAM read, Gatekeeper read, Library, Realtime emit, the audit writer and the durable-queue infra into it; the server imports it.
 3. **Audit through the outbox.** Audit events instead of direct inserts; Audit consumes them (still in the monolith).
-4. **Cross-module calls as protocols, still in one process.** Each service's contracts (`<Domain>.Service.Calls`) and its client, with the **in-process implementation** (§8); every cross-module call goes through the clients. Forge's output commit (§7) as outbox + idempotent commit + "committed"; publishing as two idempotent calls; Keychain decrypting for a run.
+4. **Cross-module calls as protocols, still in one process.** Each service's contracts (`<Domain>.Microservice.Calls`) and its client, with the **in-process implementation** (§8); every cross-module call goes through the clients. Forge's output commit (§7) as outbox + idempotent commit + "committed"; publishing as two idempotent calls; Keychain decrypting for a run.
 5. **Extract, one at a time:** Keychain → Catalog → Forge → Code Workspace → Data Connection → Audit. Each extraction moves a module and its executor's internal API into a new process, connects it to NATS, and swaps its client to the NATS implementation; nothing about its behaviour changes. (NATS joins the infrastructure with the first extraction.)
 6. **Later:** syncs as Forge jobs.
+
+**As built, the order differs** (the phases below): step 4 was skipped — the clients went straight to NATS in phase 2, with no in-process implementation first; the extractions ran Catalog (phase 1) → Data Connection (phase 2, before Forge, on purpose) → Forge (phase 3); Keychain stays in the main server (phase 2, item 5); Forge's output commit is a call inside its transaction, not the outbox protocol (phase 3). Next: Code Workspaces.
 
 ## Phase 1 — the kernel and Catalog (built 2026-11-01, branch `split/phase-1`)
 
@@ -338,7 +340,7 @@ Data Connection before Forge: it uses the microservice-calls framework (§8) the
 | Part | What | Where |
 |---|---|---|
 | **NATS** | `nats` in docker-compose (`npm run infra`), `NATS_URL`. Each server a hybrid app (`connectMicroserviceCalls(app, service)`), its service's queue group | `platform/kernel/microservice/microservice-calls.module.ts` |
-| **Contracts** | `Foundations.MicroserviceCall` (the message: service token, who it acts as, the request; failures as HTTP statuses); `Catalog.Microservice`, `Keychain.Microservice`, `Identity.Microservice` — each call `PATTERN`, `Request`, `Response`, and `Calls` by method name | `shared/domain/Foundations/MicroserviceCall.ts`, `shared/domain/{Catalog,Keychain,Identity}/service.ts` |
+| **Contracts** | `Foundations.MicroserviceCall` (the message: service token, who it acts as, the request; failures as HTTP statuses); `Catalog.Microservice`, `Keychain.Microservice`, `Identity.Microservice` — each call `PATTERN`, `Request`, `Response`, and `Calls` by method name | `shared/domain/Foundations/MicroserviceCall.ts`, `shared/domain/{Catalog,Keychain,Identity}/microservice.ts` |
 | **Clients** | `createMicroserviceClient(calls)` → `CatalogClient`, `KeychainClient`, `IdentityClient`, injected like services: `this.catalog.openTransaction(principal, request)`. `MicroserviceCaller` attaches the service token and who it acts as — the request's own token for its user (`RequestIdentity`, set by `AuthGuard`), a token the main server mints for a delegate or a user outside their request (`identity.mint-user-token`, reused while it lasts), nothing for the service itself — and rethrows a refusal as the exception the callee threw (`NotFoundException`, …) | `platform/kernel/microservice/{microservice-client,microservice-caller,clients}.ts`, `auth/request-identity.ts` |
 | **Handlers** | `@MicroserviceCall(definition, { from })` on a controller method that gets `(principal, request)`; `MicroserviceCallReceiver` checks the service token and `from` (401 / 403), resolves the principal (the user's token verified as on HTTP; a delegate; the calling service as `SELF`), parses the request, and runs the handler with that user as the request identity. No HTTP route | `platform/kernel/microservice/{microservice-call.decorator,microservice-call-receiver}.ts` |
 | **Service tokens** | EdDSA JWTs, `sub` the service, 1 h. The main server signs them (`QUARRY_SERVICE_TOKEN_PRIVATE_KEY`, it alone) at `POST /api/internal/service-tokens`, for the service whose secret (`QUARRY_SERVICE_SECRET_<SERVICE>`) matches; everyone verifies with `QUARRY_SERVICE_TOKEN_PUBLIC_KEY`. HTTP, not a call: a service needs its token before its first call | `platform/kernel/microservice/service-tokens.ts`, `platform/server/src/auth/service-tokens.controller.ts` |
@@ -351,11 +353,36 @@ Data Connection before Forge: it uses the microservice-calls framework (§8) the
 
 **Tests** — Data Connection's 8 files (113) on the service's own login, in-process, with **the main server and Catalog as processes** started once per run (`applications/data-connection/server/test/support/global-setup.ts`): every Catalog and Keychain call goes over NATS as in production, delegates' tokens minted by the main server. Platform-only fixtures (users, projects, grants, trashing a dataset) through the owner's connection; credentials and dataset versions through the main server's and Catalog's HTTP APIs as the user; audit records read from the outbox (no system worker in the tests). The source-probe end-to-end test serves Data Connection's HTTP API to a real worker process. The Catalog end-to-end test (server) now also covers the framework: a call as the user with a minted token, a delegate, a service cleaning up as itself, Gatekeeper refusing on Catalog's side, a caller not in `from` (403), an unsigned token (401). `repositories` and `package-boundaries` scan every package.
 
-**Then:** phase 3 — Forge (the output-commit protocol, `/api/builds`, the ForgeAgent's endpoints, job tokens from the main server); phase 4 — Code Workspaces (publishing through `ForgeClient` and `CatalogClient`); Keychain's own phase; later, syncs as Forge jobs.
+**Then:** phase 3 — Forge (below); phase 4 — Code Workspaces (publishing through `ForgeClient` and `CatalogClient`); Keychain's own phase; later, syncs as Forge jobs.
+
+## Phase 3 — Forge (built 2026-11-01, branch `split/phase-1`)
+
+**A port, as close to the monolith's code as the process boundary allows** (decided 2026-11-01: less to review). The files moved (`git mv`) from `platform/server/src/services/Forge/` to `applications/forge/server/src/services/forge/` — the agent's side to `services/agent-api/`, a module of its own (`ForgeAgentModule`, using `ForgeModule`'s exported `ForgeRepository`) — with the service's root (`main.ts`, `microservice.module.ts`, `microservice.controller.ts`) beside `services/`; names and code otherwise kept; what changed is each place Forge reached into another module in-process, now a microservice call of the same shape, and the wiring of a service of its own. **No output-commit protocol** (§7's outbox + "committed"): judged not worth it for the crash window it closes — see *Unverified* below.
+
+**As built**
+
+| Part | What | Where |
+|---|---|---|
+| **`@quarry/forge-server`** | `ForgeMicroserviceModule` (Forge plus the kernel modules), port `FORGE_PORT` (4030), login `FORGE_DATABASE_URL` — roles `forge_service` / `forge_user`, no Library resource types of its own; `npm run dev:forge-service`, in `npm run dev` | `applications/forge/server`, `migrations/forge/001_initial.sql` |
+| **Catalog's calls** | `openTransactions`, `commitTransactions`, `abortTransactions` (the batches: all in one Catalog transaction, as `openBatch` / `commitBatch` / `abortBatch` were), `getReadPasses`, `getUploadPass`, `registerFile`; `createDataset` and `get` now also `from: ['forge']` | `shared/domain/Catalog/microservice.ts`, `applications/catalog/server/src/microservice.controller.ts` |
+| **Call sites** | `CatalogService` / `TransactionService` → `CatalogClient`, one line each: `this.transaction.openBatch(principal, openings, branch)` → `this.catalog.openTransactions(principal, { openings, branch })`. The agent's calls still act as `forge.agent` (`Principal.SELF`), which Catalog gets as the calling service | `services/forge/{forge.service.ts,repository/forge.repository.ts}`, `services/agent-api/agent-api.service.ts` |
+| **Committing a job's outputs** | Where it was in `ForgeRepository.finishJob` — after the job is recorded succeeded, before its children are scheduled — but a call: Catalog commits in its own transaction, before Forge's commits | `services/forge/repository/forge.repository.ts` |
+| **Job tokens** | `SessionTokens.mint(createdBy, 'forge-job')` → `IdentityClient.mintUserToken` — the main server mints the same token | `services/agent-api/agent-api.service.ts` |
+| **Routes** | `/api/forge/{builds,jobs,recipes}/…` (`Forge.API`), forwarded by the main server's proxy — the job's runtime still calls the main server. `/api/forge-agent/…` served by Forge itself: the ForgeAgent calls `FORGE_URL` | `shared/domain/Forge/api/index.ts`, `platform/server/src/http/main-server.ts`, `applications/forge/agent/src/forge-server.client.ts` |
+| **Outbox sweep** | Forge registers `forge.run-job`, so it sweeps it: `/api/internal/durable-queues/sweep` on Forge too; the system worker's sweep calls the main server and Forge (`getForgeApi()`) | `microservice.module.ts`, system worker `durable-queue-sweep.processor.ts` |
+| **The gateway** | `forge.get-build` (`Forge.Microservice`, `ForgeClient`), `from: ['main']`, called with the socket's own token (`RequestIdentity.run` around the channel check) — §7 | `platform/server/src/services/Realtime/realtime.gateway.ts`, `applications/forge/server/src/microservice.controller.ts` |
+| **Back** | the Forge app in the frontend's list | `frontend/src/shell/apps.ts` |
+| **Still paused** | Code Workspaces: it calls `ForgeService` in-process, now as `@quarry/forge-server/…` — as it calls Catalog (phase 1); its tests use Forge's harness by path. The ForgeAgent end-to-end test needs a workspace to build from, so it stays excluded until phase 4 | `platform/server/src/services/CodeWorkspace/`, `platform/server/test/e2e/forge-agent.e2e.test.ts` |
+
+**Tests** — Forge's 9 files (72) moved to `applications/forge/server/test/`, on the service's own login, in-process, with the main server and Catalog as processes (the Data Connection pattern). The harness writes users, projects, grants and trashing through the owner's connection; its datasets' versions are a one-row CSV uploaded through Catalog's HTTP API (it was a fake file registered in-process — Forge isn't allowed Catalog's single-transaction calls); `input-passes` checks that file's size and name. Test bodies otherwise unchanged but for the new call shapes (`catalog.get(user, { rid })`) and `harness.trash` / `harness.view`. `repositories` and `package-boundaries` scan Forge (its `src/`; its tests reach Catalog's DuckDB to write real Parquet).
+
+**Unverified — the commit window** (not fixed: the monolith's logic, ported). `finishJob` commits the outputs in Catalog, then commits its own transaction (job succeeded, children scheduled). If Forge's commit fails after Catalog's — a crash, a lost connection — the outputs are new versions but the job is still `running`. The agent retries `finish`; `commitTransactions` refuses the committed transactions (`_requireOpen`), so every retry fails — and with no reaper for Forge's leases yet, the job stays `running` until someone cancels the build. Nothing is lost or duplicated; the build never finishes though its outputs landed. Candidate fix if it matters: `commitBatch` skipping transactions already committed, as `abortBatch` skips finished ones — a repeated `finish` then completes. Data Connection's `complete` has a similar window (Catalog commits, then the run is marked).
+
+**To run it:** reset the dev database (`forge/001_initial.sql` gained its roles); `.env` gains `FORGE_DATABASE_URL`, `FORGE_PORT`, `FORGE_URL`, `QUARRY_SERVICE_SECRET_FORGE` (`.env.example`); restart `npm run dev`, and a ForgeAgent with `FORGE_URL`.
 
 ## 11. Open questions
 
 - **Each service's own secret** for requesting its service tokens — where it lives, how it's rotated.
 - **GoTrue's signing**: whether the deployed GoTrue supports asymmetric JWT signing keys; until it does, every server verifying user JWTs holds `GOTRUE_JWT_SECRET`, which can mint them.
-- **The gateway's reach.** It reads each domain's tables to authorize channels (`forge.build`, workspaces, sources). Fine while it's in the main server with read grants; revisit if a domain's visibility stops being a row it can read.
+- **The gateway's reach.** It authorizes channels with Gatekeeper (sources, workspaces) and, for a build, a call to Forge (phase 3). Revisit if another domain's visibility stops being a Gatekeeper check.
 - **§5's role membership** — verified in step 1.

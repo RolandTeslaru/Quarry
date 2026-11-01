@@ -22,6 +22,7 @@
         "@nestjs/platform-ws": "^11.2.7",
         "@nestjs/websockets": "^11.2.7",
         "@quarry/catalog-server": "*",
+        "@quarry/forge-server": "*",
         "@quarry/integrations": "*",
         "@quarry/platform-kernel": "*",
         "@quarry/shared": "*",

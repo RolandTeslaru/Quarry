@@ -24,7 +24,7 @@ export namespace Queue {
             options: { removeOnComplete: true, removeOnFail: true },
         })
 
-        export const getJobId = (run: Pick<CheckRunD.Schema, "rid">): string => run.rid
+        export const getQueueJobId = (run: Pick<CheckRunD.Schema, "rid">): string => run.rid
     }
 
     /**

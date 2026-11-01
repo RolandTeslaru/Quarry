@@ -4,6 +4,7 @@ import { sql, type Kysely } from 'kysely';
 export const SERVICE_LOGINS = [
     { role: 'catalog_service',         url: 'CATALOG_DATABASE_URL' },
     { role: 'data_connection_service', url: 'DATA_CONNECTION_DATABASE_URL' },
+    { role: 'forge_service',           url: 'FORGE_DATABASE_URL' },
 ] as const;
 
 /**

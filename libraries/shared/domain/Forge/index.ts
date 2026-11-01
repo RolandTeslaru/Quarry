@@ -6,6 +6,7 @@ import * as EventMod   from "./Event"
 import * as QueueMod   from "./queue"
 import * as DurableQueueMod from "./durable-queue"
 import * as ApiMod     from "./api"
+import * as MicroserviceMod from "./microservice"
 
 /** Builds: computing new versions of datasets from the recipes producers publish. See docs/design/forge.md. */
 export namespace Forge {
@@ -18,4 +19,5 @@ export namespace Forge {
     export import Queue = QueueMod.Queue
     export import DurableQueue = DurableQueueMod.DurableQueue
     export import Event = EventMod.Event
+    export import Microservice = MicroserviceMod.Microservice
 }

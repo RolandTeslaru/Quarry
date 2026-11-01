@@ -6,7 +6,7 @@ import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
 import { MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../support/forge-fixtures';
+import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
 
 import CI = CodeWorkspace.CI;
 import CheckRun = CI.CheckRun;

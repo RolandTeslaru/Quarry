@@ -19,6 +19,15 @@ export namespace Transaction {
     export const Status = z.enum(["open", "committed", "aborted"])
     export type  Status = z.infer<typeof Status>
 
+    /** What opening a transaction on a dataset takes: its type, and what opened it (`{ buildRid, jobRid }`, `{ syncRid, syncRunRid }`). */
+    export namespace Opening {
+        export const Schema = z.object({
+            type:       Type,
+            provenance: z.record(z.string(), z.unknown()),
+        })
+    }
+    export type Opening = z.infer<typeof Opening.Schema>
+
     export const Schema = z.object({
         rid:        Rid,
         datasetRid: Dataset.Rid,

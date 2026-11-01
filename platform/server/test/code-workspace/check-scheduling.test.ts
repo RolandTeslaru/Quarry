@@ -11,7 +11,7 @@ import { QueueManager } from '@quarry/platform-kernel/infra/queue';
 import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
 import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/repository/code-workspace.repository';
 import { MAIN, QUARRY_CI, commitFiles, createWorkspace, type TestWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../support/forge-fixtures';
+import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
 
 import CI = CodeWorkspace.CI;
 import CheckRun = CI.CheckRun;

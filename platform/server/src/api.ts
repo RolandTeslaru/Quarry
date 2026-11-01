@@ -26,6 +26,7 @@ async function bootstrap(): Promise<void> {
     configureMainServer(app, {
         catalog:        process.env.CATALOG_URL ?? 'http://localhost:4010',
         dataConnection: process.env.DATA_CONNECTION_URL ?? 'http://localhost:4020',
+        forge:          process.env.FORGE_URL ?? 'http://localhost:4030',
     });
     app.enableShutdownHooks();
     await connectMicroserviceCalls(app, 'main');

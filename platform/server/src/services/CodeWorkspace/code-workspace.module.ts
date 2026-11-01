@@ -5,7 +5,7 @@ import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable-queue'
 import { IdentityModule } from '@quarry/platform-kernel/services/Identity/identity.module';
 import { LibraryModule } from '@quarry/platform-kernel/services/Library/library.module';
 import { CatalogModule } from '@quarry/catalog-server/catalog/catalog.module';
-import { ForgeModule } from '@/services/Forge/forge.module';
+import { ForgeModule } from '@quarry/forge-server/services/forge/forge.module';
 import { CodeWorkspaceService } from './code-workspace.service';
 import { CodeWorkspaceRepository } from './repository/code-workspace.repository';
 import { WorkspaceRepository } from './repository/workspace.repository';

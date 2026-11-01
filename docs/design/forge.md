@@ -47,7 +47,7 @@ The **server orchestrates** — it decides what runs when. **ForgeAgents execute
 
 ```mermaid
 flowchart TB
-    trigger["Build button · Data Lineage · schedule"] -- "POST /api/builds" --> api
+    trigger["Build button · Data Lineage · schedule"] -- "POST /api/forge/builds" --> api
 
     subgraph server["Server (the API) — orchestrator"]
         api["ForgeService<br/>create · advance · cancel"]
@@ -81,7 +81,7 @@ flowchart TB
 
 **Why an agent per machine.** The agent doesn't compute; it stands in for a machine, the way Jenkins and Buildkite agents or Kubernetes' kubelet do. With plain Docker, containers run on the machine whose Docker daemon starts them, and Docker's API should stay local (exposed over the network it's root on the host). Each agent pulls a job only when its machine has room, so the queue does the placing — no central scheduler. Start with one machine; add machines (each with its agent) when one isn't enough. With Kubernetes, one or two agents submit Kubernetes Jobs and the cluster places them; nothing else changes.
 
-**The ForgeAgent API** — built. ForgeAgents never connect to Postgres; only the server does (AGENTS.md). They talk to the server through their own API, meant for ForgeAgents only: `/api/forge-agent/…`, contract `Forge.API.Agent` in `@quarry/shared`, `ForgeAgentController` on the server.
+**The ForgeAgent API** — built. ForgeAgents never connect to Postgres; only the server does (AGENTS.md). They talk to the Forge service (`FORGE_URL`, its own process since phase 3 of the split — architecture-split.md) through their own API, meant for ForgeAgents only: `/api/forge-agent/…`, contract `Forge.API.Agent` in `@quarry/shared`, `ForgeAgentController` in Forge.
 
 | Endpoint | What |
 |---|---|
@@ -171,11 +171,11 @@ forge.job                            -- (P) = planned
 
 ### Creating it — built
 
-`POST /api/builds` → `ForgeService.initializeBuild` (the build and its jobs), in phases:
+`POST /api/forge/builds` → `ForgeService.initializeBuild` (the build and its jobs), in phases:
 
 1. **Collect the plan.** Each target's current recipe — on the build's branch, then its fallbacks; a target nothing produces is a 409. A recipe writing several targets is one node. The plan's `children` link a recipe to every recipe in the build reading its outputs; recipes with no parent are the `roots`. No roots means a cycle (409). Manual only, main only for now (400 otherwise).
 2. **Validate.** Write on every output (siblings too), read on every input; an input not built in this build must already have data.
-3. **Lock the outputs.** One snapshot transaction on every output of every recipe, all in one database transaction (`TransactionService.openBatch`, provenance `{ buildRid, jobRid }`) — or none: a dataset already being written is a 409. No other writer gets in until the build finishes.
+3. **Lock the outputs.** One snapshot transaction on every output of every recipe, all in one database transaction (Catalog's `openTransactions` call — `TransactionService.openBatch` — provenance `{ buildRid, jobRid }`) — or none: a dataset already being written is a 409. No other writer gets in until the build finishes.
 4. **Persist.** The build (with its plan), one job per node (`waiting`), their output transactions — one database transaction. If this fails, the transactions from 3 are aborted.
 5. **Schedule the roots** — the same database transaction marks the roots `scheduled` and adds their messages to the outbox; after the commit `ForgeService` relays them to Redis.
 
@@ -214,9 +214,9 @@ sequenceDiagram
 
 **Claiming** (`POST /api/forge-agent/jobs/:rid/claim`): accepted once per attempt, from `scheduled` (`UPDATE … SET status = 'running' WHERE rid = … AND attempt = … AND status = 'scheduled'`), acking its message in the same transaction — `running` is what decides ownership. A duplicate message finds the job running and gets a 409. Then the server pins each input to its newest committed version — for an input built in this build, the version its parent just committed — records them in the job's `inputs`, marks the job `running`, and returns `claim.json` with a short-lived token scoped to the job's inputs and outputs.
 
-**Finishing** (`POST /api/forge-agent/jobs/:rid/finish`), in one database transaction:
+**Finishing** (`POST /api/forge-agent/jobs/:rid/finish`), in one database transaction — Forge's; the outputs' commit is a call to Catalog inside it (§8):
 
-- **succeeded** — commit all the job's output transactions together (`TransactionService.commitBatch`, planned: a job's outputs update together or not at all), job `succeeded`; load the plan and the jobs' statuses, `D2.getReady` → each ready child goes `waiting → scheduled` (a conditional update, so two parents finishing at once schedule it once) and its message is added, relayed after the commit; nothing left waiting, scheduled or running → build `succeeded`.
+- **succeeded** — commit all the job's output transactions together (Catalog's `commitTransactions` — `TransactionService.commitBatch`: a job's outputs update together or not at all), job `succeeded`; load the plan and the jobs' statuses, `D2.getReady` → each ready child goes `waiting → scheduled` (a conditional update, so two parents finishing at once schedule it once) and its message is added, relayed after the commit; nothing left waiting, scheduled or running → build `succeeded`.
 - **failed** — attempts left (`retryCount`)? `attempt + 1`, `scheduled` again (a new BullMQ id, `<rid>_<attempt>`), same open transactions. Otherwise abort its transactions, job `failed`; `D2.getDescendants` → abort theirs and cancel them (with `abortOnFailure`, cancel everything still waiting); nothing left running → build `failed`.
 
 **Canceling** — built: needs write on every target (asserted first — under RLS alone a viewer's cancel would match no rows). **Mark first**: the build and its unfinished jobs go `canceled`, then their transactions are aborted — in that order so a running job can't still finish once its outputs are being released (finish needs the job `running`; a late one gets 409, which the agent takes as "canceled while it ran"). Failing a build does the same. With agents, a running job's next heartbeat reply says stop and the agent kills its container.
@@ -351,26 +351,26 @@ The dataset viewer then shows, as in Foundry's About panel: **Updated … by** t
 
 ## 8. What runs today
 
-`platform/server/src/services/Forge/`: `ForgeService` (builds), `Recipes` (`forge.recipes`, for producers), `repository/` — the `ForgeRepository` facade over `BuildRepository`, `JobRepository` and `RecipeRepository` — and `forge.db.ts`. A created build **waits**: its jobs stay `waiting`, holding their outputs' transactions, until it's canceled.
+`applications/forge/server/src/services/forge/` (the Forge service — architecture-split.md, phase 3): `ForgeService` (builds), `RecipeService` (`services/recipe/`, reached as `forge.recipes`, for producers), `repository/` — the `ForgeRepository` facade over `BuildRepository`, `JobRepository` and `RecipeRepository` — and `forge.db.ts`. A created build **waits**: its jobs stay `waiting`, holding their outputs' transactions, until it's canceled.
 
 | Endpoint | What |
 |---|---|
-| `POST /api/builds` | A manual build on main — [§4](#creating-it--built), phases 1–4 |
-| `GET /api/builds?datasetRid=&limit=` | Builds the caller can see, newest first; with a dataset, those targeting it |
-| `GET /api/builds/:rid` | The build (with its plan) and its jobs, by RID |
-| `POST /api/builds/:rid/cancel` | Write on every target; marks the build and its unfinished jobs canceled, then aborts their transactions |
-| `GET /api/jobs/:rid` | One job |
-| `GET /api/recipes/current?datasetRid=&branch=` | What computes the dataset there, or null |
+| `POST /api/forge/builds` | A manual build on main — [§4](#creating-it--built), phases 1–4 |
+| `GET /api/forge/builds?datasetRid=&limit=` | Builds the caller can see, newest first; with a dataset, those targeting it |
+| `GET /api/forge/builds/:rid` | The build (with its plan) and its jobs, by RID |
+| `POST /api/forge/builds/:rid/cancel` | Write on every target; marks the build and its unfinished jobs canceled, then aborts their transactions |
+| `GET /api/forge/jobs/:rid` | One job |
+| `GET /api/forge/recipes/current?datasetRid=&branch=` | What computes the dataset there, or null |
 
-Publishing has no endpoint: producers call `forge.recipes.publish(principal, producerRid, branch, recipes)` in-process — nothing does yet (checks will).
+Publishing has no endpoint: producers call `forge.recipes.publish(principal, producerRid, branch, recipes)` in-process — Code Workspaces' checks, paused by the split until they call it through `ForgeClient` (phase 4).
 
 **Live updates** (`Forge.Event`, realtime.md). Every change to a job is announced on its build's channel, `forge:build:<buildRid>`, as `forge:job:updated` with the job as it is now (`Forge.Event.Job.Updated`) — emitted by the server, whoever changed the row, right after the commit: initializing (all jobs), `claim`, `finish` (the job and the children it scheduled), failing and canceling (the canceled jobs). Not heartbeats. It's a nudge for the UI, not the record: a lost event only means a later refetch, and nothing acts on these events but pages. ForgeAgents never publish. Subscribing needs to see the build (discover on one of its targets).
 
-**Server layout** (`platform/server/src/services/Forge/`): `forge.service.ts` — `ForgeService`, what users and other services do (initialize, list, get, cancel builds; `recipes`); `agent/` — `ForgeAgentController` and `ForgeAgentService`, what ForgeAgents do (start, heartbeat, finish, advancing and failing builds); `repository/` — `forge.repository.ts`, the facade (`initializeBuild`, `cancelBuild`, `failBuild`, `startJob`, `finishJob`: the writes that commit builds and jobs together) over `build.repository.ts`, `job.repository.ts`, `recipe.repository.ts` — it adds and acks jobs' messages (`Forge.DurableQueue.RunJob`) in those same transactions; `forge.db.ts`, `recipes.ts`. Each service emits its job events and aborts its transactions inline: `realtime.emitEvent({ ...Forge.Event.create('forge:job:updated', { job }), channel: Forge.Event.getChannel(job.buildRid) })`, `transaction.abortBatch(principal, Forge.Job.getOutputTransactions(job))`.
+**Server layout** (`applications/forge/server/src/services/` — `forge/`, `recipe/` and `agent-api/`; the service's root, `src/`, has `main.ts`, `microservice.module.ts`, `microservice.controller.ts`): `forge/forge.service.ts` — `ForgeService`, what users and other services do (initialize, list, get, cancel builds; `recipes`); `agent-api/` — Forge's API for ForgeAgents: `agent-api.module.ts` (`ForgeAgentModule`), `agent-api.service.ts` (`ForgeAgentService`) and its `controllers/http.controller.ts` (`ForgeAgentController`), what ForgeAgents do (start, heartbeat, finish, advancing and failing builds, through `ForgeModule`'s exported `ForgeRepository` and `RecipeService`); `forge/repository/` — `forge.repository.ts`, the facade (`initializeBuild`, `cancelBuild`, `failBuild`, `startJob`, `finishJob`: the writes that commit builds and jobs together) over `build.repository.ts`, `job.repository.ts`, `recipe.repository.ts` — it adds and acks jobs' messages (`Forge.DurableQueue.RunJob`) in those same transactions; `forge.db.ts`; `recipe/recipe.service.ts` — `RecipeService`, provided by `ForgeModule` (it reads and writes through `ForgeRepository`, and `ForgeService` exposes it as `recipes`). Each service emits its job events and aborts its transactions inline: `realtime.emitEvent({ ...Forge.Event.create('forge:job:updated', { job }), channel: Forge.Event.getChannel(job.buildRid) })`, `catalog.abortTransactions(principal, { transactions: Forge.Job.getOutputTransactions(job) })`. Everything about datasets goes through `CatalogClient` (Catalog's microservice calls); the job's token is minted by the main server (`IdentityClient.mintUserToken`).
 
 **ForgeAgent** (`applications/forge/agent`, `npm run dev:forge-agent`, health on `FORGE_AGENT_PORT`, default 4105). Initializing a build schedules its roots (their messages in the outbox), and the durable queue sends them to `forge.run-job` (BullMQ id `<rid>_<attempt>`). The agent's `RunJobProcessor` (concurrency `FORGE_AGENT_SLOTS`, default 2) calls `claim`, starts the job's runtime in its own container and sends it `run`, renews the lease every 10 s meanwhile, and calls `finish` with the runtime's answer ([forge-runtimes.md](forge-runtimes.md), phase 1 — the runtime doesn't run the transform yet). `finish` then:
 
-- **on success, commits the job's outputs** — in the same database transaction that records the job succeeded and schedules its children (`TransactionService.commitBatch`, which joins Forge's transaction), so a child is never claimed before its parent's output is a new version. The files were uploaded and registered while the job ran ([forge-runtimes.md](forge-runtimes.md), phase 4); each output's schema is the one its files' footers gave. On failure, the outputs are aborted (`TransactionService.abortBatch`); a repeated finish redoes that cleanup (and failing the build): both skip what's already done, so a cleanup that failed is finished by the agent's retry;
+- **on success, commits the job's outputs** — inside the database transaction that records the job succeeded and schedules its children (Catalog's `commitTransactions` call: Catalog commits in its own transaction, just before Forge's commits), so a child is never claimed before its parent's output is a new version. If Forge's commit fails after Catalog's, the job is stuck `running` — *Unverified* in architecture-split.md, phase 3. The files were uploaded and registered while the job ran ([forge-runtimes.md](forge-runtimes.md), phase 4); each output's schema is the one its files' footers gave. On failure, the outputs are aborted (`abortTransactions`); a repeated finish redoes that cleanup (and failing the build): both skip what's already done, so a cleanup that failed is finished by the agent's retry;
 - on success, schedules each child whose parents have all succeeded (`Forge.Build.Plan.getReadyChildren`), adding its message, and relays it;
 - on failure, cancels the rest of the build and fails it, then aborts their outputs (descendants only, later); the finished job's own event goes out first, so events follow the order of the commits;
 - no job left unfinished → the build succeeded (or failed).
@@ -387,4 +387,4 @@ Verified 2026-10-27 with the agent running — events: `A:scheduled → B:waitin
 
 **Sibling jobs finishing at once** (noted 2026-10-27, fixed 2026-10-29): `finishJob` reads the build's jobs, then schedules children and ends the build; under READ COMMITTED with no lock, two siblings finishing together could each still see the other `running`, so neither ended the build and a child of both was never scheduled. Now `finishJob`, `failBuild` and `cancelBuild` lock the build row (`SELECT … FOR UPDATE`) before touching any job row — always build first, so they can't deadlock — and siblings take turns. Not covered by a test: two finishes in the test harness didn't overlap even without the lock, so a test couldn't fail.
 
-**Next:** the compute (the runner, containers, staging inputs and outputs, pinning inputs at `claim`); committing outputs (`TransactionService.commitBatch`); `log_key` and logs; the reaper; retries; canceling descendants only, and D2; `environment` on code-workspace recipes. **Later:** upstream and connecting builds (a recursive query collecting the plan), staleness and `forceBuild`, dataset branches other than main, syncs publishing recipes, the Scheduler.
+**Next:** the compute (the runner, containers, staging inputs and outputs, pinning inputs at `claim`); committing outputs (`commitTransactions`); `log_key` and logs; the reaper; retries; canceling descendants only, and D2; `environment` on code-workspace recipes. **Later:** upstream and connecting builds (a recursive query collecting the plan), staleness and `forceBuild`, dataset branches other than main, syncs publishing recipes, the Scheduler.

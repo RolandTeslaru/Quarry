@@ -214,7 +214,7 @@ Both are NestJS apps like the server, but without controllers beyond `GET /healt
 
 ## 3. Services in detail
 
-Naming follows Pretzel: `<name>.module.ts`, `.service.ts`, `.repository.ts`, `.db.ts` (database module: rows, tables, `toDomain`), `.processor.ts` (BullMQ consumer). A module's entry points sit in `controllers/`: `http.controller.ts` (public, through the main server), `internal-http.controller.ts` (`/api/internal/…`, for the workers), `service-calls.controller.ts` (NATS, for other services) — only those it has; classes keep the module prefix (`CatalogController`, `CatalogInternalController`, `CatalogMicroserviceController`).
+Naming follows Pretzel: `<name>.module.ts`, `.service.ts`, `.repository.ts`, `.db.ts` (database module: rows, tables, `toDomain`), `.processor.ts` (BullMQ consumer). A module's entry points sit in `controllers/`: `http.controller.ts` (public, through the main server), `internal-http.controller.ts` (`/api/internal/…`, for the workers), `microservice-calls.controller.ts` (NATS, for other services — a service's root `microservice.controller.ts`) — only those it has; classes keep the module prefix (`CatalogController`, `CatalogInternalController`, `CatalogMicroserviceController`).
 
 ### Identity — schema `identity`
 

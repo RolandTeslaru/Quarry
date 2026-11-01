@@ -127,7 +127,7 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
         description: string | null;
         parentRid:   Library.Resource.Rid | null;
     }): Promise<LibraryDB.Resource.Row> {
-        if (values.parentRid && !(await this._isLiveAndVisible(values.parentRid)))
+        if (values.parentRid && !(await this.isLiveAndVisible(values.parentRid)))
             throw new NotFoundException('Not found');
 
         return this.trx
@@ -177,7 +177,7 @@ export class ResourceRepository extends Repository(LibraryDB.database) {
     }
 
     /** Live (the whole tree) and visible to the transaction's user (RLS; everything for the system). */
-    private async _isLiveAndVisible(rid: Library.Resource.Rid): Promise<boolean> {
+    private async isLiveAndVisible(rid: Library.Resource.Rid): Promise<boolean> {
         if (!(await liveResources(this.trx, [rid])).has(rid))
             return false;
 

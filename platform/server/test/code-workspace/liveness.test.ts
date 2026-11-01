@@ -5,7 +5,7 @@ import type { Request, Response } from 'express';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
 import { GitService } from '@/services/CodeWorkspace/git/git.service';
 import { createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../support/forge-fixtures';
+import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
 
 /**
  * Work on a Code Workspace that isn't a repository call — an IDE session, its
