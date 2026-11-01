@@ -23,7 +23,7 @@ _Written 2026-10-31 from the code, as the baseline for deciding how to split the
 |---|---|---|---|---|
 | IDE session — one per user per workspace | `quarry/code-workspace-ide` | Code Workspace worker | while the IDE is open (stopped when idle; its volume stays) | openvscode-server, the extension host with the Quarry extension, basedpyright, the code-workspace runtime and Python previews |
 | Check run | `quarry/code-workspace-ide` | Code Workspace worker | one check | `quarry-check-setup` (clone at the commit), `quarry-ci.yml`'s steps by `docker exec`, the manifest |
-| Forge job | `quarry/code-workspace-runtime` | ForgeAgent | one job | the runtime over stdio: clone, `uv sync`, inputs by read passes, the transform as user `transform`, outputs by upload passes |
+| Forge job | `quarry/code-workspace-runtime` | ForgeAgent | one job | the runtime over stdio: clone, `uv sync`, inputs by signed read URLs, the transform as user `transform`, outputs by signed write URLs |
 
 ## 2. The map
 

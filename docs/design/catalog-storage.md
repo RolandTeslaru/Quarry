@@ -53,7 +53,7 @@ Four jobs, each a public method:
 | `preview` | browser, dataset page (`CatalogSDK.preview`) | resolves the latest version's files | — | reads the **first N rows** |
 | `sample` | IDE preview (`QuarryClient.sample` in `quarry.transforms`) | resolves the latest version's files | — | reads **every row**, keeps N at random |
 | `setSchema` | browser, schema editor | commits an `update` transaction with the new schema | — | reads **100 rows** with the new schema, to check it parses |
-| `getReadPasses` | Forge, for a running job's runtime | resolves a pinned version's files | **signs** each file's URL (no bytes move) | — |
+| `getSignedReadUrls` (`SignedUrl.Read`) | Forge, for a running job's runtime (Catalog's `getSignedReadUrls` call) | resolves a pinned version's files | **signs** each file's URL (no bytes move) | — |
 
 `resolveView` (in `TransactionRepository`) is the step every read starts with: from Postgres, which files make up the version (the latest snapshot, plus the appends after it), and its schema. Only then does anything read bytes.
 

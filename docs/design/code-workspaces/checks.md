@@ -189,7 +189,7 @@ Anything thrown fails the run at **Validate & publish** with the error's message
 Not checked here, because something else covers it:
 - **Still the head:** a newer push cancels this run, and a canceled run's finish is a 409.
 - **Write on existing outputs:** a build checks write on every output when it starts.
-- **Cycles:** a build refuses recipes that read each other in a cycle. Today it only catches a cycle with no way in; every cycle is planned for D2.
+- **Cycles:** a build refuses recipes that read each other in a cycle, or wait on one (`Forge.Build.Plan.create` throws `Plan.CycleError`, a 409).
 
 ## 6. Model
 

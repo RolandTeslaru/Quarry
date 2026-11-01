@@ -301,8 +301,8 @@ No delivery columns, no relay, no "what's undelivered" query, no sweep endpoint,
 | | Forge — run-job | Code Workspaces — run-check | Catalog — dataset events |
 |---|---|---|---|
 | Domain states | `waiting → scheduled → running → …` — **`queued` and `queued_at` go** | `waiting → scheduled → running → …` (today's `queued` becomes `waiting`; dispatch's claim becomes **scheduling**) | — (events) |
-| add | where jobs become `scheduled`: `initializeBuild` (roots), `_scheduleReadyChildren`, a retry (`<rid>_<attempt>`) | where a run becomes `scheduled` (its workspace free) | in the commit, as now |
-| ack | `startJob` (take); `cancelBuild`, `failBuild` (cancel) | `start` (take); superseding a run (cancel) | the consumer, through the generic ack endpoint, once handled |
+| add | where jobs become `scheduled`: `initializeBuild` (roots), `finishJob` (`scheduleReadyChildren`), a retry (`<rid>_<attempt>`) | where a run becomes `scheduled` (its workspace free) | in the commit, as now |
+| ack | `claimJob` (take); `cancelBuild`, `cancelForFailure` (cancel) — `ForgeRepository.withdrawJobs` | `start` (take); superseding a run (cancel) | the consumer, through the generic ack endpoint, once handled |
 | Deleted | `ForgeRelayService`, `listToRelay`, `markQueued`, `forge.relay-sweep` (queue, processor, endpoint, schedule) | `CheckDispatcher`'s sending, `listUntaken`, the resend in the check sweep | all of it, with the event: `catalog.outbox`, its relay endpoints, `catalog.outbox-relay`, `catalog.dataset-updated` (removed 2026-10-29) |
 | Kept (the domain's) | the reaper (planned) | failing runs silent for 35 min | — |
 

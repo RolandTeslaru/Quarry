@@ -46,6 +46,10 @@ export class ForgeService {
         if (request.target.type !== 'manual')
             throw new BadRequestException('Only manual builds for now');
 
+        // A target the principal can't see is a 404 — read first, as RLS would hide its recipe and it'd read as nothing builds it.
+        for (const datasetRid of request.target.datasetRids)
+            await this.catalog.get(principal, { rid: datasetRid });
+
         // 1. The targets' own recipes, as an adjacency list — no walking upstream.
         const branches = [request.branch, ...request.fallbackBranches];
         const recipes = await this.recipes.getCurrentForEach(principal, request.target.datasetRids, branches);

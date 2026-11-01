@@ -27,6 +27,9 @@ hide it with a guard.
 - If a lookup is missing, add it to the service that owns the concept. Don't
   rebuild it inline.
 - Before adding a check or an edge case anyway, ask the user.
+- Build the base logic first. Don't design for a service being down, a lost
+  reply, a retry or a crash between two commits while building or restructuring:
+  resilience is a separate, later pass.
 
 ## Hard rule: plain, readable code
 
@@ -40,6 +43,19 @@ hide it with a guard.
   one line. Write `if`/`else`, a `for` loop, one field per line.
 - Don't mutate through an alias (`const step = steps[i]; step.status = …`).
   Replace the element where everyone can see it.
+- Don't build a collection in one line: no chained `map` / `flatMap` / `filter`,
+  no `new Map(xs.flatMap((x) => x.ys.map((y) => [y, x.rid] as const)))`, no
+  `new Set(xs.filter(…).map(…))`. Declare the `Record` or `Set`, then fill it in a
+  `for` loop.
+- Anything that carries a RID goes in a `Record<Rid, X>` by default, even if
+  nothing looks it up yet. Converting it with `Object.values` where an array is
+  needed reads better than building a map later. Use an array only where order is
+  the point.
+- A collection of IDs that isn't serialized is a `Set`, checked with `.has` — never
+  an array checked with `.includes`. It stays an array only where it's stored as
+  JSON or sent over HTTP or NATS (`JSON.stringify` drops a `Set`).
+- Pass data in the shape it already has. Don't flatten a `Record` with
+  `Object.values` to hand it to a helper that could take the `Record`.
 - Comments: most methods get none. Never restate the name, signature or code.
   When one is needed, it's one short line saying what the code can't.
 
@@ -132,6 +148,9 @@ return (
   in a generic `common` file. A barrel may re-export focused implementations.
 - Keep route modules focused on route configuration, data preparation, and page
   composition. Feature behavior belongs in its SDK and feature UI.
+- Unit tests go in a `tests/` folder beside the code they test
+  (`domain/Forge/tests/Build.test.ts`), never next to the source files. A server's
+  integration tests stay in its package-level `test/` folder.
 
 ## 5. Types and names communicate the domain
 
@@ -141,6 +160,18 @@ return (
   A plain `<Domain>.Event` implies the usual transport, Redis. Another transport has its own base namespace that
   domains extend, as they extend `Realtime`: a runtime's stdio messages build on `Stdio` (`Stdio.Event`,
   `Stdio.Request.Base`), and Forge's calls are `Forge.Runtime.Run`.
+- A domain concept is a namespace holding its zod `Schema` and its helpers. Its type
+  is declared after the namespace — `export type Job = z.infer<typeof Job.Schema>` —
+  and written `Forge.Job`, never `Forge.Job.Schema`. Nested concepts do the same
+  inside their parent (`Dataset.View`, `Transaction.Opening`).
+- Model a concept rather than repeating its shape inline: `Catalog.Transaction.Opening`,
+  `Catalog.SignedUrl.Read` / `Write`. Prefer an enum that names its choices over a
+  boolean (`Build.OnJobFailure`). Larger pure logic can live in the domain folder's
+  `helpers.ts`, re-exported from the namespace (`Build.Plan.create`).
+- A name says what something is and who it's for: `PlannedJob`, `enqueueJobs` /
+  `withdrawJobs`, `getSignedReadUrls`, `externalInputs`. Avoid names that suggest the
+  wrong caller or effect (`startJobs` for something that only queues, `…ForBuild`
+  read as "called by a build"), and words that need context to resolve ("here").
 - Use domain RID types instead of plain strings when the value is a known RID.
   Name them `rid`, `sourceRid`, `datasetRid`, and similar; do not rename RIDs to IDs.
 - Use explicit types for public action contracts, SDK state, and component props.
@@ -299,10 +330,12 @@ if (projectsRequest.isError)
 
 - Controllers validate contracts; services own business orchestration;
   repositories own SQL and transactions.
-- Only the server accesses Quarry's application database. Workers use the
-  existing internal API contracts.
+- Only Quarry's servers — the main server and each service, each on its own
+  database login — access the application database. Workers and executors use
+  their service's internal API contracts.
 - Services call other services' public interfaces, not their repositories or DB
-  modules. A repository method may call its own repository's other methods: a decorated call made inside a running
+  modules: across processes, through microservice calls (`CatalogClient`, …), never
+  each other's HTTP. A repository method may call its own repository's other methods: a decorated call made inside a running
   one joins its transaction (same principal only; another throws). It calls another service's repository only to
   share one transaction across schemas, and only one that service's module exports for that (AuditRepository:
   `recordOpen`). Everything else goes through services.
@@ -314,8 +347,29 @@ if (projectsRequest.isError)
   business rules and effects RLS cannot express, as documented in Gatekeeper.
 - Follow the existing liveness and `@AllowTrashed` rules instead of adding ad hoc
   checks or bypasses.
+- A service method that finds nothing throws (`get` → `NotFoundException`); it
+  doesn't return `null` for its callers to check. Repositories may return `null`.
+- A method returns what it touched: `lock` returns the locked row, `insert` the
+  inserted rows.
 
-## 11. Comments and verification
+## 11. A service's structure
+
+- One service per domain concept, one controller per audience. A concept's folder is
+  `services/<concept>/`: its module, its service, its repository, and a
+  `controllers/` folder with one controller per caller — `http.controller.ts`
+  (users), `internal-http.controller.ts` (workers), `runtime-http.controller.ts`,
+  `agent-http.controller.ts`, `microservice-calls.controller.ts` (other services) —
+  each with its own guard. A new caller is a new controller, not a new service;
+  a new service is for a new concept.
+- A service package's `src/` holds only its root (`main.ts`, `load-env.ts`,
+  `microservice.module.ts`, `microservice.controller.ts`) beside `services/`. Don't
+  leave `src/` flat (applications/forge/server is the reference).
+- A domain's API contracts are named `<Server>.API.<Audience>`: the namespace's owner
+  serves them, the sub-namespace names who calls. `Forge.API` (users),
+  `Forge.API.Agent`, `Forge.API.Runtime`, `<Domain>.API.Internal` (workers),
+  `<Domain>.Microservice` (other services, over NATS).
+
+## 12. Comments and verification
 
 - Keep code comments short, factual, and usually one line. Describe behavior or a
   necessary constraint. Put extended design explanations in documentation.

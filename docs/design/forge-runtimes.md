@@ -1,6 +1,6 @@
 # Forge — Runtimes and delegates
 
-_Design, 2026-10-29. **Built** (§8): phases 1–2 on 2026-10-29 — the contract, the stdio transport, the code-workspace runtime and its image, the ForgeAgent running jobs in containers, the job token, cloning and installing; phases 3–5 on 2026-10-30 — reading inputs through read passes (Parquet and CSV), writing outputs through upload passes (committed with the job), and the IDE's preview and transform list on the same runtime, in the session's container. The check worker's manifest still runs `manifest.py` directly._
+_Design, 2026-10-29. **Built** (§8): phases 1–2 on 2026-10-29 — the contract, the stdio transport, the code-workspace runtime and its image, the ForgeAgent running jobs in containers, the job token, cloning and installing; phases 3–5 on 2026-10-30 — reading inputs through signed read URLs (Parquet and CSV), writing outputs through signed write URLs (committed with the job), and the IDE's preview and transform list on the same runtime, in the session's container. The check worker's manifest still runs `manifest.py` directly._
 
 A **runtime** is what does a Quarry application's compute. Every application that produces recipes has one: Code Workspaces first, later Pipeline Builder and Data Connection. It runs inside a container, takes instructions over stdio, and is the one interface for everything that wants that application's compute — a ForgeAgent running a build job, the IDE running a preview, a check run listing transforms.
 
@@ -76,14 +76,14 @@ sequenceDiagram
     R->>S: git clone /api/git/workspace.git at recipe.runtime.commit (token)
     Note over R: the checkout stays root's, readable by transform
     R->>P: spawn uv venv + uv sync --frozen (venv in transform's home, /cache)
-    R->>S: GET jobs/:rid/input-passes (token)
+    R->>S: GET jobs/:rid/signed-input-urls (token)
     S-->>R: presigned GET URLs for the pinned files
     R->>P: spawn python run job.json (URLs, scratch dir, no token)
     P->>O: range GETs (footers, needed column chunks)
     P->>P: transform, rolling Parquet files in /scratch/out
     loop each finished file
         P-->>R: fd 3: file-ready
-        R->>S: upload pass, then register the file (token)
+        R->>S: signed output URL, then register the file (token)
         R->>O: PUT the file, while Python writes the next
     end
     P-->>R: exit 0
@@ -192,7 +192,7 @@ The runtime coordinates; Python only runs transforms. Each `preview` or `run` sp
 flowchart TB
     run["run { job, recipe, token }"] --> clone["clone the workspace at recipe.runtime.commit<br/>(runtime, root, with the token)"]
     clone --> sync["uv venv + uv sync --frozen<br/>(as transform: venv in its home, cache in /cache)"]
-    sync --> inputs["GET input-passes (token)<br/>presigned URLs"]
+    sync --> inputs["GET signed-input-urls (token)<br/>presigned URLs"]
     inputs --> jobjson["write job.json<br/>inputs: URLs, outputs: scratch dirs"]
     jobjson --> spawn
     subgraph spawn["spawn as transform: python -m quarry.transforms.run"]
@@ -203,7 +203,7 @@ flowchart TB
     spawn -- "exit 0 or 1" --> done["response { status }"]
 ```
 
-Everything that needs the token — cloning, input and upload passes — is the runtime's, as root. Everything that runs the workspace's code or its dependencies — `uv sync` (a package's build can run code), the transform — is a child spawned as `transform`.
+Everything that needs the token — cloning, signed input and output URLs — is the runtime's, as root. Everything that runs the workspace's code or its dependencies — `uv sync` (a package's build can run code), the transform — is a child spawned as `transform`.
 
 **No file changes hands.** The runtime keeps only the capabilities to switch users, so it can't `chown`. It doesn't need to: git writes the checkout readable by everyone, and `transform` only reads it; the venv lives in `transform`'s home (`UV_PROJECT_ENVIRONMENT`), so nothing is written into the checkout; and `/cache` is `transform`'s in the image, which a new cache volume copies, ownership included.
 
@@ -252,7 +252,7 @@ Switching users takes the right to switch, so the runtime runs as **root inside 
 
 ## 5. Reading inputs
 
-Nothing is mounted or copied into the container up front. The runtime asks the server for **input passes** — presigned URLs, short-lived, for exactly the pinned files, like a visitor's pass that opens certain doors for a day — and the engines read Parquet straight from storage over HTTP. Writing works the same way with **upload passes** (§7).
+Nothing is mounted or copied into the container up front. The runtime asks the server for **signed input URLs** — presigned URLs, short-lived, for exactly the pinned files, like a visitor's pass that opens certain doors for a day — and the engines read Parquet straight from storage over HTTP. Writing works the same way with **upload passes** (§7).
 
 ### What a Parquet file looks like
 
@@ -286,7 +286,7 @@ sequenceDiagram
     participant O as Storage
 
     Note over R: run { job, token } arrives
-    R->>S: GET jobs/:rid/input-passes (token)
+    R->>S: GET jobs/:rid/signed-input-urls (token)
     Note over S: token ok, the pinned files of each input,<br/>signed as presigned GET URLs (no data moved)
     S-->>R: { clean: { sequence, schema, urls } }
     R->>R: write job.json (URLs, output dirs)
@@ -360,7 +360,7 @@ sequenceDiagram
     P->>P: write part-0 (rolls at ~256 MB)
     P-->>R: file-ready part-0
     par upload part-0
-        R->>S: POST jobs/:rid/outputs/:ds/upload-passes (token)
+        R->>S: POST jobs/:rid/outputs/:ds/signed-url (token)
         S-->>R: presigned PUT
         R->>O: PUT part-0
         R->>S: POST jobs/:rid/outputs/:ds/files { key, size, schema }
@@ -396,22 +396,22 @@ In phases, each small enough to read and review on its own (decided 2026-10-29):
 |---|---|---|
 | **1. Plumbing** | the `Forge.Runtime` contract and the stdio transport; the code-workspace runtime and its compute image; the ForgeAgent starting it (`runtimeImages`, limits, `/cache`), `run` over stdin, events → heartbeats, `done` → `finish`, kill on stop. `run` spawns Python as `transform`, which only imports `quarry.transforms` and exits. No token, no code, no data | a job reaches a runtime in its own container and comes back |
 | **2. The code** — built 2026-10-29 | the job token at `claim`; the runtime clones the commit, `uv sync --frozen` with `/cache`, imports the pipeline and finds the transform | the right code runs in the right environment |
-| **3. Reading** | presigning; input passes; `TransformInput` from URLs; lazy reads | a transform reads its pinned inputs |
-| **4. Writing** | upload passes; rolling files and `file-ready`; registering files; `commitBatch` on `finish` | a build writes new versions |
+| **3. Reading** | presigning; signed input URLs; `TransformInput` from URLs; lazy reads | a transform reads its pinned inputs |
+| **4. Writing** | signed output URLs; rolling files and `file-ready`; registering files; `commitBatch` on `finish` | a build writes new versions |
 | **5. Callers** — the IDE, built 2026-10-30 | the extension's preview and the check worker's manifest go through the runtime | one path for preview, checks and builds |
 
 The items below say what each part needs; the table says when.
 
 **Phase 1, as built:** `Stdio` in `libraries/shared/domain/Stdio/Stdio.ts` and `Forge.Runtime` in `libraries/shared/domain/Forge/Runtime.ts`; `StdioServer` and `StdioClient` in `libraries/shared/server/stdio/`; the runtime in `applications/code-workspace/runtime/` (`main.ts`, `runtime.module.ts`, `runtime.controller.ts`; `npm run build` bundles it into `dist/runtime.js`); its image in `docker/code-workspace-runtime/` (`npm run build:code-workspace-runtime` → `quarry/code-workspace-runtime:dev`); the ForgeAgent's `JobContainers` (`docker run` and `docker kill`) and `RunJobProcessor` in `applications/forge/agent/src/`. Verified end to end by `test/e2e/forge-agent.e2e.test.ts` (a real ForgeAgent, real containers). `finish` still aborts the outputs: nothing is written until phase 4.
 
-**Phase 2, as built:** `claim` returns `token`, minted by `ForgeAgentService.claimJob` for the build's `createdBy`; the agent passes it in `run`, and starts job containers with `QUARRY_SERVER_URL` (`FORGE_AGENT_JOB_SERVER_URL`, default `http://host.docker.internal:4000`) and `--add-host host.docker.internal:host-gateway`. The runtime's `run` is a list of steps, each a child process whose lines are relayed as `log` events: clone and check out (root, the token in git's environment), `uv venv --system-site-packages` and `uv sync --frozen --no-dev` (as `transform`), then `python -m quarry.transforms.run <transform>` (`applications/code-workspace/transforms-python/src/quarry/transforms/run.py`: imports the pipeline at the commit and finds the transform). A failed step fails the job as `<step> failed with exit code N`. The image adds git and CA certificates. Tests: the e2e test builds from a real workspace commit (and fails a transform the commit doesn't have); `test/forge/agent-api` checks the token acts as the build's starter; `tests/test_run.py` covers `run.py`.
+**Phase 2, as built:** `claim` returns `token`, minted by `JobService.claimJob` for the build's `createdBy`; the agent passes it in `run`, and starts job containers with `QUARRY_SERVER_URL` (`FORGE_AGENT_JOB_SERVER_URL`, default `http://host.docker.internal:4000`) and `--add-host host.docker.internal:host-gateway`. The runtime's `run` is a list of steps, each a child process whose lines are relayed as `log` events: clone and check out (root, the token in git's environment), `uv venv --system-site-packages` and `uv sync --frozen --no-dev` (as `transform`), then `python -m quarry.transforms.run <transform>` (`applications/code-workspace/transforms-python/src/quarry/transforms/run.py`: imports the pipeline at the commit and finds the transform). A failed step fails the job as `<step> failed with exit code N`. The image adds git and CA certificates. Tests: the e2e test builds from a real workspace commit (and fails a transform the commit doesn't have); `test/forge/agent-api` checks the token acts as the build's starter; `tests/test_run.py` covers `run.py`.
 
 **Server**
 
 1. Presigning in `FileStorage` (`infra/file-storage.ts`): GET, PUT and multipart PUT URLs (SeaweedFS's S3 API supports them).
 2. The job token, minted at `claim`: scoped to the job's attempt, its pinned inputs (read) and outputs (write). **Phase 2**, decided 2026-10-29 — phase 1 runs without one.
 3. Pinning inputs at `claim` (`job.inputs`).
-4. `GET jobs/:rid/input-passes` → presigned URLs; `POST jobs/:rid/outputs/:ds/upload-passes` → upload URLs; `POST jobs/:rid/outputs/:ds/files` → registers files on the open transaction. All gated by the job token.
+4. `GET jobs/:rid/signed-input-urls` → presigned URLs; `POST jobs/:rid/outputs/:ds/signed-url` → upload URLs; `POST jobs/:rid/outputs/:ds/files` → registers files on the open transaction. All gated by the job token.
 5. `TransactionService.commitBatch`, and `finish` committing on success instead of aborting.
 
 **Shared**
@@ -450,7 +450,7 @@ sequenceDiagram
     S-->>A: job (with inputs), recipe, token
     A->>R: run { job, recipe, token }
     Note over R: clone, uv sync (phase 2)
-    R->>S: GET /api/forge/jobs/:rid/input-passes (token)
+    R->>S: GET /api/forge/jobs/:rid/signed-input-urls (token)
     Note over S: job running and read on each input, then each pinned version's files, presigned for the job host
     S-->>R: { datasetRid: { sequence, schema, files: [{ url, bytes }] } }
     R->>P: job.json: inputs by parameter (recipe.runtime.inputs) → their URLs
@@ -462,17 +462,17 @@ sequenceDiagram
 
 **2. Pinning, at `claim`.** In the claim's transaction, each input's latest committed transaction on the build's branch (main) goes into `job.inputs` (`Record<Dataset.Rid, Transaction.Rid>`, which exists and is unfilled). Build creation already refuses an input with no data. *Until phase 4*, an input built earlier in the same build pins its old version, since outputs aren't committed yet.
 
-**3. Presigning, in Catalog.** `FileStorage` gains `presignGet(key)` (`@aws-sdk/s3-request-presigner`, new dependency). The URL's host is part of its signature, and `S3_ENDPOINT` (`localhost:9000`) means nothing inside a container, so presigning uses its own endpoint: **`STORAGE_ENDPOINT`** — storage as job containers reach it (`http://host.docker.internal:9000` locally, the real store's address in production). `CatalogStorageService.getReadPasses(principal, datasetRid, transactionRid)`: `@SecurityGate('read')`, `@Audit('read', { op: 'read-passes' })`, resolves that version's files (`resolveView` at the transaction's sequence) and presigns each. URLs live for the job's longest run (`QUARRY_READ_PASS_TTL`, default 12 h, as the token).
+**3. Presigning, in Catalog.** `FileStorage` gains `presignGet(key)` (`@aws-sdk/s3-request-presigner`, new dependency). The URL's host is part of its signature, and `S3_ENDPOINT` (`localhost:9000`) means nothing inside a container, so presigning uses its own endpoint: **`STORAGE_ENDPOINT`** — storage as job containers reach it (`http://host.docker.internal:9000` locally, the real store's address in production). `CatalogStorageService.getSignedReadUrls(principal, datasetRid, transactionRid)`: `@SecurityGate('read')`, `@Audit('read', { op: 'read-passes' })`, resolves that version's files (`resolveView` at the transaction's sequence) and presigns each. URLs live for the job's longest run (`QUARRY_READ_PASS_TTL`, default 12 h, as the token).
 
-**4. Input passes, in Forge.** `GET /api/forge/jobs/:rid/input-passes`, called by the runtime with the job token: the job must be running; for each of `job.inputs`, `catalog.storage.getReadPasses(...)`. Response by dataset RID: `{ sequence, schema, files: [{ url, bytes }] }`. One call per job.
+**4. Signed input URLs, in Forge.** `GET /api/forge/jobs/:rid/signed-input-urls`, called by the runtime with the job token: the job must be running; for each of `job.inputs`, Catalog's `getSignedReadUrls` call (`SignedUrl.Read`). Response by dataset RID: `{ sequence, schema, files: [{ url, bytes }] }`. One call per job.
 
-**5. The runtime.** After `uv sync`: one request for the input passes, then `job.json` in `transform`'s home — `{ "transform": name, "inputs": { parameter: { "rid", "sequence", "files": [url, …] } } }` — and `python -m quarry.transforms.run job.json`.
+**5. The runtime.** After `uv sync`: one request for the signed input URLs, then `job.json` in `transform`'s home — `{ "transform": name, "inputs": { parameter: { "rid", "sequence", "files": [url, …] } } }` — and `python -m quarry.transforms.run job.json`.
 
 **6. `quarry.transforms`.** `TransformInput(rid, sequence, files, schema)` — a list of files, URLs or local paths alike (preview passes its downloaded sample as a one-item list), and the dataset's schema. `polars(lazy)` is `pl.scan_parquet(files)`, or for a CSV dataset `pl.scan_csv(files, separator, quote_char, has_header, schema)` with the schema's reader and column types (still lazy) — a version's files are all one format, enforced on upload; `arrow()` and `pandas()` go through Polars (no new Python dependencies); the DuckDB context reads `read_parquet([files])` or `read_csv([files], delim, quote, escape, header, columns)`, as the server's `scan` does. `path()` (a local directory) is replaced by `files()`. `run.py` reads `job.json`, builds the inputs by parameter, and calls the transform; its outputs get a `TransformOutput` that does nothing yet (phase 4 writes them).
 
 **CSV inputs (decided 2026-10-30).** Read through the dataset's schema, as Foundry does. Polars can't read three things the schema allows — a delimiter longer than one character, an escape character other than the quote (Polars only knows doubled quotes), and `binary` columns — so those fail the job with the reason (`Input … is a CSV Polars can't read: …`) rather than being misread. Checked in the runtime image (Polars 2.0.0): dates, timestamps (space or `T`), `decimal(p,s)`, booleans, quoted delimiters, headerless files.
 
-**7. Tests.** Server: `claim` pins each input's latest committed transaction; input passes need the job running and read on the input; a pass is a working URL (fetch it, get the file's bytes). Python: `TransformInput` over several files. E2E: a real dataset (uploaded CSV, so its files exist), a transform that reads it lazily and prints its row count; the agent's log shows it.
+**7. Tests.** Server: `claim` pins each input's latest committed transaction; signed input URLs need the job running and read on the input; each is a working URL (fetch it, get the file's bytes). Python: `TransformInput` over several files. E2E: a real dataset (uploaded CSV, so its files exist), a transform that reads it lazily and prints its row count; the agent's log shows it.
 
 **Checked first (spike, 2026-10-29):** two Parquet files uploaded to the local store, GET URLs presigned for `host.docker.internal:9000`, read inside the runtime image as one list — no options needed, plain `http://` and query strings included. Polars `scan_parquet(urls)` lazy with a filter and two columns across both files: the right rows; count, `read_parquet`, `.to_arrow()`, `.to_pandas()`: all rows. DuckDB `read_parquet([...])`: right count and sum; a view over the list as a SQL literal, then a filter: right rows (a view can't take the list as a prepared parameter — DDL isn't preparable — so `DuckDbContext` keeps writing it as a literal). Not measured yet: how many bytes a lazy read fetches (the pushdown), on a big file.
 
@@ -492,7 +492,7 @@ sequenceDiagram
 
     P->>P: write_table: rolling Parquet files in its scratch folder
     P-->>R: fd 3: file-ready (output, path)
-    R->>S: POST jobs/:rid/outputs/:dataset/upload-passes (token)
+    R->>S: POST jobs/:rid/outputs/:dataset/signed-url (token)
     S-->>R: key + presigned PUT
     R->>O: PUT the file, while Python writes the next
     R->>S: POST jobs/:rid/outputs/:dataset/files (token)
@@ -505,18 +505,18 @@ sequenceDiagram
 
 **1. Python writes files.** `TransformOutput.write_table(data)` writes rolling Parquet files of about 256 MB to `transform`'s scratch folder (`<home>/out/<parameter>/part-N.parquet`), streaming: a LazyFrame through its batches, a DuckDB relation through `fetch_record_batch`, an Arrow table or DataFrame in slices. Each file is written as `.tmp`, closed, renamed, then announced on **file descriptor 3** — `{"type":"event","event":"file-ready","output":"<parameter>","path":"…"}` — a pipe of its own, since stdout and stderr carry the transform's prints. `run.py` replaces `drop` with this writer, and fails the job if a declared output wasn't written (as preview already refuses).
 
-**2. The runtime uploads them.** It reads fd 3; for each file, in parallel (a few at a time): an **upload pass** (`POST /api/forge/jobs/:rid/outputs/:dataset/upload-passes { filename }` → `{ key, url }`), a `PUT` of the file to the URL, then **registering** it (`POST /api/forge/jobs/:rid/outputs/:dataset/files { filename }`). After Python exits it waits for the last uploads; any failed upload or registration fails the job. One `PUT` per file — S3 takes up to 5 GB that way, and a file is ~256 MB, so no multipart upload.
+**2. The runtime uploads them.** It reads fd 3; for each file, in parallel (a few at a time): a **signed output URL** (`POST /api/forge/jobs/:rid/outputs/:dataset/signed-url { filename }` → `{ key, url }`), a `PUT` of the file to the URL, then **registering** it (`POST /api/forge/jobs/:rid/outputs/:dataset/files { filename }`). After Python exits it waits for the last uploads; any failed upload or registration fails the job. One `PUT` per file — S3 takes up to 5 GB that way, and a file is ~256 MB, so no multipart upload.
 
 **3. The server.**
 
 - `FileStorage.presignPut(key)` — like `presignGet`, signed for `STORAGE_ENDPOINT`.
-- **Upload passes:** the job must be running, the dataset one of its outputs; the key is `Dataset.getStorageKey(dataset, job.outputs[dataset], filename)` — the output's own open transaction. Write on the dataset is the token's (checked again when the file is registered, by RLS).
+- **Signed output URLs:** the job must be running, the dataset one of its outputs; the key is `Dataset.getStorageKey(dataset, job.outputs[dataset], filename)` — the output's own open transaction. Write on the dataset is the token's (checked again when the file is registered, by RLS).
 - **Registering a file:** DuckDB reads its footer — columns and row count, as an upload's Parquet is inferred (it also proves the file is Parquet) — and the file is registered on the output's open transaction (`TransactionService.registerChanges`).
 - **The output's schema** comes from its files: every file of one output must have the same columns, or the job fails; that schema is committed with the output.
 - **`commitBatch`** in Catalog (beside `openBatch` / `abortBatch`): commits several open transactions together, each taking the next sequence on its branch with the schema staged on it. A repeated `finish` never reaches it — the job is no longer running.
 - **`finish` commits, atomically.** On success, in **one database transaction**: the job is recorded succeeded, its outputs are committed (`commitBatch`, through the Catalog repository its module exports for sharing a transaction — AGENTS.md §10), and ready children are scheduled. Committing after scheduling would let a child be claimed, and pin its parent's *old* version, in between. On failure, outputs are still aborted.
 
-**4. Tests.** Python: `write_table` from a LazyFrame, a DuckDB relation and an Arrow table rolls files and announces each; a declared output not written fails. Server: upload passes need a running job and one of its outputs; registering reads the footer and refuses a non-Parquet file or a different set of columns; `finish` commits the outputs, and a repeat doesn't commit twice; a failed job's outputs are aborted. E2E: a chain A → B in one build — A writes, B reads A's new version and prints its rows; the outputs have new versions with schemas.
+**4. Tests.** Python: `write_table` from a LazyFrame, a DuckDB relation and an Arrow table rolls files and announces each; a declared output not written fails. Server: signed output URLs need a running job and one of its outputs; registering reads the footer and refuses a non-Parquet file or a different set of columns; `finish` commits the outputs, and a repeat doesn't commit twice; a failed job's outputs are aborted. E2E: a chain A → B in one build — A writes, B reads A's new version and prints its rows; the outputs have new versions with schemas.
 
 **As built, where it differs from the plan above:**
 
@@ -526,7 +526,7 @@ sequenceDiagram
 - **`write_table` streams and takes the whole output once:** a LazyFrame (`collect_batches`) or a DuckDB relation (`to_arrow_reader`) is computed as it's written; a second `write_table` on the same output raises. An output with no rows is still one file, with its columns.
 - **`commitBatch` doesn't skip committed transactions:** a repeated `finish` never reaches it (the job is no longer running), so there's nothing to skip. Since phase 3 of the split, Forge reaches it through Catalog's `commitTransactions` call, which commits before Forge's own transaction does — if Forge's commit then fails, a repeated `finish` *does* reach it, and is refused (*Unverified* in architecture-split.md, phase 3).
 
-Tests (`applications/forge/server/` since phase 3 of the split): `test/forge/output-files` (upload passes need a running job and one of its outputs; registered files are committed with the job under their footers' schema; different columns are refused), `agent-api` and `build-graph` (a succeeded job's outputs committed once, a failed one's aborted), `tests/test_run.py` (files announced, rolling, an empty output, an unwritten output fails, write once), and the e2e chain: W reads an uploaded CSV and keeps 2 of 3 rows, X reads W's new version in the same build.
+Tests (`applications/forge/server/` since phase 3 of the split): `test/forge/output-files` (signed output URLs need a running job and one of its outputs; registered files are committed with the job under their footers' schema; different columns are refused), `agent-api` and `build-graph` (a succeeded job's outputs committed once, a failed one's aborted), `tests/test_run.py` (files announced, rolling, an empty output, an unwritten output fails, write once), and the e2e chain: W reads an uploaded CSV and keeps 2 of 3 rows, X reads W's new version in the same build.
 
 **Decided with the plan (2026-10-30):**
 
