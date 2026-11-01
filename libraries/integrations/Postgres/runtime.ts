@@ -3,7 +3,7 @@ import type { DataConnection } from '@quarry/shared/domain';
 import { identifier, literal, toColumnType } from '../core/duckdb';
 import type { SyncConfigOf } from '../core/definition';
 import { SourceRuntime, type SyncResult, type SyncRunContext } from '../core/runtime';
-import type { Definition } from './definition';
+import type { Definition } from './source-definition';
 
 /** A libpq connection-string value: single-quoted, backslash-escaped. */
 const libpq = (value: string | number | boolean) =>

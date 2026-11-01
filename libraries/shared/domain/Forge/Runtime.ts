@@ -5,7 +5,7 @@ import { Recipe } from "./Recipe"
 
 /**
  * What Forge asks of a runtime, over Stdio. Every application's runtime answers
- * these; `Forge.Recipe.Runtime` says which runtime a recipe uses. See
+ * these; `Forge.Recipe.RuntimeConfig` says which runtime a recipe uses. See
  * docs/design/forge-runtimes.md.
  */
 export namespace Runtime {

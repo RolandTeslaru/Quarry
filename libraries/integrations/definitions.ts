@@ -1,7 +1,7 @@
 import type { DataConnection, Keychain } from '@quarry/shared/domain';
 import { credentialToWire, type CredentialTemplate } from './core/credential';
 import { toWire, type SourceDefinition } from './core/definition';
-import { Definition as Postgres } from './Postgres/definition';
+import { Definition as Postgres } from './Postgres/source-definition';
 
 export { credentialToWire, defineCredential, type CredentialTemplate, type ValuesOf } from './core/credential';
 export { defineSource, defineSync, toWire, type ConfigOf, type CredentialOf, type SourceDefinition, type SyncConfigOf, type SyncDefinition } from './core/definition';

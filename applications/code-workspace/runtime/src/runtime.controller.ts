@@ -124,7 +124,9 @@ export class RuntimeController {
     @MessagePattern('run')
     public async run(@Payload() request: Forge.Runtime.Run.Request): Promise<Stdio.Payload<Forge.Runtime.Run.Response>> {
         const { job, recipe, token } = request;
-        const { workspaceRid, commit, transform } = recipe.runtime;
+        // The agent starts this image for this runtime type only.
+        const runtimeConfig = recipe.runtimeConfig as Extract<Forge.Recipe.RuntimeConfig, { type: 'code-workspace' }>;
+        const { workspaceRid, commit, transform } = runtimeConfig;
 
         this.log.info(`Running ${job.rid} (attempt ${job.attempt})`, {
             transform,
@@ -197,7 +199,7 @@ export class RuntimeController {
             outputs: {},
         };
 
-        for (const [parameter, datasetRid] of Object.entries(recipe.runtime.inputs)) {
+        for (const [parameter, datasetRid] of Object.entries(runtimeConfig.inputs)) {
             jobFile.inputs[parameter] = {
                 rid:      datasetRid,
                 sequence: inputUrls[datasetRid].sequence,
@@ -208,7 +210,7 @@ export class RuntimeController {
 
         const folders: Record<string, OutputFolder> = {};
 
-        for (const [parameter, datasetRid] of Object.entries(recipe.runtime.outputs)) {
+        for (const [parameter, datasetRid] of Object.entries(runtimeConfig.outputs)) {
             const directory = path.join(OUTPUTS, parameter);
 
             folders[parameter] = {

@@ -75,7 +75,7 @@ describe('publishing recipes', () => {
         expect(recipe).toMatchObject({
             producerRid:       workspace.rid,
             branch:            MAIN,
-            runtime:           {
+            runtimeConfig:     {
                 type:         'code-workspace',
                 workspaceRid: workspace.rid,
                 commit:       run.commit,
@@ -84,7 +84,7 @@ describe('publishing recipes', () => {
                 outputs:      { out: datasets.clean },
             },
             inputDatasetRids:  [datasets.raw],
-            outputDatasetRids: [datasets.clean],
+            outputTransactions: { [datasets.clean]: { type: 'snapshot' } },
             compute:           { cpuCores: 1, memoryGb: 4 },
             publishedBy:       admin.userRid,
         });
@@ -125,7 +125,7 @@ describe('publishing recipes', () => {
         const [job] = Object.values(jobs);
         const claimed = await harness.claimJob(job);
 
-        expect(claimed.recipe.runtime).toEqual({
+        expect(claimed.recipe.runtimeConfig).toEqual({
             type:         'code-workspace',
             workspaceRid: run.workspaceRid,
             commit:       run.commit,
@@ -196,7 +196,7 @@ describe('publishing recipes', () => {
         await checks.start(queued[0].rid);
         await finishWith(queued[0], [transform('pkg.a.a', { raw: datasets.raw }, { out: datasets.a })]);
 
-        expect((await harness.getCurrentRecipe(admin, datasets.a))?.runtime).toMatchObject({ commit: next });
+        expect((await harness.getCurrentRecipe(admin, datasets.a))?.runtimeConfig).toMatchObject({ commit: next });
         expect(await harness.getCurrentRecipe(admin, datasets.b)).toBeNull();
     });
 });

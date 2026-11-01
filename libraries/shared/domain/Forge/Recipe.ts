@@ -1,6 +1,8 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { Dataset } from "../Dataset/Dataset"
+import { Sync } from "../DataConnection/Sync"
+import { Source } from "../DataConnection/Source"
 import { Resource } from "../Library/Resource"
 import { User } from "../Identity/User"
 import { Workspace } from "../CodeWorkspace/Workspace"
@@ -20,7 +22,7 @@ export namespace Recipe {
     export const createRid = () => Foundations.Rid.create("forge", "recipe")
 
     /** Which runtime runs the recipe, and what that runtime needs — one per kind of producer. */
-    export const Runtime = z.discriminatedUnion("type", [
+    export const RuntimeConfig = z.discriminatedUnion("type", [
         z.object({
             type:         z.literal("code-workspace"),
             workspaceRid: Workspace.Rid,
@@ -29,8 +31,21 @@ export namespace Recipe {
             inputs:       z.record(z.string(), Dataset.Rid),     // the transform's parameter → the dataset it reads
             outputs:      z.record(z.string(), Dataset.Rid),     // the transform's parameter → the dataset it writes
         }),
+        z.object({
+            type:       z.literal("data-connection"),
+            sourceRid:  Source.Rid,
+            syncRid:    Sync.Rid,
+            syncConfig: Sync.Config,                             // what to copy, as the sync said when this was published
+        }),
     ])
-    export type Runtime = z.infer<typeof Runtime>
+    export type RuntimeConfig = z.infer<typeof RuntimeConfig>
+
+    /** How a job writes its outputs: replacing each dataset's view, or adding to it — by a column, for an incremental sync. */
+    export const OutputTransaction = z.discriminatedUnion("type", [
+        z.object({ type: z.literal("snapshot") }),
+        z.object({ type: z.literal("append"), incrementalColumn: z.string().min(1).nullable() }),
+    ])
+    export type OutputTransaction = z.infer<typeof OutputTransaction>
 
     export const Compute = z.object({
         cpuCores: z.number().positive(),
@@ -42,9 +57,10 @@ export namespace Recipe {
         rid:               Rid,
         producerRid:       Resource.Rid,
         branch:            Foundations.Branch,
-        runtime:           Runtime,
+        runtimeConfig:     RuntimeConfig,
         inputDatasetRids:  Dataset.Rid.array(),          // a set; the runtime matches them to the code's parameters
-        outputDatasetRids: Dataset.Rid.array().min(1),
+        outputTransactions: z.record(Dataset.Rid, OutputTransaction)                     // each output dataset, and how a job writes it
+            .refine((outputs) => Object.keys(outputs).length > 0, "A recipe writes at least one dataset"),
         compute:           Compute,
         publishedBy:       User.Rid.nullable(),          // null = the system
         publishedAt:       z.coerce.date(),

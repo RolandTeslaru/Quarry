@@ -21,7 +21,7 @@ CREATE TABLE forge.recipe (
     rid           forge.recipe_rid PRIMARY KEY,
     producer_rid  foundations.rid NOT NULL REFERENCES library.resource (rid) ON DELETE RESTRICT,   -- the workspace (later: pipeline)
     branch        text NOT NULL,
-    runtime       jsonb NOT NULL,                 -- Forge.Recipe.Runtime: which runtime runs it, and what that runtime needs
+    runtime_config jsonb NOT NULL,                -- Forge.Recipe.RuntimeConfig: which runtime runs it, and what that runtime needs
     compute       jsonb NOT NULL,                 -- Forge.Recipe.Compute: cores and memory per job
     published_by  identity.user_rid REFERENCES identity.user(rid),
     published_at  timestamptz NOT NULL DEFAULT now()
@@ -42,6 +42,7 @@ CREATE TABLE forge.recipe_output_dataset (
     recipe_rid    forge.recipe_rid NOT NULL REFERENCES forge.recipe(rid) ON DELETE CASCADE,
     dataset_rid   foundations.rid NOT NULL REFERENCES library.resource (rid) ON DELETE RESTRICT
                   CHECK (dataset_rid LIKE 'ri.catalog.main.dataset.%'),
+    transaction   jsonb NOT NULL,                 -- Forge.Recipe.OutputTransaction: how a job writes it
     PRIMARY KEY (recipe_rid, dataset_rid)
 );
 
@@ -86,7 +87,7 @@ CREATE TABLE forge.job (
     attempt       integer NOT NULL DEFAULT 1 CHECK (attempt >= 1),
     failure       jsonb,                          -- { message }
     inputs        jsonb,                          -- { <dataset rid>: <sequence> }: the versions it reads, pinned when it's claimed
-    outputs       jsonb NOT NULL,                 -- { <dataset rid>: <transaction rid> }: opened when the build is created
+    output_transactions jsonb NOT NULL,           -- { <dataset rid>: <transaction rid> }: opened when the build is created
     scheduled_at  timestamptz,                    -- may run from here: a root at initialization, a child when its last parent finished — its message added to foundations.outbox
     started_at    timestamptz,                    -- a ForgeAgent took it
     heartbeat_at  timestamptz,                    -- not indexed, so heartbeats stay HOT updates

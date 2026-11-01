@@ -155,9 +155,9 @@ describe('build and recipe permissions', () => {
 
         it('publishing needs write on the producer and the outputs: an editor may', async () => {
             const published = await harness.forge.recipes.publish(editor, projectRid, MAIN, [{
-                runtime:           recipe.runtime,
+                runtimeConfig:     recipe.runtimeConfig,
                 inputDatasetRids:  [datasets.raw],
-                outputDatasetRids: [datasets.out2],
+                outputTransactions: { [datasets.out2]: { type: 'snapshot' } },
                 compute:           recipe.compute,
             }]);
 
@@ -166,9 +166,9 @@ describe('build and recipe permissions', () => {
 
         it('a viewer may not publish: 403', async () => {
             await expect(harness.forge.recipes.publish(viewer, projectRid, MAIN, [{
-                runtime:           recipe.runtime,
+                runtimeConfig:     recipe.runtimeConfig,
                 inputDatasetRids:  [datasets.raw],
-                outputDatasetRids: [datasets.out],
+                outputTransactions: { [datasets.out]: { type: 'snapshot' } },
                 compute:           recipe.compute,
             }])).rejects.toBeInstanceOf(ForbiddenException);
         });

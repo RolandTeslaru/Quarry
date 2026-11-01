@@ -56,8 +56,8 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
         this.log.info(`Picked up ${message.jobRid} (attempt ${message.attempt})`, {
             build:     job.buildRid,
             recipe:    recipe.rid,
-            transform: recipe.runtime.transform,
-            outputs:   Object.keys(job.outputs).length,
+            runtime:   recipe.runtimeConfig.type,
+            outputs:   Object.keys(job.outputTransactions).length,
         });
 
         const onLog = (log: Stdio.Event.Log) => this.log.info(log.line, {
@@ -88,7 +88,7 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
         let outcome: Stdio.Payload<Forge.Runtime.Run.Response>;
 
         try {
-            await runtime.waitUntilReady(recipe.runtime.type);
+            await runtime.waitUntilReady(recipe.runtimeConfig.type);
 
             outcome = await runtime.request(Forge.Runtime.Run, {
                 job,

@@ -137,7 +137,7 @@ describe('initializing a build', () => {
             const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'free', 'busy'], ['raw']);
 
             await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['free', 'busy'] }]);
-            await harness.catalog.openTransactions(user, { openings: { [datasets.busy]: { type: 'append', provenance: {} } }, branch: MAIN });           // an upload in progress
+            await harness.catalog.openTransactions(user, { openings: { [datasets.busy]: { type: 'append', provenance: {}, incrementalColumn: null } }, branch: MAIN });           // an upload in progress
 
             const attempt = harness.build(user, [datasets.free]);
 
@@ -167,11 +167,11 @@ describe('initializing a build', () => {
 
             const { jobs } = await harness.build(user, [datasets.out]);
 
-            await expect(harness.catalog.openTransactions(user, { openings: { [datasets.out]: { type: 'append', provenance: {} } }, branch: MAIN })).rejects.toBeInstanceOf(ConflictException);
+            await expect(harness.catalog.openTransactions(user, { openings: { [datasets.out]: { type: 'append', provenance: {}, incrementalColumn: null } }, branch: MAIN })).rejects.toBeInstanceOf(ConflictException);
 
             await harness.run(Object.values(jobs)[0]);
 
-            await expect(harness.catalog.openTransactions(user, { openings: { [datasets.out]: { type: 'append', provenance: {} } }, branch: MAIN })).resolves.toMatchObject({ [datasets.out]: { status: 'open' } });
+            await expect(harness.catalog.openTransactions(user, { openings: { [datasets.out]: { type: 'append', provenance: {}, incrementalColumn: null } }, branch: MAIN })).resolves.toMatchObject({ [datasets.out]: { status: 'open' } });
         });
     });
 });

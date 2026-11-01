@@ -35,6 +35,7 @@ CREATE TABLE catalog.transaction (
     sequence      bigint,                                     -- set on commit: 1, 2, 3… per branch
     schema        jsonb,                                      -- the resulting view's { columns, reader } (Catalog.ColumnSchema.Schema); NULL = unchanged
     provenance    jsonb NOT NULL DEFAULT '{}',                -- e.g. { "syncRunRid": "…" }
+    incremental   jsonb,                                      -- Catalog.Transaction.Incremental, on an incremental append: { column, state }
 
     started_by    identity.user_rid REFERENCES identity.user(rid),          -- NULL = service principal
     started_at    timestamptz NOT NULL DEFAULT now(),
@@ -43,7 +44,8 @@ CREATE TABLE catalog.transaction (
     FOREIGN KEY (dataset_rid, branch) REFERENCES catalog.branch (dataset_rid, name) ON DELETE CASCADE,
     UNIQUE (dataset_rid, branch, sequence),
     CHECK ((status = 'committed') = (sequence IS NOT NULL)),
-    CHECK ((status = 'open') = (finished_at IS NULL))
+    CHECK ((status = 'open') = (finished_at IS NULL)),
+    CHECK (incremental IS NULL OR type = 'append')
 );
 
 -- At most one open transaction per dataset branch

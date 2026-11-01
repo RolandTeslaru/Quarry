@@ -21,6 +21,22 @@ describe('a build of several dependent datasets', () => {
         await harness.stop();
     });
 
+    it("opens each output the way its recipe says: an incremental append carries its column", async () => {
+        const { projectRid, datasets } = await harness.createDatasets(user, ['a', 'b']);
+        const recipes = await harness.publish(user, projectRid, datasets, [
+            { name: 'A', inputs: [], outputs: ['a'], outputTransaction: { type: 'append', incrementalColumn: 'updated_at' } },
+            { name: 'B', inputs: [], outputs: ['b'] },
+        ]);
+
+        const { build } = await harness.build(user, [datasets.a, datasets.b]);
+        const { jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
+
+        expect(await harness.transactionWrite(jobs.A.outputTransactions[datasets.a])).toEqual({ type: 'append', incremental: { column: 'updated_at', state: null } });
+        expect(await harness.transactionWrite(jobs.B.outputTransactions[datasets.b])).toEqual({ type: 'snapshot', incremental: null });
+
+        await harness.forge.cancelBuild(user, build.rid);
+    });
+
     it('runs a chain one job at a time: A → B → C', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b', 'c'], ['raw']);
         const recipes = await harness.publish(user, projectRid, datasets, [
@@ -118,7 +134,7 @@ describe('a build of several dependent datasets', () => {
         const [job] = Object.values(single.jobs);
 
         expect(Object.keys(single.jobs)).toHaveLength(1);
-        expect(Object.keys(job.outputs).sort()).toEqual([datasets.a1, datasets.a2].sort());
+        expect(Object.keys(job.outputTransactions).sort()).toEqual([datasets.a1, datasets.a2].sort());
         await harness.forge.cancelBuild(user, single.build.rid);
 
         const { build } = await harness.build(user, [datasets.a1, datasets.a2, datasets.b, datasets.c]);
@@ -159,8 +175,8 @@ describe('a build of several dependent datasets', () => {
 
         expect(after.build.status).toBe('failed');
         expect(await harness.statuses(user, build.rid, recipes)).toEqual({ A: 'succeeded', B: 'failed', C: 'succeeded', D: 'canceled' });
-        expect(await harness.transactionStatus(after.jobs.C.outputs[datasets.c])).toBe('committed');
-        expect(await harness.transactionStatus(after.jobs.D.outputs[datasets.d])).toBe('aborted');
+        expect(await harness.transactionStatus(after.jobs.C.outputTransactions[datasets.c])).toBe('committed');
+        expect(await harness.transactionStatus(after.jobs.D.outputTransactions[datasets.d])).toBe('aborted');
     });
 
     it("cancels the rest when a job fails, with cancel-build, and aborts their outputs — the one that succeeded keeps its version", async () => {
@@ -186,10 +202,10 @@ describe('a build of several dependent datasets', () => {
         expect(await harness.statuses(user, build.rid, recipes)).toEqual({ A: 'succeeded', B: 'failed', C: 'canceled', D: 'canceled' });
         expect(after.jobs.B.failure).toEqual({ message: 'test failure' });
 
-        expect(await harness.transactionStatus(after.jobs.A.outputs[datasets.a])).toBe('committed');
+        expect(await harness.transactionStatus(after.jobs.A.outputTransactions[datasets.a])).toBe('committed');
 
         for (const job of [after.jobs.B, after.jobs.C, after.jobs.D])
-            for (const transactionRid of Object.values(job.outputs))
+            for (const transactionRid of Object.values(job.outputTransactions))
                 expect(await harness.transactionStatus(transactionRid)).toBe('aborted');
     });
 
@@ -209,7 +225,7 @@ describe('a build of several dependent datasets', () => {
 
         expect(canceled.build.status).toBe('canceled');
         expect(await harness.statuses(user, build.rid, recipes)).toEqual({ A: 'canceled', B: 'canceled' });
-        expect(await harness.transactionStatus(jobs.B.outputs[datasets.b])).toBe('aborted');
+        expect(await harness.transactionStatus(jobs.B.outputTransactions[datasets.b])).toBe('aborted');
 
         // The running job's agent hears it on its next heartbeat; a new build can write the outputs again.
         expect(await harness.jobs.heartbeatJob(jobs.A.rid, 1)).toEqual({ action: 'stop' });

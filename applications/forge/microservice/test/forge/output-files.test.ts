@@ -43,7 +43,7 @@ describe('output files', () => {
 
     /** Puts a real Parquet file where the job's runtime would: under the output's transaction. */
     async function writeParquet(job: Forge.Job, datasetRid: Dataset.Rid, filename: string, select: string): Promise<void> {
-        const key = Dataset.getStorageKey(datasetRid, job.outputs[datasetRid], filename);
+        const key = Dataset.getStorageKey(datasetRid, job.outputTransactions[datasetRid], filename);
         const url = harness.get(FileStorage).url(key);
 
         await duckdb.with((connection) => connection.run(`COPY (${select}) TO ${literal(url)} (FORMAT parquet)`));
@@ -54,7 +54,7 @@ describe('output files', () => {
 
         const { url } = await harness.jobs.getSignedOutputUrl(admin, job.rid, datasets.out, { filename: 'part-0.parquet' });
 
-        expect(url).toContain(`/${datasets.out}/${job.outputs[datasets.out]}/part-0.parquet?`);
+        expect(url).toContain(`/${datasets.out}/${job.outputTransactions[datasets.out]}/part-0.parquet?`);
         expect(url).toContain('X-Amz-Signature=');
     });
 

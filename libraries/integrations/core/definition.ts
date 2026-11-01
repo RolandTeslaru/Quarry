@@ -36,9 +36,9 @@ export interface SourceDefinition<
  * mounts its fields), and the runtime's one `sync()` switches on it.
  */
 export interface SyncDefinition<C extends z.ZodType = z.ZodType> {
-    readonly Config:      C;
+    readonly Config:          C;
     /** Whether a run replaces the dataset's view or adds to it — decided by the sync's own config. */
-    readonly transaction: (config: z.output<C>) => 'snapshot' | 'append';
+    readonly transactionType: (config: z.output<C>) => 'snapshot' | 'append';
 }
 
 /** The parsed config a runtime of this definition receives. */

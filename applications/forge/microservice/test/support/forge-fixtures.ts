@@ -24,6 +24,8 @@ export interface RecipeShape {
     readonly name:    string;
     readonly inputs:  string[];
     readonly outputs: string[];
+    /** A snapshot of each output, unless a test says otherwise. */
+    readonly outputTransaction?: Forge.Recipe.OutputTransaction;
 }
 
 /** The workspace and commit a recipe's transform is taken from. */
@@ -154,7 +156,7 @@ export class ForgeHarness {
         code:        RecipeCode = MADE_UP_CODE,
     ): Promise<Record<string, Forge.Recipe>> {
         const recipes = await this.forge.recipes.publish(principal, producerRid, branch, shapes.map((shape) => ({
-            runtime: Forge.Recipe.Runtime.parse({
+            runtimeConfig: Forge.Recipe.RuntimeConfig.parse({
                 type:         'code-workspace',
                 workspaceRid: code.workspaceRid,
                 commit:       code.commit,
@@ -163,7 +165,7 @@ export class ForgeHarness {
                 outputs:      Object.fromEntries(shape.outputs.map((name) => [name, datasets[name]])),
             }),
             inputDatasetRids:  shape.inputs.map((name) => datasets[name]),
-            outputDatasetRids: shape.outputs.map((name) => datasets[name]),
+            outputTransactions: Object.fromEntries(shape.outputs.map((name) => [datasets[name], shape.outputTransaction ?? { type: 'snapshot' }])),
             compute:           { cpuCores: 1, memoryGb: 4 },
         })));
 
@@ -268,6 +270,13 @@ export class ForgeHarness {
             select count(*)::int as n from catalog.transaction where dataset_rid = ${datasetRid} and status = 'open'`.execute(this.owner);
 
         return rows[0].n;
+    }
+
+    /** A Catalog transaction's type and incremental mark (Forge can't read them; the test can). */
+    public async transactionWrite(rid: Catalog.Transaction.Rid): Promise<{ type: string; incremental: unknown } | undefined> {
+        const { rows } = await sql<{ type: string; incremental: unknown }>`select type, incremental from catalog.transaction where rid = ${rid}`.execute(this.owner);
+
+        return rows[0];
     }
 
     /** The status of a Catalog transaction (Forge can't read them; the test can). */

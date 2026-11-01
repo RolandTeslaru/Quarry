@@ -19,28 +19,50 @@ export namespace Transaction {
     export const Status = z.enum(["open", "committed", "aborted"])
     export type  Status = z.infer<typeof Status>
 
+    /**
+     * How far an incremental writer got: the column it reads by, and that column's last value — opaque to
+     * Catalog. The column is set when the transaction opens, the state when it commits, so a failed run leaves the mark where it was.
+     */
+    export namespace Incremental {
+        export const Schema = z.object({
+            column: z.string().min(1),
+            state:  z.string().nullable(),
+        })
+    }
+    export type Incremental = z.infer<typeof Incremental.Schema>
+
     /** What opening a transaction on a dataset takes: its type, and what opened it (`{ buildRid, jobRid }`, `{ syncRid, syncRunRid }`). */
     export namespace Opening {
-        export const Schema = z.object({
-            type:       Type,
-            provenance: z.record(z.string(), z.unknown()),
-        })
+        const provenance = z.record(z.string(), z.unknown())
+
+        export const Schema = z.discriminatedUnion("type", [
+            z.object({ type: z.literal("snapshot"), provenance }),
+            z.object({ type: z.literal("append"), provenance, incrementalColumn: z.string().min(1).nullable() }),   // null: not incremental, an upload
+            z.object({ type: z.literal("update"), provenance }),
+            z.object({ type: z.literal("delete"), provenance }),
+        ])
     }
     export type Opening = z.infer<typeof Opening.Schema>
 
-    export const Schema = z.object({
+    const Base = z.object({
         rid:        Rid,
         datasetRid: Dataset.Rid,
         branch:     Foundations.Branch,
-        type:       Type,
         status:     Status,
         sequence:   Dataset.Sequence.nullable(),
         schema:     ColumnSchema.Schema.nullable(),
-    provenance: z.record(z.string(), z.unknown()),
+        provenance: z.record(z.string(), z.unknown()),
         startedBy:  User.Rid.nullable(),
         startedAt:  z.coerce.date(),
         finishedAt: z.coerce.date().nullable(),
     })
+
+    export const Schema = z.discriminatedUnion("type", [
+        Base.extend({ type: z.literal("snapshot") }),
+        Base.extend({ type: z.literal("append"), incremental: Incremental.Schema.nullable() }),   // null: not incremental, an upload
+        Base.extend({ type: z.literal("update") }),
+        Base.extend({ type: z.literal("delete") }),
+    ])
 
     /**
      * One entry in a transaction's change list — an instruction, not a file:

@@ -25,7 +25,7 @@ export function createPlan(recipes: Record<Recipe.Rid, Recipe>): Build.Plan {
     for (const recipe of Object.values(recipes)) {
         children[recipe.rid] = new Set()
 
-        for (const datasetRid of recipe.outputDatasetRids)
+        for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[])
             producerOf[datasetRid] = recipe.rid
     }
 

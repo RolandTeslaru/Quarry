@@ -44,8 +44,8 @@ describe('transaction batches', () => {
             await harness.transaction.open(user, datasets.busy, 'append');
 
             const attempt = harness.transaction.openBatch(user, [
-                { datasetRid: datasets.free, type: 'snapshot' },
-                { datasetRid: datasets.busy, type: 'snapshot' },
+                { datasetRid: datasets.free, type: 'snapshot', provenance: {} },
+                { datasetRid: datasets.busy, type: 'snapshot', provenance: {} },
             ]);
 
             await expect(attempt).rejects.toBeInstanceOf(ConflictException);
@@ -57,8 +57,8 @@ describe('transaction batches', () => {
             const { datasets } = await harness.createDatasets(user, ['a']);
 
             await expect(harness.transaction.openBatch(user, [
-                { datasetRid: datasets.a, type: 'snapshot' },
-                { datasetRid: datasets.a, type: 'append' },
+                { datasetRid: datasets.a, type: 'snapshot', provenance: {} },
+                { datasetRid: datasets.a, type: 'append', provenance: {}, incrementalColumn: null },
             ])).rejects.toBeInstanceOf(BadRequestException);
         });
 
@@ -68,8 +68,8 @@ describe('transaction batches', () => {
             await harness.library.trash(user, datasets.gone);
 
             await expect(harness.transaction.openBatch(user, [
-                { datasetRid: datasets.live, type: 'snapshot' },
-                { datasetRid: datasets.gone, type: 'snapshot' },
+                { datasetRid: datasets.live, type: 'snapshot', provenance: {} },
+                { datasetRid: datasets.gone, type: 'snapshot', provenance: {} },
             ])).rejects.toBeInstanceOf(NotFoundException);
             expect(await harness.openTransactions(datasets.live)).toBe(0);
         });
@@ -84,8 +84,8 @@ describe('transaction batches', () => {
         it('aborts the open ones and leaves committed ones alone', async () => {
             const { datasets } = await harness.createDatasets(user, ['a', 'b']);
             const [a, b] = await harness.transaction.openBatch(user, [
-                { datasetRid: datasets.a, type: 'snapshot' },
-                { datasetRid: datasets.b, type: 'snapshot' },
+                { datasetRid: datasets.a, type: 'snapshot', provenance: {} },
+                { datasetRid: datasets.b, type: 'snapshot', provenance: {} },
             ]);
 
             await harness.transaction.commit(user, datasets.b, b.rid, null);
@@ -97,7 +97,7 @@ describe('transaction batches', () => {
 
         it('is safe to repeat', async () => {
             const { datasets } = await harness.createDatasets(user, ['a']);
-            const [a] = await harness.transaction.openBatch(user, [{ datasetRid: datasets.a, type: 'snapshot' }]);
+            const [a] = await harness.transaction.openBatch(user, [{ datasetRid: datasets.a, type: 'snapshot', provenance: {} }]);
 
             await harness.transaction.abortBatch(user, [a]);
             await expect(harness.transaction.abortBatch(user, [a])).resolves.toBeUndefined();
@@ -106,7 +106,7 @@ describe('transaction batches', () => {
 
         it("only aborts a transaction through its own dataset", async () => {
             const { datasets } = await harness.createDatasets(user, ['a', 'other']);
-            const [a] = await harness.transaction.openBatch(user, [{ datasetRid: datasets.a, type: 'snapshot' }]);
+            const [a] = await harness.transaction.openBatch(user, [{ datasetRid: datasets.a, type: 'snapshot', provenance: {} }]);
 
             await harness.transaction.abortBatch(user, [{ rid: a.rid, datasetRid: datasets.other }]);
 

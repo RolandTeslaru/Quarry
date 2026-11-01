@@ -212,7 +212,7 @@ export class ForgeService {
 
         // A succeeded job's outputs were committed with it; a failed one's are released.
         if (outcome.status === 'failed') {
-            await this.catalog.abortTransactions(AGENT, { transactions: finished.job.outputs });
+            await this.catalog.abortTransactions(AGENT, { transactions: finished.job.outputTransactions });
             await this.cancelForFailure(finished.job);
         }
 
@@ -248,7 +248,7 @@ export class ForgeService {
         const inputs = new Set<Dataset.Rid>();
 
         for (const recipe of Object.values(recipes)) {
-            for (const datasetRid of recipe.outputDatasetRids)
+            for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[])
                 outputs.add(datasetRid);
 
             for (const datasetRid of recipe.inputDatasetRids)
@@ -269,27 +269,27 @@ export class ForgeService {
     }
 
     /**
-     * 3. One job per node, with a snapshot transaction open on each of its recipe's
-     * outputs — all opened in one database transaction, or none.
+     * 3. One job per node, with a transaction open on each of its recipe's outputs, of the
+     * kind the recipe says — all opened in one database transaction, or none.
      */
     private async openTransactionsForOutputs(principal: Principal, buildRid: Forge.Build.Rid, recipes: Record<Forge.Recipe.Rid, Forge.Recipe>): Promise<Record<Forge.Job.Rid, PlannedJob>> {
         const jobs: Record<Forge.Job.Rid, PlannedJob> = {};
         const openings: Record<Dataset.Rid, Catalog.Transaction.Opening> = {};
 
         for (const recipe of Object.values(recipes)) {
-            const job: PlannedJob = { rid: Forge.Job.createRid(), recipeRid: recipe.rid, outputs: {} };
+            const job: PlannedJob = { rid: Forge.Job.createRid(), recipeRid: recipe.rid, outputTransactions: {} };
 
             jobs[job.rid] = job;
 
-            for (const datasetRid of recipe.outputDatasetRids)
-                openings[datasetRid] = { type: 'snapshot', provenance: { buildRid, jobRid: job.rid } };
+            for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[])
+                openings[datasetRid] = { ...recipe.outputTransactions[datasetRid], provenance: { buildRid, jobRid: job.rid } };
         }
 
         const transactions = await this.catalog.openTransactions(principal, { openings, branch: Foundations.MAIN_BRANCH });
 
         for (const job of Object.values(jobs))
-            for (const datasetRid of recipes[job.recipeRid].outputDatasetRids)
-                job.outputs[datasetRid] = transactions[datasetRid].rid;
+            for (const datasetRid of Object.keys(recipes[job.recipeRid].outputTransactions) as Dataset.Rid[])
+                job.outputTransactions[datasetRid] = transactions[datasetRid].rid;
 
         return jobs;
     }

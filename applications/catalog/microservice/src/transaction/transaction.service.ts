@@ -45,14 +45,15 @@ export class TransactionService {
      */
     public async openBatch(
         principal: Principal,
-        openings:  { datasetRid: Dataset.Rid; type: Catalog.Transaction.Type; provenance?: Record<string, unknown> }[],
+        openings:  (Catalog.Transaction.Opening & { datasetRid: Dataset.Rid })[],
         branch = Foundations.MAIN_BRANCH,
     ): Promise<Catalog.Transaction[]> {
         const values = openings.map((opening) => ({
             rid:        Catalog.Transaction.createRid(),
             datasetRid: opening.datasetRid,
             type:       opening.type,
-            provenance: opening.provenance ?? {},
+            provenance: opening.provenance,
+            incrementalColumn: opening.type === 'append' ? opening.incrementalColumn : null,
         }));
 
         const rows = await this.repository.openBatch(principal, branch, values);

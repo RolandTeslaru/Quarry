@@ -41,9 +41,10 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
     @Transactional()
     public async openBatch(principal: Principal, branch: Foundations.Branch, values: {
         rid:        Catalog.Transaction.Rid;
-        datasetRid: Dataset.Rid;
-        type:       Catalog.Transaction.Type;
-        provenance: Record<string, unknown>;
+        datasetRid:        Dataset.Rid;
+        type:              Catalog.Transaction.Type;
+        provenance:        Record<string, unknown>;
+        incrementalColumn: string | null;
     }[]): Promise<CatalogDB.Transaction.Row[]> {
         if (values.length === 0)
             return [];
@@ -77,6 +78,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
                 branch,
                 type:        value.type,
                 provenance:  json(value.provenance),
+                incremental: value.incrementalColumn ? json({ column: value.incrementalColumn, state: null }) : null,
                 started_by:  Principal.actorOf(principal),
             })))
             .returningAll()

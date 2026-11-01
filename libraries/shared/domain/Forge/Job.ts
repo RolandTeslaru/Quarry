@@ -28,7 +28,7 @@ export namespace Job {
         status:                Status,
         attempt:               z.number().int().positive(),         // 1, then each retry
         inputs:                z.record(Dataset.Rid, Dataset.Sequence).nullable(),  // each input's version, pinned when it's claimed
-        outputs:               z.record(Dataset.Rid, Transaction.Rid),              // each output's transaction, opened when the build is created
+        outputTransactions:    z.record(Dataset.Rid, Transaction.Rid),              // each output's transaction, opened when the build is created
         failure:               z.object({ message: z.string() }).nullable(),
         scheduledAt:           z.coerce.date().nullable(),
         startedAt:             z.coerce.date().nullable(),
@@ -40,12 +40,12 @@ export namespace Job {
     export const getQueueMessage = (job: Pick<Job, "rid" | "attempt">) => ({ jobRid: job.rid, attempt: job.attempt })
 
     /** These jobs' output transactions, by dataset — how Catalog addresses them. A dataset is one job's output in a build. */
-    export function getOutputTransactions(jobs: Pick<Job, "outputs">[]): Record<Dataset.Rid, Transaction.Rid> {
+    export function getOutputTransactions(jobs: Pick<Job, "outputTransactions">[]): Record<Dataset.Rid, Transaction.Rid> {
         const transactions: Record<Dataset.Rid, Transaction.Rid> = {}
 
         for (const job of jobs)
-            for (const datasetRid of Object.keys(job.outputs) as Dataset.Rid[])
-                transactions[datasetRid] = job.outputs[datasetRid]
+            for (const datasetRid of Object.keys(job.outputTransactions) as Dataset.Rid[])
+                transactions[datasetRid] = job.outputTransactions[datasetRid]
 
         return transactions
     }

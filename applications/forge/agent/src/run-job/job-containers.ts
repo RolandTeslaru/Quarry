@@ -4,8 +4,9 @@ import { Forge, Stdio } from '@quarry/shared/domain';
 import { StdioClient } from '@quarry/shared/server/stdio/stdio-client';
 
 /** Each runtime type's image, tagged RUNTIME_TAG. */
-const RUNTIME_IMAGES: Record<Forge.Recipe.Runtime['type'], string> = {
+const RUNTIME_IMAGES: Record<Forge.Recipe.RuntimeConfig['type'], string> = {
     'code-workspace': 'quarry/code-workspace-runtime',
+    'data-connection': 'quarry/data-connection-runtime',
 };
 
 /** The runtime images' tag: the agent's release, so the two always match. */
@@ -38,12 +39,12 @@ export class JobContainers {
             '--env', `QUARRY_SERVER_URL=${JOB_SERVER_URL}`,
             '--cpus', String(recipe.compute.cpuCores),
             '--memory', `${recipe.compute.memoryGb}g`,
-            '--volume', `quarry-cache-${recipe.runtime.type}:/cache`,
+            '--volume', `quarry-cache-${recipe.runtimeConfig.type}:/cache`,
             '--cap-drop', 'ALL',
             '--cap-add', 'SETUID',
             '--cap-add', 'SETGID',
             '--security-opt', 'no-new-privileges',
-            `${RUNTIME_IMAGES[recipe.runtime.type]}:${RUNTIME_TAG}`,
+            `${RUNTIME_IMAGES[recipe.runtimeConfig.type]}:${RUNTIME_TAG}`,
         ], { stdio: ['pipe', 'pipe', 'inherit'] });
 
         return new StdioClient(container, onLog);

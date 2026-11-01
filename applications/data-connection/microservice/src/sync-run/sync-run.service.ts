@@ -67,7 +67,7 @@ export class SyncRunService {
             throw new NotFoundException(`Source ${sync.source_rid} of sync ${sync.rid} is missing or trashed`);
 
         // The integration decides from the sync's config whether a run replaces the view or appends to it.
-        const transactionType = syncDefinition(source).transaction(sync.config);
+        const transactionType = syncDefinition(source).transactionType(sync.config);
         const stateFrom = await this.repository.latestState(principal, sync.rid);
         const runRid = DataConnection.SyncRun.createRid();
 

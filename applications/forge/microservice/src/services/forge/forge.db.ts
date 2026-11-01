@@ -13,32 +13,40 @@ export namespace ForgeDB {
             rid:          Forge.Recipe.Rid,
             producer_rid: Library.Resource.Rid,
             branch:       Foundations.Branch,
-            runtime:      Forge.Recipe.Runtime,
+            runtime_config: Forge.Recipe.RuntimeConfig,
             compute:      Forge.Recipe.Compute,
             published_by: Identity.User.Rid.nullable(),
             published_at: z.date(),
         });
         export type Row = z.infer<typeof Row>;
 
-        export const toDomain = (row: Row, inputDatasetRids: Dataset.Rid[], outputDatasetRids: Dataset.Rid[]) =>
+        export const toDomain = (row: Row, inputDatasetRids: Dataset.Rid[], outputTransactions: Forge.Recipe['outputTransactions']) =>
             Forge.Recipe.Schema.parse({
                 rid:               row.rid,
                 producerRid:       row.producer_rid,
                 branch:            row.branch,
-                runtime:           row.runtime,
+                runtimeConfig:     row.runtime_config,
                 inputDatasetRids,
-                outputDatasetRids,
+                outputTransactions,
                 compute:           row.compute,
                 publishedBy:       row.published_by,
                 publishedAt:       row.published_at,
             });
     }
 
-    /** A recipe's input or output dataset — the two tables have the same shape. */
-    export namespace RecipeDataset {
+    export namespace RecipeInputDataset {
         export const Row = z.object({
             recipe_rid: Forge.Recipe.Rid,
             dataset_rid:  Dataset.Rid,
+        });
+        export type Row = z.infer<typeof Row>;
+    }
+
+    export namespace RecipeOutputDataset {
+        export const Row = z.object({
+            recipe_rid:  Forge.Recipe.Rid,
+            dataset_rid: Dataset.Rid,
+            transaction: Forge.Recipe.OutputTransaction,
         });
         export type Row = z.infer<typeof Row>;
     }
@@ -94,7 +102,7 @@ export namespace ForgeDB {
             attempt:      z.number().int(),
             failure:      z.object({ message: z.string() }).nullable(),
             inputs:       z.record(Dataset.Rid, Dataset.Sequence).nullable(),
-            outputs:      z.record(Dataset.Rid, Catalog.Transaction.Rid),
+            output_transactions: z.record(Dataset.Rid, Catalog.Transaction.Rid),
             scheduled_at: z.date().nullable(),
             started_at:   z.date().nullable(),
             heartbeat_at: z.date().nullable(),
@@ -109,7 +117,7 @@ export namespace ForgeDB {
             status:      row.status,
             attempt:     row.attempt,
             inputs:      row.inputs,
-            outputs:     row.outputs,
+            outputTransactions: row.output_transactions,
             failure:     row.failure,
             scheduledAt: row.scheduled_at,
             startedAt:   row.started_at,
@@ -120,8 +128,8 @@ export namespace ForgeDB {
 
     export interface Tables {
         'forge.recipe':                Table<typeof Recipe.Row, 'published_at'>;
-        'forge.recipe_input_dataset':  Table<typeof RecipeDataset.Row>;
-        'forge.recipe_output_dataset': Table<typeof RecipeDataset.Row>;
+        'forge.recipe_input_dataset':  Table<typeof RecipeInputDataset.Row>;
+        'forge.recipe_output_dataset': Table<typeof RecipeOutputDataset.Row>;
         'forge.current_recipe':        Table<typeof CurrentRecipe.Row>;
         'forge.build':                   Table<typeof Build.Row, 'fallback_branches' | 'force_build' | 'on_job_failure' | 'retry_count' | 'status' | 'created_at' | 'finished_at'>;
         'forge.job':                     Table<typeof Job.Row, 'status' | 'attempt' | 'failure' | 'inputs' | 'scheduled_at' | 'started_at' | 'heartbeat_at' | 'finished_at'>;

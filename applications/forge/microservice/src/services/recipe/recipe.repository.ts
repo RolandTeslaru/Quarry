@@ -7,9 +7,9 @@ import { ForgeDB } from '../forge/forge.db';
 
 /** A recipe as a producer publishes it — Forge fills in the RID, branch, producer and who. */
 export interface PublishedRecipe {
-    readonly runtime:           Forge.Recipe.Runtime;
+    readonly runtimeConfig:     Forge.Recipe.RuntimeConfig;
     readonly inputDatasetRids:  Dataset.Rid[];
-    readonly outputDatasetRids: Dataset.Rid[];
+    readonly outputTransactions: Forge.Recipe['outputTransactions'];
     readonly compute:           Forge.Recipe.Compute;
 }
 
@@ -29,7 +29,10 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         branch:      Foundations.Branch,
         recipes:     PublishedRecipe[],
     ): Promise<Forge.Recipe[]> {
-        const outputs = recipes.flatMap((recipe) => recipe.outputDatasetRids);
+        const outputs: Dataset.Rid[] = [];
+
+        for (const recipe of recipes)
+            outputs.push(...Object.keys(recipe.outputTransactions) as Dataset.Rid[]);
 
         if (new Set(outputs).size !== outputs.length)
             throw new BadRequestException('Two recipes write the same dataset');
@@ -97,15 +100,16 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
 
         const outputs = await this.trx
             .selectFrom('forge.recipe_output_dataset')
-            .select('dataset_rid')
+            .select(['dataset_rid', 'transaction'])
             .where('recipe_rid', '=', rid)
             .execute();
 
-        return ForgeDB.Recipe.toDomain(
-            row,
-            inputs.map((input) => input.dataset_rid),
-            outputs.map((output) => output.dataset_rid),
-        );
+        const outputTransactions: Forge.Recipe['outputTransactions'] = {};
+
+        for (const output of outputs)
+            outputTransactions[output.dataset_rid] = output.transaction;
+
+        return ForgeDB.Recipe.toDomain(row, inputs.map((input) => input.dataset_rid), outputTransactions);
     }
 
     // ── helpers ─────────────────────────────────────────────────────────
@@ -125,7 +129,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
                 rid,
                 producer_rid: producerRid,
                 branch,
-                runtime:      json(recipe.runtime),
+                runtime_config: json(recipe.runtimeConfig),
                 compute:      json(recipe.compute),
                 published_by: Principal.actorOf(principal),
             })
@@ -138,17 +142,19 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
                 .values(recipe.inputDatasetRids.map((datasetRid) => ({ recipe_rid: rid, dataset_rid: datasetRid })))
                 .execute();
 
+        const outputs = Object.keys(recipe.outputTransactions) as Dataset.Rid[];
+
         await this.trx
             .insertInto('forge.recipe_output_dataset')
-            .values(recipe.outputDatasetRids.map((datasetRid) => ({ recipe_rid: rid, dataset_rid: datasetRid })))
+            .values(outputs.map((datasetRid) => ({ recipe_rid: rid, dataset_rid: datasetRid, transaction: json(recipe.outputTransactions[datasetRid]) })))
             .execute();
 
         await this.trx
             .insertInto('forge.current_recipe')
-            .values(recipe.outputDatasetRids.map((datasetRid) => ({ dataset_rid: datasetRid, branch, recipe_rid: rid })))
+            .values(outputs.map((datasetRid) => ({ dataset_rid: datasetRid, branch, recipe_rid: rid })))
             .execute();
 
-        return ForgeDB.Recipe.toDomain(row, recipe.inputDatasetRids, recipe.outputDatasetRids);
+        return ForgeDB.Recipe.toDomain(row, recipe.inputDatasetRids, recipe.outputTransactions);
     }
 
     /**

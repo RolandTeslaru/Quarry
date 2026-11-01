@@ -11,8 +11,8 @@ describe("Job", () => {
             "ri.catalog.main.dataset.01a1729a-975b-70de-8141-89cca28b34d4": "ri.catalog.main.transaction.01a1729a-975b-70de-8141-89cca28b34d5",
         } as Job["outputs"]
 
-        expect(Job.getOutputTransactions([{ outputs: first }, { outputs: second }])).toEqual({ ...first, ...second })
-        expect(Job.getOutputTransactions([{ outputs: {} }])).toEqual({})
+        expect(Job.getOutputTransactions([{ outputTransactions: first }, { outputTransactions: second }])).toEqual({ ...first, ...second })
+        expect(Job.getOutputTransactions([{ outputTransactions: {} }])).toEqual({})
     })
 
     it("counts every status before an end as unfinished", () => {

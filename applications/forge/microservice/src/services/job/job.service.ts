@@ -71,7 +71,7 @@ export class JobService {
         if (job.status !== 'running')
             throw new ConflictException(`Job ${rid} isn't running`);
 
-        const transactionRid = job.outputs[datasetRid];
+        const transactionRid = job.outputTransactions[datasetRid];
 
         if (!transactionRid)
             throw new NotFoundException(`${datasetRid} isn't an output of job ${rid}`);
@@ -91,7 +91,7 @@ export class JobService {
         if (job.status !== 'running')
             throw new ConflictException(`Job ${rid} isn't running`);
 
-        const transactionRid = job.outputs[datasetRid];
+        const transactionRid = job.outputTransactions[datasetRid];
 
         if (!transactionRid)
             throw new NotFoundException(`${datasetRid} isn't an output of job ${rid}`);

@@ -157,9 +157,9 @@ describe('a real ForgeAgent', () => {
                 outputs[name] = datasets[name];
 
             recipes.push({
-                runtime:           Forge.Recipe.Runtime.parse({ type: 'code-workspace', ...code, transform: `pkg.${shape.name}.${shape.name}`, inputs, outputs }),
+                runtimeConfig:     Forge.Recipe.RuntimeConfig.parse({ type: 'code-workspace', ...code, transform: `pkg.${shape.name}.${shape.name}`, inputs, outputs }),
                 inputDatasetRids:  Object.values(inputs),
-                outputDatasetRids: Object.values(outputs),
+                outputTransactions: Object.fromEntries(Object.values(outputs).map((datasetRid) => [datasetRid, { type: 'snapshot' as const }])),
                 compute:           { cpuCores: 1, memoryGb: 4 },
             });
         }
@@ -316,7 +316,7 @@ describe('a real ForgeAgent', () => {
         }
 
         for (const job of Object.values(jobs))
-            for (const transactionRid of Object.values(job.outputs))
+            for (const transactionRid of Object.values(job.outputTransactions))
                 expect(await harness.transactionStatus(transactionRid)).toBe('aborted');
     });
 
