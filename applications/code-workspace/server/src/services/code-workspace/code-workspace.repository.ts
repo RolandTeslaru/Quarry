@@ -6,11 +6,11 @@ import { isLive } from '@quarry/platform-kernel/db/liveness';
 import { AuditRepository } from '@quarry/platform-kernel/services/Audit/audit.repository';
 import { EnsureResource } from '@quarry/platform-kernel/services/Library/ensure-resource';
 import { ResourceRepository } from '@quarry/platform-kernel/services/Library/resource.repository';
-import { CodeWorkspaceDB } from '../code-workspace.db';
+import { CodeWorkspaceDB } from './code-workspace.db';
 
-/** code_workspace.workspace (and its library row). Reached through CodeWorkspaceRepository. */
+/** code_workspace.workspace (and its library row). Check runs are CI's (CheckRunRepository). */
 @Injectable()
-export class WorkspaceRepository extends Repository(CodeWorkspaceDB.database) {
+export class CodeWorkspaceRepository extends Repository(CodeWorkspaceDB.database) {
 
     constructor(
         readonly resources:     ResourceRepository,          // @EnsureResource's

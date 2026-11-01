@@ -10,7 +10,6 @@ const SOURCES = ['platform/server', 'applications/catalog/server', 'applications
 /** A service's facade repository: `…/repository/<name>.repository.ts` whose class composes the rest. */
 const FACADES = [
     'applications/forge/server/src/services/forge/repository/forge.repository.ts',
-    'applications/code-workspace/server/src/services/code-workspace/repository/code-workspace.repository.ts',
 ];
 
 /** Sub-repositories in their concept's folder, not beside a facade: only their service, the facade if it composes them, and the module that provides them may import these. */

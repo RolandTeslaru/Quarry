@@ -14,8 +14,8 @@ import { Catalog, CodeWorkspace, type Dataset, Forge, Foundations, type Gatekeep
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { destroyPool, useDatabaseLogin } from '@quarry/platform-kernel/db/pool';
 import { LibraryService } from '@quarry/platform-kernel/services/Library/library.service';
-import { GitRepos } from '@quarry/code-workspace-server/services/code-workspace/git/git-repos';
-import { CodeWorkspaceRepository } from '@quarry/code-workspace-server/services/code-workspace/repository/code-workspace.repository';
+import { GitRepos } from '@quarry/code-workspace-server/services/git/git-repos';
+import { CodeWorkspaceRepository } from '@quarry/code-workspace-server/services/code-workspace/code-workspace.repository';
 import { CodeWorkspaceMicroserviceModule } from '@quarry/code-workspace-server/microservice.module';
 
 const run = promisify(execFile);
@@ -207,7 +207,7 @@ export async function createWorkspace(
         populate: (directory) => writeFiles(directory, files),
     });
 
-    await harness.get(CodeWorkspaceRepository).workspace.create(principal, {
+    await harness.get(CodeWorkspaceRepository).create(principal, {
         rid,
         name:        `Workspace ${rid.slice(-8)}`,
         description: null,

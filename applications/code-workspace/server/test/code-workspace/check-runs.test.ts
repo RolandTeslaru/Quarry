@@ -14,7 +14,7 @@ import { CodeWorkspaceMicroserviceModule } from '@quarry/code-workspace-server/m
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { db } from '@quarry/platform-kernel/db/pool';
 import { CodeWorkspaceService } from '@quarry/code-workspace-server/services/code-workspace/code-workspace.service';
-import { CIService } from '@quarry/code-workspace-server/services/code-workspace/ci/ci.service';
+import { CIService } from '@quarry/code-workspace-server/services/ci/ci.service';
 import { CodeWorkspaceHarness, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 
 import CI = CodeWorkspace.CI;

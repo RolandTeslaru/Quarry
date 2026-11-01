@@ -7,7 +7,7 @@ import CI = CodeWorkspace.CI;
 
 /** A passing run's manifest → its branch's recipes, as the pusher. Missing outputs are created empty. */
 @Injectable()
-export class CheckPublisher {
+export class PublisherService {
 
     constructor(
         private readonly catalog: CatalogClient,

@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { requireEnv } from '@quarry/platform-kernel/db/table';
-import { resolveEnvPath } from '../../../load-env';
+import { resolveEnvPath } from '../../load-env';
 
 const run = promisify(execFile);
 

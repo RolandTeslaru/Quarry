@@ -7,11 +7,10 @@ import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/g
 import { SecurityGate } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
 import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable-queue';
 import { IdentityClient } from '@quarry/platform-kernel/microservice/clients';
-import { CodeWorkspaceRepository } from '../repository/code-workspace.repository';
-import type { NewCheckRun, QueuedCheckRuns } from '../repository/check-run.repository';
+import { CheckRunRepository, type NewCheckRun, type QueuedCheckRuns } from './check-run.repository';
 import { GitRepos } from '../git/git-repos';
 import { getErrorMessage, getLogTail, getParseFailedSteps, layOutSteps, readCheckConfig } from './check-config';
-import { CheckPublisher } from './check-publisher';
+import { PublisherService } from '../publisher/publisher.service';
 
 import CI = CodeWorkspace.CI;
 import CheckRun = CI.CheckRun;
@@ -31,11 +30,12 @@ export class CIService {
 
     constructor(
         public readonly gatekeeper:     GatekeeperService,
-        private readonly repository:    CodeWorkspaceRepository,
+
+        private readonly repository:    CheckRunRepository,
         private readonly gitRepos:      GitRepos,
         private readonly identity:      IdentityClient,
         private readonly realtime:      RealtimeService,
-        private readonly publisher:     CheckPublisher,
+        private readonly publisher:     PublisherService,
         @InjectDurableQueue(CI.DurableQueue.RunCheck)
         private readonly runCheckQueue: DurableQueueHandle<typeof CI.Queue.RunCheck.Definition>,
     ) {}
@@ -77,7 +77,7 @@ export class CIService {
         }
 
         // Also cancels the branches' older runs, and schedules one if the workspace is free.
-        const queued = await this.repository.queueCheckRuns(principal, rid, runs);
+        const queued = await this.repository.queue(principal, rid, runs);
 
         for (const checkRun of queued.canceled)
             this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(checkRun));
@@ -97,7 +97,7 @@ export class CIService {
     @SecurityGate('read')
     public async listCheckRuns(principal: Principal, rid: CodeWorkspace.Rid, query: CI.API.ListCheckRuns.Query): Promise<CI.API.ListCheckRuns.Response> {
         // One more than a page: if it comes back, there's a next page.
-        const runs = await this.repository.checkRun.list(principal, rid, {
+        const runs = await this.repository.list(principal, rid, {
             branch: query.branch,
             before: query.before,
             limit:  query.limit + 1,
@@ -114,7 +114,7 @@ export class CIService {
 
     @SecurityGate('read')
     public async getCheckRun(principal: Principal, rid: CodeWorkspace.Rid, checkRunRid: CheckRun.Rid): Promise<CheckRun> {
-        const checkRun = await this.repository.checkRun.getInWorkspace(principal, rid, checkRunRid);
+        const checkRun = await this.repository.getInWorkspace(principal, rid, checkRunRid);
 
         if (!checkRun)
             throw new NotFoundException('Not found');
@@ -123,7 +123,7 @@ export class CIService {
     }
 
     public async start(rid: CheckRun.Rid): Promise<Internal.CheckRun.Start.Response> {
-        const checkRun = await this.repository.startCheckRun(WORKER, rid);
+        const checkRun = await this.repository.start(WORKER, rid);
 
         if (!checkRun)
             throw new ConflictException("This check run isn't scheduled");
@@ -137,14 +137,14 @@ export class CIService {
     }
 
     public async reportStep(rid: CheckRun.Rid, index: number, report: Internal.CheckRun.Step.Request): Promise<CheckRun> {
-        const current = await this.repository.checkRun.get(WORKER, rid);
+        const current = await this.repository.get(WORKER, rid);
 
         if (current?.status !== 'running')
             throw new ConflictException("This check run isn't running");
 
         const position = CheckRun.getStepPosition(index);
 
-        const updated = await this.repository.checkRun.reportStep(WORKER, rid, position, {
+        const updated = await this.repository.reportStep(WORKER, rid, position, {
             ...current.steps[position],
             status:     report.status,
             exitCode:   report.exitCode,
@@ -162,7 +162,7 @@ export class CIService {
     }
 
     public async finish(rid: CheckRun.Rid, outcome: Internal.CheckRun.Finish.Request): Promise<CheckRun> {
-        const current = await this.repository.checkRun.get(WORKER, rid);
+        const current = await this.repository.get(WORKER, rid);
 
         if (current?.status !== 'running')
             throw new ConflictException("This check run isn't running");
@@ -207,7 +207,7 @@ export class CIService {
         }
 
         // Also schedules the workspace's next waiting run, if any.
-        const finished = await this.repository.finishCheckRun(WORKER, rid, { status, steps, failure, published });
+        const finished = await this.repository.finish(WORKER, rid, { status, steps, failure, published });
 
         if (!finished)
             throw new ConflictException("This check run isn't running");
@@ -224,7 +224,7 @@ export class CIService {
 
     /** Fails runs whose worker went silent, scheduling each workspace's next. */
     public async sweep(): Promise<Internal.CheckRun.Sweep.Response> {
-        const { failed, scheduled } = await this.repository.failSilentCheckRuns(SWEEP, SILENT_MINUTES, {
+        const { failed, scheduled } = await this.repository.failSilent(SWEEP, SILENT_MINUTES, {
             step:    'Worker',
             message: `The worker stopped reporting for ${SILENT_MINUTES} minutes`,
         });

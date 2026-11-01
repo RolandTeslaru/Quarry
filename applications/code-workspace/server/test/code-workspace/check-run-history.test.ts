@@ -3,7 +3,7 @@ import Redis from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
-import { CIService } from '@quarry/code-workspace-server/services/code-workspace/ci/ci.service';
+import { CIService } from '@quarry/code-workspace-server/services/ci/ci.service';
 import { CodeWorkspaceService } from '@quarry/code-workspace-server/services/code-workspace/code-workspace.service';
 import { CodeWorkspaceHarness, MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 

@@ -17,7 +17,7 @@ import { RealtimeModule } from '@quarry/platform-kernel/services/Realtime/realti
 import { CodeWorkspaceModule } from '@quarry/code-workspace-server/services/code-workspace/code-workspace.module';
 import { CodeWorkspaceController } from '@quarry/code-workspace-server/services/code-workspace/controllers/http.controller';
 import { CodeWorkspaceInternalController } from '@quarry/code-workspace-server/services/code-workspace/controllers/internal-http.controller';
-import { GitController } from '@quarry/code-workspace-server/services/code-workspace/git/git.controller';
+import { GitController } from '@quarry/code-workspace-server/services/git/git.controller';
 
 /**
  * The Code Workspaces service (docs/design/architecture-split.md, phase 4): workspaces, their Git

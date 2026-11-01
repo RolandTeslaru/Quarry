@@ -4,8 +4,10 @@ import { CodeWorkspace, type Foundations } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
-import { CodeWorkspaceDB } from '../code-workspace.db';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable-queue';
+import { CodeWorkspaceDB } from '../code-workspace/code-workspace.db';
 
+import CI = CodeWorkspace.CI;
 import CheckRun = CodeWorkspace.CI.CheckRun;
 
 /** A pushed head's run, its quarry-ci.yml already read: steps laid out — or, if the file is missing or invalid, failed at Parse. */
@@ -25,20 +27,32 @@ export interface QueuedCheckRuns {
 }
 
 /**
- * code_workspace.check_run. Reached through CodeWorkspaceRepository — which owns
- * the writes that also add or ack a run's message, or schedule the workspace's next.
+ * code_workspace.check_run, and each run's message: a write that adds or acks one (the durable
+ * queue's outbox, docs/design/durable-queues.md) is one transaction with it.
+ *
+ * Check runs, one at a time per workspace: every write that frees a workspace — a push
+ * superseding its run, a run finishing, a silent one failed — schedules its next waiting run
+ * in the same transaction, adding its message; a worker's start acks it.
  */
 @Injectable()
 export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
 
+    constructor(
+        @InjectDurableQueue(CI.DurableQueue.RunCheck)
+        private readonly runCheckQueue: DurableQueueHandle<typeof CI.Queue.RunCheck.Definition>,
+    ) {
+        super();
+    }
+
     /**
-     * A run per pushed head — `waiting`, or `failed` at Parse — the branches' unfinished
-     * runs canceled first, so only the newest head is ever checked. Write on the workspace (RLS).
+     * A run per pushed head — `waiting`, or `failed` at Parse — the branches' unfinished runs canceled
+     * first (their messages acked), so only the newest head is ever checked; the workspace's next run
+     * scheduled, if it's free. Write on the workspace (RLS).
      */
     @Transactional('user')
-    public async queue(principal: Principal.User, workspaceRid: CodeWorkspace.Rid, runs: NewCheckRun[]): Promise<Omit<QueuedCheckRuns, 'scheduled'>> {
+    public async queue(principal: Principal.User, workspaceRid: CodeWorkspace.Rid, runs: NewCheckRun[]): Promise<QueuedCheckRuns> {
         if (runs.length === 0)
-            return { queued: [], canceled: [] };
+            return { queued: [], canceled: [], scheduled: await this.scheduleNext(principal, workspaceRid) };
 
         const now = new Date();
 
@@ -65,9 +79,14 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
             .returningAll()
             .execute();
 
+        const superseded = canceled.map(CodeWorkspaceDB.CheckRun.toDomain);
+
+        await this.runCheckQueue.ack(superseded.map(getQueueJobId));
+
         return {
-            queued:   queued.map(CodeWorkspaceDB.CheckRun.toDomain),
-            canceled: canceled.map(CodeWorkspaceDB.CheckRun.toDomain),
+            queued:    queued.map(CodeWorkspaceDB.CheckRun.toDomain),
+            canceled:  superseded,
+            scheduled: await this.scheduleNext(principal, workspaceRid),
         };
     }
 
@@ -125,13 +144,13 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
     }
 
     /**
-     * The workspace's oldest waiting run → `scheduled`, if it has none scheduled or running. Null
-     * otherwise. Serialized per workspace (a transaction-scoped advisory lock), so two transactions
+     * The workspace's oldest waiting run → `scheduled`, its message added, if it has none scheduled or
+     * running. Null otherwise. Serialized per workspace (a transaction-scoped advisory lock), so two transactions
      * freeing it at once schedule one run — the unique index never has to refuse, which would abort
      * the caller's whole transaction.
      */
     @Transactional()
-    public async scheduleNext(principal: Principal, workspaceRid: CodeWorkspace.Rid): Promise<CheckRun | null> {
+    private async scheduleNext(principal: Principal, workspaceRid: CodeWorkspace.Rid): Promise<CheckRun | null> {
         await sql`select pg_advisory_xact_lock(hashtextextended(${workspaceRid}, 0))`.execute(this.trx);
 
         const row = await this.trx
@@ -153,10 +172,17 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
             .returningAll()
             .executeTakeFirst();
 
-        return row ? CodeWorkspaceDB.CheckRun.toDomain(row) : null;
+        if (!row)
+            return null;
+
+        const run = CodeWorkspaceDB.CheckRun.toDomain(row);
+
+        await this.runCheckQueue.add([{ message: { checkRunRid: run.rid }, jobId: getQueueJobId(run) }]);
+
+        return run;
     }
 
-    /** A worker takes it: `scheduled → running` — once. Null if it isn't scheduled (taken, or canceled). */
+    /** A worker takes it: `scheduled → running` — once — and its message acked. Null if it isn't scheduled (taken, or canceled). */
     @Transactional('service')
     public async start(principal: Principal.Service, rid: CheckRun.Rid): Promise<CheckRun | null> {
         const now = new Date();
@@ -168,7 +194,14 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
             .returningAll()
             .executeTakeFirst();
 
-        return row ? CodeWorkspaceDB.CheckRun.toDomain(row) : null;
+        if (!row)
+            return null;
+
+        const run = CodeWorkspaceDB.CheckRun.toDomain(row);
+
+        await this.runCheckQueue.ack([getQueueJobId(run)]);
+
+        return run;
     }
 
     /** One step's state, at its position in `steps`. Null if the run isn't running (any more). */
@@ -188,13 +221,13 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
         return row ? CodeWorkspaceDB.CheckRun.toDomain(row) : null;
     }
 
-    /** `running → succeeded | failed`, with its final steps — and whether its recipes were published. Null if the run isn't running (any more). */
+    /** `running → succeeded | failed`, with its final steps — and whether its recipes were published — and the workspace's next run scheduled. Null if the run isn't running (any more). */
     @Transactional('service')
     public async finish(
         principal: Principal.Service,
         rid:       CheckRun.Rid,
         outcome:   { status: 'succeeded' | 'failed'; steps: CheckRun.Step[]; failure: CheckRun.Failure | null; published?: boolean },
-    ): Promise<CheckRun | null> {
+    ): Promise<{ run: CheckRun; scheduled: CheckRun | null } | null> {
         const row = await this.trx
             .updateTable('code_workspace.check_run')
             .set({
@@ -209,12 +242,17 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
             .returningAll()
             .executeTakeFirst();
 
-        return row ? CodeWorkspaceDB.CheckRun.toDomain(row) : null;
+        if (!row)
+            return null;
+
+        const run = CodeWorkspaceDB.CheckRun.toDomain(row);
+
+        return { run, scheduled: await this.scheduleNext(principal, run.workspaceRid) };
     }
 
-    /** Running, then silent for `minutes`: the worker died. Failed; returns them. */
+    /** Running, then silent for `minutes`: the worker died. Failed, and each workspace's next run scheduled. */
     @Transactional('service')
-    public async failSilent(principal: Principal.Service, minutes: number, failure: CheckRun.Failure): Promise<CheckRun[]> {
+    public async failSilent(principal: Principal.Service, minutes: number, failure: CheckRun.Failure): Promise<{ failed: CheckRun[]; scheduled: CheckRun[] }> {
         const rows = await this.trx
             .updateTable('code_workspace.check_run')
             .set({ status: 'failed', failure: json(failure), finished_at: new Date() })
@@ -223,6 +261,24 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
             .returningAll()
             .execute();
 
-        return rows.map(CodeWorkspaceDB.CheckRun.toDomain);
+        const failed = rows.map(CodeWorkspaceDB.CheckRun.toDomain);
+        const workspaceRids = new Set<CodeWorkspace.Rid>();
+        const scheduled: CheckRun[] = [];
+
+        for (const run of failed)
+            workspaceRids.add(run.workspaceRid);
+
+        for (const workspaceRid of workspaceRids) {
+            const next = await this.scheduleNext(principal, workspaceRid);
+
+            if (next)
+                scheduled.push(next);
+        }
+
+        return { failed, scheduled };
     }
+}
+
+function getQueueJobId(run: Pick<CheckRun, 'rid'>): string {
+    return CI.Queue.RunCheck.getQueueJobId(run);
 }

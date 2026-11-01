@@ -8,8 +8,8 @@ import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { db } from '@quarry/platform-kernel/db/pool';
 import { DurableQueues } from '@quarry/platform-kernel/infra/durable-queue';
 import { QueueManager } from '@quarry/platform-kernel/infra/queue';
-import { CIService } from '@quarry/code-workspace-server/services/code-workspace/ci/ci.service';
-import { CodeWorkspaceRepository } from '@quarry/code-workspace-server/services/code-workspace/repository/code-workspace.repository';
+import { CIService } from '@quarry/code-workspace-server/services/ci/ci.service';
+import { CheckRunRepository } from '@quarry/code-workspace-server/services/ci/check-run.repository';
 import { CodeWorkspaceHarness, MAIN, QUARRY_CI, commitFiles, createWorkspace, type TestWorkspace } from '../support/code-workspace-fixtures';
 
 import CI = CodeWorkspace.CI;
@@ -103,7 +103,7 @@ describe('check runs, running', () => {
     }
 
     async function getRun(rid: CheckRun.Rid): Promise<CheckRun> {
-        const run = await harness.get(CodeWorkspaceRepository).checkRun.get(Principal.SELF('test'), rid);
+        const run = await harness.get(CheckRunRepository).get(Principal.SELF('test'), rid);
 
         if (!run)
             throw new Error(`No check run ${rid}`);
@@ -168,12 +168,12 @@ describe('check runs, running', () => {
         it('schedules exactly one of many pushes racing for a free workspace — and every push succeeds', async () => {
             const workspace = await createWorkspace(harness, admin, { 'quarry-ci.yml': QUARRY_CI });
             const branches = Array.from({ length: 10 }, (_, index) => Foundations.Branch.parse(`race-${index}`));
-            const repository = harness.get(CodeWorkspaceRepository);
+            const repository = harness.get(CheckRunRepository);
             const steps = [{ name: CheckRun.PARSE_STEP, status: 'succeeded' as const, exitCode: null, startedAt: null, finishedAt: null, log: '' }];
 
             // Straight to the repository, all at once: no Git reads to stagger them.
             await Promise.all(branches.map((branch) =>
-                repository.queueCheckRuns(admin, workspace.rid, [{ branch, commit: workspace.heads[MAIN], steps, failure: null }])));
+                repository.queue(admin, workspace.rid, [{ branch, commit: workspace.heads[MAIN], steps, failure: null }])));
 
             const statuses = (await listRuns(admin, workspace.rid)).map((run) => run.status);
 

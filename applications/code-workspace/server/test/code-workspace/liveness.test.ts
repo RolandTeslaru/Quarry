@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import type { Request, Response } from 'express';
 import { CodeWorkspaceService } from '@quarry/code-workspace-server/services/code-workspace/code-workspace.service';
-import { GitService } from '@quarry/code-workspace-server/services/code-workspace/git/git.service';
+import { GitService } from '@quarry/code-workspace-server/services/git/git.service';
 import { CodeWorkspaceHarness, createWorkspace } from '../support/code-workspace-fixtures';
 
 /**

@@ -11,9 +11,9 @@ import { SecurityGate } from '@quarry/platform-kernel/services/Gatekeeper/securi
 import { IdentityService } from '@quarry/platform-kernel/services/Identity/identity.service';
 import { LibraryService } from '@quarry/platform-kernel/services/Library/library.service';
 import { IdentityClient } from '@quarry/platform-kernel/microservice/clients';
-import { CodeWorkspaceRepository } from './repository/code-workspace.repository';
-import { CIService } from './ci/ci.service';
-import { GitRepos } from './git/git-repos';
+import { CodeWorkspaceRepository } from './code-workspace.repository';
+import { CIService } from '../ci/ci.service';
+import { GitRepos } from '../git/git-repos';
 import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client';
 import { TEMPLATES, TEMPLATES_WIRE, type TemplateParams, type WorkspaceTemplate } from './templates';
 
@@ -62,7 +62,7 @@ export class CodeWorkspaceService {
     }
 
     async list(principal: Principal): Promise<CodeWorkspace[]> {
-        return this.repository.workspace.list(principal);
+        return this.repository.list(principal);
     }
 
     async create(principal: Principal.User, request: CodeWorkspace.API.Create.Request): Promise<CodeWorkspace> {
@@ -81,7 +81,7 @@ export class CodeWorkspaceService {
         });
 
         try {
-            const workspace = await this.repository.workspace.create(principal, {
+            const workspace = await this.repository.create(principal, {
                 rid,
                 name:        request.name,
                 description: request.description,
@@ -103,7 +103,7 @@ export class CodeWorkspaceService {
     }
 
     async get(principal: Principal, rid: CodeWorkspace.Rid): Promise<CodeWorkspace> {
-        const workspace = await this.repository.workspace.get(principal, rid);
+        const workspace = await this.repository.get(principal, rid);
 
         if (!workspace)
             throw new NotFoundException('Not found');
@@ -113,7 +113,7 @@ export class CodeWorkspaceService {
 
     @RequireUserPrincipal('Only users open pages')
     async open(principal: Principal.User, rid: CodeWorkspace.Rid, application: Platform.Application.Id): Promise<CodeWorkspace> {
-        const workspace = await this.repository.workspace.open(principal, rid, application);
+        const workspace = await this.repository.open(principal, rid, application);
 
         if (!workspace)
             throw new NotFoundException('Not found');
