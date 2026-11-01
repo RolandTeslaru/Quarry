@@ -6,8 +6,8 @@ import { promisify } from 'node:util';
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 import { CodeWorkspace } from '@quarry/shared/domain';
-import { pythonTransforms } from '@/services/CodeWorkspace/templates/python-transforms';
-import type { TemplateParams } from '@/services/CodeWorkspace/templates';
+import { pythonTransforms } from '@quarry/code-workspace-server/services/code-workspace/templates/python-transforms';
+import type { TemplateParams } from '@quarry/code-workspace-server/services/code-workspace/templates';
 
 import CI = CodeWorkspace.CI;
 

@@ -44,6 +44,9 @@ export const getDataConnectionApi = (): AxiosInstance => getServiceApi('DATA_CON
 /** The Forge service's /internal API — the system worker's sweep of its outbox. */
 export const getForgeApi = (): AxiosInstance => getServiceApi('FORGE_URL');
 
+/** The Code Workspaces service's /internal API — its worker's sessions and check runs, the system worker's check sweep and outbox sweep. */
+export const getCodeWorkspaceApi = (): AxiosInstance => getServiceApi('CODE_WORKSPACE_URL');
+
 /** Blocks until the server — or the service a worker works for — answers its health check: started together, a worker may come up first. */
 export async function waitForServer(target: AxiosInstance = api): Promise<void> {
     for (let attempt = 1; ; attempt++) {

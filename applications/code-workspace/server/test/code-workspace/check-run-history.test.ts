@@ -3,10 +3,9 @@ import Redis from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
-import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
-import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
-import { MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
+import { CIService } from '@quarry/code-workspace-server/services/code-workspace/ci/ci.service';
+import { CodeWorkspaceService } from '@quarry/code-workspace-server/services/code-workspace/code-workspace.service';
+import { CodeWorkspaceHarness, MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 
 import CI = CodeWorkspace.CI;
 import CheckRun = CI.CheckRun;
@@ -22,7 +21,7 @@ const MANIFEST = { transforms: [] };
  */
 describe('check run history', () => {
 
-    let harness: ForgeHarness;
+    let harness: CodeWorkspaceHarness;
     let service: CodeWorkspaceService;
     let checks: CIService;
     let admin: Principal.User;
@@ -30,7 +29,7 @@ describe('check run history', () => {
     const received: CodeWorkspace.Event[] = [];
 
     beforeAll(async () => {
-        harness = await ForgeHarness.start();
+        harness = await CodeWorkspaceHarness.start();
         service = harness.get(CodeWorkspaceService);
         checks = harness.get(CIService);
         admin = await harness.createUser();
@@ -143,7 +142,7 @@ describe('check run history', () => {
         it('hides its runs: 404, even for its owner', async () => {
             const { rid, runs } = await pushedWorkspace(1);
 
-            await harness.library.trash(admin, rid);
+            await harness.trash(admin, rid);
 
             await expect(service.ci.listCheckRuns(admin, rid, { limit: 25 })).rejects.toBeInstanceOf(NotFoundException);
             await expect(service.ci.getCheckRun(admin, rid, runs[0].rid)).rejects.toBeInstanceOf(NotFoundException);

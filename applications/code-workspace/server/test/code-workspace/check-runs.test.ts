@@ -7,18 +7,15 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
-import { WsAdapter } from '@nestjs/platform-ws';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
-import { MainServerModule } from '@/main-server.module';
+import { CodeWorkspaceMicroserviceModule } from '@quarry/code-workspace-server/microservice.module';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
-import { SessionTokens } from '@/auth/session-tokens';
 import { db } from '@quarry/platform-kernel/db/pool';
-import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
-import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
-import { QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
+import { CodeWorkspaceService } from '@quarry/code-workspace-server/services/code-workspace/code-workspace.service';
+import { CIService } from '@quarry/code-workspace-server/services/code-workspace/ci/ci.service';
+import { CodeWorkspaceHarness, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 
 import CI = CodeWorkspace.CI;
 
@@ -36,12 +33,12 @@ const FEATURE = Foundations.Branch.parse('feature/orders');
  */
 describe('check runs', () => {
 
-    let harness: ForgeHarness;
+    let harness: CodeWorkspaceHarness;
     let service: CodeWorkspaceService;
     let admin: Principal.User;
 
     beforeAll(async () => {
-        harness = await ForgeHarness.start();
+        harness = await CodeWorkspaceHarness.start();
         service = harness.get(CodeWorkspaceService);
         admin = await harness.createUser();
     });
@@ -177,9 +174,8 @@ describe('check runs', () => {
         let clones: string;
 
         beforeAll(async () => {
-            server = await NestFactory.create<NestExpressApplication>(MainServerModule, { logger: false });
+            server = await NestFactory.create<NestExpressApplication>(CodeWorkspaceMicroserviceModule, { logger: false });
             server.setGlobalPrefix('api');
-            server.useWebSocketAdapter(new WsAdapter(server));
             await server.listen(0, '127.0.0.1');
 
             const { port } = server.getHttpServer().address() as AddressInfo;
@@ -196,7 +192,7 @@ describe('check runs', () => {
 
         /** A clone of the workspace, git authenticated as the user — as a session's setup does it. */
         async function cloneAs(user: Principal.User, rid: CodeWorkspace.Rid): Promise<Git> {
-            const token = await harness.get(SessionTokens).mint(user.userRid, 'test');
+            const token = await harness.getToken(user);
             const directory = await fs.mkdtemp(path.join(clones, 'clone-'));
             const git = (...args: string[]) => run('git', [
                 '-c', `http.extraHeader=Authorization: Bearer ${token}`,

@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
 import { CodeWorkspace } from '@quarry/shared/domain';
-import { SessionTokens } from '@/auth/session-tokens';
 import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable-queue';
 import { IdentityModule } from '@quarry/platform-kernel/services/Identity/identity.module';
 import { LibraryModule } from '@quarry/platform-kernel/services/Library/library.module';
-import { CatalogModule } from '@quarry/catalog-server/catalog/catalog.module';
-import { ForgeModule } from '@quarry/forge-server/services/forge/forge.module';
+import { CatalogClient, ForgeClient, IdentityClient } from '@quarry/platform-kernel/microservice/clients';
 import { CodeWorkspaceService } from './code-workspace.service';
 import { CodeWorkspaceRepository } from './repository/code-workspace.repository';
 import { WorkspaceRepository } from './repository/workspace.repository';
@@ -19,15 +17,16 @@ import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client
 import CI = CodeWorkspace.CI;
 
 /**
- * Code Workspaces in the server: the resource, its bare Git repository, Git
+ * Code Workspaces: the resource, its bare Git repository, Git
  * over HTTP (git.controller), and sessions — which the code workspace worker runs; the
  * server checks permissions and calls its API (CodeWorkspaceWorkerClient) — and
- * checks, queued for every pushed branch head (CIService).
- * Providers only; the controllers are registered by main-server.module.
+ * checks, queued for every pushed branch head (CIService). Datasets are Catalog's (CatalogClient), recipes
+ * Forge's (ForgeClient), tokens the main server's (IdentityClient).
+ * Providers only; the controllers are registered by microservice.module.
  */
 @Module({
-    imports:   [IdentityModule, LibraryModule, CatalogModule, ForgeModule, DurableQueueModule.registerQueue(CI.DurableQueue.RunCheck)],
-    providers: [CodeWorkspaceService, CodeWorkspaceRepository, WorkspaceRepository, CheckRunRepository, CIService, CheckPublisher, GitService, GitRepos, CodeWorkspaceWorkerClient, SessionTokens],
+    imports:   [IdentityModule, LibraryModule, DurableQueueModule.registerQueue(CI.DurableQueue.RunCheck)],
+    providers: [CodeWorkspaceService, CodeWorkspaceRepository, WorkspaceRepository, CheckRunRepository, CIService, CheckPublisher, GitService, GitRepos, CodeWorkspaceWorkerClient, CatalogClient, ForgeClient, IdentityClient],
     exports:   [CodeWorkspaceService, GitService],
 })
 export class CodeWorkspaceModule {}

@@ -1,16 +1,14 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import type { AddressInfo } from 'node:net';
 import * as path from 'node:path';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { NestFactory } from '@nestjs/core';
-import { WsAdapter } from '@nestjs/platform-ws';
+import { isAxiosError, type AxiosInstance } from 'axios';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Catalog, type Forge } from '@quarry/shared/domain';
-import { MainServerModule } from '@/main-server.module';
+import { Catalog, CodeWorkspace, type Dataset, Forge } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
-import { destroyPool } from '@quarry/platform-kernel/db/pool';
-import { createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness, MAIN, type RecipeCode } from '../../../../applications/forge/server/test/support/forge-fixtures';
+import { ForgeClient } from '@quarry/platform-kernel/microservice/clients';
+import { CodeWorkspaceMicroserviceModule } from '@quarry/code-workspace-server/microservice.module';
+import { CodeWorkspaceHarness, MAIN, createWorkspace } from '../support/code-workspace-fixtures';
 
 /** How long a ForgeAgent gets to boot (ts-node compiles it first) and to finish a build (a container per job). */
 const AGENT_BOOT_MS = 60_000;
@@ -95,33 +93,40 @@ pipeline.add_transforms(A, B, C, D, F, R, W, X)
     ]),
 };
 
+/** A recipe to publish, by dataset name: what it reads, what it writes. */
+interface RecipeShape {
+    readonly name:    string;
+    readonly inputs:  string[];
+    readonly outputs: string[];
+}
+
 /**
- * End to end, across processes: the server over HTTP on a random port (the
- * test database), and a real ForgeAgent process (applications/forge/agent) taking
- * jobs from Redis and calling the ForgeAgent API — nothing played by the test.
+ * End to end, across processes: the main server, Catalog and Forge (the global setup's), this service over
+ * HTTP where the main server forwards Git to it, and a real ForgeAgent process (applications/forge/agent)
+ * taking jobs from Redis and calling Forge's ForgeAgent API — its job containers clone through the main
+ * server, and read and write through it. Nothing played by the test.
  */
 describe('a real ForgeAgent', () => {
 
     let server: NestExpressApplication;
     let agent: ChildProcess;
     let agentLog = '';
-    let harness: ForgeHarness;
+    let harness: CodeWorkspaceHarness;
     let user: Principal.User;
-    let code: RecipeCode;
+    let forge: AxiosInstance;
+    let code: { workspaceRid: CodeWorkspace.Rid; commit: CodeWorkspace.Git.Commit };
 
     beforeAll(async () => {
-        server = await NestFactory.create<NestExpressApplication>(MainServerModule, { logger: false });
+        server = await NestFactory.create<NestExpressApplication>(CodeWorkspaceMicroserviceModule, { logger: false });
         server.setGlobalPrefix('api');
-        server.useWebSocketAdapter(new WsAdapter(server));
-        await server.listen(0, '127.0.0.1');
+        await server.listen(Number(new URL(process.env.CODE_WORKSPACE_URL!).port), '127.0.0.1');
 
-        const { port } = server.getHttpServer().address() as AddressInfo;
-
-        agent = startAgent(port, (chunk) => agentLog += chunk);
+        agent = startAgent((chunk) => agentLog += chunk);
         await waitFor(() => agentLog.includes('ForgeAgent listening'), AGENT_BOOT_MS, () => `the agent didn't start:\n${agentLog}`);
 
-        harness = await ForgeHarness.start();
+        harness = await CodeWorkspaceHarness.start();
         user = await harness.createUser();
+        forge = await harness.getApi(user, process.env.FORGE_URL);
 
         const workspace = await createWorkspace(harness, user, WORKSPACE_FILES);
 
@@ -135,14 +140,57 @@ describe('a real ForgeAgent', () => {
         agent?.kill('SIGTERM');
         await harness?.stop();
         await server?.close();
-        await destroyPool();
     });
 
+    /** Publishes the recipes, producer = the project, as Forge's call. Recipe `A` runs transform `pkg.A.A` at the workspace's commit. */
+    async function publish(projectRid: Dataset['parentRid'], datasets: Record<string, Dataset.Rid>, shapes: RecipeShape[]): Promise<Record<string, Forge.Recipe>> {
+        const recipes: Forge.Microservice.PublishRecipes.Request["recipes"] = [];
+
+        for (const shape of shapes) {
+            const inputs: Record<string, Dataset.Rid> = {};
+            const outputs: Record<string, Dataset.Rid> = {};
+
+            for (const name of shape.inputs)
+                inputs[name] = datasets[name];
+
+            for (const name of shape.outputs)
+                outputs[name] = datasets[name];
+
+            recipes.push({
+                runtime:           Forge.Recipe.Runtime.parse({ type: 'code-workspace', ...code, transform: `pkg.${shape.name}.${shape.name}`, inputs, outputs }),
+                inputDatasetRids:  Object.values(inputs),
+                outputDatasetRids: Object.values(outputs),
+                compute:           { cpuCores: 1, memoryGb: 4 },
+            });
+        }
+
+        const published = await harness.get(ForgeClient).publishRecipes(user, { producerRid: projectRid, branch: MAIN, recipes });
+        const byName: Record<string, Forge.Recipe> = {};
+
+        for (const [index, shape] of shapes.entries())
+            byName[shape.name] = published[index];
+
+        return byName;
+    }
+
+    /** The build's jobs now, by the name of the recipe each runs. */
+    async function jobsByRecipe(buildRid: Forge.Build.Rid, recipes: Record<string, Forge.Recipe>): Promise<{ build: Forge.Build; jobs: Record<string, Forge.Job> }> {
+        const found = await Forge.API.getBuild(forge, buildRid);
+        const jobs: Record<string, Forge.Job> = {};
+
+        for (const [name, recipe] of Object.entries(recipes))
+            for (const job of Object.values(found.jobs))
+                if (job.recipeRid === recipe.rid)
+                    jobs[name] = job;
+
+        return { build: found.build, jobs };
+    }
+
     async function finished(buildRid: Forge.Build.Rid): Promise<Forge.API.GetBuild.Response> {
-        let found = await harness.forge.getBuild(user, buildRid);
+        let found = await Forge.API.getBuild(forge, buildRid);
 
         await waitFor(async () => {
-            found = await harness.forge.getBuild(user, buildRid);
+            found = await Forge.API.getBuild(forge, buildRid);
 
             return found.build.status !== 'running';
         }, BUILD_DONE_MS, () => `the build didn't finish:\n${agentLog}`);
@@ -153,7 +201,7 @@ describe('a real ForgeAgent', () => {
     it('runs a one-job build to the end', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a'], ['raw']);
 
-        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }], MAIN, code);
+        await publish(projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
 
         const { build } = await harness.build(user, [datasets.a]);
         const done = await finished(build.rid);
@@ -171,7 +219,7 @@ describe('a real ForgeAgent', () => {
 
         await Catalog.API.Dataset.upload(await harness.getApi(user, process.env.CATALOG_URL), datasets.raw, { mode: 'snapshot' },
             new Blob(['id,amount\n1,10\n2,20\n3,30\n']), 'orders.csv');
-        await harness.publish(user, projectRid, datasets, [{ name: 'R', inputs: ['raw'], outputs: ['r'] }], MAIN, code);
+        await publish(projectRid, datasets, [{ name: 'R', inputs: ['raw'], outputs: ['r'] }]);
 
         const { build } = await harness.build(user, [datasets.r]);
         const done = await finished(build.rid);
@@ -185,10 +233,10 @@ describe('a real ForgeAgent', () => {
 
         await Catalog.API.Dataset.upload(await harness.getApi(user, process.env.CATALOG_URL), datasets.raw, { mode: 'snapshot' },
             new Blob(['id,amount\n1,10\n2,20\n3,30\n']), 'orders.csv');
-        await harness.publish(user, projectRid, datasets, [
+        await publish(projectRid, datasets, [
             { name: 'W', inputs: ['raw'], outputs: ['w'] },
             { name: 'X', inputs: ['w'],   outputs: ['x'] },
-        ], MAIN, code);
+        ]);
 
         const { build } = await harness.build(user, [datasets.w, datasets.x]);
         const done = await finished(build.rid);
@@ -207,7 +255,7 @@ describe('a real ForgeAgent', () => {
     it("fails the job when the commit doesn't have its transform", async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'e'], ['raw']);
 
-        await harness.publish(user, projectRid, datasets, [{ name: 'E', inputs: ['raw'], outputs: ['e'] }], MAIN, code);
+        await publish(projectRid, datasets, [{ name: 'E', inputs: ['raw'], outputs: ['e'] }]);
 
         const { build } = await harness.build(user, [datasets.e]);
         const done = await finished(build.rid);
@@ -220,18 +268,18 @@ describe('a real ForgeAgent', () => {
 
     it('runs a diamond in dependency order', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b', 'c', 'd'], ['raw']);
-        const recipes = await harness.publish(user, projectRid, datasets, [
+        const recipes = await publish(projectRid, datasets, [
             { name: 'A', inputs: ['raw'],    outputs: ['a'] },
             { name: 'B', inputs: ['a'],      outputs: ['b'] },
             { name: 'C', inputs: ['a'],      outputs: ['c'] },
             { name: 'D', inputs: ['b', 'c'], outputs: ['d'] },
-        ], MAIN, code);
+        ]);
 
         const { build } = await harness.build(user, [datasets.a, datasets.b, datasets.c, datasets.d]);
 
         await finished(build.rid);
 
-        const { build: after, jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
+        const { build: after, jobs } = await jobsByRecipe(build.rid, recipes);
         const startedAt = (name: string) => jobs[name].startedAt?.getTime() ?? Infinity;
         const finishedAt = (name: string) => jobs[name].finishedAt?.getTime() ?? Infinity;
 
@@ -243,18 +291,18 @@ describe('a real ForgeAgent', () => {
 
     it('cancels cleanly against a running agent — or loses the race to a build that finished first', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'f'], ['raw']);
-        const recipes = await harness.publish(user, projectRid, datasets, [
+        const recipes = await publish(projectRid, datasets, [
             { name: 'A', inputs: ['raw'], outputs: ['a'] },
             { name: 'F', inputs: ['raw'], outputs: ['f'] },
-        ], MAIN, code);
+        ]);
 
         const { build } = await harness.build(user, [datasets.a, datasets.f]);
-        const outcome = await harness.forge.cancelBuild(user, build.rid).then(() => 'canceled', (error: Error) => error.message);
+        const outcome = await Forge.API.cancelBuild(forge, build.rid).then(() => 'canceled', (error: unknown) => getRefusal(error).message);
 
         // Give the agent time to try to finish whatever it had claimed.
         await new Promise((resolve) => setTimeout(resolve, 1_000));
 
-        const { build: after, jobs } = await harness.jobsByRecipe(user, build.rid, recipes);
+        const { build: after, jobs } = await jobsByRecipe(build.rid, recipes);
 
         if (outcome === 'canceled') {
             // Canceled jobs stay canceled: a late finish is refused, so none turned succeeded afterwards.
@@ -275,36 +323,35 @@ describe('a real ForgeAgent', () => {
     it('drops the outcome of a job canceled while it ran (the agent gets 409 on finish)', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a'], ['raw']);
 
-        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }], MAIN, code);
+        await publish(projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
 
         // Built without the agent's help: claim it as an agent would, cancel, then try to finish.
         const { build, jobs } = await harness.build(user, [datasets.a]);
         const [job] = Object.values(jobs);
 
-        await harness.jobs.claimJob(job.rid, 1).catch(() => undefined);        // the real agent may have taken it first
-        await harness.forge.cancelBuild(user, build.rid).catch(() => undefined);
+        await harness.claimJob(job).catch(() => undefined);        // the real agent may have taken it first
+        await Forge.API.cancelBuild(forge, build.rid).catch(() => undefined);
 
-        const refusal = await harness.forge.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null }).then(
+        const refusal = await Forge.API.Agent.finish(harness.getAgentApi(), job.rid, { attempt: 1, status: 'succeeded', failure: null }).then(
             () => null,
-            (error: unknown) => error,
+            (error: unknown) => getRefusal(error),
         );
-        const after = await harness.jobs.getJob(user, job.rid);
+        const { job: after } = await Forge.API.getJob(forge, job.rid);
 
         if (after.status === 'canceled')
             expect(refusal).toMatchObject({ message: expect.stringMatching(/isn't running/) });
     });
 });
 
-/** applications/forge/agent, as `npm run dev:forge-agent` runs it, pointed at the test server and test Redis. */
-function startAgent(port: number, onOutput: (chunk: string) => void): ChildProcess {
-    const cwd = path.resolve(__dirname, '../../../../applications/forge/agent');
+/** applications/forge/agent, as `npm run dev:forge-agent` runs it, pointed at the test Forge and test Redis; its job containers at the test main server. */
+function startAgent(onOutput: (chunk: string) => void): ChildProcess {
+    const cwd = path.resolve(__dirname, '../../../../forge/agent');
 
     const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', 'src/main.ts'], {
         cwd,
         env: {
             ...process.env,
-            QUARRY_SERVER_URL:          `http://127.0.0.1:${port}`,
-            FORGE_AGENT_JOB_SERVER_URL: `http://host.docker.internal:${port}`,
+            FORGE_AGENT_JOB_SERVER_URL: `http://host.docker.internal:${new URL(process.env.QUARRY_SERVER_URL!).port}`,
             FORGE_AGENT_PORT:           '0',
             NO_COLOR:                   '1',
         },
@@ -327,4 +374,12 @@ async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: n
 
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
+}
+
+/** A refusal over HTTP, as the service said it: its message. */
+function getRefusal(error: unknown): { message: string } {
+    if (isAxiosError<{ message?: string }>(error) && error.response?.data?.message)
+        return { message: error.response.data.message };
+
+    throw error;
 }

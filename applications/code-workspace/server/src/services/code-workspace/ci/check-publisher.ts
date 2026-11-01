@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Catalog, CodeWorkspace, Dataset, Forge } from '@quarry/shared/domain';
+import { CodeWorkspace, Dataset, Forge } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
-import { CatalogService } from '@quarry/catalog-server/catalog/catalog.service';
-import { ForgeService } from '@quarry/forge-server/services/forge/forge.service';
-import type { PublishedRecipe } from '@quarry/forge-server/services/recipe/recipe.service';
+import { CatalogClient, ForgeClient } from '@quarry/platform-kernel/microservice/clients';
 
 import CI = CodeWorkspace.CI;
 
@@ -12,14 +10,14 @@ import CI = CodeWorkspace.CI;
 export class CheckPublisher {
 
     constructor(
-        private readonly catalog: CatalogService,
-        private readonly forge:   ForgeService,
+        private readonly catalog: CatalogClient,
+        private readonly forge:   ForgeClient,
     ) {}
 
     public async publish(run: CI.CheckRun, rawManifest: unknown): Promise<Forge.Recipe[]> {
         const manifest = CI.Check.Manifest.Schema.parse(rawManifest);
         const principal = Principal.delegate(run.pushedBy!, `check-run:${run.rid}`);
-        const recipes: PublishedRecipe[] = [];
+        const recipes: Forge.Microservice.PublishRecipes.Request["recipes"] = [];
 
         for (const transform of manifest.transforms) {
             const inputs: Record<string, Dataset.Rid> = {};
@@ -28,7 +26,7 @@ export class CheckPublisher {
             const outputDatasetRids: Dataset.Rid[] = [];
 
             for (const [parameter, reference] of Object.entries(transform.inputs)) {
-                const dataset = await this.catalog.getByReference(principal, reference);
+                const dataset = await this.catalog.getByReference(principal, { reference });
 
                 inputs[parameter] = dataset.rid;
 
@@ -37,7 +35,7 @@ export class CheckPublisher {
             }
 
             for (const [parameter, reference] of Object.entries(transform.outputs)) {
-                const dataset = await this.catalog.getOrCreateByReference(principal, reference);
+                const dataset = await this.catalog.getOrCreateByReference(principal, { reference });
 
                 outputs[parameter] = dataset.rid;
                 outputDatasetRids.push(dataset.rid);
@@ -58,6 +56,6 @@ export class CheckPublisher {
             });
         }
 
-        return this.forge.recipes.publish(principal, run.workspaceRid, run.branch, recipes);
+        return this.forge.publishRecipes(principal, { producerRid: run.workspaceRid, branch: run.branch, recipes });
     }
 }

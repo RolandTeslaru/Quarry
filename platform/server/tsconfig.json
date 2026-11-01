@@ -24,6 +24,9 @@
             ],
             "@quarry/forge-server/*": [
                 "../../applications/forge/server/src/*"
+            ],
+            "@quarry/code-workspace-server/*": [
+                "../../applications/code-workspace/server/src/*"
             ]
         },
         "rootDir": "../..",

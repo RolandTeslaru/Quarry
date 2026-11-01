@@ -2,10 +2,9 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import type { Request, Response } from 'express';
-import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
-import { GitService } from '@/services/CodeWorkspace/git/git.service';
-import { createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
+import { CodeWorkspaceService } from '@quarry/code-workspace-server/services/code-workspace/code-workspace.service';
+import { GitService } from '@quarry/code-workspace-server/services/code-workspace/git/git.service';
+import { CodeWorkspaceHarness, createWorkspace } from '../support/code-workspace-fixtures';
 
 /**
  * Work on a Code Workspace that isn't a repository call — an IDE session, its
@@ -18,12 +17,12 @@ const response = {} as Response;
 
 describe('a trashed workspace', () => {
 
-    let harness: ForgeHarness;
+    let harness: CodeWorkspaceHarness;
     let service: CodeWorkspaceService;
     let admin: Principal.User;
 
     beforeAll(async () => {
-        harness = await ForgeHarness.start();
+        harness = await CodeWorkspaceHarness.start();
         service = harness.get(CodeWorkspaceService);
         admin = await harness.createUser();
     });
@@ -35,7 +34,7 @@ describe('a trashed workspace', () => {
     async function trashedWorkspace() {
         const workspace = await createWorkspace(harness, admin);
 
-        await harness.library.trash(admin, workspace.rid);
+        await harness.trash(admin, workspace.rid);
 
         return workspace;
     }
@@ -63,7 +62,7 @@ describe('a trashed workspace', () => {
     it('is the same 404 inside a trashed project', async () => {
         const { rid, projectRid } = await createWorkspace(harness, admin);
 
-        await harness.library.trash(admin, projectRid);
+        await harness.trash(admin, projectRid);
 
         await expect(harness.get(GitService).serveFetch(admin, rid, request, response, 'info/refs')).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -71,12 +70,12 @@ describe('a trashed workspace', () => {
 
 describe('a live workspace', () => {
 
-    let harness: ForgeHarness;
+    let harness: CodeWorkspaceHarness;
     let service: CodeWorkspaceService;
     let admin: Principal.User;
 
     beforeAll(async () => {
-        harness = await ForgeHarness.start();
+        harness = await CodeWorkspaceHarness.start();
         service = harness.get(CodeWorkspaceService);
         admin = await harness.createUser();
     });

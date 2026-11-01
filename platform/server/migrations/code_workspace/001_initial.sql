@@ -68,3 +68,6 @@ CREATE POLICY change  ON code_workspace.check_run FOR UPDATE TO quarry_user
 GRANT USAGE ON SCHEMA code_workspace TO main_user;
 GRANT SELECT, INSERT ON code_workspace.workspace TO main_user;
 GRANT SELECT, INSERT, UPDATE ON code_workspace.check_run TO main_user;
+
+-- ── the service's roles: code_workspace_service, code_workspace_user (foundations.create_service_roles) ──
+SELECT foundations.create_service_roles('code_workspace', ARRAY['workspace']);

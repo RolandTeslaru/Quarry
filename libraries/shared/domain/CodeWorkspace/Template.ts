@@ -2,7 +2,7 @@ import { z } from "zod"
 
 /**
  * What a new Code Workspace starts from — declared in code next to its files
- * (server/src/services/CodeWorkspace/templates), never created at runtime.
+ * (applications/code-workspace/server/src/services/code-workspace/templates), never created at runtime.
  */
 export namespace Template {
 

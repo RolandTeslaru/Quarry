@@ -8,10 +8,9 @@ import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { db } from '@quarry/platform-kernel/db/pool';
 import { DurableQueues } from '@quarry/platform-kernel/infra/durable-queue';
 import { QueueManager } from '@quarry/platform-kernel/infra/queue';
-import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
-import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/repository/code-workspace.repository';
-import { MAIN, QUARRY_CI, commitFiles, createWorkspace, type TestWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
+import { CIService } from '@quarry/code-workspace-server/services/code-workspace/ci/ci.service';
+import { CodeWorkspaceRepository } from '@quarry/code-workspace-server/services/code-workspace/repository/code-workspace.repository';
+import { CodeWorkspaceHarness, MAIN, QUARRY_CI, commitFiles, createWorkspace, type TestWorkspace } from '../support/code-workspace-fixtures';
 
 import CI = CodeWorkspace.CI;
 import CheckRun = CI.CheckRun;
@@ -39,7 +38,7 @@ const MANIFEST = {
  */
 describe('check runs, running', () => {
 
-    let harness: ForgeHarness;
+    let harness: CodeWorkspaceHarness;
     let checks: CIService;
     let admin: Principal.User;
     let add: MockInstance<QueueManager['add']>;
@@ -61,7 +60,7 @@ describe('check runs, running', () => {
     }
 
     beforeAll(async () => {
-        harness = await ForgeHarness.start();
+        harness = await CodeWorkspaceHarness.start();
         checks = harness.get(CIService);
         admin = await harness.createUser();
 
@@ -74,7 +73,7 @@ describe('check runs, running', () => {
 
         // Every test starts with nothing left to deliver.
         await sql`update code_workspace.check_run set status = 'canceled', finished_at = now() where status in ('waiting', 'scheduled', 'running')`.execute(db());
-        await sql`delete from foundations.outbox where queue_name = ${CI.Queue.RunCheck.Definition.name}`.execute(db());
+        await harness.clearOutbox(CI.Queue.RunCheck.Definition.name);
     });
 
     afterAll(async () => {

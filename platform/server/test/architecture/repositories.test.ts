@@ -5,12 +5,12 @@ import { describe, expect, it } from 'vitest';
 const ROOT = path.resolve(__dirname, '../../../..');
 
 /** Every package with services' code: the main server's, and each service's. */
-const SOURCES = ['platform/server', 'applications/catalog/server', 'applications/data-connection/server', 'applications/forge/server'].map((pkg) => path.join(ROOT, pkg, 'src'));
+const SOURCES = ['platform/server', 'applications/catalog/server', 'applications/data-connection/server', 'applications/forge/server', 'applications/code-workspace/server'].map((pkg) => path.join(ROOT, pkg, 'src'));
 
 /** A service's facade repository: `…/repository/<name>.repository.ts` whose class composes the rest. */
 const FACADES = [
     'applications/forge/server/src/services/forge/repository/forge.repository.ts',
-    'platform/server/src/services/CodeWorkspace/repository/code-workspace.repository.ts',
+    'applications/code-workspace/server/src/services/code-workspace/repository/code-workspace.repository.ts',
 ];
 
 /**

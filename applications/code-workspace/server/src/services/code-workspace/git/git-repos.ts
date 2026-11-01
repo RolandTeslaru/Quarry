@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { requireEnv } from '@quarry/platform-kernel/db/table';
-import { resolveEnvPath } from '@/load-env';
+import { resolveEnvPath } from '../../../load-env';
 
 const run = promisify(execFile);
 
@@ -25,7 +25,7 @@ export interface InitialCommit {
 /**
  * The bare Git repositories behind Code Workspaces, one per workspace, under
  * QUARRY_GIT_ROOT (named by RID). Sessions clone and push them over HTTP
- * (git http-backend, behind the server); this class creates, reads and removes them.
+ * (git http-backend, behind the main server's proxy); this class creates, reads and removes them.
  */
 @Injectable()
 export class GitRepos {

@@ -51,7 +51,7 @@ describe('the Catalog service, through the main server', () => {
         const catalogPort = await getFreePort();
 
         server = await NestFactory.create<NestExpressApplication>(MainServerModule, { logger: false });
-        configureMainServer(server, { catalog: `http://127.0.0.1:${catalogPort}`, dataConnection: 'http://127.0.0.1:9', forge: 'http://127.0.0.1:9' });
+        configureMainServer(server, { catalog: `http://127.0.0.1:${catalogPort}`, dataConnection: 'http://127.0.0.1:9', forge: 'http://127.0.0.1:9', codeWorkspace: 'http://127.0.0.1:9' });
         await connectMicroserviceCalls(server, 'main');
         await server.listen(0, '127.0.0.1');
 

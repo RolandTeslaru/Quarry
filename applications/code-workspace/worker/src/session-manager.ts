@@ -4,7 +4,7 @@ import { System } from '@quarry/shared/server/system';
 import { DockerDriver } from './docker-driver';
 import { Session } from './domain/Session';
 import { config } from './config';
-import { api } from '@quarry/shared/server/internal-api';
+import { getCodeWorkspaceApi } from '@quarry/shared/server/internal-api';
 
 /** The IDE's port in the IDE image (docker/code-workspace-ide). */
 const IDE_PORT = 3000;
@@ -102,7 +102,7 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
 
     private async openNow(workspaceRid: CodeWorkspace.Rid, userRid: Identity.User.Rid): Promise<string> {
         // The server re-checks the user may read the workspace before minting.
-        const credentials = await CodeWorkspace.API.Internal.getSessionCredentials(api, { workspaceRid, userRid });
+        const credentials = await CodeWorkspace.API.Internal.getSessionCredentials(getCodeWorkspaceApi(), { workspaceRid, userRid });
         const session = this.byKey[Session.getKey(workspaceRid, userRid)] ?? await this.create(workspaceRid, userRid);
 
         if (!session.port) {

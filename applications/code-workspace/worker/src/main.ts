@@ -1,6 +1,6 @@
 // load-env first: reflect-metadata and the env every other module reads.
 import './load-env';
-import { waitForServer } from '@quarry/shared/server/internal-api';
+import { getCodeWorkspaceApi, waitForServer } from '@quarry/shared/server/internal-api';
 import { NestFactory } from '@nestjs/core';
 import { config } from './config';
 import { System } from '@quarry/shared/server/system';
@@ -14,8 +14,8 @@ System.log.setAppName('CodeWorkspaceWorker');
 const log = System.log.withContext('Worker');
 
 async function bootstrap(): Promise<void> {
-    // Session credentials come from the server's /internal API.
-    await waitForServer();
+    // Session credentials and check runs come from the Code Workspaces service's /internal API.
+    await waitForServer(getCodeWorkspaceApi());
 
     const app = await NestFactory.create(WorkerModule);
 

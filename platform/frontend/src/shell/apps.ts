@@ -1,6 +1,7 @@
 import type { ToOptions } from '@tanstack/react-router'
 import type { Library } from '@quarry/shared/domain'
 import type { App } from '@/AppKit'
+import { codeWorkspacesApp } from '@/apps/code-workspaces/definition'
 import { dataConnectionApp } from '@/apps/data-connection/definition'
 import { datasetsApp } from '@/apps/datasets/definition'
 import { forgeApp } from '@/apps/forge/definition'
@@ -20,11 +21,9 @@ export const APPS: App.Definition[] = [
     dataConnectionApp,
     datasetsApp,
     pipelineBuilderApp,
+    codeWorkspacesApp,
     forgeApp,
     keychainApp,
-    // Paused by the split (docs/design/architecture-split.md): Code Workspaces is listed again when its
-    // service is back — its routes stay, its backend is off.
-    // codeWorkspacesApp
     // Test apps for the shell and AppKit; no backend.
     layoutDemoApp,
     minimalDemoApp,

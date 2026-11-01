@@ -2,7 +2,7 @@ import { Injectable, type OnModuleInit } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import { CodeWorkspace } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import { api } from '@quarry/shared/server/internal-api';
+import { getCodeWorkspaceApi } from '@quarry/shared/server/internal-api';
 import { DockerDriver, type ExecResult } from './docker-driver';
 import { config } from './config';
 
@@ -53,7 +53,7 @@ export class CheckRunner implements OnModuleInit {
         let started: Internal.CheckRun.Start.Response;
 
         try {
-            started = await Internal.startCheckRun(api, rid);
+            started = await Internal.startCheckRun(getCodeWorkspaceApi(), rid);
         }
         catch (error) {
             if (isConflict(error)) {
@@ -179,11 +179,11 @@ export class CheckRunner implements OnModuleInit {
     }
 
     private async report(rid: CheckRun.Rid, index: number, step: Internal.CheckRun.Step.Input): Promise<void> {
-        await this.toServer(() => Internal.reportCheckStep(api, rid, index, step));
+        await this.toServer(() => Internal.reportCheckStep(getCodeWorkspaceApi(), rid, index, step));
     }
 
     private async finish(rid: CheckRun.Rid, outcome: Internal.CheckRun.Finish.Input): Promise<'succeeded' | 'failed'> {
-        await this.toServer(() => Internal.finishCheckRun(api, rid, outcome));
+        await this.toServer(() => Internal.finishCheckRun(getCodeWorkspaceApi(), rid, outcome));
         if (outcome.status === 'failed')
             this.log.info(`Finished ${rid}: failed`, { failure: outcome.failure });
         else

@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CodeWorkspace, Dataset, Library } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
-import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
-import { MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
-import { ForgeHarness } from '../../../../applications/forge/server/test/support/forge-fixtures';
+import { CIService } from '@quarry/code-workspace-server/services/code-workspace/ci/ci.service';
+import { CodeWorkspaceHarness, MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 
 import CI = CodeWorkspace.CI;
 import CheckRun = CI.CheckRun;
@@ -19,12 +18,12 @@ type Transform = CI.Check.Manifest.Transform;
  */
 describe('publishing recipes', () => {
 
-    let harness: ForgeHarness;
+    let harness: CodeWorkspaceHarness;
     let checks: CIService;
     let admin: Principal.User;
 
     beforeAll(async () => {
-        harness = await ForgeHarness.start();
+        harness = await CodeWorkspaceHarness.start();
         checks = harness.get(CIService);
         admin = await harness.createUser();
     });
@@ -71,7 +70,7 @@ describe('publishing recipes', () => {
         expect(finished.steps.at(-1)).toMatchObject({ name: CheckRun.PUBLISH_STEP, status: 'succeeded' });
         expect(finished.steps.at(-1)!.log).toMatch(/Published 1 recipe/);
 
-        const recipe = await harness.forge.recipes.getCurrent(admin, datasets.clean, [MAIN]);
+        const recipe = await harness.getCurrentRecipe(admin, datasets.clean);
 
         expect(recipe).toMatchObject({
             producerRid:       workspace.rid,
@@ -98,7 +97,7 @@ describe('publishing recipes', () => {
         const finished = await finishWith(run, [transform('pkg.a.a', { raw: datasets.raw }, { out: datasets.clean })]);
 
         expect(finished.published).toBe(true);
-        expect((await harness.forge.recipes.getCurrent(admin, datasets.clean, [MAIN]))?.inputDatasetRids).toEqual([datasets.raw]);
+        expect((await harness.getCurrentRecipe(admin, datasets.clean))?.inputDatasetRids).toEqual([datasets.raw]);
     });
 
     it("creates an output dataset that doesn't exist yet, in its folder", async () => {
@@ -113,7 +112,7 @@ describe('publishing recipes', () => {
         const created = await harness.library.getByPath(admin, `${projectPath}/brand new`);
 
         expect(created.type).toBe('dataset');
-        expect(await harness.forge.recipes.getCurrent(admin, created.rid as Dataset.Rid, [MAIN])).not.toBeNull();
+        expect(await harness.getCurrentRecipe(admin, created.rid as Dataset.Rid)).not.toBeNull();
     });
 
     it('builds what it published: the job runs the commit\'s transform', async () => {
@@ -124,7 +123,7 @@ describe('publishing recipes', () => {
 
         const { jobs } = await harness.build(admin, [datasets.clean]);
         const [job] = Object.values(jobs);
-        const claimed = await harness.jobs.claimJob(job.rid, 1);
+        const claimed = await harness.claimJob(job);
 
         expect(claimed.recipe.runtime).toEqual({
             type:         'code-workspace',
@@ -151,7 +150,7 @@ describe('publishing recipes', () => {
             const { run } = await startedRun();
 
             await expectRefused(run, [transform('pkg.a.a', { raw: '/Nowhere/raw' }, { out: datasets.clean })], /Not found/);
-            expect(await harness.forge.recipes.getCurrent(admin, datasets.clean, [MAIN])).toBeNull();
+            expect(await harness.getCurrentRecipe(admin, datasets.clean)).toBeNull();
         });
 
         it('an output in a folder that doesn\'t exist', async () => {
@@ -177,7 +176,7 @@ describe('publishing recipes', () => {
             const second = await startedRun();
 
             await expectRefused(second.run, [transform('pkg.b.b', { raw: datasets.raw }, { out: datasets.clean })], /already produced by/);
-            expect((await harness.forge.recipes.getCurrent(admin, datasets.clean, [MAIN]))?.producerRid).toBe(first.workspace.rid);
+            expect((await harness.getCurrentRecipe(admin, datasets.clean))?.producerRid).toBe(first.workspace.rid);
         });
 
     });
@@ -197,7 +196,7 @@ describe('publishing recipes', () => {
         await checks.start(queued[0].rid);
         await finishWith(queued[0], [transform('pkg.a.a', { raw: datasets.raw }, { out: datasets.a })]);
 
-        expect((await harness.forge.recipes.getCurrent(admin, datasets.a, [MAIN]))?.runtime).toMatchObject({ commit: next });
-        expect(await harness.forge.recipes.getCurrent(admin, datasets.b, [MAIN])).toBeNull();
+        expect((await harness.getCurrentRecipe(admin, datasets.a))?.runtime).toMatchObject({ commit: next });
+        expect(await harness.getCurrentRecipe(admin, datasets.b)).toBeNull();
     });
 });

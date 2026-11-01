@@ -34,6 +34,28 @@ export namespace Microservice {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** A dataset by RID or library path. */
+    export namespace GetByReference {
+        export const PATTERN = "catalog.get-by-reference"
+
+        export const Request = z.object({ reference: z.string().min(1) })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = Dataset.Schema
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** A dataset by RID or library path — or, for a path nothing is at yet, a new empty one there. */
+    export namespace GetOrCreateByReference {
+        export const PATTERN = "catalog.get-or-create-by-reference"
+
+        export const Request = z.object({ reference: z.string().min(1) })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = Dataset.Schema
+        export type  Response = z.infer<typeof Response>
+    }
+
     /** A transaction on the dataset's main branch; `provenance` says what opened it. */
     export namespace OpenTransaction {
         export const PATTERN = "catalog.open-transaction"
@@ -176,6 +198,8 @@ export namespace Microservice {
     export const Calls = {
         createDataset:     CreateDataset,
         get:               Get,
+        getByReference:         GetByReference,
+        getOrCreateByReference: GetOrCreateByReference,
         openTransaction:   OpenTransaction,
         registerChanges:   RegisterChanges,
         commitTransaction: CommitTransaction,

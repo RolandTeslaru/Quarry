@@ -2,11 +2,11 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { CodeWorkspace, type Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
-import { SessionTokens } from '@/auth/session-tokens';
 import { RealtimeService } from '@quarry/platform-kernel/services/Realtime/realtime.service';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
 import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable-queue';
+import { IdentityClient } from '@quarry/platform-kernel/microservice/clients';
 import { CodeWorkspaceRepository } from '../repository/code-workspace.repository';
 import type { NewCheckRun, QueuedCheckRuns } from '../repository/check-run.repository';
 import { GitRepos } from '../git/git-repos';
@@ -33,7 +33,7 @@ export class CIService {
         public readonly gatekeeper:     GatekeeperService,
         private readonly repository:    CodeWorkspaceRepository,
         private readonly gitRepos:      GitRepos,
-        private readonly sessionTokens: SessionTokens,
+        private readonly identity:      IdentityClient,
         private readonly realtime:      RealtimeService,
         private readonly publisher:     CheckPublisher,
         @InjectDurableQueue(CI.DurableQueue.RunCheck)
@@ -131,7 +131,7 @@ export class CIService {
         this.realtime.emitEvent(CodeWorkspace.Event.checkRunUpdated(checkRun));
 
         const config = await readCheckConfig(this.gitRepos, checkRun.workspaceRid, checkRun.commit);
-        const token = await this.sessionTokens.mint(checkRun.pushedBy!, 'check');
+        const { token } = await this.identity.mintUserToken(WORKER, { userRid: checkRun.pushedBy!, via: 'check' });
 
         return { checkRun, steps: config.steps, token };
     }

@@ -5,17 +5,20 @@ import { CodeWorkspace, type Dataset, type Identity, Library, type Platform } fr
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { RequireUserPrincipal } from '@quarry/platform-kernel/auth/require-user-principal';
-import { SessionTokens } from '@/auth/session-tokens';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { RequireLive } from '@quarry/platform-kernel/db/liveness';
 import { SecurityGate } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
 import { IdentityService } from '@quarry/platform-kernel/services/Identity/identity.service';
 import { LibraryService } from '@quarry/platform-kernel/services/Library/library.service';
+import { IdentityClient } from '@quarry/platform-kernel/microservice/clients';
 import { CodeWorkspaceRepository } from './repository/code-workspace.repository';
 import { CIService } from './ci/ci.service';
 import { GitRepos } from './git/git-repos';
 import { CodeWorkspaceWorkerClient } from './worker/code-workspace-worker.client';
 import { TEMPLATES, TEMPLATES_WIRE, type TemplateParams, type WorkspaceTemplate } from './templates';
+
+/** Minting a session's token is the service's own call: the main server mints it for the session's user. */
+const SESSIONS = Principal.SELF('code-workspace.sessions');
 
 /**
  * Code Workspaces — library resources, each a bare Git repository of
@@ -41,7 +44,7 @@ export class CodeWorkspaceService {
         private readonly gitRepos:        GitRepos,
         private readonly repository:      CodeWorkspaceRepository,
         private readonly worker:          CodeWorkspaceWorkerClient,
-        private readonly sessionTokens:   SessionTokens,
+        private readonly identityClient:  IdentityClient,
         public readonly ci:               CIService,
     ) {}
 
@@ -135,7 +138,7 @@ export class CodeWorkspaceService {
         const user = await this.identity.getUser(principal, principal.userRid);
 
         return {
-            token: await this.sessionTokens.mint(principal.userRid, principal.via),
+            token: (await this.identityClient.mintUserToken(SESSIONS, { userRid: principal.userRid, via: principal.via })).token,
             user:  { name: user.displayName, email: user.email },
         };
     }

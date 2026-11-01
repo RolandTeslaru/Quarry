@@ -31,6 +31,16 @@ export class CatalogMicroserviceController {
         return this.catalog.get(principal, request.rid);
     }
 
+    @MicroserviceCall(Calls.GetByReference, { from: ['code-workspace'] })
+    public getByReference(principal: Principal, request: Calls.GetByReference.Request) {
+        return this.catalog.getByReference(principal, request.reference);
+    }
+
+    @MicroserviceCall(Calls.GetOrCreateByReference, { from: ['code-workspace'] })
+    public getOrCreateByReference(principal: Principal, request: Calls.GetOrCreateByReference.Request) {
+        return this.catalog.getOrCreateByReference(principal, request.reference);
+    }
+
     @MicroserviceCall(Calls.OpenTransaction, { from: ['data-connection'] })
     public openTransaction(principal: Principal, request: Calls.OpenTransaction.Request) {
         return this.transaction.open(principal, request.datasetRid, request.type, request.provenance);

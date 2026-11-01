@@ -17,7 +17,7 @@ export class IdentityMicroserviceCallsController {
     ) {}
 
     /** For work a service does on a user's behalf outside their request — a sync run, a Forge job. The token still only works while they're an active member. */
-    @MicroserviceCall(Calls.MintUserToken, { from: ['data-connection', 'forge'] })
+    @MicroserviceCall(Calls.MintUserToken, { from: ['data-connection', 'forge', 'code-workspace'] })
     public async mintUserToken(_principal: Principal, request: Calls.MintUserToken.Request) {
         return {
             token:     await this.tokens.mint(request.userRid, request.via),
