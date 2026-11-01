@@ -64,7 +64,7 @@ export class GatekeeperService {
 
     // ── grants — rows, so RLS decides: read to list, manage to change ──────
 
-    async listGrants(principal: Principal, rid: Library.Resource.Rid): Promise<Gatekeeper.Grant.Schema[]> {
+    async listGrants(principal: Principal, rid: Library.Resource.Rid): Promise<Gatekeeper.Grant[]> {
         const rows = await this.repository.list(principal, rid);
 
         return rows.map(GatekeeperDB.RoleGrant.toDomain);
@@ -75,7 +75,7 @@ export class GatekeeperService {
         rid:       Library.Resource.Rid,
         subject:   Gatekeeper.Grant.Subject,
         role:      Gatekeeper.Role.Name,
-    ): Promise<Gatekeeper.Grant.Schema> {
+    ): Promise<Gatekeeper.Grant> {
         const row = await this.repository.put(principal, rid, subject, role);
 
         return GatekeeperDB.RoleGrant.toDomain(row);

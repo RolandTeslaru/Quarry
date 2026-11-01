@@ -38,7 +38,6 @@ export namespace Source {
         /** Where its syncs' datasets go by default — a project or folder; null: the source's own folder. */
         outputFolderRid: Resource.Rid.nullable(),
     })
-    export type Schema = z.infer<typeof Schema>
 
     /**
      * A source definition as the API sends it: metadata, what it can do, and its
@@ -62,8 +61,8 @@ export namespace Source {
             /** A sync's config form (usually a `oneOf` on `kind`: what to copy) — z.toJSONSchema(sync.Config). */
             syncConfigSchema: z.record(z.string(), z.unknown()),
         })
-        export type Schema = z.infer<typeof Schema>
     }
+    export type Definition = z.infer<typeof Definition.Schema>
 
     /** A table a source exposes, as found by exploring it. */
     export const Table = z.object({
@@ -79,3 +78,4 @@ export namespace Source {
     })
     export type TablePreview = z.infer<typeof TablePreview>
 }
+export type Source = z.infer<typeof Source.Schema>

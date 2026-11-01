@@ -32,7 +32,7 @@ export class SourceRepository extends Repository(DataConnectionDB.database) {
         config:        DataConnection.Source.Config;          // already validated against the definition
         credentialRid: Keychain.Credential.Rid | null;        // already checked: live, readable, of the definition's template
         outputFolderRid: Library.Resource.Rid | null;         // already checked: a live project or folder the user can see
-    }): Promise<DataConnection.Source.Schema> {
+    }): Promise<DataConnection.Source> {
         const source = await this.trx
             .insertInto('data_connection.source')
             .values({
@@ -50,7 +50,7 @@ export class SourceRepository extends Repository(DataConnectionDB.database) {
 
     /** Live sources only. */
     @Transactional()
-    async get(principal: Principal, rid: DataConnection.Source.Rid): Promise<DataConnection.Source.Schema | null> {
+    async get(principal: Principal, rid: DataConnection.Source.Rid): Promise<DataConnection.Source | null> {
         const row = await this.trx
             .selectFrom('data_connection.source as s')
             .innerJoin('library.resource as r', 'r.rid', 's.rid')
@@ -70,7 +70,7 @@ export class SourceRepository extends Repository(DataConnectionDB.database) {
 
     /** An app opening the source's page: it, and the audit `open`, in one transaction. Null: not there, or not theirs to see. */
     @Transactional('user')
-    async open(principal: Principal.User, rid: DataConnection.Source.Rid, application: Platform.Application.Id): Promise<DataConnection.Source.Schema | null> {
+    async open(principal: Principal.User, rid: DataConnection.Source.Rid, application: Platform.Application.Id): Promise<DataConnection.Source | null> {
         const source = await this.get(principal, rid);          // joins this transaction
 
         if (source)
@@ -81,7 +81,7 @@ export class SourceRepository extends Repository(DataConnectionDB.database) {
 
     /** Every live source the user can discover (RLS), across projects. */
     @Transactional()
-    async list(principal: Principal): Promise<DataConnection.Source.Schema[]> {
+    async list(principal: Principal): Promise<DataConnection.Source[]> {
         const rows = await this.trx
             .selectFrom('data_connection.source as s')
             .innerJoin('library.resource as r', 'r.rid', 's.rid')

@@ -121,7 +121,7 @@ function CodeWorkspacesHome() {
 }
 
 interface WorkspacesTableProps {
-    workspaces: CodeWorkspace.Schema[]
+    workspaces: CodeWorkspace[]
     templates:  CodeWorkspaceSDK.State['templates']
 }
 

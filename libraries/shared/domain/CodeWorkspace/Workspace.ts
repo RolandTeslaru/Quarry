@@ -20,5 +20,5 @@ export namespace Workspace {
         parentRid:  Resource.Rid,
         templateId: Template.Id,                     // what its first commit was rendered from
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type Workspace = z.infer<typeof Workspace.Schema>

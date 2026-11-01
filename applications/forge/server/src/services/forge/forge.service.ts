@@ -104,7 +104,7 @@ export class ForgeService {
     }
 
     /** Builds the principal can see (RLS: discover on a target), newest first. */
-    public async listBuilds(principal: Principal, query: Forge.API.ListBuilds.Query): Promise<Forge.Build.Schema[]> {
+    public async listBuilds(principal: Principal, query: Forge.API.ListBuilds.Query): Promise<Forge.Build[]> {
         return this.repository.build.list(principal, query);
     }
 
@@ -187,7 +187,7 @@ export class ForgeService {
     }
 
     /** Cancels what the failed job's build says a failure cancels (its descendants, or the build), then aborts those jobs' transactions. */
-    private async cancelForFailure(failed: Forge.Job.Schema): Promise<void> {
+    private async cancelForFailure(failed: Forge.Job): Promise<void> {
         // Mark first, as canceling does: a canceled job's late finish is refused.
         const canceled = await this.repository.cancelForFailure(AGENT, failed);
 
@@ -206,7 +206,7 @@ export class ForgeService {
      * 2. Write on every output, read on every input; an input not built in
      * this build must have data already.
      */
-    private async validatePlan(principal: Principal, recipes: Record<Forge.Recipe.Rid, Forge.Recipe.Schema>): Promise<void> {
+    private async validatePlan(principal: Principal, recipes: Record<Forge.Recipe.Rid, Forge.Recipe>): Promise<void> {
         const outputs = new Set<Dataset.Rid>();
         const inputs = new Set<Dataset.Rid>();
 
@@ -235,7 +235,7 @@ export class ForgeService {
      * 3. One job per node, with a snapshot transaction open on each of its recipe's
      * outputs — all opened in one database transaction, or none.
      */
-    private async openTransactionsForOutputs(principal: Principal, buildRid: Forge.Build.Rid, recipes: Record<Forge.Recipe.Rid, Forge.Recipe.Schema>): Promise<Record<Forge.Job.Rid, PlannedJob>> {
+    private async openTransactionsForOutputs(principal: Principal, buildRid: Forge.Build.Rid, recipes: Record<Forge.Recipe.Rid, Forge.Recipe>): Promise<Record<Forge.Job.Rid, PlannedJob>> {
         const jobs: Record<Forge.Job.Rid, PlannedJob> = {};
         const openings: Record<Dataset.Rid, Catalog.Transaction.Opening> = {};
 

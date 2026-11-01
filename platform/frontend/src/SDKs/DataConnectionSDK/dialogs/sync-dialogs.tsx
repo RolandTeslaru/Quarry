@@ -42,8 +42,8 @@ const FIELDS: Record<StepId, (keyof FormInput)[]> = {
 }
 
 interface Props {
-    source:     DataConnection.Source.Schema
-    definition: DataConnection.Source.Definition.Schema
+    source:     DataConnection.Source
+    definition: DataConnection.Source.Definition
     table?:     DataConnection.Source.Table
     dialog:     DialogSDK.TemplateProps
 }
@@ -56,7 +56,7 @@ export function openCreateSyncDialog(args: Omit<Props, 'dialog'>) {
 }
 
 /** The sync's config from its defaults — for a table, that table. */
-function initialConfig(definition: DataConnection.Source.Definition.Schema, table?: DataConnection.Source.Table): Values {
+function initialConfig(definition: DataConnection.Source.Definition, table?: DataConnection.Source.Table): Values {
     const config = defaults(definition.syncConfigSchema)
 
     if (table) {

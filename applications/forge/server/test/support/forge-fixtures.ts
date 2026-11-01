@@ -120,7 +120,7 @@ export class ForgeHarness {
         principal: Principal.User,
         names:     string[],
         withData:  string[] = [],
-    ): Promise<{ projectRid: Dataset.Schema['parentRid']; datasets: Record<string, Dataset.Rid> }> {
+    ): Promise<{ projectRid: Dataset['parentRid']; datasets: Record<string, Dataset.Rid> }> {
         const projectRid = Library.Project.createRid();
         const datasets: Record<string, Dataset.Rid> = {};
 
@@ -147,12 +147,12 @@ export class ForgeHarness {
      */
     public async publish(
         principal:   Principal.User,
-        producerRid: Dataset.Schema['parentRid'],
+        producerRid: Dataset['parentRid'],
         datasets:    Record<string, Dataset.Rid>,
         shapes:      RecipeShape[],
         branch:      Foundations.Branch = MAIN,
         code:        RecipeCode = MADE_UP_CODE,
-    ): Promise<Record<string, Forge.Recipe.Schema>> {
+    ): Promise<Record<string, Forge.Recipe>> {
         const recipes = await this.forge.recipes.publish(principal, producerRid, branch, shapes.map((shape) => ({
             runtime: Forge.Recipe.Runtime.parse({
                 type:         'code-workspace',
@@ -187,7 +187,7 @@ export class ForgeHarness {
     }
 
     /** Plays a ForgeAgent for one job: claim, then finish with this outcome. */
-    public async run(job: Forge.Job.Schema, status: 'succeeded' | 'failed' = 'succeeded'): Promise<void> {
+    public async run(job: Forge.Job, status: 'succeeded' | 'failed' = 'succeeded'): Promise<void> {
         await this.jobs.claimJob(job.rid, job.attempt);
         await this.forge.finishJob(job.rid, {
             attempt: job.attempt,
@@ -200,8 +200,8 @@ export class ForgeHarness {
     public async jobsByRecipe(
         principal: Principal.User,
         buildRid:  Forge.Build.Rid,
-        recipes:     Record<string, Forge.Recipe.Schema>,
-    ): Promise<{ build: Forge.Build.Schema; jobs: Record<string, Forge.Job.Schema> }> {
+        recipes:     Record<string, Forge.Recipe>,
+    ): Promise<{ build: Forge.Build; jobs: Record<string, Forge.Job> }> {
         const found = await this.forge.getBuild(principal, buildRid);
         const names = Object.fromEntries(Object.entries(recipes).map(([name, recipe]) => [recipe.rid, name]));
 
@@ -215,7 +215,7 @@ export class ForgeHarness {
     public async statuses(
         principal: Principal.User,
         buildRid:  Forge.Build.Rid,
-        recipes:     Record<string, Forge.Recipe.Schema>,
+        recipes:     Record<string, Forge.Recipe>,
     ): Promise<Record<string, Forge.Job.Status>> {
         const { jobs } = await this.jobsByRecipe(principal, buildRid, recipes);
 
@@ -235,7 +235,7 @@ export class ForgeHarness {
     }
 
     /** A dataset's current version on main — Catalog's HTTP API, as the user. */
-    public async view(principal: Principal.User, datasetRid: Dataset.Rid): Promise<Dataset.View.Schema> {
+    public async view(principal: Principal.User, datasetRid: Dataset.Rid): Promise<Dataset.View> {
         const { view } = await Catalog.API.Dataset.getView(await this.getApi(principal, requireEnv('CATALOG_URL')), datasetRid);
 
         return view;
@@ -247,7 +247,7 @@ export class ForgeHarness {
     }
 
     /** A job attempt's run-job message in the outbox (null: acked, or never added) — what the sweep sends again until acked. */
-    public async getOutboxMessage(job: Pick<Forge.Job.Schema, 'rid' | 'attempt'>): Promise<{ sentAt: Date | null; sends: number } | null> {
+    public async getOutboxMessage(job: Pick<Forge.Job, 'rid' | 'attempt'>): Promise<{ sentAt: Date | null; sends: number } | null> {
         const { rows } = await sql<{ sent_at: Date | null; sends: number }>`
             select sent_at, sends from foundations.outbox
              where queue_name = ${Forge.Queue.RunJob.Definition.name} and job_id = ${Forge.Queue.RunJob.getQueueJobId(Forge.Job.getQueueMessage(job))}`.execute(this.owner);
@@ -256,7 +256,7 @@ export class ForgeHarness {
     }
 
     /** Simulates a job's message sent `minutes` ago and never acked. */
-    public async backdateSent(job: Pick<Forge.Job.Schema, 'rid' | 'attempt'>, minutes: number): Promise<void> {
+    public async backdateSent(job: Pick<Forge.Job, 'rid' | 'attempt'>, minutes: number): Promise<void> {
         await sql`
             update foundations.outbox set sent_at = now() - make_interval(mins => ${minutes})
              where queue_name = ${Forge.Queue.RunJob.Definition.name} and job_id = ${Forge.Queue.RunJob.getQueueJobId(Forge.Job.getQueueMessage(job))}`.execute(this.owner);

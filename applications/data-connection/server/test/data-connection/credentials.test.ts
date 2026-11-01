@@ -19,8 +19,8 @@ describe('source credentials', () => {
     let outsider: Principal.User;
 
     let projectRid: Library.Resource.Rid;
-    let credential: Keychain.Credential.Schema;
-    let source: DataConnection.Source.Schema;
+    let credential: Keychain.Credential;
+    let source: DataConnection.Source;
 
     const LOGIN: PostgresLogin = { host: 'db.internal', port: 5432, database: 'tools', user: 'reader', password: 'hunter2-never-in-a-response' };
 

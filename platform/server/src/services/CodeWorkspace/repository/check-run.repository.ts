@@ -12,16 +12,16 @@ import CheckRun = CodeWorkspace.CI.CheckRun;
 export interface NewCheckRun {
     readonly branch:  Foundations.Branch;
     readonly commit:  CodeWorkspace.Git.Commit;
-    readonly steps:   CheckRun.Step.Schema[];
+    readonly steps:   CheckRun.Step[];
     readonly failure: CheckRun.Failure | null;
 }
 
 export interface QueuedCheckRuns {
-    readonly queued:    CheckRun.Schema[];
+    readonly queued:    CheckRun[];
     /** The same branches' earlier runs, superseded. */
-    readonly canceled:  CheckRun.Schema[];
+    readonly canceled:  CheckRun[];
     /** The workspace's next run, if the push left it free — maybe one of `queued`. */
-    readonly scheduled: CheckRun.Schema | null;
+    readonly scheduled: CheckRun | null;
 }
 
 /**
@@ -80,7 +80,7 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
         principal:    Principal,
         workspaceRid: CodeWorkspace.Rid,
         page:         { branch?: Foundations.Branch; before?: CheckRun.Rid; limit: number },
-    ): Promise<CheckRun.Schema[]> {
+    ): Promise<CheckRun[]> {
         let query = this.trx
             .selectFrom('code_workspace.check_run')
             .selectAll()
@@ -99,7 +99,7 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
 
     /** One of the workspace's check runs. Null if there's no such run there, or it isn't the principal's to see (RLS). */
     @Transactional()
-    public async getInWorkspace(principal: Principal, workspaceRid: CodeWorkspace.Rid, rid: CheckRun.Rid): Promise<CheckRun.Schema | null> {
+    public async getInWorkspace(principal: Principal, workspaceRid: CodeWorkspace.Rid, rid: CheckRun.Rid): Promise<CheckRun | null> {
         const row = await this.trx
             .selectFrom('code_workspace.check_run')
             .selectAll()
@@ -114,7 +114,7 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
 
     /** One check run, whatever its state. */
     @Transactional('service')
-    public async get(principal: Principal.Service, rid: CheckRun.Rid): Promise<CheckRun.Schema | null> {
+    public async get(principal: Principal.Service, rid: CheckRun.Rid): Promise<CheckRun | null> {
         const row = await this.trx
             .selectFrom('code_workspace.check_run')
             .selectAll()
@@ -131,7 +131,7 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
      * the caller's whole transaction.
      */
     @Transactional()
-    public async scheduleNext(principal: Principal, workspaceRid: CodeWorkspace.Rid): Promise<CheckRun.Schema | null> {
+    public async scheduleNext(principal: Principal, workspaceRid: CodeWorkspace.Rid): Promise<CheckRun | null> {
         await sql`select pg_advisory_xact_lock(hashtextextended(${workspaceRid}, 0))`.execute(this.trx);
 
         const row = await this.trx
@@ -158,7 +158,7 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
 
     /** A worker takes it: `scheduled → running` — once. Null if it isn't scheduled (taken, or canceled). */
     @Transactional('service')
-    public async start(principal: Principal.Service, rid: CheckRun.Rid): Promise<CheckRun.Schema | null> {
+    public async start(principal: Principal.Service, rid: CheckRun.Rid): Promise<CheckRun | null> {
         const now = new Date();
         const row = await this.trx
             .updateTable('code_workspace.check_run')
@@ -173,7 +173,7 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
 
     /** One step's state, at its position in `steps`. Null if the run isn't running (any more). */
     @Transactional('service')
-    public async reportStep(principal: Principal.Service, rid: CheckRun.Rid, position: number, step: CheckRun.Step.Schema): Promise<CheckRun.Schema | null> {
+    public async reportStep(principal: Principal.Service, rid: CheckRun.Rid, position: number, step: CheckRun.Step): Promise<CheckRun | null> {
         const row = await this.trx
             .updateTable('code_workspace.check_run')
             .set({
@@ -193,8 +193,8 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
     public async finish(
         principal: Principal.Service,
         rid:       CheckRun.Rid,
-        outcome:   { status: 'succeeded' | 'failed'; steps: CheckRun.Step.Schema[]; failure: CheckRun.Failure | null; published?: boolean },
-    ): Promise<CheckRun.Schema | null> {
+        outcome:   { status: 'succeeded' | 'failed'; steps: CheckRun.Step[]; failure: CheckRun.Failure | null; published?: boolean },
+    ): Promise<CheckRun | null> {
         const row = await this.trx
             .updateTable('code_workspace.check_run')
             .set({
@@ -214,7 +214,7 @@ export class CheckRunRepository extends Repository(CodeWorkspaceDB.database) {
 
     /** Running, then silent for `minutes`: the worker died. Failed; returns them. */
     @Transactional('service')
-    public async failSilent(principal: Principal.Service, minutes: number, failure: CheckRun.Failure): Promise<CheckRun.Schema[]> {
+    public async failSilent(principal: Principal.Service, minutes: number, failure: CheckRun.Failure): Promise<CheckRun[]> {
         const rows = await this.trx
             .updateTable('code_workspace.check_run')
             .set({ status: 'failed', failure: json(failure), finished_at: new Date() })

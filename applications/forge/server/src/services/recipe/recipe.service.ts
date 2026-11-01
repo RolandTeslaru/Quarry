@@ -22,7 +22,7 @@ export class RecipeService {
         producerRid: Library.Resource.Rid,
         branch:      Foundations.Branch,
         recipes:       PublishedRecipe[],
-    ): Promise<Forge.Recipe.Schema[]> {
+    ): Promise<Forge.Recipe[]> {
         return this.repository.recipe.publish(principal, producerRid, branch, recipes);
     }
 
@@ -31,7 +31,7 @@ export class RecipeService {
         principal:  Principal,
         datasetRid: Dataset.Rid,
         branches:   Foundations.Branch[],
-    ): Promise<Forge.Recipe.Schema | null> {
+    ): Promise<Forge.Recipe | null> {
         return this.repository.recipe.getCurrent(principal, datasetRid, branches);
     }
 
@@ -43,8 +43,8 @@ export class RecipeService {
         principal:   Principal,
         datasetRids: Dataset.Rid[],
         branches:    Foundations.Branch[],
-    ): Promise<Record<Forge.Recipe.Rid, Forge.Recipe.Schema>> {
-        const recipes: Record<Forge.Recipe.Rid, Forge.Recipe.Schema> = {};
+    ): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> {
+        const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
 
         for (const datasetRid of datasetRids) {
             const recipe = await this.repository.recipe.getCurrent(principal, datasetRid, branches);
@@ -58,7 +58,7 @@ export class RecipeService {
         return recipes;
     }
 
-    public async get(principal: Principal, rid: Forge.Recipe.Rid): Promise<Forge.Recipe.Schema> {
+    public async get(principal: Principal, rid: Forge.Recipe.Rid): Promise<Forge.Recipe> {
         const recipe = await this.repository.recipe.get(principal, rid);
 
         if (!recipe)

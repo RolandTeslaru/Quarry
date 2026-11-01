@@ -13,7 +13,7 @@ export interface TemplateParams {
 }
 
 /** A workspace template: its wire description, its first commit's files, and what to run on them before committing. */
-export interface WorkspaceTemplate extends CodeWorkspace.Template.Schema {
+export interface WorkspaceTemplate extends CodeWorkspace.Template {
     readonly files:    (params: TemplateParams) => Record<string, string>;
     /** Runs in the working directory after the files are written (e.g. `uv lock`). */
     readonly prepare?: (directory: string) => Promise<void>;

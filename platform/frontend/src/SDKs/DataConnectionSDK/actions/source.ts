@@ -64,7 +64,7 @@ export class SourceActions extends ActionGroup<DataConnectionSDKImpl> {
         return data
     }
 
-    public async create(request: DataConnection.API.Source.Create.Request): Promise<DataConnection.Source.Schema> {
+    public async create(request: DataConnection.API.Source.Create.Request): Promise<DataConnection.Source> {
         try {
             const { source } = await DataConnection.API.Source.create(api, request)
 

@@ -21,7 +21,7 @@ describe("DataConnection.Event", () => {
     })
 
     it("creates an event without its channel — the publisher adds it", () => {
-        const run = { rid: SyncRun.createRid() } as SyncRun.Schema
+        const run = { rid: SyncRun.createRid() } as SyncRun
         const event = Event.create("data-connection:run:updated", { run })
 
         expect(event).toEqual({ type: "data-connection:run:updated", run })

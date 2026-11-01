@@ -54,11 +54,11 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         principal:   Principal,
         build:       NewBuild,
         plannedJobs: Record<Forge.Job.Rid, PlannedJob>,
-    ): Promise<Record<Forge.Job.Rid, Forge.Job.Schema>> {
+    ): Promise<Record<Forge.Job.Rid, Forge.Job>> {
         await this._build.insert(principal, build);
 
         const jobs = await this._job.insert(principal, build, plannedJobs);
-        const roots: Forge.Job.Schema[] = [];
+        const roots: Forge.Job[] = [];
 
         for (const job of Object.values(jobs))
             if (job.status === 'scheduled')
@@ -74,7 +74,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
      * The build is locked before any job row, as finishJob and cancelForFailure lock it: another order deadlocks.
      */
     @Transactional()
-    public async cancelBuild(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.Job.Schema[] | null> {
+    public async cancelBuild(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.Job[] | null> {
         await this._build.lock(principal, rid);
 
         const finishedAt = new Date();
@@ -99,10 +99,10 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
      * or all the build's are. The build ends — failed — once nothing is left unfinished. Returns the canceled jobs.
      */
     @Transactional()
-    public async cancelForFailure(principal: Principal, failed: Forge.Job.Schema): Promise<Forge.Job.Schema[]> {
+    public async cancelForFailure(principal: Principal, failed: Forge.Job): Promise<Forge.Job[]> {
         const build = await this._build.lock(principal, failed.buildRid);
         const finishedAt = new Date();
-        let canceled: Forge.Job.Schema[];
+        let canceled: Forge.Job[];
 
         if (build.onJobFailure === 'cancel-build')
             canceled = await this._job.cancelUnfinished(principal, build.rid, finishedAt);
@@ -123,8 +123,8 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         principal: Principal,
         rid:       Forge.Job.Rid,
         attempt:   number,
-        inputs:    NonNullable<Forge.Job.Schema['inputs']>,
-    ): Promise<Forge.Job.Schema | null> {
+        inputs:    NonNullable<Forge.Job['inputs']>,
+    ): Promise<Forge.Job | null> {
         const job = await this._job.claim(principal, rid, attempt, inputs);
 
         if (!job)
@@ -147,7 +147,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         principal: Principal,
         rid:       Forge.Job.Rid,
         outcome:   Forge.API.Agent.Finish.Request,
-    ): Promise<{ job: Forge.Job.Schema; scheduled: Forge.Job.Schema[] } | null> {
+    ): Promise<{ job: Forge.Job; scheduled: Forge.Job[] } | null> {
         // Before any job row: sibling jobs finishing at once each see the other's outcome, and the order matches cancelBuild's.
         const build = await this._build.lockForJob(principal, rid);
         const job = await this._job.finish(principal, rid, outcome);
@@ -155,7 +155,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         if (!job)
             return null;
 
-        let scheduled: Forge.Job.Schema[] = [];
+        let scheduled: Forge.Job[] = [];
 
         // Its outputs become new versions before any child is scheduled: a child pins its inputs when it's claimed.
         if (outcome.status === 'succeeded') {
@@ -173,7 +173,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
     // ── helpers ─────────────────────────────────────────────────────────
 
     /** Queues scheduled jobs for the ForgeAgents: their run-job messages, into the outbox — in the transaction that scheduled them. */
-    private async enqueueJobs(jobs: Forge.Job.Schema[]): Promise<void> {
+    private async enqueueJobs(jobs: Forge.Job[]): Promise<void> {
         await this._runJobQueue.add(jobs.map((job) => {
             const message = Forge.Job.getQueueMessage(job);
 
@@ -182,12 +182,12 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
     }
 
     /** Withdraws jobs from the agents' queue — claimed, or never to be: their messages out of the outbox. Jobs that never had one (waiting) are no-ops. */
-    private async withdrawJobs(jobs: Forge.Job.Schema[]): Promise<void> {
+    private async withdrawJobs(jobs: Forge.Job[]): Promise<void> {
         await this._runJobQueue.ack(jobs.map((job) => Forge.Queue.RunJob.getQueueJobId(Forge.Job.getQueueMessage(job))));
     }
 
     /** The finished job's children whose parents have all succeeded: `waiting → scheduled`. */
-    private async scheduleReadyChildren(principal: Principal, build: Forge.Build.Schema, finished: Forge.Job.Schema): Promise<Forge.Job.Schema[]> {
+    private async scheduleReadyChildren(principal: Principal, build: Forge.Build, finished: Forge.Job): Promise<Forge.Job[]> {
         const jobs = await this._job.listByBuild(principal, finished.buildRid);
 
         const succeeded = new Set<Forge.Recipe.Rid>();

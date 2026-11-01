@@ -31,7 +31,7 @@ export interface IncomingFile {
 
 /** What a stored file says about itself. */
 interface Inferred {
-    readonly schema:   ColumnSchema.Schema;
+    readonly schema:   ColumnSchema;
     readonly rowCount: number | null;
 }
 
@@ -72,7 +72,7 @@ export class CatalogStorage {
     ): Promise<Catalog.API.Dataset.Upload.Response> {
         const filename = requireFormat(file);
         const format = Storage.File.formatOf(filename)!;
-        let transaction: Catalog.Transaction.Schema;
+        let transaction: Catalog.Transaction;
 
         // Opening first: may this principal write here at all (RLS), before anything about its contents is answered.
         try {
@@ -97,7 +97,7 @@ export class CatalogStorage {
 
             const inferred = await this.infer(format, key);
 
-            let added: Catalog.Transaction.FileChange.Schema = {
+            let added: Catalog.Transaction.FileChange = {
                 op:          'add',
                 logicalPath: filename,
                 format:      'parquet',
@@ -117,7 +117,7 @@ export class CatalogStorage {
                 };
             }
 
-            let schema: ColumnSchema.Schema;
+            let schema: ColumnSchema;
 
             if (mode === 'append')
                 schema = await this.append(principal, datasetRid, transaction.rid, added, inferred.schema);
@@ -149,9 +149,9 @@ export class CatalogStorage {
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,
-        added:          Catalog.Transaction.FileChange.Schema,
-        schema:         ColumnSchema.Schema,
-    ): Promise<ColumnSchema.Schema> {
+        added:          Catalog.Transaction.FileChange,
+        schema:         ColumnSchema,
+    ): Promise<ColumnSchema> {
         await this.transactions.registerChanges(principal, datasetRid, transactionRid, [added]);
         await this.transactions.commit(principal, datasetRid, transactionRid, schema);
 
@@ -166,9 +166,9 @@ export class CatalogStorage {
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,
-        added:          Catalog.Transaction.FileChange.Schema,
-        schema:         ColumnSchema.Schema,
-    ): Promise<ColumnSchema.Schema> {
+        added:          Catalog.Transaction.FileChange,
+        schema:         ColumnSchema,
+    ): Promise<ColumnSchema> {
         const current = await this.transactions.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH);
 
         if (current.files.some((existing) => existing.logicalPath === added.logicalPath)) {
@@ -269,7 +269,7 @@ export class CatalogStorage {
         const key = Dataset.getStorageKey(datasetRid, transactionRid, filename);
         const inferred = await this.infer('parquet', key);
 
-        const file: Catalog.Transaction.FileChange.Schema = {
+        const file: Catalog.Transaction.FileChange = {
             op:          'add',
             logicalPath: filename,
             format:      'parquet',
@@ -320,7 +320,7 @@ export class CatalogStorage {
      * format must stay the files' format; whether the new types parse is checked
      * by reading the first rows before committing.
      */
-    async setSchema(principal: Principal, datasetRid: Dataset.Rid, schema: ColumnSchema.Schema): Promise<Dataset.Sequence> {
+    async setSchema(principal: Principal, datasetRid: Dataset.Rid, schema: ColumnSchema): Promise<Dataset.Sequence> {
         const view = await this.transactions.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH);
 
         if (view.files.length === 0)
@@ -419,7 +419,7 @@ export class CatalogStorage {
     }
 
     /** A DuckDB table expression reading these files with this schema — CSV columns cast to the schema's types. */
-    private scan(schema: ColumnSchema.Schema, urls: string[]): string {
+    private scan(schema: ColumnSchema, urls: string[]): string {
         const files = `[${urls.map(literal).join(', ')}]`;
 
         if (schema.reader.format === 'parquet')
@@ -468,7 +468,7 @@ function character(value: unknown): string {
 }
 
 /** Same format, same column names in the same order. Types may differ: appended files are read with the dataset's schema. */
-function sameShape(dataset: ColumnSchema.Schema, file: ColumnSchema.Schema): boolean {
+function sameShape(dataset: ColumnSchema, file: ColumnSchema): boolean {
     if (dataset.reader.format !== file.reader.format)
         return false;
 

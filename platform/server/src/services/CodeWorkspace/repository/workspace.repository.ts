@@ -28,7 +28,7 @@ export class WorkspaceRepository extends Repository(CodeWorkspaceDB.database) {
         description: string | null;
         parentRid:   Library.Resource.Rid;
         templateId:  CodeWorkspace.Template.Id;
-    }): Promise<CodeWorkspace.Schema> {
+    }): Promise<CodeWorkspace> {
         const row = await this.trx
             .insertInto('code_workspace.workspace')
             .values({
@@ -43,7 +43,7 @@ export class WorkspaceRepository extends Repository(CodeWorkspaceDB.database) {
 
     /** Live only: @Transactional checks the workspace and its ancestors aren't trashed. */
     @Transactional()
-    async get(principal: Principal, rid: CodeWorkspace.Rid): Promise<CodeWorkspace.Schema | null> {
+    async get(principal: Principal, rid: CodeWorkspace.Rid): Promise<CodeWorkspace | null> {
         const row = await this.trx
             .selectFrom('code_workspace.workspace as w')
             .innerJoin('library.resource as r', 'r.rid', 'w.rid')
@@ -62,7 +62,7 @@ export class WorkspaceRepository extends Repository(CodeWorkspaceDB.database) {
 
     /** An app opening the workspace's page: it, and the audit `open`, in one transaction. Null: not there, or not theirs to see. */
     @Transactional('user')
-    async open(principal: Principal.User, rid: CodeWorkspace.Rid, application: Platform.Application.Id): Promise<CodeWorkspace.Schema | null> {
+    async open(principal: Principal.User, rid: CodeWorkspace.Rid, application: Platform.Application.Id): Promise<CodeWorkspace | null> {
         const workspace = await this.get(principal, rid);           // joins this transaction
 
         if (workspace)
@@ -73,7 +73,7 @@ export class WorkspaceRepository extends Repository(CodeWorkspaceDB.database) {
 
     /** Every live workspace the user can discover (RLS), across projects. */
     @Transactional()
-    async list(principal: Principal): Promise<CodeWorkspace.Schema[]> {
+    async list(principal: Principal): Promise<CodeWorkspace[]> {
         const rows = await this.trx
             .selectFrom('code_workspace.workspace as w')
             .innerJoin('library.resource as r', 'r.rid', 'w.rid')

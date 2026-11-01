@@ -3,7 +3,7 @@ import type { AuthSDK, AuthSDKImpl } from './sdk'
 
 // After PretzelGraph's ExecutionSDK observers: explicit transitions as named callbacks.
 
-type Member = Identity.User.Schema
+type Member = Identity.User
 
 /** Callbacks for AuthSDK's transitions, grouped by what changes. */
 export type AuthObserver = {

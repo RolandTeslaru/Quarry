@@ -35,13 +35,12 @@ export namespace Job {
         heartbeatAt:           z.coerce.date().nullable(),
         finishedAt:            z.coerce.date().nullable(),
     })
-    export type Schema = z.infer<typeof Schema>
 
     /** Its run-job message: this attempt's. */
-    export const getQueueMessage = (job: Pick<Schema, "rid" | "attempt">) => ({ jobRid: job.rid, attempt: job.attempt })
+    export const getQueueMessage = (job: Pick<Job, "rid" | "attempt">) => ({ jobRid: job.rid, attempt: job.attempt })
 
     /** These jobs' output transactions, by dataset — how Catalog addresses them. A dataset is one job's output in a build. */
-    export function getOutputTransactions(jobs: Pick<Schema, "outputs">[]): Record<Dataset.Rid, Transaction.Rid> {
+    export function getOutputTransactions(jobs: Pick<Job, "outputs">[]): Record<Dataset.Rid, Transaction.Rid> {
         const transactions: Record<Dataset.Rid, Transaction.Rid> = {}
 
         for (const job of jobs)
@@ -54,3 +53,4 @@ export namespace Job {
     /** Not finished: it may still run, or is running. */
     export const UNFINISHED: readonly Status[] = ["waiting", "scheduled", "running"]
 }
+export type Job = z.infer<typeof Job.Schema>

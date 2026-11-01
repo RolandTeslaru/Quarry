@@ -20,7 +20,7 @@ describe("Forge.Event", () => {
     })
 
     it("creates an event without its channel — the publisher adds it", () => {
-        const job = { rid: Job.createRid() } as Job.Schema
+        const job = { rid: Job.createRid() } as Job
         const event = Event.create("forge:job:updated", { job })
 
         expect(event).toEqual({ type: "forge:job:updated", job })

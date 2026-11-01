@@ -6,10 +6,10 @@ describe("Job", () => {
     it("gathers several jobs' output transactions by dataset", () => {
         const first = {
             "ri.catalog.main.dataset.01a1729a-975b-70de-8141-89cca28b34d2": "ri.catalog.main.transaction.01a1729a-975b-70de-8141-89cca28b34d3",
-        } as Job.Schema["outputs"]
+        } as Job["outputs"]
         const second = {
             "ri.catalog.main.dataset.01a1729a-975b-70de-8141-89cca28b34d4": "ri.catalog.main.transaction.01a1729a-975b-70de-8141-89cca28b34d5",
-        } as Job.Schema["outputs"]
+        } as Job["outputs"]
 
         expect(Job.getOutputTransactions([{ outputs: first }, { outputs: second }])).toEqual({ ...first, ...second })
         expect(Job.getOutputTransactions([{ outputs: {} }])).toEqual({})

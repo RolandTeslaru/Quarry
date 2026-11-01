@@ -21,7 +21,6 @@ export namespace AccessEvent {
         applicationId: Application.Id.nullable(),          // only on open
         detail:        z.record(z.string(), z.unknown()),
     })
-    export type Schema = z.infer<typeof Schema>
 
     /** A resource the caller opened recently in one app: the resource, where it sits, when. */
     export const Recent = z.object({
@@ -31,3 +30,4 @@ export namespace AccessEvent {
     })
     export type Recent = z.infer<typeof Recent>
 }
+export type AccessEvent = z.infer<typeof AccessEvent.Schema>

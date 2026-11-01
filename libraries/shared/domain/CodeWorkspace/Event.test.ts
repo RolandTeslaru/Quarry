@@ -20,7 +20,7 @@ describe("CodeWorkspace.Event", () => {
     })
 
     it("creates an event without its channel — the publisher adds it", () => {
-        const checkRun = { rid: CheckRun.createRid() } as CheckRun.Schema
+        const checkRun = { rid: CheckRun.createRid() } as CheckRun
         const event = Event.create("code-workspace:check-run:updated", { checkRun })
 
         expect(event).toEqual({ type: "code-workspace:check-run:updated", checkRun })

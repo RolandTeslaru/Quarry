@@ -15,7 +15,6 @@ export namespace Template {
         displayName: z.string(),
         description: z.string(),
     })
-    export type Schema = z.infer<typeof Schema>
 
     /** "Sales cleaning!" → "sales-cleaning" — the workspace's Python project name. */
     export const getProjectName = (workspaceName: string): string =>
@@ -37,3 +36,4 @@ export namespace Template {
             .split(/[^a-z0-9]+/)
             .filter(word => word.length > 0)
 }
+export type Template = z.infer<typeof Template.Schema>

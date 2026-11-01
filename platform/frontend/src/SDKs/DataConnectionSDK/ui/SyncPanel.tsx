@@ -12,7 +12,7 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { useTask } from '@/hooks/useTask'
 
 interface Props {
-    source: DataConnection.Source.Schema
+    source: DataConnection.Source
 }
 
 export function SyncPanel({ source }: Props) {
@@ -29,7 +29,7 @@ export function SyncPanel({ source }: Props) {
     const [task, withTask] = useTask()
     const selected = (selectedRid && syncsByRid[selectedRid]) || syncs[0]
 
-    const runSync = withTask(async (sync: DataConnection.Sync.Schema) => {
+    const runSync = withTask(async (sync: DataConnection.Sync) => {
         setQueuedRid(null)
         setSelectedRid(sync.rid)
 

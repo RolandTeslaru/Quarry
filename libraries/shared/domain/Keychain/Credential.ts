@@ -29,8 +29,8 @@ export namespace Credential {
             icon:         z.string(),
             fieldsSchema: z.record(z.string(), z.unknown()),     // z.toJSONSchema(Fields)
         })
-        export type Schema = z.infer<typeof Schema>
     }
+    export type Template = z.infer<typeof Template.Schema>
 
     /** All of a credential's values, encrypted together: `keyId:iv:authTag:ciphertext` (hex). */
     export const Blob = z.string().regex(/^[0-9a-f]{8}:[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/, "Not an encrypted blob").brand("CredentialBlob")
@@ -55,5 +55,5 @@ export namespace Credential {
         parentRid:  Resource.Rid,
         templateId: Template.Id,
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type Credential = z.infer<typeof Credential.Schema>

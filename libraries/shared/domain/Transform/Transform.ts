@@ -14,7 +14,6 @@ export namespace Transform {
         inputs:  z.record(z.string(), DatasetReference),
         outputs: z.record(z.string(), DatasetReference),
     })
-    export type Schema = z.infer<typeof Schema>
 
     /** The user's code raised. */
     export const Failure = z.object({
@@ -29,3 +28,4 @@ export type Failure = z.infer<typeof Failure>
     ])
     export type Listing = z.infer<typeof Listing>
 }
+export type Transform = z.infer<typeof Transform.Schema>

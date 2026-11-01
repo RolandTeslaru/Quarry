@@ -28,7 +28,7 @@ export class SyncService {
      * dataset and the scheduler would otherwise exist before RLS refuses the sync row.
      */
     @SecurityGate('write')
-    async create(principal: Principal, sourceRid: DataConnection.Source.Rid, request: DataConnection.API.Sync.Create.Request): Promise<DataConnection.Sync.Schema> {
+    async create(principal: Principal, sourceRid: DataConnection.Source.Rid, request: DataConnection.API.Sync.Create.Request): Promise<DataConnection.Sync> {
         const source = await this.sources.require(principal, sourceRid);
         const config = validateSyncConfig(source, request.config);
 
@@ -57,7 +57,7 @@ export class SyncService {
     }
 
     /** Syncs are listed with discover on the source (RLS); 404 if the source is hidden. */
-    async list(principal: Principal, sourceRid: DataConnection.Source.Rid): Promise<DataConnection.Sync.Schema[]> {
+    async list(principal: Principal, sourceRid: DataConnection.Source.Rid): Promise<DataConnection.Sync[]> {
         await this.sources.require(principal, sourceRid);
 
         const rows = await this.repository.listForSource(principal, sourceRid);

@@ -28,7 +28,7 @@ export const defineCredential = <F extends z.ZodObject>(template: CredentialTemp
 });
 
 /** As the API sends it: Fields becomes JSON Schema (input side — fields with defaults are optional). */
-export const credentialToWire = (template: CredentialTemplate): Keychain.Credential.Template.Schema =>
+export const credentialToWire = (template: CredentialTemplate): Keychain.Credential.Template =>
     Keychain.Credential.Template.Schema.parse({
         id:           template.id,
         displayName:  template.displayName,

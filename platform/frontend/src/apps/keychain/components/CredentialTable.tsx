@@ -6,9 +6,9 @@ import type { KeychainSDK } from '@/SDKs/KeychainSDK/sdk'
 import { dateTime } from '@/utils/format'
 
 interface CredentialTableProps {
-    credentials: Keychain.Credential.Schema[]
+    credentials: Keychain.Credential[]
     templates:   KeychainSDK.State['templates']
-    onEdit:      (credential: Keychain.Credential.Schema) => void
+    onEdit:      (credential: Keychain.Credential) => void
 }
 
 export function CredentialTable({ credentials, templates, onEdit }: CredentialTableProps) {

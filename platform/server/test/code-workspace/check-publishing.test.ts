@@ -55,7 +55,7 @@ describe('publishing recipes', () => {
         return { workspace, run: queued[0] };
     }
 
-    async function finishWith(run: CheckRun.Schema, transforms: Transform[]): Promise<CheckRun.Schema> {
+    async function finishWith(run: CheckRun, transforms: Transform[]): Promise<CheckRun> {
         return checks.finish(run.rid, Outcome.parse({ status: 'succeeded', manifest: { transforms } }));
     }
 
@@ -138,7 +138,7 @@ describe('publishing recipes', () => {
 
     describe('refusals — the run fails at its publish step, nothing published', () => {
 
-        async function expectRefused(run: CheckRun.Schema, transforms: Transform[], message: RegExp): Promise<void> {
+        async function expectRefused(run: CheckRun, transforms: Transform[], message: RegExp): Promise<void> {
             const finished = await finishWith(run, transforms);
 
             expect(finished).toMatchObject({ status: 'failed', published: false, failure: { step: CheckRun.PUBLISH_STEP } });

@@ -138,7 +138,7 @@ export class DataConnectionHarness {
     }
 
     /** A Postgres credential in the folder, through Keychain — the main server's HTTP API, as the user. */
-    public async createCredential(principal: Principal.User, parentRid: Library.Resource.Rid, login: PostgresLogin = NOWHERE): Promise<Keychain.Credential.Schema> {
+    public async createCredential(principal: Principal.User, parentRid: Library.Resource.Rid, login: PostgresLogin = NOWHERE): Promise<Keychain.Credential> {
         const { credential } = await Keychain.API.Credential.create(await this.getApi(principal), {
             parentRid,
             name:        `Login ${randomUUID()}`,
@@ -159,7 +159,7 @@ export class DataConnectionHarness {
     public async createSource(
         principal: Principal.User,
         login:     PostgresLogin = NOWHERE,
-    ): Promise<{ projectRid: Library.Resource.Rid; credential: Keychain.Credential.Schema; source: DataConnection.Source.Schema }> {
+    ): Promise<{ projectRid: Library.Resource.Rid; credential: Keychain.Credential; source: DataConnection.Source }> {
         const projectRid = await this.createProject(principal);
         const credential = await this.createCredential(principal, projectRid, login);
         const source = await this.sources.create(principal, {
@@ -178,9 +178,9 @@ export class DataConnectionHarness {
     /** A sync of `public.tools` into a new dataset next to the source — append (incremental) unless asked for a snapshot. */
     public async createSync(
         principal: Principal.User,
-        source:    DataConnection.Source.Schema,
+        source:    DataConnection.Source,
         options:   { schedule?: string | null; snapshot?: boolean } = {},
-    ): Promise<DataConnection.Sync.Schema> {
+    ): Promise<DataConnection.Sync> {
         return this.syncs.create(principal, source.rid, {
             name:     `Sync ${randomUUID()}`,
             config:   options.snapshot ? { kind: 'table', table: 'tools' } : { kind: 'table', table: 'tools', incrementalColumn: 'updated_at' },
@@ -192,7 +192,7 @@ export class DataConnectionHarness {
     // ── playing the worker ──────────────────────────────────────────────
 
     /** The worker starts a run — as the scheduler would for `triggeredBy: null`. Throws if it was skipped. */
-    public async startRun(sync: DataConnection.Sync.Schema, triggeredBy: Principal.User | null): Promise<StartedRun> {
+    public async startRun(sync: DataConnection.Sync, triggeredBy: Principal.User | null): Promise<StartedRun> {
         const started = await this.syncRuns.start({
             syncRid:     sync.rid,
             trigger:     triggeredBy ? 'manual' : 'schedule',
@@ -245,11 +245,11 @@ export class DataConnectionHarness {
     // ── reading what happened ───────────────────────────────────────────
 
     /** The sync's runs, newest first, as its creator sees them. */
-    public async runs(principal: Principal.User, sync: DataConnection.Sync.Schema): Promise<DataConnection.SyncRun.Schema[]> {
+    public async runs(principal: Principal.User, sync: DataConnection.Sync): Promise<DataConnection.SyncRun[]> {
         return this.syncRuns.list(principal, sync.sourceRid, sync.rid);
     }
 
-    public async run(principal: Principal.User, sync: DataConnection.Sync.Schema, runRid: DataConnection.SyncRun.Rid): Promise<DataConnection.SyncRun.Schema> {
+    public async run(principal: Principal.User, sync: DataConnection.Sync, runRid: DataConnection.SyncRun.Rid): Promise<DataConnection.SyncRun> {
         const found = (await this.runs(principal, sync)).find((run) => run.rid === runRid);
 
         if (!found)
@@ -259,7 +259,7 @@ export class DataConnectionHarness {
     }
 
     /** The output dataset's current version on main — Catalog's HTTP API, as the user. */
-    public async view(principal: Principal.User, datasetRid: Dataset.Rid): Promise<Dataset.View.Schema> {
+    public async view(principal: Principal.User, datasetRid: Dataset.Rid): Promise<Dataset.View> {
         const { view } = await Catalog.API.Dataset.getView(await this.getApi(principal, requireEnv('CATALOG_URL')), datasetRid);
 
         return view;

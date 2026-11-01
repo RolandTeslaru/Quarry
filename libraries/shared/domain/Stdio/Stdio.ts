@@ -79,8 +79,8 @@ export namespace Stdio {
         export type  Log = z.infer<typeof Log>
 
         export const Schema = z.discriminatedUnion("event", [Ready, Log])
-        export type  Schema = z.infer<typeof Schema>
     }
+    export type Event = z.infer<typeof Event.Schema>
 
     /**
      * What kind of message a line on stdout is. Only the envelope: the line is

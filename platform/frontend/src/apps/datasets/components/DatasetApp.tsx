@@ -135,8 +135,8 @@ function ViewTabs() {
 }
 
 interface AboutPanelProps {
-    dataset: Dataset.Schema
-    view:    Dataset.View.Schema | undefined
+    dataset: Dataset
+    view:    Dataset.View | undefined
 }
 
 function AboutPanel({ dataset, view }: AboutPanelProps) {
@@ -169,7 +169,7 @@ function AboutPanel({ dataset, view }: AboutPanelProps) {
 }
 
 interface ColumnsPanelProps {
-    view: Dataset.View.Schema
+    view: Dataset.View
 }
 
 function ColumnsPanel({ view }: ColumnsPanelProps) {
@@ -189,7 +189,7 @@ function ColumnsPanel({ view }: ColumnsPanelProps) {
 }
 
 /** "5 columns • 1 file • 229 KB" */
-function sizeSummary(view: Dataset.View.Schema): string {
+function sizeSummary(view: Dataset.View): string {
     const columns = view.schema?.columns.length ?? 0
     const files = view.files.length
     const bytes = view.files.reduce((total, file) => total + file.bytes, 0)

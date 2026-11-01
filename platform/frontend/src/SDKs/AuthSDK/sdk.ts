@@ -108,7 +108,7 @@ export namespace AuthSDK {
     export type State = {
         hasSession: boolean | null
         access:     Access
-        user:       Identity.User.Schema | null
+        user:       Identity.User | null
         error:      string | null
     }
 

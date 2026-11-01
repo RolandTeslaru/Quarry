@@ -39,7 +39,7 @@ export class SyncRunService {
      * would otherwise get a silently empty history instead of a 403.
      */
     @SecurityGate('read')
-    async list(principal: Principal, sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid): Promise<DataConnection.SyncRun.Schema[]> {
+    async list(principal: Principal, sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid): Promise<DataConnection.SyncRun[]> {
         await this.syncs.require(principal, sourceRid, syncRid);
 
         const rows = await this.repository.list(principal, syncRid);
@@ -215,6 +215,6 @@ export class SyncRunService {
 }
 
 /** Manual runs act for whoever pressed run; scheduled ones for the sync's creator. */
-function runPrincipal(triggeredBy: DataConnection.SyncRun.Schema['triggeredBy'], sync: DataConnectionDB.Sync.Row): Principal {
+function runPrincipal(triggeredBy: DataConnection.SyncRun['triggeredBy'], sync: DataConnectionDB.Sync.Row): Principal {
     return Principal.onBehalfOf(triggeredBy ?? sync.created_by, `sync:${sync.rid}`);
 }

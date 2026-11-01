@@ -70,7 +70,7 @@ export const CatalogSDK = SDK.get<CatalogSDKImpl>('Catalog')
 export namespace CatalogSDK {
 
     export type State = {
-        datasets: Record<Dataset.Rid, Dataset.Schema>
+        datasets: Record<Dataset.Rid, Dataset>
     }
 
     export type Actions = CatalogActions

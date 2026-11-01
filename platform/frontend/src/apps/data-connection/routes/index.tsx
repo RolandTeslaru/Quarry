@@ -117,7 +117,7 @@ function DataConnectionHome() {
 }
 
 interface SourcesTableProps {
-    sources:     DataConnection.Source.Schema[]
+    sources:     DataConnection.Source[]
     definitions: DataConnectionSDK.State['definitions']
 }
 

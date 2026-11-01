@@ -4,7 +4,7 @@ import { DataConnection } from '@quarry/shared/domain';
 import { findDefinition } from '@quarry/integrations/definitions';
 
 /** What a sync of this source can copy — its integration's sync definition. */
-export function syncDefinition(source: DataConnection.Source.Schema) {
+export function syncDefinition(source: DataConnection.Source) {
     const definition = findDefinition(source.definitionId);
 
     if (!definition)
@@ -14,7 +14,7 @@ export function syncDefinition(source: DataConnection.Source.Schema) {
 }
 
 /** A new sync's config, parsed (defaults applied) against its integration's sync Config. */
-export function validateSyncConfig(source: DataConnection.Source.Schema, config: DataConnection.Sync.Config): DataConnection.Sync.Config {
+export function validateSyncConfig(source: DataConnection.Source, config: DataConnection.Sync.Config): DataConnection.Sync.Config {
     const parsed = syncDefinition(source).Config.safeParse(config);
 
     if (!parsed.success)

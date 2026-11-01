@@ -60,7 +60,7 @@ export class WorkspaceActions extends ActionGroup<CodeWorkspaceSDKImpl> {
         return data
     }
 
-    public async create(request: CodeWorkspace.API.Create.Request): Promise<CodeWorkspace.Schema> {
+    public async create(request: CodeWorkspace.API.Create.Request): Promise<CodeWorkspace> {
         try {
             const { workspace } = await CodeWorkspace.API.create(api, request)
 

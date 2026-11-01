@@ -33,7 +33,7 @@ export namespace AuditDB {
         });
         export type Row = z.infer<typeof Row>;
 
-        export const toDomain = (row: Row): Audit.AccessEvent.Schema => Audit.AccessEvent.Schema.parse({
+        export const toDomain = (row: Row): Audit.AccessEvent => Audit.AccessEvent.Schema.parse({
             id:            row.id,
             at:            row.at,
             userRid:       row.user_rid,
@@ -193,7 +193,7 @@ export class AuditRepository extends Repository(AuditDB.database) {
         to?:          Date;
         before?:      number;
         limit:        number;
-    }): Promise<Audit.AccessEvent.Schema[]> {
+    }): Promise<Audit.AccessEvent[]> {
         let query = this.trx.selectFrom('audit.access_event').selectAll();
 
         if (filter.resourceRid) query = query.where('resource_rid', '=', filter.resourceRid);

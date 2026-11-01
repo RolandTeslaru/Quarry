@@ -38,14 +38,13 @@ export namespace CheckRun {
             finishedAt: z.coerce.date().nullable(),
             log:        z.string(),                     // the last LOG_TAIL_BYTES
         })
-        export type Schema = z.infer<typeof Schema>
 
         /** How much of a step's output is kept. */
         export const LOG_TAIL_BYTES = 64 * 1024
 
         /** A finished run's steps: those that never ran (or never ended) become skipped. */
-        export function skipUnfinished(steps: Schema[]): Schema[] {
-            const result: Schema[] = []
+        export function skipUnfinished(steps: Step[]): Step[] {
+            const result: Step[] = []
 
             for (const step of steps) {
                 if (step.status === "waiting" || step.status === "running")
@@ -57,6 +56,7 @@ export namespace CheckRun {
             return result
         }
     }
+    export type Step = z.infer<typeof Step.Schema>
 
     /** The server's own steps around the file's: reading quarry-ci.yml, and validating and publishing the manifest. */
     export const PARSE_STEP = "Parse quarry-ci.yml"
@@ -84,7 +84,6 @@ export namespace CheckRun {
         reportedAt:   z.coerce.date().nullable(),        // the worker's last report (start, a step) — silence fails it
         finishedAt:   z.coerce.date().nullable(),
     })
-    export type Schema = z.infer<typeof Schema>
 
     /** A check step's state as the worker reports it. */
     export const REPORTED_STEP_STATUSES = ["running", "succeeded", "failed"] as const
@@ -92,3 +91,4 @@ export namespace CheckRun {
     /** Where the worker's step `index` (the file's steps, from 0) is in `steps`: after Parse. */
     export const getStepPosition = (index: number): number => index + 1
 }
+export type CheckRun = z.infer<typeof CheckRun.Schema>

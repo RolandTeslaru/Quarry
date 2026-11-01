@@ -28,7 +28,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         producerRid: Library.Resource.Rid,
         branch:      Foundations.Branch,
         recipes:       PublishedRecipe[],
-    ): Promise<Forge.Recipe.Schema[]> {
+    ): Promise<Forge.Recipe[]> {
         const outputs = recipes.flatMap((recipe) => recipe.outputDatasetRids);
 
         if (new Set(outputs).size !== outputs.length)
@@ -46,7 +46,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
                 .where('branch', '=', branch))
             .execute();
 
-        const published: Forge.Recipe.Schema[] = [];
+        const published: Forge.Recipe[] = [];
 
         for (const recipe of recipes)
             published.push(await this.insert(principal, producerRid, branch, recipe));
@@ -60,7 +60,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         principal:  Principal,
         datasetRid: Dataset.Rid,
         branches:   Foundations.Branch[],
-    ): Promise<Forge.Recipe.Schema | null> {
+    ): Promise<Forge.Recipe | null> {
         const pointers = await this.trx
             .selectFrom('forge.current_recipe')
             .selectAll()
@@ -79,7 +79,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
     }
 
     @Transactional()
-    public async get(principal: Principal, rid: Forge.Recipe.Rid): Promise<Forge.Recipe.Schema | null> {
+    public async get(principal: Principal, rid: Forge.Recipe.Rid): Promise<Forge.Recipe | null> {
         const row = await this.trx
             .selectFrom('forge.recipe')
             .selectAll()
@@ -116,7 +116,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         producerRid: Library.Resource.Rid,
         branch:      Foundations.Branch,
         recipe:        PublishedRecipe,
-    ): Promise<Forge.Recipe.Schema> {
+    ): Promise<Forge.Recipe> {
         const rid = Forge.Recipe.createRid();
 
         const row = await this.trx

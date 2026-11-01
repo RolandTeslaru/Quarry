@@ -6,7 +6,7 @@ import type { GitRepos } from '../git/git-repos';
 import CI = CodeWorkspace.CI;
 import CheckRun = CI.CheckRun;
 
-export async function readCheckConfig(gitRepos: GitRepos, workspaceRid: CodeWorkspace.Rid, commit: CodeWorkspace.Git.Commit): Promise<CI.Check.Config.Schema> {
+export async function readCheckConfig(gitRepos: GitRepos, workspaceRid: CodeWorkspace.Rid, commit: CodeWorkspace.Git.Commit): Promise<CI.Check.Config> {
     const text = await gitRepos.readFile(workspaceRid, commit, CI.Check.FILE);
 
     if (text === null)
@@ -25,14 +25,14 @@ export function getErrorMessage(error: unknown): string {
     return String(error);
 }
 
-export function getStep(name: string, status: CheckRun.Step.Status): CheckRun.Step.Schema {
+export function getStep(name: string, status: CheckRun.Step.Status): CheckRun.Step {
     return { name, status, exitCode: null, startedAt: null, finishedAt: null, log: '' };
 }
 
 /** Parse (done), quarry-ci.yml's steps, then publish. */
-export function layOutSteps(config: CI.Check.Config.Schema): CheckRun.Step.Schema[] {
+export function layOutSteps(config: CI.Check.Config): CheckRun.Step[] {
     const now = new Date();
-    const steps: CheckRun.Step.Schema[] = [{ ...getStep(CheckRun.PARSE_STEP, 'succeeded'), startedAt: now, finishedAt: now }];
+    const steps: CheckRun.Step[] = [{ ...getStep(CheckRun.PARSE_STEP, 'succeeded'), startedAt: now, finishedAt: now }];
 
     for (const step of config.steps)
         steps.push(getStep(step.name, 'waiting'));
@@ -42,7 +42,7 @@ export function layOutSteps(config: CI.Check.Config.Schema): CheckRun.Step.Schem
     return steps;
 }
 
-export function getParseFailedSteps(message: string): CheckRun.Step.Schema[] {
+export function getParseFailedSteps(message: string): CheckRun.Step[] {
     const now = new Date();
 
     return [{ ...getStep(CheckRun.PARSE_STEP, 'failed'), startedAt: now, finishedAt: now, log: message }];

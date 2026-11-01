@@ -23,7 +23,7 @@ export const QUARRY_CI = `steps:
 
 export interface TestWorkspace {
     readonly rid:        CodeWorkspace.Rid;
-    readonly projectRid: CodeWorkspace.Schema['parentRid'];
+    readonly projectRid: CodeWorkspace['parentRid'];
     readonly heads:      CodeWorkspace.Git.Heads;
 }
 

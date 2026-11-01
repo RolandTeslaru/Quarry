@@ -25,7 +25,7 @@ describe('publishing a run', () => {
         await harness.stop();
     });
 
-    async function newSync(options: { snapshot?: boolean } = {}): Promise<DataConnection.Sync.Schema> {
+    async function newSync(options: { snapshot?: boolean } = {}): Promise<DataConnection.Sync> {
         const { source } = await harness.createSource(user);
 
         return harness.createSync(user, source, options);

@@ -10,7 +10,7 @@ function write(message: Stdio.FromProcess): void {
     process.stdout.write(`${JSON.stringify(message)}\n`);
 }
 
-export function sendEvent(event: Stdio.Payload<Stdio.Event.Schema>): void {
+export function sendEvent(event: Stdio.Payload<Stdio.Event>): void {
     write({
         ...event,
         type: 'event',

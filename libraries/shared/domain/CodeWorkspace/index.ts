@@ -30,3 +30,4 @@ export namespace CodeWorkspace {
 
     export import API = ApiMod.API
 }
+export type CodeWorkspace = WorkspaceMod.Workspace

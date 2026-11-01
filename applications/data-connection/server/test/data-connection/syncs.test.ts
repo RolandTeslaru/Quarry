@@ -25,7 +25,7 @@ describe('syncs', () => {
     });
 
     /** The sync jobs waiting for a worker, for this sync. */
-    async function queued(sync: DataConnection.Sync.Schema): Promise<DataConnection.Queue.Sync.Job[]> {
+    async function queued(sync: DataConnection.Sync): Promise<DataConnection.Queue.Sync.Job[]> {
         const jobs = await harness.syncJobs.getJobs(['waiting', 'delayed', 'prioritized']);
 
         return jobs.filter((job) => job.data.syncRid === sync.rid).map((job) => job.data as DataConnection.Queue.Sync.Job);

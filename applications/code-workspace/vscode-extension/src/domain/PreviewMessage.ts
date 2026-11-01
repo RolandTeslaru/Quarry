@@ -15,7 +15,7 @@ export namespace PreviewMessage {
 
     /** The transform being previewed — what it declares, and its references' labels, by reference. */
     interface Run {
-        transform: CodeTransform.Schema
+        transform: CodeTransform
         labels:    Record<string, Label>
     }
 

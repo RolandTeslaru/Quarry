@@ -45,7 +45,7 @@ export class IdentityService {
     }
 
     /** A member by RID, as the principal may see them. */
-    async getUser(principal: Principal, userRid: Identity.User.Rid): Promise<Identity.User.Schema> {
+    async getUser(principal: Principal, userRid: Identity.User.Rid): Promise<Identity.User> {
         const row = await this.userRepository.get(principal, userRid);
 
         if (!row)
@@ -54,7 +54,7 @@ export class IdentityService {
         return IdentityDB.User.toDomain(row);
     }
 
-    async me(principal: Principal.User): Promise<Identity.User.Schema> {
+    async me(principal: Principal.User): Promise<Identity.User> {
         const row = await this.userRepository.get(principal, principal.userRid);
 
         if (!row)
@@ -63,13 +63,13 @@ export class IdentityService {
         return IdentityDB.User.toDomain(row);
     }
 
-    async listUsers(principal: Principal.User): Promise<Identity.User.Schema[]> {
+    async listUsers(principal: Principal.User): Promise<Identity.User[]> {
         const rows = await this.userRepository.list(principal);
 
         return rows.map(IdentityDB.User.toDomain);
     }
 
-    async listGroups(principal: Principal.User): Promise<Identity.Group.Schema[]> {
+    async listGroups(principal: Principal.User): Promise<Identity.Group[]> {
         const rows = await this.groupRepository.list(principal);
 
         return rows.map(IdentityDB.Group.toDomain);

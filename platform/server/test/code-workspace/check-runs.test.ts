@@ -51,14 +51,14 @@ describe('check runs', () => {
     });
 
     /** Every run of the workspace (one branch's, or all), newest first — up to a page of 100. */
-    function listRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CI.CheckRun.Schema[]> {
+    function listRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CI.CheckRun[]> {
         return harness.get(CIService).listCheckRuns(principal, rid, { branch, limit: 100 }).then((page) => page.checkRuns);
     }
 
     /** A workspace whose commits can be checked (they hold quarry-ci.yml). */
     const checkedWorkspace = () => createWorkspace(harness, admin, { 'quarry-ci.yml': QUARRY_CI });
 
-    async function getByCommit(rid: CodeWorkspace.Rid): Promise<Record<string, CI.CheckRun.Schema>> {
+    async function getByCommit(rid: CodeWorkspace.Rid): Promise<Record<string, CI.CheckRun>> {
         return Object.fromEntries((await listRuns(admin, rid)).map((run) => [run.commit, run]));
     }
 

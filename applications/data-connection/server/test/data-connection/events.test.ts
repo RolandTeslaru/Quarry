@@ -38,7 +38,7 @@ describe('run events', () => {
     });
 
     /** The source's run events so far, as `<n>:<status>` (n: the run's order of appearance), once at least `count` have arrived. */
-    async function eventsOf(source: DataConnection.Source.Schema, count: number): Promise<string[]> {
+    async function eventsOf(source: DataConnection.Source, count: number): Promise<string[]> {
         const deadline = Date.now() + 5_000;
 
         const mine = () => {

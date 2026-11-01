@@ -113,5 +113,5 @@ export namespace Build {
         createdAt:        z.coerce.date(),
         finishedAt:       z.coerce.date().nullable(),
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type Build = z.infer<typeof Build.Schema>

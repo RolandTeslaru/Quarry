@@ -26,7 +26,7 @@ export class JobService {
         private readonly identity:   IdentityClient,
     ) {}
 
-    public async getJob(principal: Principal, rid: Forge.Job.Rid): Promise<Forge.Job.Schema> {
+    public async getJob(principal: Principal, rid: Forge.Job.Rid): Promise<Forge.Job> {
         const job = await this.repository.job.get(principal, rid);
 
         if (!job)
@@ -49,7 +49,7 @@ export class JobService {
         // The FKs guarantee the recipe and the build; builds are started by people until schedules exist.
         const recipe = await this.recipes.get(AGENT, waiting.recipeRid);
         const build = (await this.repository.build.get(AGENT, waiting.buildRid))!;
-        const inputs: NonNullable<Forge.Job.Schema['inputs']> = {};
+        const inputs: NonNullable<Forge.Job['inputs']> = {};
 
         for (const datasetRid of recipe.inputDatasetRids)
             inputs[datasetRid] = (await this.catalog.get(AGENT, { rid: datasetRid })).lastSequence;

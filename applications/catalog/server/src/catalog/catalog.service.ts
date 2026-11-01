@@ -30,7 +30,7 @@ export class CatalogService {
     ) {}
 
     /** Creating = writing into the parent folder — RLS's call on the insert. */
-    async createDataset(principal: Principal, request: Catalog.API.Dataset.Create.Request): Promise<Dataset.Schema> {
+    async createDataset(principal: Principal, request: Catalog.API.Dataset.Create.Request): Promise<Dataset> {
         return this.datasetRepository.create(principal, {
             rid:         Dataset.createRid(),
             name:        request.name,
@@ -71,11 +71,11 @@ export class CatalogService {
     }
 
     /** Datasets the principal can discover (RLS). */
-    async list(principal: Principal): Promise<Dataset.Schema[]> {
+    async list(principal: Principal): Promise<Dataset[]> {
         return this.datasetRepository.list(principal);
     }
 
-    async get(principal: Principal, rid: Dataset.Rid): Promise<Dataset.Schema> {
+    async get(principal: Principal, rid: Dataset.Rid): Promise<Dataset> {
         const dataset = await this.datasetRepository.get(principal, rid);
 
         if (!dataset)
@@ -95,7 +95,7 @@ export class CatalogService {
     }
 
     /** A dataset by RID or library path. */
-    async getByReference(principal: Principal, reference: string): Promise<Dataset.Schema> {
+    async getByReference(principal: Principal, reference: string): Promise<Dataset> {
         const rid = Dataset.Rid.safeParse(reference);
 
         if (rid.success)
@@ -107,7 +107,7 @@ export class CatalogService {
     }
 
     /** A dataset by RID or library path — or, for a path nothing is at yet, a new empty one there. */
-    async getOrCreateByReference(principal: Principal, reference: string): Promise<Dataset.Schema> {
+    async getOrCreateByReference(principal: Principal, reference: string): Promise<Dataset> {
         const rid = Dataset.Rid.safeParse(reference);
 
         if (rid.success)
@@ -130,7 +130,7 @@ export class CatalogService {
      */
     @Audit('read', (sequence?: Dataset.Sequence) => ({ op: 'view', sequence: sequence ?? null }))
     @SecurityGate('read')
-    async view(principal: Principal, rid: Dataset.Rid, sequence?: Dataset.Sequence): Promise<Dataset.View.Schema> {
+    async view(principal: Principal, rid: Dataset.Rid, sequence?: Dataset.Sequence): Promise<Dataset.View> {
         return this.transaction.resolveView(principal, rid, Foundations.MAIN_BRANCH, sequence);
     }
 

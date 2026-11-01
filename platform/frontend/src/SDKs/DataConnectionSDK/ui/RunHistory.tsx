@@ -10,7 +10,7 @@ import { dateTime, number } from '@/utils/format'
 
 interface Props {
     sourceRid: DataConnection.Source.Rid
-    sync:      DataConnection.Sync.Schema
+    sync:      DataConnection.Sync
 }
 
 export function RunHistory({ sourceRid, sync }: Props) {

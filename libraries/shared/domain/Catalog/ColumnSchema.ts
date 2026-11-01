@@ -39,13 +39,13 @@ export namespace ColumnSchema {
         export type  Csv = z.infer<typeof Csv>
 
         export const Schema = z.discriminatedUnion("format", [Parquet, Csv])
-        export type  Schema = z.infer<typeof Schema>
     }
+    export type Reader = z.infer<typeof Reader.Schema>
 
     /** A dataset view's schema: its columns, in order, and how to read its files. Stored as catalog.transaction.schema. */
     export const Schema = z.object({
         columns: Column.array(),
         reader:  Reader.Schema,
     })
-    export type  Schema = z.infer<typeof Schema>
 }
+export type ColumnSchema = z.infer<typeof ColumnSchema.Schema>

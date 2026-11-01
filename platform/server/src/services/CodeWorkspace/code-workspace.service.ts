@@ -45,7 +45,7 @@ export class CodeWorkspaceService {
         public readonly ci:               CIService,
     ) {}
 
-    getTemplates(): Record<CodeWorkspace.Template.Id, CodeWorkspace.Template.Schema> {
+    getTemplates(): Record<CodeWorkspace.Template.Id, CodeWorkspace.Template> {
         return TEMPLATES_WIRE;
     }
 
@@ -58,11 +58,11 @@ export class CodeWorkspaceService {
         return template;
     }
 
-    async list(principal: Principal): Promise<CodeWorkspace.Schema[]> {
+    async list(principal: Principal): Promise<CodeWorkspace[]> {
         return this.repository.workspace.list(principal);
     }
 
-    async create(principal: Principal.User, request: CodeWorkspace.API.Create.Request): Promise<CodeWorkspace.Schema> {
+    async create(principal: Principal.User, request: CodeWorkspace.API.Create.Request): Promise<CodeWorkspace> {
         const template = this.getTemplate(request.templateId);
 
         await this.gatekeeper.assert(principal, 'write', request.parentRid);
@@ -99,7 +99,7 @@ export class CodeWorkspaceService {
         }
     }
 
-    async get(principal: Principal, rid: CodeWorkspace.Rid): Promise<CodeWorkspace.Schema> {
+    async get(principal: Principal, rid: CodeWorkspace.Rid): Promise<CodeWorkspace> {
         const workspace = await this.repository.workspace.get(principal, rid);
 
         if (!workspace)
@@ -109,7 +109,7 @@ export class CodeWorkspaceService {
     }
 
     @RequireUserPrincipal('Only users open pages')
-    async open(principal: Principal.User, rid: CodeWorkspace.Rid, application: Platform.Application.Id): Promise<CodeWorkspace.Schema> {
+    async open(principal: Principal.User, rid: CodeWorkspace.Rid, application: Platform.Application.Id): Promise<CodeWorkspace> {
         const workspace = await this.repository.workspace.open(principal, rid, application);
 
         if (!workspace)

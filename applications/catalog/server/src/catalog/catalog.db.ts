@@ -76,13 +76,13 @@ export namespace CatalogDB {
         });
         export type Row = z.infer<typeof Row>;
 
-        export const fromDomain = (transactionRid: Catalog.Transaction.Rid, change: Catalog.Transaction.FileChange.Schema): Row =>
+        export const fromDomain = (transactionRid: Catalog.Transaction.Rid, change: Catalog.Transaction.FileChange): Row =>
             change.op === 'remove'
                 ? { transaction_rid: transactionRid, logical_path: change.logicalPath, op: 'remove', format: null, key: null, bytes: null, row_count: null }
                 : { transaction_rid: transactionRid, logical_path: change.logicalPath, op: 'add', format: change.format, key: change.key, bytes: change.bytes, row_count: change.rowCount };
 
         /** An 'add' row as the stored file it points at. */
-        export const toFile = (row: Row): Storage.File.Schema => Storage.File.Schema.parse({
+        export const toFile = (row: Row): Storage.File => Storage.File.Schema.parse({
             format:   row.format,
             key:      row.key,
             bytes:    row.bytes,

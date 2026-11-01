@@ -14,7 +14,7 @@ const RUNTIME_TAG = process.env.FORGE_AGENT_RUNTIME_TAG ?? 'dev';
 /** The main server, as a job container reaches it (its runtime calls Forge through the proxy): the agent's machine, by default. */
 const JOB_SERVER_URL = process.env.FORGE_AGENT_JOB_SERVER_URL ?? 'http://host.docker.internal:4000';
 
-const getContainerName = (job: Forge.Job.Schema): string => `forge-${job.rid}-${job.attempt}`;
+const getContainerName = (job: Forge.Job): string => `forge-${job.rid}-${job.attempt}`;
 
 /**
  * One container per job, its runtime as the main process. The runtime may only
@@ -24,8 +24,8 @@ const getContainerName = (job: Forge.Job.Schema): string => `forge-${job.rid}-${
 export class JobContainers {
 
     public start(
-        job:    Forge.Job.Schema,
-        recipe: Forge.Recipe.Schema,
+        job:    Forge.Job,
+        recipe: Forge.Recipe,
         onLog:  (log: Stdio.Event.Log) => void,
     ): StdioClient {
         const container = spawn('docker', [
@@ -49,7 +49,7 @@ export class JobContainers {
         return new StdioClient(container, onLog);
     }
 
-    public kill(job: Forge.Job.Schema): Promise<void> {
+    public kill(job: Forge.Job): Promise<void> {
         return new Promise((resolve, reject) => {
             execFile('docker', ['kill', getContainerName(job)], (error, _stdout, stderr) => {
                 if (error)

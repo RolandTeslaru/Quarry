@@ -72,7 +72,7 @@ export class DuckDb implements OnModuleDestroy {
  * definition's template, parsed against its Fields. They live in this process's memory only.
  */
 function decryptCredential(
-    source:     Pick<DataConnection.Source.Schema, 'rid'>,
+    source:     Pick<DataConnection.Source, 'rid'>,
     definition: SourceDefinition,
     credential: Keychain.Credential.Encrypted | null,
 ): unknown {
@@ -111,7 +111,7 @@ export class SourceRuntimes {
      * re-validated against its definition, the credential decrypted for the runtime.
      */
     async with<R>(
-        source:     Pick<DataConnection.Source.Schema, 'rid' | 'definitionId' | 'config'>,
+        source:     Pick<DataConnection.Source, 'rid' | 'definitionId' | 'config'>,
         credential: Keychain.Credential.Encrypted | null,
         fn:         (runtime: SourceRuntime) => Promise<R>,
     ): Promise<R> {
@@ -143,7 +143,7 @@ export class SourceRuntimes {
      * against the integration's sync Config (defaults applied).
      */
     async sync(
-        source:     Pick<DataConnection.Source.Schema, 'rid' | 'definitionId' | 'config'>,
+        source:     Pick<DataConnection.Source, 'rid' | 'definitionId' | 'config'>,
         credential: Keychain.Credential.Encrypted | null,
         config:     DataConnection.Sync.Config,
         run:        SyncRunContext,
@@ -166,7 +166,7 @@ export class SourceRuntimes {
  * object key, from the Parquet footers, and the column schema — read from the
  * files rather than asked of the source, so every source type gets it.
  */
-export async function describeParquet(duckdb: DuckDb, destination: string): Promise<{ rowCounts: Record<string, number>; schema: Catalog.ColumnSchema.Schema | null }> {
+export async function describeParquet(duckdb: DuckDb, destination: string): Promise<{ rowCounts: Record<string, number>; schema: Catalog.ColumnSchema | null }> {
     const glob = literal(`${destination}*.parquet`);
     const bucketUrl = `s3://${requireEnv('S3_BUCKET')}/`;
 

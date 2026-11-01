@@ -123,7 +123,7 @@ async function waitForCheck(
 }
 
 /** The transform's outputs as datasets: a RID as written, or the dataset at a path — the check created any that were new. */
-async function getOutputRids(api: AxiosInstance, transform: CodeTransform.Schema): Promise<Dataset.Rid[]> {
+async function getOutputRids(api: AxiosInstance, transform: CodeTransform): Promise<Dataset.Rid[]> {
     const rids: Dataset.Rid[] = []
 
     for (const value of Object.values(transform.outputs)) {

@@ -36,7 +36,7 @@ export class SourceService {
     ) {}
 
     /** Every source type, with its config forms as JSON Schema. */
-    definitions(): Record<DataConnection.Source.DefinitionId, DataConnection.Source.Definition.Schema> {
+    definitions(): Record<DataConnection.Source.DefinitionId, DataConnection.Source.Definition> {
         return SOURCE_DEFINITIONS_WIRE;
     }
 
@@ -46,7 +46,7 @@ export class SourceService {
      * definition's template and usable by the creator (read, checked by
      * Keychain). Write on the parent is RLS's call on the insert.
      */
-    async create(principal: Principal, request: DataConnection.API.Source.Create.Request): Promise<DataConnection.Source.Schema> {
+    async create(principal: Principal, request: DataConnection.API.Source.Create.Request): Promise<DataConnection.Source> {
         const definition = findDefinition(request.definitionId);
 
         if (!definition)
@@ -92,12 +92,12 @@ export class SourceService {
         });
     }
 
-    async get(principal: Principal, rid: DataConnection.Source.Rid): Promise<DataConnection.Source.Schema> {
+    async get(principal: Principal, rid: DataConnection.Source.Rid): Promise<DataConnection.Source> {
         return this.require(principal, rid);
     }
 
     /** An app opening the source's page — the open recorded with the read (audit). Only users open pages. */
-    async open(principal: Principal, rid: DataConnection.Source.Rid, application: Platform.Application.Id): Promise<DataConnection.Source.Schema> {
+    async open(principal: Principal, rid: DataConnection.Source.Rid, application: Platform.Application.Id): Promise<DataConnection.Source> {
         if (principal.type !== 'user')
             throw new ForbiddenException('Only users open pages');
 
@@ -110,7 +110,7 @@ export class SourceService {
     }
 
     /** Sources the principal can discover (RLS). */
-    async list(principal: Principal): Promise<DataConnection.Source.Schema[]> {
+    async list(principal: Principal): Promise<DataConnection.Source[]> {
         return this.repository.list(principal);
     }
 
@@ -164,12 +164,12 @@ export class SourceService {
     }
 
     /** The source's credential, encrypted, for the worker — asserts the principal may use it (read). */
-    async credentialOf(principal: Principal, source: DataConnection.Source.Schema): Promise<Keychain.Credential.Encrypted | null> {
+    async credentialOf(principal: Principal, source: DataConnection.Source): Promise<Keychain.Credential.Encrypted | null> {
         return source.credentialRid ? this.keychain.getEncryptedBlob(principal, { credentialRid: source.credentialRid }) : null;
     }
 
     /** The live source the principal can discover (RLS), or 404. */
-    async require(principal: Principal, rid: DataConnection.Source.Rid): Promise<DataConnection.Source.Schema> {
+    async require(principal: Principal, rid: DataConnection.Source.Rid): Promise<DataConnection.Source> {
         const source = await this.repository.get(principal, rid);
 
         if (!source)

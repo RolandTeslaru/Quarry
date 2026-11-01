@@ -41,7 +41,7 @@ export namespace KeychainDB {
 }
 
 /** A credential with its blob — what the service decrypts or hands on encrypted; never returned by the API as is. */
-export type StoredCredential = { credential: Keychain.Credential.Schema; blob: Keychain.Credential.Blob };
+export type StoredCredential = { credential: Keychain.Credential; blob: Keychain.Credential.Blob };
 
 @Injectable()
 export class KeychainRepository extends Repository(KeychainDB.database) {
@@ -60,7 +60,7 @@ export class KeychainRepository extends Repository(KeychainDB.database) {
         parentRid:   Library.Resource.Rid;
         templateId:  Keychain.Credential.Template.Id;
         blob:        Keychain.Credential.Blob;
-    }): Promise<Keychain.Credential.Schema> {
+    }): Promise<Keychain.Credential> {
         const row = await this.trx
             .insertInto('keychain.credential')
             .values({
@@ -96,7 +96,7 @@ export class KeychainRepository extends Repository(KeychainDB.database) {
 
     /** Every live credential the user can discover (RLS), across projects; the service filters again with Gatekeeper. */
     @Transactional()
-    async list(principal: Principal, templateId?: Keychain.Credential.Template.Id): Promise<Keychain.Credential.Schema[]> {
+    async list(principal: Principal, templateId?: Keychain.Credential.Template.Id): Promise<Keychain.Credential[]> {
         let query = this.trx
             .selectFrom('keychain.credential as c')
             .innerJoin('library.resource as r', 'r.rid', 'c.rid')

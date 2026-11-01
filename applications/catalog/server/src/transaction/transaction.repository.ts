@@ -88,7 +88,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         rid:            Catalog.Transaction.Rid,
-        changes:        Catalog.Transaction.FileChange.Schema[],
+        changes:        Catalog.Transaction.FileChange[],
     ): Promise<void> {
         await this.requireOpen(datasetRid, rid);
 
@@ -111,8 +111,8 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         principal:  Principal,
         datasetRid: Dataset.Rid,
         rid:        Catalog.Transaction.Rid,
-        file:       Catalog.Transaction.FileChange.Schema,
-        schema:     Catalog.ColumnSchema.Schema,
+        file:       Catalog.Transaction.FileChange,
+        schema:     Catalog.ColumnSchema,
     ): Promise<void> {
         const transaction = await this.requireOpen(datasetRid, rid);
 
@@ -155,7 +155,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         rid:            Catalog.Transaction.Rid,
-        schema:         Catalog.ColumnSchema.Schema | null,
+        schema:         Catalog.ColumnSchema | null,
     ): Promise<Dataset.Sequence> {
         const transaction = await this.requireOpen(datasetRid, rid);
 
@@ -232,7 +232,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
      * transaction in order, applied by logical path.
      */
     @Transactional()
-    async resolveView(principal: Principal, datasetRid: Dataset.Rid, branch: Foundations.Branch, sequence?: Dataset.Sequence): Promise<Dataset.View.Schema> {
+    async resolveView(principal: Principal, datasetRid: Dataset.Rid, branch: Foundations.Branch, sequence?: Dataset.Sequence): Promise<Dataset.View> {
         const head = sequence ?? (await this.trx
             .selectFrom('catalog.branch')
             .select('last_sequence')

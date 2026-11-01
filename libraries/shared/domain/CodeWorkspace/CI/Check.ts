@@ -39,8 +39,8 @@ export namespace Check {
             else if (config.steps.at(-1) !== publishing[0])
                 ctx.addIssue({ code: "custom", path: ["steps"], message: "`uses: quarry/publish-transforms` must be the last step" })
         })
-        export type Schema = z.infer<typeof Schema>
     }
+    export type Config = z.infer<typeof Config.Schema>
 
     export namespace Manifest {
 
@@ -59,6 +59,6 @@ export namespace Check {
             for (const output of new Set(repeated))
                 ctx.addIssue({ code: "custom", path: ["transforms"], message: `Two transforms write ${output}` })
         })
-        export type Schema = z.infer<typeof Schema>
     }
+    export type Manifest = z.infer<typeof Manifest.Schema>
 }

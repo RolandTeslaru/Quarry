@@ -10,7 +10,7 @@ export const TEMPLATES: Record<CodeWorkspace.Template.Id, WorkspaceTemplate> = {
 };
 
 /** As the API sends them: no files. */
-export const TEMPLATES_WIRE: Record<CodeWorkspace.Template.Id, CodeWorkspace.Template.Schema> = Object.fromEntries(
+export const TEMPLATES_WIRE: Record<CodeWorkspace.Template.Id, CodeWorkspace.Template> = Object.fromEntries(
     Object.values(TEMPLATES).map(template => [
         template.id,
         {

@@ -50,8 +50,8 @@ export const KeychainSDK = SDK.get<KeychainSDKImpl>('Keychain')
 export namespace KeychainSDK {
 
     export type State = {
-        credentials: Keychain.Credential.Schema[]
-        templates:   Record<Keychain.Credential.Template.Id, Keychain.Credential.Template.Schema>
+        credentials: Keychain.Credential[]
+        templates:   Record<Keychain.Credential.Template.Id, Keychain.Credential.Template>
     }
 
     export type Actions = KeychainActions

@@ -58,7 +58,7 @@ interface JobFileInput {
     readonly rid:      string;
     readonly sequence: number;
     readonly files:    string[];
-    readonly schema:   Catalog.ColumnSchema.Schema | null;
+    readonly schema:   Catalog.ColumnSchema | null;
 }
 
 /** `JOB_FILE`'s contents, read by `quarry.transforms.run`. */

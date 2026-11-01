@@ -15,7 +15,6 @@ export namespace Group {
         description: z.string().nullable(),
         createdAt:   z.coerce.date(),
     })
-    export type Schema = z.infer<typeof Schema>
 
     export const Member = z.object({
         groupRid: Rid,
@@ -24,3 +23,4 @@ export namespace Group {
     })
     export type Member = z.infer<typeof Member>
 }
+export type Group = z.infer<typeof Group.Schema>

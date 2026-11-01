@@ -189,8 +189,8 @@ function TableContent({ rid, table, canCreateSync, onCreateSync }: TableContentP
 }
 
 interface AboutPanelProps {
-    source:     DataConnection.Source.Schema
-    definition: DataConnection.Source.Definition.Schema | undefined
+    source:     DataConnection.Source
+    definition: DataConnection.Source.Definition | undefined
 }
 
 function AboutPanel({ source, definition }: AboutPanelProps) {

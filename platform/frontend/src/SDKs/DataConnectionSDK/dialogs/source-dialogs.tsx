@@ -322,8 +322,8 @@ function SourceTypeStep({ definitions, pending, error, onRetry, onSelect }: Sour
 }
 
 interface CredentialStepProps {
-    definition:  DataConnection.Source.Definition.Schema
-    credentials: Keychain.Credential.Schema[]
+    definition:  DataConnection.Source.Definition
+    credentials: Keychain.Credential[]
     onKeychain:  () => void
 }
 

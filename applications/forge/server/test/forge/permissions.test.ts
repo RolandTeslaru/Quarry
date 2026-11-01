@@ -25,7 +25,7 @@ describe('build and recipe permissions', () => {
 
     let projectRid: Library.Resource.Rid;
     let datasets: Record<string, Dataset.Rid>;
-    let recipe: Forge.Recipe.Schema;
+    let recipe: Forge.Recipe;
 
     beforeAll(async () => {
         harness = await ForgeHarness.start();

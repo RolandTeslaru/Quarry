@@ -29,7 +29,6 @@ export namespace Realtime {
                 type:    z.literal("forbidden"),
                 message: z.string(),
             })
-            export type Schema = z.infer<typeof Schema>
         }
         export type Forbidden = z.infer<typeof Forbidden.Schema>
 

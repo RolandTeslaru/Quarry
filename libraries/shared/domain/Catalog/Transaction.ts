@@ -41,7 +41,6 @@ export namespace Transaction {
         startedAt:  z.coerce.date(),
         finishedAt: z.coerce.date().nullable(),
     })
-    export type Schema = z.infer<typeof Schema>
 
     /**
      * One entry in a transaction's change list — an instruction, not a file:
@@ -58,6 +57,7 @@ export namespace Transaction {
         export const Remove = z.object({ op: z.literal("remove"), logicalPath: LogicalPath })
 
         export const Schema = z.union([Add, Remove])
-        export type  Schema = z.infer<typeof Schema>
     }
+    export type FileChange = z.infer<typeof FileChange.Schema>
 }
+export type Transaction = z.infer<typeof Transaction.Schema>

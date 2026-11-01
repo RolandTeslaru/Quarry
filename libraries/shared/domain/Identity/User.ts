@@ -23,5 +23,5 @@ export namespace User {
         createdAt:     z.coerce.date(),
         deactivatedAt: z.coerce.date().nullable(),
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type User = z.infer<typeof User.Schema>

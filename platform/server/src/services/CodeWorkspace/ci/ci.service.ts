@@ -113,7 +113,7 @@ export class CIService {
     }
 
     @SecurityGate('read')
-    public async getCheckRun(principal: Principal, rid: CodeWorkspace.Rid, checkRunRid: CheckRun.Rid): Promise<CheckRun.Schema> {
+    public async getCheckRun(principal: Principal, rid: CodeWorkspace.Rid, checkRunRid: CheckRun.Rid): Promise<CheckRun> {
         const checkRun = await this.repository.checkRun.getInWorkspace(principal, rid, checkRunRid);
 
         if (!checkRun)
@@ -136,7 +136,7 @@ export class CIService {
         return { checkRun, steps: config.steps, token };
     }
 
-    public async reportStep(rid: CheckRun.Rid, index: number, report: Internal.CheckRun.Step.Request): Promise<CheckRun.Schema> {
+    public async reportStep(rid: CheckRun.Rid, index: number, report: Internal.CheckRun.Step.Request): Promise<CheckRun> {
         const current = await this.repository.checkRun.get(WORKER, rid);
 
         if (current?.status !== 'running')
@@ -161,7 +161,7 @@ export class CIService {
         return updated;
     }
 
-    public async finish(rid: CheckRun.Rid, outcome: Internal.CheckRun.Finish.Request): Promise<CheckRun.Schema> {
+    public async finish(rid: CheckRun.Rid, outcome: Internal.CheckRun.Finish.Request): Promise<CheckRun> {
         const current = await this.repository.checkRun.get(WORKER, rid);
 
         if (current?.status !== 'running')

@@ -71,7 +71,7 @@ describe('probing a source through a real Data Connection worker', () => {
 
     describe('a source that logs in', () => {
 
-        let source: DataConnection.Source.Schema;
+        let source: DataConnection.Source;
 
         beforeAll(async () => {
             ({ source } = await harness.createSource(user, login));

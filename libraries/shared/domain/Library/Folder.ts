@@ -13,5 +13,5 @@ export namespace Folder {
         type:      z.literal("folder"),
         parentRid: Resource.Rid,
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type Folder = z.infer<typeof Folder.Schema>

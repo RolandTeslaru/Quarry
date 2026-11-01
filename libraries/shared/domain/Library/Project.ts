@@ -14,5 +14,5 @@ export namespace Project {
         type:      z.literal("project"),
         parentRid: z.null(),
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type Project = z.infer<typeof Project.Schema>

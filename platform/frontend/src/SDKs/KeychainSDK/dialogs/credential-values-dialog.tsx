@@ -12,8 +12,8 @@ import { useTask } from '@/hooks/useTask'
 import { KeychainSDK } from '../sdk'
 
 interface Props {
-    credential: Keychain.Credential.Schema
-    template:   Keychain.Credential.Template.Schema
+    credential: Keychain.Credential
+    template:   Keychain.Credential.Template
     dialog:     DialogSDK.TemplateProps
 }
 

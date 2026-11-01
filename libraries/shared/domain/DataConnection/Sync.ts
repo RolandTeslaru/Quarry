@@ -36,5 +36,5 @@ export namespace Sync {
         createdBy:        User.Rid.nullable(),
         createdAt:        z.coerce.date(),
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type Sync = z.infer<typeof Sync.Schema>

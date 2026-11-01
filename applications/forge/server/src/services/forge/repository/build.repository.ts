@@ -7,7 +7,7 @@ import { json } from '@quarry/platform-kernel/db/table';
 import { ForgeDB } from '../forge.db';
 
 /** A build as created — the database fills in its status, who and when. */
-export type NewBuild = Omit<Forge.Build.Schema, 'status' | 'createdBy' | 'createdAt' | 'finishedAt'>;
+export type NewBuild = Omit<Forge.Build, 'status' | 'createdBy' | 'createdAt' | 'finishedAt'>;
 
 /** forge.build. Writes that also touch its jobs belong on ForgeRepository. */
 @Injectable()
@@ -32,7 +32,7 @@ export class BuildRepository extends Repository(ForgeDB.database) {
     }
 
     @Transactional()
-    public async get(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.Build.Schema | null> {
+    public async get(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.Build | null> {
         const row = await this.trx
             .selectFrom('forge.build')
             .selectAll()
@@ -44,7 +44,7 @@ export class BuildRepository extends Repository(ForgeDB.database) {
 
     /** Newest first; with a dataset, only builds targeting it. */
     @Transactional()
-    public async list(principal: Principal, filter: { datasetRid?: Dataset.Rid; limit: number }): Promise<Forge.Build.Schema[]> {
+    public async list(principal: Principal, filter: { datasetRid?: Dataset.Rid; limit: number }): Promise<Forge.Build[]> {
         let query = this.trx
             .selectFrom('forge.build')
             .selectAll()
@@ -61,7 +61,7 @@ export class BuildRepository extends Repository(ForgeDB.database) {
 
     /** Holds the build's row until the transaction ends, so its jobs finishing at once take turns. Returns the build, as locked. */
     @Transactional()
-    public async lock(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.Build.Schema> {
+    public async lock(principal: Principal, rid: Forge.Build.Rid): Promise<Forge.Build> {
         const row = await this.trx
             .selectFrom('forge.build')
             .selectAll()
@@ -74,7 +74,7 @@ export class BuildRepository extends Repository(ForgeDB.database) {
 
     /** `lock`, for the build of this job. */
     @Transactional()
-    public async lockForJob(principal: Principal, jobRid: Forge.Job.Rid): Promise<Forge.Build.Schema> {
+    public async lockForJob(principal: Principal, jobRid: Forge.Job.Rid): Promise<Forge.Build> {
         const row = await this.trx
             .selectFrom('forge.build')
             .selectAll()

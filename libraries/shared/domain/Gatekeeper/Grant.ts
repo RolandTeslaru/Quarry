@@ -23,5 +23,5 @@ export namespace Grant {
         grantedBy:   User.Rid.nullable(),
         grantedAt:   z.coerce.date(),
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type Grant = z.infer<typeof Grant.Schema>

@@ -8,7 +8,7 @@ import { dateTime } from '@/utils/format'
 import { BUILD_STATUSES } from '../constants'
 
 interface BuildTableProps {
-    builds: Forge.Build.Schema[]
+    builds: Forge.Build[]
 }
 
 export function BuildTable({ builds }: BuildTableProps) {

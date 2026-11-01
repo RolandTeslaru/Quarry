@@ -49,5 +49,5 @@ export namespace Recipe {
         publishedBy:       User.Rid.nullable(),          // null = the system
         publishedAt:       z.coerce.date(),
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type Recipe = z.infer<typeof Recipe.Schema>

@@ -26,7 +26,7 @@ export async function getTransformsFromFolder(folder: vscode.Uri): Promise<CodeT
  */
 export async function runPreview(
     folder:       vscode.Uri,
-    name:         CodeWorkspace.ModuleFunctionPath.Schema,
+    name:         CodeWorkspace.ModuleFunctionPath,
     session:      { token: string; serverUrl: string },
     cancellation: vscode.CancellationToken,
 ): Promise<CodeWorkspace.Preview.Result | null> {

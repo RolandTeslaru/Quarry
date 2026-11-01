@@ -31,5 +31,5 @@ export namespace SyncRun {
         heartbeatAt:    z.coerce.date(),
         finishedAt:     z.coerce.date().nullable(),
     })
-    export type Schema = z.infer<typeof Schema>
 }
+export type SyncRun = z.infer<typeof SyncRun.Schema>

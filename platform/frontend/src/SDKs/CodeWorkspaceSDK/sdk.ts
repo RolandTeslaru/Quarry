@@ -117,9 +117,9 @@ export const CodeWorkspaceSDK = SDK.get<CodeWorkspaceSDKImpl>('CodeWorkspace')
 export namespace CodeWorkspaceSDK {
 
     export type State = {
-        templates:  Record<CodeWorkspace.Template.Id, CodeWorkspace.Template.Schema>
-        workspaces: Record<CodeWorkspace.Rid, CodeWorkspace.Schema>
-        checkRuns:  Record<CI.CheckRun.Rid, CI.CheckRun.Schema>
+        templates:  Record<CodeWorkspace.Template.Id, CodeWorkspace.Template>
+        workspaces: Record<CodeWorkspace.Rid, CodeWorkspace>
+        checkRuns:  Record<CI.CheckRun.Rid, CI.CheckRun>
         /** Each workspace's loaded check runs, newest first (order matters: a list), and the next page's cursor. */
         checkRunHistory: Record<CodeWorkspace.Rid, { rids: CI.CheckRun.Rid[]; nextBefore: CI.CheckRun.Rid | null }>
         /** The workspace whose page is open (the route sets it); its check runs are followed live. */

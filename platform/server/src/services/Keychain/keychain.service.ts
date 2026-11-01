@@ -43,17 +43,17 @@ export class KeychainService implements OnModuleInit {
     }
 
     /** Every template the deployment's integrations declare, with its form. */
-    templates(): Record<Keychain.Credential.Template.Id, Keychain.Credential.Template.Schema> {
+    templates(): Record<Keychain.Credential.Template.Id, Keychain.Credential.Template> {
         return CREDENTIAL_TEMPLATES_WIRE;
     }
 
     /** Credentials the principal can discover (RLS), across projects. */
-    async list(principal: Principal, templateId?: Keychain.Credential.Template.Id): Promise<Keychain.Credential.Schema[]> {
+    async list(principal: Principal, templateId?: Keychain.Credential.Template.Id): Promise<Keychain.Credential[]> {
         return this.repository.list(principal, templateId);
     }
 
     /** Write on the project or folder it goes in (RLS). The values are validated against the template, then encrypted. */
-    async create(principal: Principal, request: Keychain.API.Credential.Create.Request): Promise<Keychain.Credential.Schema> {
+    async create(principal: Principal, request: Keychain.API.Credential.Create.Request): Promise<Keychain.Credential> {
         const template = requireTemplate(request.templateId);
 
         return this.repository.create(principal, {
@@ -66,7 +66,7 @@ export class KeychainService implements OnModuleInit {
         });
     }
 
-    async get(principal: Principal, rid: Keychain.Credential.Rid): Promise<Keychain.Credential.Schema> {
+    async get(principal: Principal, rid: Keychain.Credential.Rid): Promise<Keychain.Credential> {
         return (await this.require(principal, rid)).credential;
     }
 

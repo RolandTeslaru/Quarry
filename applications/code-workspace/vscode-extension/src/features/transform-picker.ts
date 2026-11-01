@@ -3,7 +3,7 @@ import { CodeWorkspace, type CodeTransform } from '@quarry/shared/domain'
 import { getModuleName, getTransformsFromFolder } from './DatasetTransformPreview/pipeline'
 
 interface TransformItem extends vscode.QuickPickItem {
-    readonly transform: CodeTransform.Schema
+    readonly transform: CodeTransform
 }
 
 interface PickOptions {
@@ -18,7 +18,7 @@ interface PickOptions {
  * pipeline is read from disk (saved files). Undefined if dismissed, or if the
  * pipeline couldn't be read (the user is told why).
  */
-export async function pickTransform(uri: vscode.Uri | undefined, options: PickOptions): Promise<CodeTransform.Schema | undefined> {
+export async function pickTransform(uri: vscode.Uri | undefined, options: PickOptions): Promise<CodeTransform | undefined> {
     const file = uri ?? vscode.window.activeTextEditor?.document.uri
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri
 
@@ -80,7 +80,7 @@ export async function pickTransform(uri: vscode.Uri | undefined, options: PickOp
 }
 
 /** A titled group of the picker: one row per transform — its function, module, and what it writes. */
-function getSection(label: string, transforms: CodeTransform.Schema[]): (TransformItem | vscode.QuickPickItem)[] {
+function getSection(label: string, transforms: CodeTransform[]): (TransformItem | vscode.QuickPickItem)[] {
     if (transforms.length === 0)
         return []
 

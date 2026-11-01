@@ -45,7 +45,7 @@ export namespace Event {
     export const create = Realtime.Event.defineFactory(Schema)
 
     /** A check run changed: the event, on its workspace's channel. */
-    export const checkRunUpdated = (checkRun: CheckRun.Schema): CheckRunUpdated => ({
+    export const checkRunUpdated = (checkRun: CheckRun): CheckRunUpdated => ({
         ...create("code-workspace:check-run:updated", { checkRun }),
         channel: getChannel(checkRun.workspaceRid),
     })

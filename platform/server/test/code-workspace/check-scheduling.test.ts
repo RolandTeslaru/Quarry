@@ -83,12 +83,12 @@ describe('check runs, running', () => {
     });
 
     /** Every run of the workspace (one branch's, or all), newest first — up to a page of 100. */
-    function listRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CI.CheckRun.Schema[]> {
+    function listRuns(principal: Principal, rid: CodeWorkspace.Rid, branch?: Foundations.Branch): Promise<CI.CheckRun[]> {
         return harness.get(CIService).listCheckRuns(principal, rid, { branch, limit: 100 }).then((page) => page.checkRuns);
     }
 
     /** A workspace whose main has quarry-ci.yml, and its run — scheduled at once: the workspace is free. */
-    async function scheduledWorkspace(files: Record<string, string> = { 'quarry-ci.yml': QUARRY_CI }): Promise<TestWorkspace & { run: CheckRun.Schema }> {
+    async function scheduledWorkspace(files: Record<string, string> = { 'quarry-ci.yml': QUARRY_CI }): Promise<TestWorkspace & { run: CheckRun }> {
         const workspace = await createWorkspace(harness, admin, files);
         const { queued } = await checks.queueChecksForMovedHeads(admin, workspace.rid, workspace.heads);
 
@@ -96,14 +96,14 @@ describe('check runs, running', () => {
     }
 
     /** A commit on another branch, pushed: its run (waiting, if the workspace is busy). */
-    async function pushBranch(workspace: TestWorkspace, branch: Foundations.Branch): Promise<CheckRun.Schema> {
+    async function pushBranch(workspace: TestWorkspace, branch: Foundations.Branch): Promise<CheckRun> {
         const commit = await commitFiles(harness, workspace.rid, { [`${branch}.py`]: '' }, branch);
         const { queued } = await checks.queueChecksForMovedHeads(admin, workspace.rid, { [branch]: commit });
 
         return getRun(queued[0].rid);
     }
 
-    async function getRun(rid: CheckRun.Rid): Promise<CheckRun.Schema> {
+    async function getRun(rid: CheckRun.Rid): Promise<CheckRun> {
         const run = await harness.get(CodeWorkspaceRepository).checkRun.get(Principal.SELF('test'), rid);
 
         if (!run)
@@ -113,7 +113,7 @@ describe('check runs, running', () => {
     }
 
     /** Scheduled and taken by the (test's) worker. */
-    async function startedRun(): Promise<{ workspace: TestWorkspace; run: CheckRun.Schema }> {
+    async function startedRun(): Promise<{ workspace: TestWorkspace; run: CheckRun }> {
         const workspace = await scheduledWorkspace();
 
         await checks.start(workspace.run.rid);

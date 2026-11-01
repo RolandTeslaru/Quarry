@@ -38,7 +38,7 @@ export namespace ForgeSDK {
 
     export type State = {
         /** Newest first. */
-        builds: Forge.Build.Schema[]
+        builds: Forge.Build[]
     }
 
     export type Actions = ForgeActions

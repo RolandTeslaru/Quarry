@@ -55,7 +55,7 @@ export class AuditService {
     }
 
     /** Workspace admins only. */
-    list(principal: Principal.User, filter: z.output<typeof Audit.API.AccessEvent.List.Request>): Promise<Audit.AccessEvent.Schema[]> {
+    list(principal: Principal.User, filter: z.output<typeof Audit.API.AccessEvent.List.Request>): Promise<Audit.AccessEvent[]> {
         if (principal.workspaceRole !== 'admin')
             throw new ForbiddenException('Requires the workspace admin role');
 

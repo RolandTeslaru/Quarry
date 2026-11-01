@@ -6,7 +6,7 @@ import { json } from '@quarry/platform-kernel/db/table';
 import { ForgeDB } from '../forge.db';
 
 /** A job of the build's plan, one per node, before it's a row: its RID minted, its outputs' transactions already open. */
-export type PlannedJob = Pick<Forge.Job.Schema, 'rid' | 'recipeRid' | 'outputs'>;
+export type PlannedJob = Pick<Forge.Job, 'rid' | 'recipeRid' | 'outputs'>;
 
 /**
  * forge.job. Writes that also touch the build, or a job's message (the durable
@@ -19,9 +19,9 @@ export class JobRepository extends Repository(ForgeDB.database) {
     @Transactional()
     public async insert(
         principal:   Principal,
-        build:       Pick<Forge.Build.Schema, 'rid' | 'plan'>,
+        build:       Pick<Forge.Build, 'rid' | 'plan'>,
         plannedJobs: Record<Forge.Job.Rid, PlannedJob>,
-    ): Promise<Record<Forge.Job.Rid, Forge.Job.Schema>> {
+    ): Promise<Record<Forge.Job.Rid, Forge.Job>> {
         const scheduledAt = new Date();
         const roots = new Set(build.plan.roots);
 
@@ -42,7 +42,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
             .returningAll()
             .execute();
 
-        const jobs: Record<Forge.Job.Rid, Forge.Job.Schema> = {};
+        const jobs: Record<Forge.Job.Rid, Forge.Job> = {};
 
         for (const row of rows)
             jobs[row.rid] = ForgeDB.Job.toDomain(row);
@@ -51,7 +51,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
     }
 
     @Transactional()
-    public async get(principal: Principal, rid: Forge.Job.Rid): Promise<Forge.Job.Schema | null> {
+    public async get(principal: Principal, rid: Forge.Job.Rid): Promise<Forge.Job | null> {
         const row = await this.trx
             .selectFrom('forge.job')
             .selectAll()
@@ -62,7 +62,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
     }
 
     @Transactional()
-    public async listByBuild(principal: Principal, buildRid: Forge.Build.Rid): Promise<Forge.Job.Schema[]> {
+    public async listByBuild(principal: Principal, buildRid: Forge.Build.Rid): Promise<Forge.Job[]> {
         const rows = await this.trx
             .selectFrom('forge.job')
             .selectAll()
@@ -74,7 +74,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
 
     /** The build's `waiting` jobs for these recipes → `scheduled` (once, whoever gets there first). */
     @Transactional()
-    public async schedule(principal: Principal, buildRid: Forge.Build.Rid, recipeRids: Forge.Recipe.Rid[]): Promise<Forge.Job.Schema[]> {
+    public async schedule(principal: Principal, buildRid: Forge.Build.Rid, recipeRids: Forge.Recipe.Rid[]): Promise<Forge.Job[]> {
         if (recipeRids.length === 0)
             return [];
 
@@ -96,8 +96,8 @@ export class JobRepository extends Repository(ForgeDB.database) {
         principal: Principal,
         rid:       Forge.Job.Rid,
         attempt:   number,
-        inputs:    NonNullable<Forge.Job.Schema['inputs']>,
-    ): Promise<Forge.Job.Schema | null> {
+        inputs:    NonNullable<Forge.Job['inputs']>,
+    ): Promise<Forge.Job | null> {
         const now = new Date();
 
         const row = await this.trx
@@ -119,7 +119,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
 
     /** The attempt is still running: renew its lease. Null if it isn't running (any more). */
     @Transactional()
-    public async heartbeat(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.Job.Schema | null> {
+    public async heartbeat(principal: Principal, rid: Forge.Job.Rid, attempt: number): Promise<Forge.Job | null> {
         const row = await this.trx
             .updateTable('forge.job')
             .set({ heartbeat_at: new Date() })
@@ -134,7 +134,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
 
     /** Records how the running attempt ended. Null if this attempt wasn't running. */
     @Transactional()
-    public async finish(principal: Principal, rid: Forge.Job.Rid, outcome: Forge.API.Agent.Finish.Request): Promise<Forge.Job.Schema | null> {
+    public async finish(principal: Principal, rid: Forge.Job.Rid, outcome: Forge.API.Agent.Finish.Request): Promise<Forge.Job | null> {
         const row = await this.trx
             .updateTable('forge.job')
             .set({ status: outcome.status, failure: outcome.failure ? json(outcome.failure) : null, finished_at: new Date() })
@@ -154,7 +154,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
         buildRid:   Forge.Build.Rid,
         recipeRids: Set<Forge.Recipe.Rid>,
         finishedAt: Date,
-    ): Promise<Forge.Job.Schema[]> {
+    ): Promise<Forge.Job[]> {
         // `in ()` isn't SQL: a leaf's failure has no descendants to cancel.
         if (recipeRids.size === 0)
             return [];
@@ -173,7 +173,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
 
     /** The build's unfinished jobs → `canceled`. Returns them. */
     @Transactional()
-    public async cancelUnfinished(principal: Principal, buildRid: Forge.Build.Rid, finishedAt: Date): Promise<Forge.Job.Schema[]> {
+    public async cancelUnfinished(principal: Principal, buildRid: Forge.Build.Rid, finishedAt: Date): Promise<Forge.Job[]> {
         const rows = await this.trx
             .updateTable('forge.job')
             .set({ status: 'canceled', finished_at: finishedAt })

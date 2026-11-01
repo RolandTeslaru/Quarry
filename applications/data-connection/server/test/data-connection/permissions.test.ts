@@ -28,9 +28,9 @@ describe('source, sync and run permissions', () => {
     let outsider: Principal.User;
 
     let projectRid: Library.Resource.Rid;
-    let source: DataConnection.Source.Schema;
-    let sync: DataConnection.Sync.Schema;
-    let credentialRid: DataConnection.Source.Schema['credentialRid'];
+    let source: DataConnection.Source;
+    let sync: DataConnection.Sync;
+    let credentialRid: DataConnection.Source['credentialRid'];
 
     const TABLE = { schema: 'public', name: 'tools' };
 

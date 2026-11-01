@@ -21,7 +21,7 @@ export class ProjectActions extends ActionGroup<LibrarySDKImpl> {
         return data
     }
 
-    public async create(request: Library.API.Project.Create.Request): Promise<Library.Project.Schema> {
+    public async create(request: Library.API.Project.Create.Request): Promise<Library.Project> {
         const { project } = await Library.API.Project.create(api, request)
 
         await this.sdk.invalidate(this.sdk.query.projects)

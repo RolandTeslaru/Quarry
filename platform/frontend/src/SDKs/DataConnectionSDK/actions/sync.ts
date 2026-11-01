@@ -20,7 +20,7 @@ export class SyncActions extends ActionGroup<DataConnectionSDKImpl> {
         return data
     }
 
-    public async create(sourceRid: DataConnection.Source.Rid, request: DataConnection.API.Sync.Create.Request): Promise<DataConnection.Sync.Schema> {
+    public async create(sourceRid: DataConnection.Source.Rid, request: DataConnection.API.Sync.Create.Request): Promise<DataConnection.Sync> {
         try {
             const { sync } = await DataConnection.API.Sync.create(api, sourceRid, request)
 

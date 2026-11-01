@@ -25,7 +25,7 @@ export class PreviewView implements vscode.WebviewViewProvider {
     private latest: PreviewMessage.ToPage | null = null
 
     /** The transform last run — Run again's. */
-    private transform: CodeTransform.Schema | null = null
+    private transform: CodeTransform | null = null
 
     private running: vscode.CancellationTokenSource | null = null
 
@@ -77,7 +77,7 @@ export class PreviewView implements vscode.WebviewViewProvider {
             await this.run(transform)
     }
 
-    private async run(transform: CodeTransform.Schema): Promise<void> {
+    private async run(transform: CodeTransform): Promise<void> {
         const folder = vscode.workspace.workspaceFolders?.[0]?.uri
         const session = this.quarry.getSession()
 
@@ -128,7 +128,7 @@ export class PreviewView implements vscode.WebviewViewProvider {
     }
 
     /** Every input's and output's reference as a dataset name — from Quarry (cached), else from the path itself. */
-    private async getLabels(transform: CodeTransform.Schema): Promise<Record<string, PreviewMessage.Label>> {
+    private async getLabels(transform: CodeTransform): Promise<Record<string, PreviewMessage.Label>> {
         const references = [...new Set([...Object.values(transform.inputs), ...Object.values(transform.outputs)])]
 
         const labels = await Promise.all(references.map(async reference => {

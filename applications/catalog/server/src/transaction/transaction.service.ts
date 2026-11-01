@@ -28,7 +28,7 @@ export class TransactionService {
         type:       Catalog.Transaction.Type,
         provenance: Record<string, unknown> = {},
         branch = Foundations.MAIN_BRANCH,
-    ): Promise<Catalog.Transaction.Schema> {
+    ): Promise<Catalog.Transaction> {
         const row = await this.repository.open(principal, datasetRid, {
             rid:        Catalog.Transaction.createRid(),
             branch,
@@ -47,7 +47,7 @@ export class TransactionService {
         principal: Principal,
         openings:  { datasetRid: Dataset.Rid; type: Catalog.Transaction.Type; provenance?: Record<string, unknown> }[],
         branch = Foundations.MAIN_BRANCH,
-    ): Promise<Catalog.Transaction.Schema[]> {
+    ): Promise<Catalog.Transaction[]> {
         const values = openings.map((opening) => ({
             rid:        Catalog.Transaction.createRid(),
             datasetRid: opening.datasetRid,
@@ -56,7 +56,7 @@ export class TransactionService {
         }));
 
         const rows = await this.repository.openBatch(principal, branch, values);
-        const byRid: Record<Catalog.Transaction.Rid, Catalog.Transaction.Schema> = {};
+        const byRid: Record<Catalog.Transaction.Rid, Catalog.Transaction> = {};
 
         for (const row of rows)
             byRid[row.rid] = CatalogDB.Transaction.toDomain(row);
@@ -69,7 +69,7 @@ export class TransactionService {
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,
-        changes:        Catalog.Transaction.FileChange.Schema[],
+        changes:        Catalog.Transaction.FileChange[],
     ): Promise<void> {
         await this.repository.registerChanges(principal, datasetRid, transactionRid, changes);
     }
@@ -82,8 +82,8 @@ export class TransactionService {
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,
-        file:           Catalog.Transaction.FileChange.Schema,
-        schema:         Catalog.ColumnSchema.Schema,
+        file:           Catalog.Transaction.FileChange,
+        schema:         Catalog.ColumnSchema,
     ): Promise<void> {
         await this.repository.registerFile(principal, datasetRid, transactionRid, file, schema);
     }
@@ -92,18 +92,18 @@ export class TransactionService {
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,
-        schema:         Catalog.ColumnSchema.Schema | null,
+        schema:         Catalog.ColumnSchema | null,
     ): Promise<Dataset.Sequence> {
         return this.repository.commit(principal, datasetRid, transactionRid, schema);
     }
 
     /** Commits these open transactions in one database transaction (or the caller's), each with the schema staged on it. */
-    async commitBatch(principal: Principal, transactions: Pick<Catalog.Transaction.Schema, 'rid' | 'datasetRid'>[]): Promise<void> {
+    async commitBatch(principal: Principal, transactions: Pick<Catalog.Transaction, 'rid' | 'datasetRid'>[]): Promise<void> {
         await this.repository.commitBatch(principal, transactions);
     }
 
     /** Aborts the open ones among these, in one database transaction; finished ones are skipped, so it's safe to repeat. */
-    public async abortBatch(principal: Principal, transactions: Pick<Catalog.Transaction.Schema, 'rid' | 'datasetRid'>[]): Promise<void> {
+    public async abortBatch(principal: Principal, transactions: Pick<Catalog.Transaction, 'rid' | 'datasetRid'>[]): Promise<void> {
         await this.repository.abortBatch(principal, transactions);
     }
 
@@ -116,7 +116,7 @@ export class TransactionService {
      * The file set at `sequence` (default: the branch's head). Not gated: a user reads a view through
      * `catalog.view`, which is; the callers here have checked already.
      */
-    async resolveView(principal: Principal, datasetRid: Dataset.Rid, branch: Foundations.Branch, sequence?: Dataset.Sequence): Promise<Dataset.View.Schema> {
+    async resolveView(principal: Principal, datasetRid: Dataset.Rid, branch: Foundations.Branch, sequence?: Dataset.Sequence): Promise<Dataset.View> {
         return this.repository.resolveView(principal, datasetRid, branch, sequence);
     }
 

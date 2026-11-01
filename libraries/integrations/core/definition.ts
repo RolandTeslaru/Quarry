@@ -61,7 +61,7 @@ export const defineSource = <C extends z.ZodObject, S extends SyncDefinition, K 
 });
 
 /** As the API sends it: Config becomes JSON Schema (input side — fields with defaults are optional). */
-export const toWire = (definition: SourceDefinition): DataConnection.Source.Definition.Schema =>
+export const toWire = (definition: SourceDefinition): DataConnection.Source.Definition =>
     DataConnection.Source.Definition.Schema.parse({
         id:           definition.id,
         displayName:  definition.displayName,

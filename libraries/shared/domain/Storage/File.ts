@@ -25,8 +25,8 @@ export namespace File {
             format:   z.literal("parquet"),
             rowCount: z.number().int().nonnegative().nullable(),    // from the footer; null if the writer didn't report it
         })
-        export type Schema = z.infer<typeof Schema>
     }
+    export type Parquet = z.infer<typeof Parquet.Schema>
 
     /**
      * Delimited text, stored exactly as uploaded. How to parse it (delimiter,
@@ -37,11 +37,10 @@ export namespace File {
             format:   z.literal("csv"),
             rowCount: z.null(),                                     // unknown without reading it all
         })
-        export type Schema = z.infer<typeof Schema>
     }
+    export type Csv = z.infer<typeof Csv.Schema>
 
     export const Schema = z.discriminatedUnion("format", [Parquet.Schema, Csv.Schema])
-    export type  Schema = z.infer<typeof Schema>
 
     export const Format = z.enum(["parquet", "csv"])
     export type  Format = z.infer<typeof Format>
@@ -56,3 +55,4 @@ export namespace File {
         return null
     }
 }
+export type File = z.infer<typeof File.Schema>

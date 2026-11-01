@@ -48,7 +48,7 @@ describe('check run history', () => {
     /** A workspace with `count` pushes to main, oldest first — each superseding the last. */
     async function pushedWorkspace(count: number) {
         const workspace = await createWorkspace(harness, admin, { 'quarry-ci.yml': QUARRY_CI });
-        const runs: CheckRun.Schema[] = [];
+        const runs: CheckRun[] = [];
 
         for (let index = 0; index < count; index++) {
             const commit = await commitFiles(harness, workspace.rid, { [`${index}.py`]: '' });

@@ -10,7 +10,7 @@ import { CHECK_RUN_STATUSES, CHECK_STEP_STATUSES } from '../constants'
 import CI = CodeWorkspace.CI
 
 interface CheckRunTableProps {
-    checkRuns: CI.CheckRun.Schema[]
+    checkRuns: CI.CheckRun[]
 }
 
 /** A workspace's check runs, newest first; each row opens to its steps and their logs. */
@@ -96,7 +96,7 @@ function CheckRunStatus({ status }: CheckRunStatusProps) {
 }
 
 interface CheckRunStepsProps {
-    run: CI.CheckRun.Schema
+    run: CI.CheckRun
 }
 
 /** Each step: its status, how long it took, its exit code — and its output, opened on demand. */
@@ -135,7 +135,7 @@ function CheckRunSteps({ run }: CheckRunStepsProps) {
     )
 }
 
-function getRunDuration(run: CI.CheckRun.Schema): string {
+function getRunDuration(run: CI.CheckRun): string {
     if (!run.startedAt)
         return '—'
 
@@ -145,7 +145,7 @@ function getRunDuration(run: CI.CheckRun.Schema): string {
     return formatDuration(run.finishedAt.getTime() - run.startedAt.getTime())
 }
 
-function getStepDuration(step: CI.CheckRun.Step.Schema): string {
+function getStepDuration(step: CI.CheckRun.Step): string {
     if (!step.startedAt || !step.finishedAt)
         return step.status === 'running' ? 'running…' : ''
 

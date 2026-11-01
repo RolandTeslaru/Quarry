@@ -28,7 +28,7 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
         name:        string;
         description: string | null;
         parentRid:   Library.Resource.Rid;
-    }): Promise<Dataset.Schema> {
+    }): Promise<Dataset> {
         const dataset = await this.trx
             .insertInto('catalog.dataset')
             .values({ rid: values.rid })
@@ -45,7 +45,7 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
 
     /** Live datasets only — trashed resources read as absent. */
     @Transactional()
-    async get(principal: Principal, rid: Dataset.Rid): Promise<Dataset.Schema | null> {
+    async get(principal: Principal, rid: Dataset.Rid): Promise<Dataset | null> {
         const row = await this.trx
             .selectFrom('catalog.dataset as d')
             .innerJoin('library.resource as r', 'r.rid', 'd.rid')
@@ -70,7 +70,7 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
      * unrecorded. Null: not there, or not the user's to see (nothing recorded).
      */
     @Transactional('user')
-    async open(principal: Principal.User, rid: Dataset.Rid, application: Platform.Application.Id): Promise<{ dataset: Dataset.Schema; view: Dataset.View.Schema } | null> {
+    async open(principal: Principal.User, rid: Dataset.Rid, application: Platform.Application.Id): Promise<{ dataset: Dataset; view: Dataset.View } | null> {
         const dataset = await this.get(principal, rid);              // joins this transaction
 
         if (!dataset)
@@ -85,7 +85,7 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
 
     /** Every live dataset the user can discover (RLS), across projects. */
     @Transactional()
-    async list(principal: Principal): Promise<Dataset.Schema[]> {
+    async list(principal: Principal): Promise<Dataset[]> {
         const rows = await this.trx
             .selectFrom('catalog.dataset as d')
             .innerJoin('library.resource as r', 'r.rid', 'd.rid')

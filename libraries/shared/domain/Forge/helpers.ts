@@ -16,7 +16,7 @@ export class PlanCycleError extends Error {
  * The recipes as a plan: a recipe is the child of each recipe in it that writes one of its inputs;
  * recipes with no parent are the roots. Throws a PlanCycleError if some recipe could never run. Reached as `Build.Plan.create`.
  */
-export function createPlan(recipes: Record<Recipe.Rid, Recipe.Schema>): Build.Plan {
+export function createPlan(recipes: Record<Recipe.Rid, Recipe>): Build.Plan {
     const producerOf: Record<Dataset.Rid, Recipe.Rid> = {}
     const children: Record<Recipe.Rid, Set<Recipe.Rid>> = {}
     const hasParent = new Set<Recipe.Rid>()

@@ -16,7 +16,7 @@ export class CheckPublisher {
         private readonly forge:   ForgeService,
     ) {}
 
-    public async publish(run: CI.CheckRun.Schema, rawManifest: unknown): Promise<Forge.Recipe.Schema[]> {
+    public async publish(run: CI.CheckRun, rawManifest: unknown): Promise<Forge.Recipe[]> {
         const manifest = CI.Check.Manifest.Schema.parse(rawManifest);
         const principal = Principal.delegate(run.pushedBy!, `check-run:${run.rid}`);
         const recipes: PublishedRecipe[] = [];

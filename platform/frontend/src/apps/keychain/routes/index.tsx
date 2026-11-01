@@ -27,7 +27,7 @@ function KeychainApp() {
         query => [query.templates],
     )
 
-    function openEditor(credential: Keychain.Credential.Schema) {
+    function openEditor(credential: Keychain.Credential) {
         const template = templates[credential.templateId]
 
         if (!template)

@@ -22,7 +22,6 @@ export namespace Dataset {
         parentRid:     Resource.Rid,
         lastSequence:  Sequence,                    // on branch main
     })
-    export type Schema = z.infer<typeof Schema>
 
     /**
      * The dataset at one sequence on one branch: latest snapshot + later
@@ -42,8 +41,8 @@ export namespace Dataset {
             files:    File.array(),
             rowCount: z.number().int().nullable(),
         })
-        export type Schema = z.infer<typeof Schema>
     }
+    export type View = z.infer<typeof View.Schema>
 
     /** The bucket folder for one transaction's files. A new folder per transaction: keys are never reused. */
     export const getStoragePrefix = (rid: Rid, transactionRid: Transaction.Rid): string => `${rid}/${transactionRid}/`
@@ -52,3 +51,4 @@ export namespace Dataset {
     export const getStorageKey = (rid: Rid, transactionRid: Transaction.Rid, filename: string): Storage.File.Key =>
         Storage.File.Key.parse(`${getStoragePrefix(rid, transactionRid)}${filename}`)
 }
+export type Dataset = z.infer<typeof Dataset.Schema>
