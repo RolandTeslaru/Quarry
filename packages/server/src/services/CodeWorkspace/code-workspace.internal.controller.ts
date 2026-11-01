@@ -1,8 +1,8 @@
 import { Body, Controller, HttpCode, Param, ParseIntPipe, Post } from '@nestjs/common';
 import { CodeWorkspace } from '@quarry/shared/domain';
-import { Internal } from '@/auth/current-principal';
-import { Principal } from '@/auth/principal';
-import { ZodPipe } from '@/http/zod.pipe';
+import { Internal } from '@quarry/platform-server/auth/current-principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { ZodPipe } from '@quarry/platform-server/http/zod.pipe';
 import { CodeWorkspaceService } from './code-workspace.service';
 
 import CI = CodeWorkspace.CI;

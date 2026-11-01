@@ -1,8 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
 import { Identity } from '@quarry/shared/domain';
-import { CurrentPrincipal } from '@/auth/current-principal';
-import { Principal } from '@/auth/principal';
-import { IdentityService } from './identity.service';
+import { CurrentPrincipal } from '@quarry/platform-server/auth/current-principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { IdentityService } from '@quarry/platform-server/services/Identity/identity.service';
 
 import API = Identity.API;
 

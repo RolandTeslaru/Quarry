@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { Catalog, DataConnection, Dataset, Identity, Keychain, Library } from '@quarry/shared/domain';
-import type { Table } from '@/db/table';
-import { defineDatabase } from '@/db/pool';
-import type { IdentityDB } from '@/services/Identity/identity.db';
-import { LibraryDB } from '@/services/Library/library.db';
+import type { Table } from '@quarry/platform-server/db/table';
+import { defineDatabase } from '@quarry/platform-server/db/pool';
+import type { IdentityDB } from '@quarry/platform-server/services/Identity/identity.db';
+import { LibraryDB } from '@quarry/platform-server/services/Library/library.db';
 
 /** The `data_connection` schema: sources, syncs, sync runs. */
 export namespace DataConnectionDB {

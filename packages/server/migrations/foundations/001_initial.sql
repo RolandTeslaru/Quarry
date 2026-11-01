@@ -12,18 +12,27 @@ CREATE SCHEMA IF NOT EXISTS foundations;
 CREATE DOMAIN foundations.rid AS text
     CHECK (VALUE ~ '^ri\.[a-z][a-z-]*\.[a-z][a-z0-9-]*\.[a-z][a-z-]*\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
 
--- Row-level security: user and delegate transactions run as quarry_user (`SET LOCAL ROLE`
--- in pool.ts), so every schema's RLS policies apply to them. System work stays on the
--- connecting role — the owner of the tables — which RLS doesn't restrict.
+-- Row-level security. Every policy is written TO quarry_user: a group that holds no privileges,
+-- whose members are each process's user role — main_user (the main server), catalog_user (the
+-- Catalog service). A user's or delegate's transaction switches to its process's user role
+-- (`SET LOCAL ROLE`, pool.ts), so every policy applies; which tables it may touch at all is that
+-- role's grants. System work runs on each process's login: the owner for the main server, which
+-- RLS doesn't restrict; catalog_service for Catalog, with policies of its own on its own tables
+-- (catalog/001_initial.sql). docs/design/architecture-split.md §5.
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'quarry_user') THEN
         CREATE ROLE quarry_user NOLOGIN;
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'main_user') THEN
+        CREATE ROLE main_user NOLOGIN;
+    END IF;
 END $$;
 
-GRANT quarry_user TO CURRENT_USER;          -- so the app's connection may SET ROLE to it
-GRANT USAGE ON SCHEMA foundations TO quarry_user;
+GRANT quarry_user TO main_user;             -- the policies apply to it
+GRANT main_user TO CURRENT_USER;            -- so the main server's connection may SET ROLE to it
+GRANT USAGE ON SCHEMA foundations TO main_user;
 
 -- ── durable queues' outbox (docs/design/durable-queues.md) ───────────────
 --
@@ -52,7 +61,7 @@ LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
 $$;
 
 -- Users only append (add runs in their transactions) and ack; the relay reads and marks as the system.
-GRANT INSERT ON foundations.outbox TO quarry_user;
-GRANT SELECT (queue_name, job_id) ON foundations.outbox TO quarry_user;   -- ON CONFLICT's check; never the payloads
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA foundations TO quarry_user;
-GRANT EXECUTE ON FUNCTION foundations.ack_outbox(text, text[]) TO quarry_user;
+GRANT INSERT ON foundations.outbox TO main_user;
+GRANT SELECT (queue_name, job_id) ON foundations.outbox TO main_user;   -- ON CONFLICT's check; never the payloads
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA foundations TO main_user;
+GRANT EXECUTE ON FUNCTION foundations.ack_outbox(text, text[]) TO main_user;

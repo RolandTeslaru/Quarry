@@ -39,8 +39,8 @@ flowchart LR
 |---|---|---|
 | **Postgres** (`catalog` schema) | the database | **metadata only**: datasets, branches (`last_sequence`), transactions, each transaction's file changes (`key`, `format`, `bytes`, `rowCount`), schemas. Never a row of data |
 | **SeaweedFS** (S3 API, `localhost:9000` locally) | object storage, in Docker | **the bytes**: every dataset file, at `<dataset>/<transaction>/<file>` (`Dataset.getStorageKey`) |
-| **`FileStorage`** (`server/src/infra/file-storage.ts`) | the server's S3 client | nothing — moves bytes to and from the bucket, lists, deletes, signs URLs |
-| **`DuckDb`** (`server/src/services/Catalog/storage/duckdb.ts`) | DuckDB, an analytical SQL engine, **as a library inside the server's process** — not a separate service | nothing persistent (`:memory:`); reads files straight from the bucket while a query runs |
+| **`FileStorage`** (`platform-server/infra/file-storage.ts`) | the server's S3 client | nothing — moves bytes to and from the bucket, lists, deletes, signs URLs |
+| **`DuckDb`** (`catalog-service/src/catalog/storage/duckdb.ts`) | DuckDB, an analytical SQL engine, **as a library inside the server's process** — not a separate service | nothing persistent (`:memory:`); reads files straight from the bucket while a query runs |
 | **`CatalogStorage`** (`catalog-storage.service.ts`, reached as `catalog.storage`) | the service that touches dataset **contents** | nothing — it coordinates Postgres, `FileStorage` and DuckDB |
 
 ## 2. What `CatalogStorage` does

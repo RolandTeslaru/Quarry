@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { Dataset, Forge, Foundations, Library } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { Repository, Transactional } from '@/db/repository';
-import { json } from '@/db/table';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { Repository, Transactional } from '@quarry/platform-server/db/repository';
+import { json } from '@quarry/platform-server/db/table';
 import { ForgeDB } from '../forge.db';
 
 /** A recipe as a producer publishes it — Forge fills in the RID, branch, producer and who. */

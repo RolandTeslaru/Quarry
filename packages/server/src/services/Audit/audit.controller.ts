@@ -1,10 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import type { z } from 'zod';
 import { Audit } from '@quarry/shared/domain';
-import { CurrentPrincipal } from '@/auth/current-principal';
-import { Principal } from '@/auth/principal';
-import { ZodPipe } from '@/http/zod.pipe';
-import { AuditService } from './audit.service';
+import { CurrentPrincipal } from '@quarry/platform-server/auth/current-principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { ZodPipe } from '@quarry/platform-server/http/zod.pipe';
+import { AuditService } from '@quarry/platform-server/services/Audit/audit.service';
 
 import API = Audit.API;
 

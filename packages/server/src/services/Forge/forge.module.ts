@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
 import { SessionTokens } from '@/auth/session-tokens';
-import { DurableQueueModule } from '@/infra/durable-queue';
-import { CatalogModule } from '@/services/Catalog/catalog.module';
+import { DurableQueueModule } from '@quarry/platform-server/infra/durable-queue';
+import { CatalogModule } from '@quarry/catalog-service/catalog/catalog.module';
 import { ForgeService } from './forge.service';
 import { ForgeAgentService } from './agent/forge-agent.service';
 import { ForgeRepository } from './repository/forge.repository';

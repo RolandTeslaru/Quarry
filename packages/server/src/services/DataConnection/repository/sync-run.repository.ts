@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { Catalog, DataConnection, Dataset, Identity } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { Repository, Transactional } from '@/db/repository';
-import { json } from '@/db/table';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { Repository, Transactional } from '@quarry/platform-server/db/repository';
+import { json } from '@quarry/platform-server/db/table';
 import { DataConnectionDB } from '../data-connection.db';
 
 /** data_connection.sync_run. Reached through DataConnectionRepository. */

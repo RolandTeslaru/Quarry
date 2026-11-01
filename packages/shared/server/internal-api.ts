@@ -22,6 +22,20 @@ export const api: AxiosInstance = axios.create({
     timeout: REQUEST_TIMEOUT_MS,
 });
 
+let catalogApi: AxiosInstance | undefined;
+
+/**
+ * The Catalog service's /internal API (docs/design/architecture-split.md), with the same service token:
+ * workers call a service directly, not through the main server. Created on first use, so a worker that
+ * never calls Catalog needn't know where it is.
+ */
+export const getCatalogApi = (): AxiosInstance =>
+    (catalogApi ??= axios.create({
+        baseURL: requireEnv('CATALOG_URL'),
+        headers: { authorization: `Bearer ${requireEnv('QUARRY_INTERNAL_TOKEN')}` },
+        timeout: REQUEST_TIMEOUT_MS,
+    }));
+
 /** Blocks until the server answers its health check — started together, a worker may come up first. */
 export async function waitForServer(): Promise<void> {
     for (let attempt = 1; ; attempt++) {

@@ -2,8 +2,8 @@ import { NotFoundException } from '@nestjs/common';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { DataConnection } from '@quarry/shared/domain';
-import type { Principal } from '@/auth/principal';
-import { db } from '@/db/pool';
+import type { Principal } from '@quarry/platform-server/auth/principal';
+import { db } from '@quarry/platform-server/db/pool';
 import { DataConnectionHarness } from '../support/data-connection-fixtures';
 
 /**

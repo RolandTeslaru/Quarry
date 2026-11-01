@@ -1,11 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Catalog, Dataset, Forge, Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import type { Principal } from '@/auth/principal';
-import { CatalogService } from '@/services/Catalog/catalog.service';
-import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
+import type { Principal } from '@quarry/platform-server/auth/principal';
+import { CatalogService } from '@quarry/catalog-service/catalog/catalog.service';
+import { GatekeeperService } from '@quarry/platform-server/services/Gatekeeper/gatekeeper.service';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
-import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-server/infra/durable-queue';
 import { ForgeRepository } from './repository/forge.repository';
 import type { NewJob } from './repository/job.repository';
 import { Recipes } from './recipes';

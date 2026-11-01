@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
-import type { Principal } from '@/auth/principal';
+import type { Principal } from '@quarry/platform-server/auth/principal';
 import { GitRepos } from '@/services/CodeWorkspace/git/git-repos';
 import { CodeWorkspaceRepository } from '@/services/CodeWorkspace/repository/code-workspace.repository';
 import type { ForgeHarness } from './forge-fixtures';

@@ -1,12 +1,12 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CodeWorkspace, type Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import { Principal } from '@/auth/principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
 import { SessionTokens } from '@/auth/session-tokens';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
-import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
-import { SecurityGate } from '@/services/Gatekeeper/security-gate';
-import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
+import { GatekeeperService } from '@quarry/platform-server/services/Gatekeeper/gatekeeper.service';
+import { SecurityGate } from '@quarry/platform-server/services/Gatekeeper/security-gate';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-server/infra/durable-queue';
 import { CodeWorkspaceRepository } from '../repository/code-workspace.repository';
 import type { NewCheckRun, QueuedCheckRuns } from '../repository/check-run.repository';
 import { GitRepos } from '../git/git-repos';

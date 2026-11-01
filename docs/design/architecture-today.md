@@ -1,6 +1,6 @@
 # Quarry today — the system as built
 
-_Written 2026-10-31 from the code, as the baseline for deciding how to split the architecture. What runs, what each part reads and writes, how identity and permissions are checked, and every channel between processes. No proposals here — those come after. Older design: [architecture.md](architecture.md) (layer 1, 2026-10-13)._
+_Written 2026-10-31 from the code, as the baseline for deciding how to split the architecture. What runs, what each part reads and writes, how identity and permissions are checked, and every channel between processes. No proposals here — those come after. Older design: [architecture.md](architecture.md) (layer 1, 2026-10-13). The plan to split it: [architecture-split.md](architecture-split.md)._
 
 ## 1. What runs
 

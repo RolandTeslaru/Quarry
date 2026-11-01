@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import axios, { isAxiosError, type AxiosInstance } from 'axios';
 import { CodeWorkspace, type Identity } from '@quarry/shared/domain';
-import { requireEnv } from '@/db/table';
+import { requireEnv } from '@quarry/platform-server/db/table';
 
 import Worker = CodeWorkspace.API.Worker;
 

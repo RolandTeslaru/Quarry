@@ -1,7 +1,7 @@
 import { Body, Controller, HttpCode, Param, Post } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
-import { ForgeAgentOnly } from '@/auth/current-principal';
-import { ZodPipe } from '@/http/zod.pipe';
+import { ForgeAgentOnly } from '@quarry/platform-server/auth/current-principal';
+import { ZodPipe } from '@quarry/platform-server/http/zod.pipe';
 import { ForgeAgentService } from './forge-agent.service';
 
 const JobRidParam = new ZodPipe(Forge.Job.Rid);

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Dataset, Forge, Foundations, Library } from '@quarry/shared/domain';
-import type { Principal } from '@/auth/principal';
+import type { Principal } from '@quarry/platform-server/auth/principal';
 import { ForgeRepository } from './repository/forge.repository';
 import type { PublishedRecipe } from './repository/recipe.repository';
 

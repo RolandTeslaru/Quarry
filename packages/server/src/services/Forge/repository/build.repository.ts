@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { Dataset, Forge } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { Repository, Transactional } from '@/db/repository';
-import { json } from '@/db/table';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { Repository, Transactional } from '@quarry/platform-server/db/repository';
+import { json } from '@quarry/platform-server/db/table';
 import { ForgeDB } from '../forge.db';
 
 /** A build as created — the database fills in its status, who and when. */

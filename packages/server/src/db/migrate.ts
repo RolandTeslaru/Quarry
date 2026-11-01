@@ -2,15 +2,18 @@
 import '../load-env';
 
 import { System } from '@quarry/shared/server/system';
-import { db, destroyPool } from './pool';
-import { migrateAll } from './migrator';
+import { db, destroyPool } from '@quarry/platform-server/db/pool';
+import { setServiceLogins } from '@quarry/platform-server/db/service-logins';
+import { migrateAll } from '@quarry/platform-server/db/migrator';
+import { MIGRATIONS_FOLDER } from '../migrations-folder';
 
 System.log.setAppName('Migrate');
 
 const log = System.log.withContext('Migrate');
 
 async function main(): Promise<void> {
-    await migrateAll(db());
+    await migrateAll(db(), MIGRATIONS_FOLDER);
+    await setServiceLogins(db());
     await destroyPool();
 }
 

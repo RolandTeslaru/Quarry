@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { Repository, Transactional } from '@/db/repository';
-import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
-import { TransactionRepository } from '@/services/Catalog/transaction/transaction.repository';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { Repository, Transactional } from '@quarry/platform-server/db/repository';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-server/infra/durable-queue';
+import { TransactionRepository } from '@quarry/catalog-service/catalog/transaction/transaction.repository';
 import { ForgeDB } from '../forge.db';
 import { BuildRepository, type NewBuild } from './build.repository';
 import { JobRepository, type NewJob } from './job.repository';

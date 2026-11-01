@@ -1,9 +1,9 @@
 import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import { Library } from '@quarry/shared/domain';
-import { CurrentPrincipal } from '@/auth/current-principal';
-import { Principal } from '@/auth/principal';
-import { ZodPipe } from '@/http/zod.pipe';
-import { LibraryService } from './library.service';
+import { CurrentPrincipal } from '@quarry/platform-server/auth/current-principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { ZodPipe } from '@quarry/platform-server/http/zod.pipe';
+import { LibraryService } from '@quarry/platform-server/services/Library/library.service';
 
 import API = Library.API;
 const RidParam = new ZodPipe(Library.Resource.Rid);

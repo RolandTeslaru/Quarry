@@ -33,5 +33,5 @@ CREATE POLICY create_  ON keychain.credential FOR INSERT TO quarry_user WITH CHE
 CREATE POLICY change   ON keychain.credential FOR UPDATE TO quarry_user
     USING (gatekeeper.can(rid, 'write')) WITH CHECK (gatekeeper.can(rid, 'write'));
 
-GRANT USAGE ON SCHEMA keychain TO quarry_user;
-GRANT SELECT, INSERT, UPDATE ON keychain.credential TO quarry_user;
+GRANT USAGE ON SCHEMA keychain TO main_user;
+GRANT SELECT, INSERT, UPDATE ON keychain.credential TO main_user;

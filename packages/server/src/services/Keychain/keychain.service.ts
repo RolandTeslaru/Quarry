@@ -4,11 +4,11 @@ import { Keychain } from '@quarry/shared/domain';
 import { Encryption } from '@quarry/shared/server/encryption';
 import { System } from '@quarry/shared/server/system';
 import { CREDENTIAL_TEMPLATES_WIRE, findCredentialTemplate, type CredentialTemplate } from '@quarry/integrations/definitions';
-import { Principal } from '@/auth/principal';
-import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
-import { SecurityGate } from '@/services/Gatekeeper/security-gate';
-import { Audit } from '@/services/Audit/audit.decorator';
-import { AuditService } from '@/services/Audit/audit.service';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { GatekeeperService } from '@quarry/platform-server/services/Gatekeeper/gatekeeper.service';
+import { SecurityGate } from '@quarry/platform-server/services/Gatekeeper/security-gate';
+import { Audit } from '@quarry/platform-server/services/Audit/audit.decorator';
+import { AuditService } from '@quarry/platform-server/services/Audit/audit.service';
 import { KeychainRepository, type StoredCredential } from './keychain.repository';
 
 /**

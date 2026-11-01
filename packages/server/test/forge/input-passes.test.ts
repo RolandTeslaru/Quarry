@@ -1,6 +1,6 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Principal } from '@/auth/principal';
+import type { Principal } from '@quarry/platform-server/auth/principal';
 import { ForgeHarness } from '../support/forge-fixtures';
 
 /**

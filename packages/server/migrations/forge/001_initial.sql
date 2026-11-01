@@ -161,7 +161,7 @@ CREATE POLICY create_  ON forge.job FOR INSERT TO quarry_user WITH CHECK (forge.
 CREATE POLICY change   ON forge.job FOR UPDATE TO quarry_user
     USING (forge.writes(forge.targets_of(build_rid))) WITH CHECK (forge.writes(forge.targets_of(build_rid)));
 
-GRANT USAGE ON SCHEMA forge TO quarry_user;
-GRANT SELECT, INSERT ON forge.recipe, forge.recipe_input_dataset, forge.recipe_output_dataset TO quarry_user;
-GRANT SELECT, INSERT, DELETE ON forge.current_recipe TO quarry_user;
-GRANT SELECT, INSERT, UPDATE ON forge.build, forge.job TO quarry_user;
+GRANT USAGE ON SCHEMA forge TO main_user;
+GRANT SELECT, INSERT ON forge.recipe, forge.recipe_input_dataset, forge.recipe_output_dataset TO main_user;
+GRANT SELECT, INSERT, DELETE ON forge.current_recipe TO main_user;
+GRANT SELECT, INSERT, UPDATE ON forge.build, forge.job TO main_user;

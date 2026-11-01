@@ -97,7 +97,7 @@ export namespace DurableQueue {
 
 Each domain declares its own beside its queue: `<Service>.DurableQueue.<Name>`.
 
-### Server — `packages/server/src/infra/durable-queue/`
+### Server — `packages/platform-server/infra/durable-queue/`
 
 | Piece | Nest pattern (as `@nestjs/bullmq`) | Does |
 |---|---|---|

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { LibraryModule } from '@/services/Library/library.module';
+import { LibraryModule } from '@quarry/platform-server/services/Library/library.module';
 import { KeychainService } from './keychain.service';
 import { KeychainRepository } from './keychain.repository';
 

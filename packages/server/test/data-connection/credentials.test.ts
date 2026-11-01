@@ -1,7 +1,7 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { DataConnection, Keychain, Library } from '@quarry/shared/domain';
-import type { Principal } from '@/auth/principal';
+import type { Principal } from '@quarry/platform-server/auth/principal';
 import { DataConnectionHarness, type PostgresLogin } from '../support/data-connection-fixtures';
 
 /**

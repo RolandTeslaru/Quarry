@@ -72,7 +72,7 @@ Sales (project)           ← alice: viewer (2)    group analysts: editor (3)
 
 ## 2. Principals: who is asking
 
-Every repository method and every gated service method takes a `Principal` first (`server/src/auth/principal.ts`):
+Every repository method and every gated service method takes a `Principal` first (`platform-server/auth/principal.ts`):
 
 | Principal | Created by | Checked as | Transaction runs as |
 |---|---|---|---|
@@ -115,10 +115,10 @@ sequenceDiagram
     R-->>S: row, or NoResultError → 404
 ```
 
-What makes this work (`server/src/db/pool.ts`, `server/src/db/repository.ts`):
+What makes this work (`platform-server/db/pool.ts`, `platform-server/db/repository.ts`):
 
 - **`set_config(…, true)` and `SET LOCAL`** last only for the transaction. A pooled connection goes back to the pool clean, and one request's user can never leak into another's.
-- **`quarry_user`** is a `NOLOGIN` role (`migrations/foundations/001_initial.sql`) that the app's connection may switch to. Every table's policies are written `TO quarry_user`. The owner role, used for service work, has no policies applied.
+- **`quarry_user`** is a `NOLOGIN` role (`migrations/foundations/001_initial.sql`). Every table's policies are written `TO quarry_user`. **Since phase 1 of the split ([architecture-split.md](architecture-split.md)) it holds no privileges:** it's the group the policies name. Each process's user role is a member: `main_user` (the main server, holding today's grants), `catalog_user` (the Catalog service, its own grants only). A user's transaction switches to its process's role (`SET LOCAL ROLE`), so every policy applies, and that role's grants decide which tables it may touch at all. The diagrams below say `quarry_user` for that role. The owner role, used for the main server's service work, has no policies applied; the Catalog service's own work runs as `catalog_service`, with policies of its own on its own tables.
 - **`gatekeeper.my_rank(rid)`** reads `current_setting('app.user_rid', true)`. Without a user it is 0, so a `quarry_user` transaction that somehow had no user sees nothing.
 - **Joining.** A decorated repository method called inside another joins its transaction, but only as the **same principal** (`samePrincipal`). A user's call can't join a service transaction and pick up its unrestricted role, or the other way around; trying throws.
 - **Liveness is separate from permission.** `@Transactional` checks every top-level RID argument with `library.is_live` (also `SECURITY DEFINER`: a trashed folder you can't see still hides the dataset you can). `@AllowTrashed()` exempts a parameter for restore, purge and trash listings.

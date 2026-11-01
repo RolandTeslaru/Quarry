@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DataConnection } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
 import { DataConnectionHarness } from '../support/data-connection-fixtures';
 
 /** Sources: the definitions on offer, creating one (validated), reading it back, opening its page. */

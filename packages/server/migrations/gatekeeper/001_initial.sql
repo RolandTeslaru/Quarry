@@ -173,6 +173,6 @@ CREATE POLICY regrant ON gatekeeper.role_grant FOR UPDATE TO quarry_user
     USING (gatekeeper.can(resource_rid, 'manage')) WITH CHECK (gatekeeper.can(resource_rid, 'manage'));
 CREATE POLICY revoke ON gatekeeper.role_grant FOR DELETE TO quarry_user USING (gatekeeper.can(resource_rid, 'manage'));
 
-GRANT USAGE ON SCHEMA gatekeeper TO quarry_user;
-GRANT SELECT ON gatekeeper.role TO quarry_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON gatekeeper.role_grant TO quarry_user;
+GRANT USAGE ON SCHEMA gatekeeper TO main_user;
+GRANT SELECT ON gatekeeper.role TO main_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON gatekeeper.role_grant TO main_user;

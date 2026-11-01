@@ -11,11 +11,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DataConnection } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { ApiModule } from '@/api.module';
-import type { Principal } from '@/auth/principal';
-import { destroyPool } from '@/db/pool';
-import { QueueJobError } from '@/infra/queue';
+import type { Principal } from '@quarry/platform-server/auth/principal';
+import { destroyPool } from '@quarry/platform-server/db/pool';
+import { QueueJobError } from '@quarry/platform-server/infra/queue';
 import { DataConnectionHarness, type PostgresLogin } from '../support/data-connection-fixtures';
-import { withDatabase } from '../support/test-env';
+import { withDatabase } from '@quarry/platform-server/testing/test-env';
 
 /** How long the worker gets to boot (ts-node compiles it first). */
 const WORKER_BOOT_MS = 60_000;

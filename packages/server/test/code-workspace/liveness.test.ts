@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Principal } from '@/auth/principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
 import type { Request, Response } from 'express';
 import { CodeWorkspaceService } from '@/services/CodeWorkspace/code-workspace.service';
 import { GitService } from '@/services/CodeWorkspace/git/git.service';

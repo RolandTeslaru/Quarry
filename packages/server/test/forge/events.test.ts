@@ -1,7 +1,7 @@
 import Redis from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Forge } from '@quarry/shared/domain';
-import type { Principal } from '@/auth/principal';
+import type { Principal } from '@quarry/platform-server/auth/principal';
 import { ForgeHarness } from '../support/forge-fixtures';
 
 /**

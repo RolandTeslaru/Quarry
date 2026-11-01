@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Catalog, CodeWorkspace, Dataset, Forge } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { CatalogService } from '@/services/Catalog/catalog.service';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { CatalogService } from '@quarry/catalog-service/catalog/catalog.service';
 import { ForgeService } from '@/services/Forge/forge.service';
 import type { PublishedRecipe } from '@/services/Forge/recipes';
 

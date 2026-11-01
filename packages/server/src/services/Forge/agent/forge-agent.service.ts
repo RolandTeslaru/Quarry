@@ -1,11 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import { Principal } from '@/auth/principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
 import { SessionTokens } from '@/auth/session-tokens';
-import { CatalogService } from '@/services/Catalog/catalog.service';
+import { CatalogService } from '@quarry/catalog-service/catalog/catalog.service';
 import { RealtimeService } from '@/services/Realtime/realtime.service';
-import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-server/infra/durable-queue';
 import { ForgeRepository } from '../repository/forge.repository';
 
 /** ForgeAgents act through the server as the system: they carry no user. */

@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { CodeWorkspace } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { RequireLive } from '@/db/liveness';
-import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
-import { SecurityGate } from '@/services/Gatekeeper/security-gate';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { RequireLive } from '@quarry/platform-server/db/liveness';
+import { GatekeeperService } from '@quarry/platform-server/services/Gatekeeper/gatekeeper.service';
+import { SecurityGate } from '@quarry/platform-server/services/Gatekeeper/security-gate';
 import { CIService } from '../ci/ci.service';
 import { GitRepos } from './git-repos';
 import { serveGit } from './http-backend';

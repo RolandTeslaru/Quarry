@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { LibraryModule } from '@/services/Library/library.module';
-import { CatalogModule } from '@/services/Catalog/catalog.module';
+import { LibraryModule } from '@quarry/platform-server/services/Library/library.module';
+import { CatalogModule } from '@quarry/catalog-service/catalog/catalog.module';
 import { KeychainModule } from '@/services/Keychain/keychain.module';
 import { DataConnectionService } from './data-connection.service';
 import { DataConnectionRepository } from './repository/data-connection.repository';

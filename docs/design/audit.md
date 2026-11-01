@@ -2,6 +2,8 @@
 
 _Built, 2026-10-23. Principals and `via` are in [gatekeeper.md](gatekeeper.md#3-principals); schema rules in [database.md](database.md); application ids in `@quarry/shared` (`Platform.Application.Id`). Answers the audit-log open question in [gatekeeper.md §10](gatekeeper.md#10-open-questions) and the reveal audit in [keychain.md](keychain.md)._
 
+> **Since phase 1 of the split ([architecture-split.md](architecture-split.md) §7):** opens, reads and refusals are no longer inserted where they happen. `AuditRepository.record` / `recordOpen` add an **`audit.record` message to the outbox** in the same transaction (an open's still joins the open's); `AuditRelayMiddleware` relays it once the request has answered; the **system worker** consumes it and hands it to the main server (`POST /api/internal/audit/records`), which stores it **once** (`event_id` = the message's job id) and acks it, in one transaction. Users only read `audit.access_event` now. `modify` records are still the triggers', in the write's transaction. Where this page says a record is written in a transaction, read: queued in it.
+
 Audit records **who accessed what, how, and when** — one append-only event per meaningful access. It serves two readers:
 
 - **Admins**: who read this dataset, who revealed this credential, who was refused.

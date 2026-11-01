@@ -3,6 +3,7 @@ import { Controller, Get, Module, ServiceUnavailableException } from '@nestjs/co
 import type { Queue } from 'bullmq';
 import { Catalog, CodeWorkspace, DataConnection, Foundations } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
+import { AuditRecordProcessor } from './processors/audit-record.processor';
 import { CodeWorkspaceCheckSweepProcessor } from './processors/code-workspace-check-sweep.processor';
 import { DurableQueueSweepProcessor } from './processors/durable-queue-sweep.processor';
 import { StorageGcProcessor } from './processors/storage-gc.processor';
@@ -37,8 +38,9 @@ export class HealthController {
 /**
  * The system worker: housekeeping on a schedule — storage GC,
  * stuck-run reaper, sync schedule reconcile, Code Workspaces'
- * check sweep, the durable queues' sweep. No database: each job's Postgres
- * part is a server /internal endpoint.
+ * check sweep, the durable queues' sweep — and storing audit records
+ * (audit.record, from every server's outbox). No database: each job's
+ * Postgres part is a server /internal endpoint.
  */
 @Module({
     imports: [
@@ -52,6 +54,6 @@ export class HealthController {
         ),
     ],
     controllers: [HealthController],
-    providers:   [StorageGcProcessor, SyncReaperProcessor, CodeWorkspaceCheckSweepProcessor, DurableQueueSweepProcessor, Schedules],
+    providers:   [AuditRecordProcessor, StorageGcProcessor, SyncReaperProcessor, CodeWorkspaceCheckSweepProcessor, DurableQueueSweepProcessor, Schedules],
 })
 export class WorkerModule {}

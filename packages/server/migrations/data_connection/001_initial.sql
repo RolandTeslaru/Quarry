@@ -109,6 +109,6 @@ CREATE POLICY record ON data_connection.sync_run FOR UPDATE TO quarry_user
     USING (gatekeeper.can(data_connection.source_of(sync_rid), 'read'))
     WITH CHECK (gatekeeper.can(data_connection.source_of(sync_rid), 'read'));
 
-GRANT USAGE ON SCHEMA data_connection TO quarry_user;
-GRANT SELECT, INSERT ON data_connection.source, data_connection.sync TO quarry_user;
-GRANT SELECT, INSERT, UPDATE ON data_connection.sync_run TO quarry_user;
+GRANT USAGE ON SCHEMA data_connection TO main_user;
+GRANT SELECT, INSERT ON data_connection.source, data_connection.sync TO main_user;
+GRANT SELECT, INSERT, UPDATE ON data_connection.sync_run TO main_user;

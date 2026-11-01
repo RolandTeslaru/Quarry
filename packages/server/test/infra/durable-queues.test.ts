@@ -5,14 +5,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { z } from 'zod';
 import { Foundations } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
-import { Principal } from '@/auth/principal';
-import { db } from '@/db/pool';
-import { Repository, Transactional } from '@/db/repository';
-import { DurableQueueHandle, DurableQueueInternalController, DurableQueues } from '@/infra/durable-queue';
-import { OutboxDB } from '@/infra/durable-queue/outbox.db';
-import { OutboxRepository } from '@/infra/durable-queue/outbox.repository';
-import { QueueManager } from '@/infra/queue';
-import { ForgeHarness } from '../support/forge-fixtures';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { db } from '@quarry/platform-server/db/pool';
+import { Repository, Transactional } from '@quarry/platform-server/db/repository';
+import { DurableQueueHandle, DurableQueueInternalController, DurableQueues } from '@quarry/platform-server/infra/durable-queue';
+import { OutboxDB } from '@quarry/platform-server/infra/durable-queue/outbox.db';
+import { OutboxRepository } from '@quarry/platform-server/infra/durable-queue/outbox.repository';
+import { QueueManager } from '@quarry/platform-server/infra/queue';
+import { MainServerHarness } from '../support/main-server-fixtures';
 
 const TestQueue = Foundations.Queue.define({
     name:    'test.durable',
@@ -56,7 +56,7 @@ class TestDomainRepository extends Repository(OutboxDB.database) {
  */
 describe('durable queues', () => {
 
-    let harness: ForgeHarness;
+    let harness: MainServerHarness;
     let durableQueues: DurableQueues;
     let handle: DurableQueueHandle<typeof TestQueue>;
     let domain: TestDomainRepository;
@@ -64,7 +64,7 @@ describe('durable queues', () => {
     const redis = new Queue(TestQueue.name, { connection: redisConnection(), prefix: QUEUE_PREFIX });
 
     beforeAll(async () => {
-        harness = await ForgeHarness.start();
+        harness = await MainServerHarness.start();
         durableQueues = harness.get(DurableQueues);
         durableQueues.register(TestDurableQueue);
         handle = new DurableQueueHandle(TestDurableQueue, harness.get(OutboxRepository), durableQueues);

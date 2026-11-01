@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
 import { Gatekeeper, Library } from '@quarry/shared/domain';
-import { CurrentPrincipal } from '@/auth/current-principal';
-import { Principal } from '@/auth/principal';
-import { ZodPipe } from '@/http/zod.pipe';
-import { GatekeeperService } from './gatekeeper.service';
+import { CurrentPrincipal } from '@quarry/platform-server/auth/current-principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { ZodPipe } from '@quarry/platform-server/http/zod.pipe';
+import { GatekeeperService } from '@quarry/platform-server/services/Gatekeeper/gatekeeper.service';
 
 import API = Gatekeeper.API;
 const RidParam = new ZodPipe(Library.Resource.Rid);

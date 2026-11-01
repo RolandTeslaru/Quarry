@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CodeWorkspace, Dataset, Library } from '@quarry/shared/domain';
-import type { Principal } from '@/auth/principal';
+import type { Principal } from '@quarry/platform-server/auth/principal';
 import { CIService } from '@/services/CodeWorkspace/ci/ci.service';
 import { MAIN, QUARRY_CI, commitFiles, createWorkspace } from '../support/code-workspace-fixtures';
 import { ForgeHarness } from '../support/forge-fixtures';

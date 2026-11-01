@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { CodeWorkspace } from '@quarry/shared/domain';
 import { SessionTokens } from '@/auth/session-tokens';
-import { DurableQueueModule } from '@/infra/durable-queue';
-import { IdentityModule } from '@/services/Identity/identity.module';
-import { LibraryModule } from '@/services/Library/library.module';
-import { CatalogModule } from '@/services/Catalog/catalog.module';
+import { DurableQueueModule } from '@quarry/platform-server/infra/durable-queue';
+import { IdentityModule } from '@quarry/platform-server/services/Identity/identity.module';
+import { LibraryModule } from '@quarry/platform-server/services/Library/library.module';
+import { CatalogModule } from '@quarry/catalog-service/catalog/catalog.module';
 import { ForgeModule } from '@/services/Forge/forge.module';
 import { CodeWorkspaceService } from './code-workspace.service';
 import { CodeWorkspaceRepository } from './repository/code-workspace.repository';

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { DataConnection } from '@quarry/shared/domain';
-import { Internal } from '@/auth/current-principal';
-import { ZodPipe } from '@/http/zod.pipe';
+import { Internal } from '@quarry/platform-server/auth/current-principal';
+import { ZodPipe } from '@quarry/platform-server/http/zod.pipe';
 import { DataConnectionService } from './data-connection.service';
 
 import API = DataConnection.API;

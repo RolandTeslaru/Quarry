@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { CodeWorkspace, Library, type Platform } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { Repository, Transactional } from '@/db/repository';
-import { isLive } from '@/db/liveness';
-import { AuditRepository } from '@/services/Audit/audit.repository';
-import { EnsureResource } from '@/services/Library/ensure-resource';
-import { ResourceRepository } from '@/services/Library/resource.repository';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { Repository, Transactional } from '@quarry/platform-server/db/repository';
+import { isLive } from '@quarry/platform-server/db/liveness';
+import { AuditRepository } from '@quarry/platform-server/services/Audit/audit.repository';
+import { EnsureResource } from '@quarry/platform-server/services/Library/ensure-resource';
+import { ResourceRepository } from '@quarry/platform-server/services/Library/resource.repository';
 import { CodeWorkspaceDB } from '../code-workspace.db';
 
 /** code_workspace.workspace (and its library row). Reached through CodeWorkspaceRepository. */

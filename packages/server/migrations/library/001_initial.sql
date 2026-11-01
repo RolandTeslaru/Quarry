@@ -151,8 +151,8 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
               AND anc.trashed_at IS NOT NULL)
 $$;
 
-GRANT USAGE ON SCHEMA library TO quarry_user;
-GRANT SELECT ON library.resource_type, library.resource_ancestor TO quarry_user;
-GRANT SELECT, INSERT, UPDATE ON library.resource TO quarry_user;
+GRANT USAGE ON SCHEMA library TO main_user;
+GRANT SELECT ON library.resource_type, library.resource_ancestor TO main_user;
+GRANT SELECT, INSERT, UPDATE ON library.resource TO main_user;
 -- RLS on library.resource and resource_ancestor is installed by gatekeeper/001_initial.sql,
 -- which defines the rank function the policies call.

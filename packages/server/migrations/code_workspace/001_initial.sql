@@ -65,6 +65,6 @@ CREATE POLICY create_ ON code_workspace.check_run FOR INSERT TO quarry_user WITH
 CREATE POLICY change  ON code_workspace.check_run FOR UPDATE TO quarry_user
     USING (gatekeeper.can(workspace_rid, 'write')) WITH CHECK (gatekeeper.can(workspace_rid, 'write'));
 
-GRANT USAGE ON SCHEMA code_workspace TO quarry_user;
-GRANT SELECT, INSERT ON code_workspace.workspace TO quarry_user;
-GRANT SELECT, INSERT, UPDATE ON code_workspace.check_run TO quarry_user;
+GRANT USAGE ON SCHEMA code_workspace TO main_user;
+GRANT SELECT, INSERT ON code_workspace.workspace TO main_user;
+GRANT SELECT, INSERT, UPDATE ON code_workspace.check_run TO main_user;

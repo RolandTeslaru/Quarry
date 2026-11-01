@@ -1,8 +1,8 @@
 import { All, BadRequestException, Controller, NotFoundException, Param, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { CodeWorkspace } from '@quarry/shared/domain';
-import { CurrentPrincipal } from '@/auth/current-principal';
-import { Principal } from '@/auth/principal';
+import { CurrentPrincipal } from '@quarry/platform-server/auth/current-principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
 import { GitService } from './git.service';
 
 /** The smart-HTTP endpoints; the dumb protocol (raw object files) isn't served. */

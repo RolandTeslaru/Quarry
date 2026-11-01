@@ -2,9 +2,9 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Dataset, type Forge } from '@quarry/shared/domain';
 import { literal } from '@quarry/integrations/core/duckdb';
-import type { Principal } from '@/auth/principal';
-import { FileStorage } from '@/infra/file-storage';
-import { DuckDb } from '@/services/Catalog/storage/duckdb';
+import type { Principal } from '@quarry/platform-server/auth/principal';
+import { FileStorage } from '@quarry/platform-server/infra/file-storage';
+import { DuckDb } from '@quarry/catalog-service/catalog/storage/duckdb';
 import { ForgeHarness } from '../support/forge-fixtures';
 
 /**

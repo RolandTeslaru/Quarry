@@ -41,10 +41,10 @@ export namespace Queue {
 
 `Name` is validated and branded because a mismatched name is a silent failure: jobs land on a queue no processor listens to. `<service>.<job>`, kebab-case, exactly one dot, no colons (BullMQ uses colons in Redis keys).
 
-### The runtime — `server/src/infra/queue.ts`
+### The runtime — `platform-server/infra/queue.ts`
 
 ```ts
-/** The only way the server enqueues (server/src/infra/queue.ts). The workers consume with @nestjs/bullmq processors on a typed JobProcessor base. */
+/** The only way the server enqueues (platform-server/infra/queue.ts). The workers consume with @nestjs/bullmq processors on a typed JobProcessor base. */
 @Injectable()
 export class QueueManager {
     add<Q extends Foundations.Queue.Definition>(queue: Q, job: InputOf<Q>, options?: JobsOptions): Promise<Job>;

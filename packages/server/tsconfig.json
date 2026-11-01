@@ -7,6 +7,12 @@
             "@/*": [
                 "./src/*"
             ],
+            "@quarry/platform-server/*": [
+                "../platform-server/*"
+            ],
+            "@quarry/catalog-service/*": [
+                "../catalog-service/src/*"
+            ],
             "@quarry/shared/*": [
                 "../shared/*"
             ],
@@ -16,7 +22,10 @@
         },
         "rootDir": "..",
         "outDir": "./dist",
-        "lib": ["ES2022", "DOM"],
+        "lib": [
+            "ES2022",
+            "DOM"
+        ],
         "esModuleInterop": true,
         "resolveJsonModule": true,
         "forceConsistentCasingInFileNames": true,

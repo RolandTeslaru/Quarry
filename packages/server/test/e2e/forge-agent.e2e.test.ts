@@ -8,8 +8,8 @@ import { WsAdapter } from '@nestjs/platform-ws';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Forge } from '@quarry/shared/domain';
 import { ApiModule } from '@/api.module';
-import type { Principal } from '@/auth/principal';
-import { destroyPool } from '@/db/pool';
+import type { Principal } from '@quarry/platform-server/auth/principal';
+import { destroyPool } from '@quarry/platform-server/db/pool';
 import { createWorkspace } from '../support/code-workspace-fixtures';
 import { ForgeHarness, MAIN, type RecipeCode } from '../support/forge-fixtures';
 

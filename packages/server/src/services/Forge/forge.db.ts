@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { Catalog, Dataset, Forge, Foundations, Identity, Library } from '@quarry/shared/domain';
-import { defineDatabase } from '@/db/pool';
-import type { Table } from '@/db/table';
-import type { IdentityDB } from '@/services/Identity/identity.db';
-import type { LibraryDB } from '@/services/Library/library.db';
+import { defineDatabase } from '@quarry/platform-server/db/pool';
+import type { Table } from '@quarry/platform-server/db/table';
+import type { IdentityDB } from '@quarry/platform-server/services/Identity/identity.db';
+import type { LibraryDB } from '@quarry/platform-server/services/Library/library.db';
 
 /** The `forge` schema: recipes, builds, jobs. */
 export namespace ForgeDB {

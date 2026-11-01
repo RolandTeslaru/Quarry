@@ -3,7 +3,7 @@
     "version": "0.0.1",
     "private": true,
     "scripts": {
-        "dev:api": "nodemon -w src -w ../shared -w ../integrations -w migrations -e ts,json,sql --exec ts-node -r tsconfig-paths/register src/api.ts",
+        "dev:api": "nodemon -w src -w ../platform-server -w ../shared -w ../integrations -w migrations -e ts,json,sql --exec ts-node -r tsconfig-paths/register src/api.ts",
         "migrate": "ts-node -r tsconfig-paths/register src/db/migrate.ts",
         "build": "rm -rf dist && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && cp -R migrations dist/server/migrations",
         "start:api": "node dist/server/src/api.js",
@@ -21,7 +21,9 @@
         "@nestjs/platform-express": "^11.1.16",
         "@nestjs/platform-ws": "^11.2.7",
         "@nestjs/websockets": "^11.2.7",
+        "@quarry/catalog-service": "*",
         "@quarry/integrations": "*",
+        "@quarry/platform-server": "*",
         "@quarry/shared": "*",
         "axios": "^1.13.4",
         "bullmq": "^5.67.2",

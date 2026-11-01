@@ -7,14 +7,14 @@ import { sql } from 'kysely';
 import { Catalog, DataConnection, Dataset, type Gatekeeper, Identity, type Keychain, type Library, Storage } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { ApiModule } from '@/api.module';
-import type { Principal } from '@/auth/principal';
-import { db, destroyPool } from '@/db/pool';
-import { FileStorage } from '@/infra/file-storage';
-import { CatalogService } from '@/services/Catalog/catalog.service';
+import type { Principal } from '@quarry/platform-server/auth/principal';
+import { db, destroyPool } from '@quarry/platform-server/db/pool';
+import { FileStorage } from '@quarry/platform-server/infra/file-storage';
+import { CatalogService } from '@quarry/catalog-service/catalog/catalog.service';
 import { DataConnectionService } from '@/services/DataConnection/data-connection.service';
-import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
+import { GatekeeperService } from '@quarry/platform-server/services/Gatekeeper/gatekeeper.service';
 import { KeychainService } from '@/services/Keychain/keychain.service';
-import { LibraryService } from '@/services/Library/library.service';
+import { LibraryService } from '@quarry/platform-server/services/Library/library.service';
 
 import Internal = DataConnection.API.Internal;
 

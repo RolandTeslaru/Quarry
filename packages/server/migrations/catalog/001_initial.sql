@@ -103,7 +103,66 @@ CREATE POLICY read     ON catalog.transaction_change FOR SELECT TO quarry_user
 CREATE POLICY register ON catalog.transaction_change FOR INSERT TO quarry_user
     WITH CHECK (gatekeeper.can(catalog.dataset_of(transaction_rid), 'write'));
 
-GRANT USAGE ON SCHEMA catalog TO quarry_user;
-GRANT SELECT, INSERT ON catalog.dataset, catalog.transaction_change TO quarry_user;
-GRANT SELECT, INSERT, UPDATE ON catalog.branch, catalog.transaction TO quarry_user;
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA catalog TO quarry_user;
+GRANT USAGE ON SCHEMA catalog TO main_user;
+GRANT SELECT, INSERT ON catalog.dataset, catalog.transaction_change TO main_user;
+GRANT SELECT, INSERT, UPDATE ON catalog.branch, catalog.transaction TO main_user;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA catalog TO main_user;
+
+-- ── the Catalog service's roles (docs/design/architecture-split.md §5) ──────
+--
+-- catalog_service: the service's login (its password set at boot from CATALOG_DATABASE_URL —
+-- db/service-logins.ts) and its own work (Principal.SELF). catalog_user: a user's transaction in the
+-- service, a member of quarry_user so every policy applies. Neither can touch another product's schema.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'catalog_service') THEN
+        CREATE ROLE catalog_service NOLOGIN;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'catalog_user') THEN
+        CREATE ROLE catalog_user NOLOGIN;
+    END IF;
+END $$;
+
+GRANT quarry_user TO catalog_user;           -- the policies apply to it
+GRANT catalog_user TO catalog_service;       -- so the service's connection may SET ROLE to it
+
+-- catalog_user: Catalog's tables as main_user has them; the platform's reads; Library rows of its own
+-- type (the restrictive policies below); the outbox, for audit records.
+GRANT USAGE ON SCHEMA foundations, identity, library, gatekeeper, catalog TO catalog_user;
+GRANT SELECT, INSERT ON catalog.dataset, catalog.transaction_change TO catalog_user;
+GRANT SELECT, INSERT, UPDATE ON catalog.branch, catalog.transaction TO catalog_user;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA catalog TO catalog_user;
+GRANT SELECT ON identity.user, identity.group, identity.group_member TO catalog_user;
+GRANT SELECT ON library.resource_type, library.resource_ancestor TO catalog_user;
+GRANT SELECT, INSERT, UPDATE ON library.resource TO catalog_user;
+GRANT SELECT ON gatekeeper.role TO catalog_user;
+GRANT INSERT ON foundations.outbox TO catalog_user;
+GRANT SELECT (queue_name, job_id) ON foundations.outbox TO catalog_user;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA foundations TO catalog_user;
+
+-- On top of Gatekeeper's policies: a dataset, or a new folder — never another product's resource,
+-- nor a folder or project changed (that's the Library, in the main server: it affects what's inside).
+CREATE POLICY catalog_creates ON library.resource AS RESTRICTIVE FOR INSERT TO catalog_user
+    WITH CHECK (type IN ('dataset', 'folder'));
+CREATE POLICY catalog_changes ON library.resource AS RESTRICTIVE FOR UPDATE TO catalog_user
+    USING (type = 'dataset') WITH CHECK (type = 'dataset');
+
+-- catalog_service: its own tables whole (storage GC, aborting uploads), the platform's tables read
+-- (permission and liveness checks go through definer functions), the outbox it relays. No BYPASSRLS:
+-- policies of its own, on these tables only.
+GRANT USAGE ON SCHEMA foundations, identity, library, gatekeeper, catalog TO catalog_service;
+GRANT SELECT, INSERT, UPDATE, DELETE ON catalog.dataset, catalog.branch, catalog.transaction, catalog.transaction_change TO catalog_service;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA catalog TO catalog_service;
+GRANT SELECT ON identity.user, identity.group, identity.group_member TO catalog_service;
+GRANT SELECT ON library.resource_type, library.resource, library.resource_ancestor TO catalog_service;
+GRANT SELECT, INSERT, UPDATE ON foundations.outbox TO catalog_service;
+GRANT USAGE ON ALL SEQUENCES IN SCHEMA foundations TO catalog_service;
+GRANT EXECUTE ON FUNCTION foundations.ack_outbox(text, text[]) TO catalog_service;
+
+CREATE POLICY catalog_service ON catalog.dataset            FOR ALL TO catalog_service USING (true) WITH CHECK (true);
+CREATE POLICY catalog_service ON catalog.branch             FOR ALL TO catalog_service USING (true) WITH CHECK (true);
+CREATE POLICY catalog_service ON catalog.transaction        FOR ALL TO catalog_service USING (true) WITH CHECK (true);
+CREATE POLICY catalog_service ON catalog.transaction_change FOR ALL TO catalog_service USING (true) WITH CHECK (true);
+CREATE POLICY catalog_service ON library.resource           FOR SELECT TO catalog_service USING (true);
+CREATE POLICY catalog_service ON library.resource_ancestor  FOR SELECT TO catalog_service USING (true);

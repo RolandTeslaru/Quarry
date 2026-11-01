@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
-import { TokenVerifier } from '@/auth/token-verifier';
-import { IdentityModule } from '@/services/Identity/identity.module';
+import { TokenVerifier } from '@quarry/platform-server/auth/token-verifier';
+import { IdentityModule } from '@quarry/platform-server/services/Identity/identity.module';
 import { RealtimeGateway } from './realtime.gateway';
 import { RealtimeService } from './realtime.service';
 

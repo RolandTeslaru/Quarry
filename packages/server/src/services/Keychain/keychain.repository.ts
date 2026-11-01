@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { Identity, Keychain, Library } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { requireAffected } from '@/db/errors';
-import { defineDatabase } from '@/db/pool';
-import { Repository, Transactional } from '@/db/repository';
-import type { Table } from '@/db/table';
-import type { IdentityDB } from '@/services/Identity/identity.db';
-import { LibraryDB } from '@/services/Library/library.db';
-import { EnsureResource } from '@/services/Library/ensure-resource';
-import { ResourceRepository } from '@/services/Library/resource.repository';
-import { isLive } from '@/db/liveness';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { requireAffected } from '@quarry/platform-server/db/errors';
+import { defineDatabase } from '@quarry/platform-server/db/pool';
+import { Repository, Transactional } from '@quarry/platform-server/db/repository';
+import type { Table } from '@quarry/platform-server/db/table';
+import type { IdentityDB } from '@quarry/platform-server/services/Identity/identity.db';
+import { LibraryDB } from '@quarry/platform-server/services/Library/library.db';
+import { EnsureResource } from '@quarry/platform-server/services/Library/ensure-resource';
+import { ResourceRepository } from '@quarry/platform-server/services/Library/resource.repository';
+import { isLive } from '@quarry/platform-server/db/liveness';
 
 /** The `keychain` schema: credentials, encrypted at rest. */
 export namespace KeychainDB {

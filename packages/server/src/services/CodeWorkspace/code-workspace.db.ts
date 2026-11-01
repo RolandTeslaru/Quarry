@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { CodeWorkspace, Foundations, Identity } from '@quarry/shared/domain';
-import { defineDatabase } from '@/db/pool';
-import type { Table } from '@/db/table';
-import type { IdentityDB } from '@/services/Identity/identity.db';
-import { LibraryDB } from '@/services/Library/library.db';
+import { defineDatabase } from '@quarry/platform-server/db/pool';
+import type { Table } from '@quarry/platform-server/db/table';
+import type { IdentityDB } from '@quarry/platform-server/services/Identity/identity.db';
+import { LibraryDB } from '@quarry/platform-server/services/Library/library.db';
 
 import CI = CodeWorkspace.CI;
 

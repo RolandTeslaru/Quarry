@@ -5,10 +5,10 @@ import { type OnGatewayConnection, type OnGatewayDisconnect, WebSocketGateway } 
 import { WebSocket } from 'ws';
 import { CodeWorkspace, DataConnection, Forge, Identity, Realtime } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
-import type { Principal } from '@/auth/principal';
-import { TokenVerifier } from '@/auth/token-verifier';
-import { redisSubscriber } from '@/infra/redis';
-import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
+import type { Principal } from '@quarry/platform-server/auth/principal';
+import { TokenVerifier } from '@quarry/platform-server/auth/token-verifier';
+import { redisSubscriber } from '@quarry/platform-server/infra/redis';
+import { GatekeeperService } from '@quarry/platform-server/services/Gatekeeper/gatekeeper.service';
 import { ForgeService } from '@/services/Forge/forge.service';
 
 const log = System.log.withContext('Realtime');

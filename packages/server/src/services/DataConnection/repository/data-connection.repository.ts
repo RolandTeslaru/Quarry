@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Repository } from '@/db/repository';
+import { Repository } from '@quarry/platform-server/db/repository';
 import { DataConnectionDB } from '../data-connection.db';
 import { SourceRepository } from './source.repository';
 import { SyncRepository } from './sync.repository';

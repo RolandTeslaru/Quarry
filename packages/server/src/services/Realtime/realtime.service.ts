@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Realtime } from '@quarry/shared/domain';
-import { sharedRedis } from '@/infra/redis';
+import { sharedRedis } from '@quarry/platform-server/infra/redis';
 
 /**
  * Publishes live messages over Redis pub/sub (after PretzelGraph's

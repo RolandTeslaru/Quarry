@@ -21,6 +21,7 @@ CREATE TABLE audit.access_event (
     action          text        NOT NULL CHECK (action IN ('open', 'read', 'download', 'modify', 'reveal', 'denied')),
     application_id  text,                          -- Platform.Application.Id, validated by the server; only for open
     detail          jsonb       NOT NULL DEFAULT '{}',
+    event_id        text        UNIQUE,            -- the audit.record message's job id: a redelivered one is stored once; NULL for the triggers' rows
     CHECK ((action = 'open') = (application_id IS NOT NULL))
 );
 
@@ -38,14 +39,13 @@ CREATE INDEX access_event_recent   ON audit.access_event (user_rid, application_
 
 ALTER TABLE audit.access_event ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY record_own ON audit.access_event FOR INSERT TO quarry_user
-    WITH CHECK (user_rid = current_setting('app.user_rid', true));
-
 CREATE POLICY read_own_opens ON audit.access_event FOR SELECT TO quarry_user
     USING (user_rid = current_setting('app.user_rid', true) AND action = 'open');
 
-GRANT USAGE ON SCHEMA audit TO quarry_user;
-GRANT SELECT, INSERT ON audit.access_event TO quarry_user;
+-- Users only read (Recents). Records arrive as audit.record messages through the outbox, stored by
+-- the main server as the system (AuditRepository.store); `modify` records by the triggers below.
+GRANT USAGE ON SCHEMA audit TO main_user;
+GRANT SELECT ON audit.access_event TO main_user;
 
 -- ── writes: triggers ────────────────────────────────────────────────────
 --

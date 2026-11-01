@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { CodeWorkspace } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { Repository, Transactional } from '@/db/repository';
-import { DurableQueueHandle, InjectDurableQueue } from '@/infra/durable-queue';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { Repository, Transactional } from '@quarry/platform-server/db/repository';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-server/infra/durable-queue';
 import { CodeWorkspaceDB } from '../code-workspace.db';
 import { CheckRunRepository, type NewCheckRun, type QueuedCheckRuns } from './check-run.repository';
 import { WorkspaceRepository } from './workspace.repository';

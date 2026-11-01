@@ -1,8 +1,8 @@
 import { ConflictException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Dataset } from '@quarry/shared/domain';
-import type { Principal } from '@/auth/principal';
-import { TokenVerifier } from '@/auth/token-verifier';
+import type { Principal } from '@quarry/platform-server/auth/principal';
+import { TokenVerifier } from '@quarry/platform-server/auth/token-verifier';
 import { ForgeHarness } from '../support/forge-fixtures';
 
 /**

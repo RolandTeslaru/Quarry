@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
-import { Principal } from '@/auth/principal';
-import { Repository, Transactional } from '@/db/repository';
-import { json } from '@/db/table';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { Repository, Transactional } from '@quarry/platform-server/db/repository';
+import { json } from '@quarry/platform-server/db/table';
 import { ForgeDB } from '../forge.db';
 
 /** A job as created — one per node of the plan — with its outputs' transactions already open. */

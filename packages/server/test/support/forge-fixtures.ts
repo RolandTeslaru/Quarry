@@ -6,14 +6,14 @@ import { sql } from 'kysely';
 import { Catalog, CodeWorkspace, Dataset, Forge, Foundations, type Gatekeeper, Identity, type Library } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { ApiModule } from '@/api.module';
-import type { Principal } from '@/auth/principal';
-import { db, destroyPool } from '@/db/pool';
-import { CatalogService } from '@/services/Catalog/catalog.service';
-import { GatekeeperService } from '@/services/Gatekeeper/gatekeeper.service';
+import type { Principal } from '@quarry/platform-server/auth/principal';
+import { db, destroyPool } from '@quarry/platform-server/db/pool';
+import { CatalogService } from '@quarry/catalog-service/catalog/catalog.service';
+import { GatekeeperService } from '@quarry/platform-server/services/Gatekeeper/gatekeeper.service';
 import { ForgeAgentService } from '@/services/Forge/agent/forge-agent.service';
 import { ForgeService } from '@/services/Forge/forge.service';
-import { DurableQueues } from '@/infra/durable-queue';
-import { LibraryService } from '@/services/Library/library.service';
+import { DurableQueues } from '@quarry/platform-server/infra/durable-queue';
+import { LibraryService } from '@quarry/platform-server/services/Library/library.service';
 
 export const MAIN = Foundations.MAIN_BRANCH;
 

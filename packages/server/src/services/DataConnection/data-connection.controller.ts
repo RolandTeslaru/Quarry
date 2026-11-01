@@ -1,9 +1,9 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import type { z } from 'zod';
 import { DataConnection } from '@quarry/shared/domain';
-import { CurrentPrincipal } from '@/auth/current-principal';
-import { Principal } from '@/auth/principal';
-import { ZodPipe } from '@/http/zod.pipe';
+import { CurrentPrincipal } from '@quarry/platform-server/auth/current-principal';
+import { Principal } from '@quarry/platform-server/auth/principal';
+import { ZodPipe } from '@quarry/platform-server/http/zod.pipe';
 import { DataConnectionService } from './data-connection.service';
 
 import API = DataConnection.API;

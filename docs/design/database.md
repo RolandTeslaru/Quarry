@@ -631,7 +631,9 @@ Syncs are **not** library resources: they live under their source and have no in
 | Role | Used by | Access |
 |---|---|---|
 | The connecting role (`DATABASE_URL`) | Migrations; **service** transactions (system work) | Owns every schema; as owner it isn't subject to RLS |
-| `quarry_user` (NOLOGIN, created by `foundations/001`) | **User and delegate** transactions: `asUser` runs `SET LOCAL ROLE quarry_user` after `set_config('app.user_rid', …)` | `SELECT`/`INSERT`/`UPDATE` per table as needed, filtered by RLS; `INSERT` only on `foundations.outbox` |
+| `quarry_user` (NOLOGIN, created by `foundations/001`) | **The group every policy names** (`TO quarry_user`) — no privileges of its own | none; its members get the policies |
+| `main_user` (NOLOGIN, `foundations/001`), member of `quarry_user` | The main server's **user and delegate** transactions: `asUser` runs `SET LOCAL ROLE main_user` after `set_config('app.user_rid', …)` | `SELECT`/`INSERT`/`UPDATE` per table as needed, filtered by RLS; `INSERT` only on `foundations.outbox`; `SELECT` only on `audit.access_event` |
+| `catalog_service` (login; password set at boot from `CATALOG_DATABASE_URL`), `catalog_user` (NOLOGIN, member of `quarry_user`) — `catalog/001` | The Catalog service: its system work, and its users' transactions ([architecture-split.md](architecture-split.md) §5) | `catalog.*`; reads of `identity`, `library`, `gatekeeper.role`; `library.resource` writes of type `dataset` (and new folders) only, by restrictive policies; `INSERT` on `foundations.outbox` |
 | GoTrue's own role | GoTrue | `auth` only |
 
 **How a policy decides.** `gatekeeper.can(rid, 'read')` — the SQL twin of `GatekeeperService.can` — compares the current user's effective rank (`gatekeeper.my_rank`: `effective_ranks` with `app.user_rid`; 0 without a user) with the action's minimum (`gatekeeper.action`: discover · read · write · manage, mirroring `Gatekeeper.Action`; a misspelt action fails the domain check). Computed per row, on the fly — a materialised access table can replace it later without changing the policies:
@@ -658,7 +660,7 @@ Service boundaries (rule 1) are enforced at compile time by typed database modul
 
 ## 9. Migrations
 
-**Kysely `Migrator`** with a `.sql` file provider (PretzelCloud's), one instance per schema, each with its own folder and its own tracking table (`migrationTableSchema`) — so every schema carries its own history and can move to its own database with its migrations. Applied in dependency order by `packages/server/src/db/migrator.ts`; the **API runs them on boot** (workers never migrate), or `npm run migrate`. A service's migrations may reference the foundation schemas and its own schema only (Gatekeeper's also install the epoch triggers on foundation tables).
+**Kysely `Migrator`** with a `.sql` file provider (PretzelCloud's), one instance per schema, each with its own folder and its own tracking table (`migrationTableSchema`) — so every schema carries its own history and can move to its own database with its migrations. Applied in dependency order by `packages/platform-server/db/migrator.ts`; the **API runs them on boot** (workers never migrate), or `npm run migrate`. A service's migrations may reference the foundation schemas and its own schema only (Gatekeeper's also install the epoch triggers on foundation tables).
 
 Until launch each schema has one living `001_initial.sql` — schema changes edit it rather than add files; numbered append-only migrations start the day a database exists that can't be dropped. The SQL blocks in this document are the source; the migrations were generated from them.
 

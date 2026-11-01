@@ -344,7 +344,7 @@ The server only *produces* `sync` jobs (run now, and the cron schedulers it upse
 | `gatekeeper.role_grant` | Gatekeeper | 〃 | 〃 |
 | `gatekeeper.epoch` | Gatekeeper | 〃 | 〃 |
 | `keychain.credential` | Keychain | `services/Keychain/keychain.repository.ts` (`KeychainDB`) | `migrations/keychain/` |
-| `catalog.dataset` | Catalog | `services/Catalog/catalog.db.ts` | `migrations/catalog/` |
+| `catalog.dataset` | Catalog | `catalog-service/src/catalog/catalog.db.ts` | `migrations/catalog/` |
 | `catalog.branch` | Catalog | 〃 | 〃 |
 | `catalog.transaction` | Catalog | 〃 | 〃 |
 | `catalog.transaction_change` | Catalog | 〃 | 〃 |
@@ -453,7 +453,7 @@ The domain `Dataset` is the **library fields + the catalog fields**. The reposit
 ### The DB module — rows and typed tables
 
 ```ts
-// server/src/services/Catalog/catalog.db.ts — imports the domain's as `Dataset as DatasetD`:
+// catalog-service/src/catalog/catalog.db.ts — imports the domain's as `Dataset as DatasetD`:
 // inside CatalogDB, a bare `Dataset` is CatalogDB.Dataset
 export namespace CatalogDB {
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SignJWT } from 'jose';
 import { Foundations, type Identity } from '@quarry/shared/domain';
-import { requireEnv } from '@/db/table';
+import { requireEnv } from '@quarry/platform-server/db/table';
 
 /** How long a minted token works: a working day. Re-minted every time the worker acts for the session. */
 const SESSION_TOKEN_TTL = '12h';

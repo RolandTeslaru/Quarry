@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Foundations } from '@quarry/shared/domain';
-import type { Principal } from '@/auth/principal';
+import type { Principal } from '@quarry/platform-server/auth/principal';
 import { ForgeHarness, MAIN } from '../support/forge-fixtures';
 
 /** What a build refuses before it locks anything, and the lock itself: all of a build's outputs, or none. */
