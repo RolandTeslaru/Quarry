@@ -44,11 +44,11 @@ sequenceDiagram
     P->>P: inputs and outputs on the left, the chosen output's rows (TableViewer), logs, or the traceback on the right
 ```
 
-`features/DatasetTransformPreview/preview-view.ts` runs it (`DatasetTransformPreview/pipeline.ts` `runPreview`, through `session-runtime.ts`); `webviews/preview/main.tsx` is the panel; `domain/PreviewMessage.ts` is what they say to each other. The runtime's side is `code-workspace-runtime/src/preview.controller.ts` (calls `CodeWorkspace.Runtime.Describe` / `Preview` / `Cancel`). **Stop** sends `cancel`, and the runtime kills the runner; a new Preview replaces a running one. **Build** (beside Preview) picks a transform the same way (`features/transform-picker.ts`) — builds themselves aren't wired up yet.
+`features/DatasetTransformPreview/preview-view.ts` runs it (`DatasetTransformPreview/pipeline.ts` `runPreview`, through `session-runtime.ts`); `webviews/preview/main.tsx` is the panel; `domain/PreviewMessage.ts` is what they say to each other. The runtime's side is `applications/code-workspace/runtime/src/preview.controller.ts` (calls `CodeWorkspace.Runtime.Describe` / `Preview` / `Cancel`). **Stop** sends `cancel`, and the runtime kills the runner; a new Preview replaces a running one. **Build** (beside Preview) picks a transform the same way (`features/transform-picker.ts`) — builds themselves aren't wired up yet.
 
 ## The runner
 
-`transforms-python/src/quarry/transforms/preview.py`, run in the workspace's root:
+`applications/code-workspace/transforms-python/src/quarry/transforms/preview.py`, run in the workspace's root:
 
 1. **Find the pipeline** — `src/*/pipeline.py`, imported fresh (a new Python process per preview, so edits always apply). It must define `pipeline = Pipeline()`.
 2. **Find the transform** by name — `module.function` (`sales_cleaning.datasets.example.example`).
@@ -64,7 +64,7 @@ A transform that **raises** (or a pipeline that doesn't import) prints `{ error:
 
 ## The sample
 
-`GET /api/datasets/:rid/sample?rows=` (`CatalogStorage.sample`, `catalog.controller.ts`):
+`GET /api/datasets/:rid/sample?rows=` (`CatalogStorage.sample`, `catalog/controllers/http.controller.ts`):
 
 ```mermaid
 flowchart LR

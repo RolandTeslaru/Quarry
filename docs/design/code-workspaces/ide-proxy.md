@@ -1,6 +1,6 @@
 # The IDE proxy
 
-The browser never talks to a session container directly — containers publish VS Code on `127.0.0.1` only. The code workspace worker's **IDE proxy** (`code-workspace-worker/src/ide-proxy.ts`, its own HTTP server on `CODE_WORKSPACE_IDE_PROXY_PORT`, 4103 — apart from the worker's API on `CODE_WORKSPACE_WORKER_PORT`, 4104, which only the server calls) forwards each session's traffic.
+The browser never talks to a session container directly — containers publish VS Code on `127.0.0.1` only. The code workspace worker's **IDE proxy** (`applications/code-workspace/worker/src/ide-proxy.ts`, its own HTTP server on `CODE_WORKSPACE_IDE_PROXY_PORT`, 4103 — apart from the worker's API on `CODE_WORKSPACE_WORKER_PORT`, 4104, which only the server calls) forwards each session's traffic.
 
 It lives in the worker, not the API server, because Nest's WebSocket adapter in the server destroys every upgrade that isn't for its own paths (`/socket`) — VS Code's WebSockets couldn't pass through it. In production a reverse proxy would route a path (or host) to the worker.
 

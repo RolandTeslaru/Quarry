@@ -112,8 +112,8 @@ Creating a resource is one event (the `library.resource` insert), not one per su
 |---|---|---|
 | `CatalogService.view` | read | `{ op: view, sequence }` |
 | `CatalogStorage.preview` | read | `{ op: preview }` |
-| `DataConnectionService.Sources.test` | read | `{ op: test }` |
-| `DataConnectionService.Sources.explore` | read | `{ op: explore }` |
+| `SourceService.test` | read | `{ op: test }` |
+| `SourceService.explore` | read | `{ op: explore }` |
 | `KeychainService.getEncryptedBlob` | read | `{ op: use }` — a probe (user) or a run (`via sync:<id>`) using the credential |
 | `KeychainService.reveal` | reveal | — |
 

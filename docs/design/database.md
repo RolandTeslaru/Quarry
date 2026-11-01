@@ -660,12 +660,12 @@ Service boundaries (rule 1) are enforced at compile time by typed database modul
 
 ## 9. Migrations
 
-**Kysely `Migrator`** with a `.sql` file provider (PretzelCloud's), one instance per schema, each with its own folder and its own tracking table (`migrationTableSchema`) — so every schema carries its own history and can move to its own database with its migrations. Applied in dependency order by `packages/platform-server/db/migrator.ts`; the **API runs them on boot** (workers never migrate), or `npm run migrate`. A service's migrations may reference the foundation schemas and its own schema only (Gatekeeper's also install the epoch triggers on foundation tables).
+**Kysely `Migrator`** with a `.sql` file provider (PretzelCloud's), one instance per schema, each with its own folder and its own tracking table (`migrationTableSchema`) — so every schema carries its own history and can move to its own database with its migrations. Applied in dependency order by `platform/kernel/db/migrator.ts`; the **API runs them on boot** (workers never migrate), or `npm run migrate`. A service's migrations may reference the foundation schemas and its own schema only (Gatekeeper's also install the epoch triggers on foundation tables).
 
 Until launch each schema has one living `001_initial.sql` — schema changes edit it rather than add files; numbered append-only migrations start the day a database exists that can't be dropped. The SQL blocks in this document are the source; the migrations were generated from them.
 
 ```
-packages/server/migrations/
+platform/server/migrations/
   foundations/      001_initial.sql   → foundations.kysely_migration
   identity/         001_initial.sql   → identity.kysely_migration
   library/          001_initial.sql   → library.kysely_migration

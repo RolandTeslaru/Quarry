@@ -133,7 +133,7 @@ Scheduling takes a transaction-scoped advisory lock on the workspace, so two tra
 
 ### The worker
 
-New in `packages/code-workspace-worker`: `src/run-check.processor.ts` (BullMQ, `concurrency: CODE_WORKSPACE_CHECK_SLOTS`) and `src/check-runner.ts`. The worker now uses Redis, for this queue; still no database — it reports everything to the server.
+New in `applications/code-workspace/worker`: `src/run-check.processor.ts` (BullMQ, `concurrency: CODE_WORKSPACE_CHECK_SLOTS`) and `src/check-runner.ts`. The worker now uses Redis, for this queue; still no database — it reports everything to the server.
 
 1. **Take** a message when a slot is free.
 2. **Start**: `POST /api/internal/code-workspaces/check-runs/:rid/start` → `{ checkRun, steps, token }` — the file's steps, and a token for the pusher. Accepted once: `scheduled → running`, its message acked in the same transaction; else 409 (taken, or canceled), and the worker drops it.

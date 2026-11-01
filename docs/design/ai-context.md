@@ -153,14 +153,14 @@ export class DatasetRepository extends Repository(CatalogDB.database) {
 ├── docs/design/        architecture.md · database.md (DDL source) · gatekeeper.md · catalog.md · data-connection.md · jobs.md · ai-context.md (this)
 ├── docs/research/      palantir-foundry-ontology.md
 ├── docker-compose.yml  postgres, redis, gotrue, seaweedfs (+ init: creates the bucket)
-├── packages/shared/domain/   Foundations · Storage · Identity · Library · Gatekeeper · Catalog · DataConnection
-├── packages/integrations/   Postgres/ (definition.ts · runtime.ts) · core/ · definitions.ts (API) · runtimes.ts (Data Connection worker)
-├── packages/data-connection-worker/src/    main.ts · worker.module.ts · processors.ts · infra.ts — NestJS, no DB, /health :4101
-├── packages/system-worker/src/  main.ts · worker.module.ts · schedules.ts · infra.ts · processors/ — NestJS, no DB, /health :4102
-└── packages/server/
+├── libraries/shared/domain/   Foundations · Storage · Identity · Library · Gatekeeper · Catalog · DataConnection
+├── libraries/integrations/   Postgres/ (definition.ts · runtime.ts) · core/ · definitions.ts (API) · runtimes.ts (Data Connection worker)
+├── applications/data-connection/worker/src/    main.ts · worker.module.ts · processors.ts · infra.ts — NestJS, no DB, /health :4101
+├── platform/system-worker/src/  main.ts · worker.module.ts · schedules.ts · infra.ts · processors/ — NestJS, no DB, /health :4102
+└── platform/server/
     ├── migrations/<schema>/001_initial.sql
     └── src/
-        ├── api.ts, api.module.ts, load-env.ts (ENV_FILE override, then root .env)
+        ├── api.ts, main-server.module.ts, load-env.ts (ENV_FILE override, then root .env)
         ├── auth/       principal.ts · auth.guard.ts · current-principal.ts (@Public, @Internal)
         ├── db/         repository.ts (Repository, @Transactional, @AllowTrashed) · pool.ts · migrator.ts · errors.ts · table.ts
         ├── infra/      redis.ts · queue.ts (producer only) · file-storage.ts
@@ -225,7 +225,7 @@ Against a throwaway Postgres (port 55432) + redis-server (56379), no Docker:
   `UnrecoverableError`.
 - **Gatekeeper check-then-write race** is accepted by design; revisit if
   grants become high-churn.
-- `packages/shared/dist/` exists on disk — make sure it's git-ignored.
+- `libraries/shared/dist/` exists on disk — make sure it's git-ignored.
 
 ---
 

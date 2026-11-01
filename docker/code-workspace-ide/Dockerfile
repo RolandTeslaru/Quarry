@@ -29,7 +29,7 @@ RUN case "${TARGETARCH}" in amd64) arch=x64 ;; arm64) arch=arm64 ;; *) echo "uns
     && mv "/opt/openvscode-server-v${OPENVSCODE_VERSION}-linux-${arch}" /opt/openvscode-server
 
 # quarry.transforms and the engines, at its lock's versions.
-COPY packages/transforms-python /opt/quarry/transforms-python
+COPY applications/code-workspace/transforms-python /opt/quarry/transforms-python
 RUN cd /opt/quarry/transforms-python \
     && uv export --frozen --no-dev --extra pandas --no-emit-project --output-file /tmp/requirements.txt \
     && uv pip install --system --no-cache -r /tmp/requirements.txt \
@@ -42,9 +42,9 @@ RUN useradd --create-home --uid 1000 quarry \
 
 COPY docker/code-workspace-ide/bin/ /usr/local/bin/
 
-# The code-workspace runtime (packages/code-workspace-runtime, bundled before this build): the Quarry extension
+# The code-workspace runtime (applications/code-workspace/runtime, bundled before this build): the Quarry extension
 # runs it with the extension host's own Node, for previews and the transform list.
-COPY packages/code-workspace-runtime/dist/runtime.js /opt/quarry/runtime/runtime.js
+COPY applications/code-workspace/runtime/dist/runtime.js /opt/quarry/runtime/runtime.js
 
 # Default settings, at every scope: the browser keeps user settings itself (IndexedDB), so a server-side
 # settings file can't set application ones — product.json's configurationDefaults can.
@@ -60,8 +60,8 @@ RUN python3 /tmp/workbench/patch-workbench.py /tmp/workbench/quarry-bridge.js \
 USER quarry
 WORKDIR /workspace
 
-# The Quarry extension (packages/code-workspace-extension), packaged before this build.
-COPY --chown=quarry:quarry packages/code-workspace-extension/dist/quarry-code-workspace.vsix /tmp/quarry.vsix
+# The Quarry extension (applications/code-workspace/vscode-extension), packaged before this build.
+COPY --chown=quarry:quarry applications/code-workspace/vscode-extension/dist/quarry-code-workspace.vsix /tmp/quarry.vsix
 
 RUN /opt/openvscode-server/bin/openvscode-server \
         --install-extension "${PYTHON_EXTENSION}" \

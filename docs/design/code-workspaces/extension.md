@@ -1,6 +1,6 @@
 # The Quarry VS Code extension
 
-`packages/code-workspace-extension` — preinstalled in every session (the IDE image installs its `.vsix`). It gives Quarry a voice **inside** the editor, which the page can't have: the IDE is a cross-origin iframe, so the page can't read or drive it.
+`applications/code-workspace/vscode-extension` — preinstalled in every session (the IDE image installs its `.vsix`). It gives Quarry a voice **inside** the editor, which the page can't have: the IDE is a cross-origin iframe, so the page can't read or drive it.
 
 ## What it does (version 1)
 
@@ -51,7 +51,7 @@ flowchart LR
 
 ```
 npm run build:code-workspace-ide
-  └─ npm run package --workspace=packages/code-workspace-extension
+  └─ npm run package --workspace=applications/code-workspace/vscode-extension
        └─ esbuild → dist/extension.js ; vsce package → dist/quarry-code-workspace.vsix
   └─ docker build … (the Dockerfile copies the .vsix and installs it)
 ```

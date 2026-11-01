@@ -75,7 +75,7 @@ flowchart TB
 | Workbench ↔ extension host | VS Code's RPC (`MainThread*` in the browser ⇄ `ExtHost*` in the container), over the extension host connection | Every `vscode.*` call that touches the UI: an extension asks, the workbench draws and answers | VS Code |
 | Workbench ↔ webview | `postMessage` between frames; the workbench relays to the extension host | The Preview panel's messages (`domain/PreviewMessage.ts`) | `preview-view.ts`, `webviews/preview/` |
 | Extension host → Quarry server | HTTP, `Bearer` from `~/.quarry/session.json` | Resolving references (`by-path`, `path`) | `quarry.ts` |
-| Extension host ↔ runtime | stdio, one JSON line per message (`Stdio`) | `describe`, `preview`, `cancel`; the runtime's `ready` and `log` events | `session-runtime.ts`, `pipeline.ts`; `code-workspace-runtime/src/preview.controller.ts` |
+| Extension host ↔ runtime | stdio, one JSON line per message (`Stdio`) | `describe`, `preview`, `cancel`; the runtime's `ready` and `log` events | `session-runtime.ts`, `pipeline.ts`; `applications/code-workspace/runtime/src/preview.controller.ts` |
 | Runtime → Python | spawn; the result JSON on stdout | One preview, or the transform list | `preview.controller.ts` |
 | Python → Quarry server | HTTP, `Bearer` (the session's token, in its env) | Resolving inputs, downloading samples | `quarry/transforms/preview.py` |
 | git → Quarry server | git over HTTP, `Bearer` | Clone, pull, push | [sessions.md](sessions.md) |

@@ -72,7 +72,7 @@ Sales (project)           ← alice: viewer (2)    group analysts: editor (3)
 
 ## 2. Principals: who is asking
 
-Every repository method and every gated service method takes a `Principal` first (`platform-server/auth/principal.ts`):
+Every repository method and every gated service method takes a `Principal` first (`platform/kernel/auth/principal.ts`):
 
 | Principal | Created by | Checked as | Transaction runs as |
 |---|---|---|---|
@@ -115,7 +115,7 @@ sequenceDiagram
     R-->>S: row, or NoResultError → 404
 ```
 
-What makes this work (`platform-server/db/pool.ts`, `platform-server/db/repository.ts`):
+What makes this work (`platform/kernel/db/pool.ts`, `platform/kernel/db/repository.ts`):
 
 - **`set_config(…, true)` and `SET LOCAL`** last only for the transaction. A pooled connection goes back to the pool clean, and one request's user can never leak into another's.
 - **`quarry_user`** is a `NOLOGIN` role (`migrations/foundations/001_initial.sql`). Every table's policies are written `TO quarry_user`. **Since phase 1 of the split ([architecture-split.md](architecture-split.md)) it holds no privileges:** it's the group the policies name. Each process's user role is a member: `main_user` (the main server, holding today's grants), `catalog_user` (the Catalog service, its own grants only). A user's transaction switches to its process's role (`SET LOCAL ROLE`), so every policy applies, and that role's grants decide which tables it may touch at all. The diagrams below say `quarry_user` for that role. The owner role, used for the main server's service work, has no policies applied; the Catalog service's own work runs as `catalog_service`, with policies of its own on its own tables.
@@ -211,8 +211,8 @@ Real examples:
 | `KeychainService.getEncryptedBlob` | `@SecurityGate('read')` | the row policy is `discover`; using the secret needs `read` |
 | `CatalogService.view` | `@SecurityGate('read')` | RLS on transactions would answer with a silently empty view; the view hands out storage keys |
 | `CatalogStorage.sample`, `.preview` | `@SecurityGate('read')` | the bytes are in object storage, not Postgres |
-| `DataConnectionService` `test`, `explore`, `previewTable` | `@SecurityGate('read')` | the effect is a queue job against an external system |
-| `DataConnectionService` sync `run` | `@SecurityGate('write')` on the source, plus `assert('write')` on the output dataset | two resources |
+| `SourceService` `test`, `explore`, `previewTable` | `@SecurityGate('read')` | the effect is a queue job against an external system |
+| `SyncService` `run` | `@SecurityGate('write')` on the source, plus `assert('write')` on the output dataset | two resources |
 | `CodeWorkspaceService.create` | `assert('write')` on the parent **first** | the git repository is created on disk before any row exists |
 | `CodeWorkspaceService.openSession`, `preview` | `@SecurityGate('read')` | a call to the code workspace worker, and a container |
 | `CodeWorkspaceService.authorizeGit` | `assert(push ? 'write' : 'read')` | the action depends on the git operation |

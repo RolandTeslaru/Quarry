@@ -207,7 +207,7 @@ A source is still a library resource (`library.resource` + `data_connection.sour
 | `DatasetPanel` renders inside the Library's `/library/$rid` route | the dataset app's own route |
 | `createFromFile` writes the new dataset into `CatalogSDK.state.datasets` | LibrarySDK stores the library part only |
 | Apps call `LibrarySDK.invalidate(children)` after creating | LibrarySDK refreshes the folder itself |
-| `packages/frontend/src/SDKs/*`, `routes/*` | `shell/`, shared `SDKs/`, `apps/<name>/` |
+| `platform/frontend/src/SDKs/*`, `routes/*` | `shell/`, shared `SDKs/`, `apps/<name>/` |
 
 ---
 

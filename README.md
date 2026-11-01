@@ -25,18 +25,25 @@ npm run dev:frontend
 ```
 
 The frontend proxies API and authentication requests to `QUARRY_SERVER_URL` and
-`GOTRUE_URL` from the root `.env`. See [frontend setup](packages/frontend/README.md)
+`GOTRUE_URL` from the root `.env`. See [frontend setup](platform/frontend/README.md)
 for its structure, build commands, and deployment configuration.
+
+Three folders (docs/design/architecture-split.md): **`platform/`** — what every application stands on; **`applications/<application>/<part>`** — one folder per application, one package per process it runs; **`libraries/`** — code to import, nothing that runs on its own.
 
 | Package | What |
 |---|---|
-| `packages/shared` | Domain types + API contracts (zod), used by server and frontend |
-| `packages/integrations` | One folder per external system (Postgres, …): source definition, credential template, runtime |
-| `packages/server` | The CRUD backend (NestJS) — the only package with database access; `/api/internal/…` for the workers |
-| `packages/data-connection-worker` | Runs syncs and source probes — the only process that reaches source systems (decrypts their Keychain credentials) and runs DuckDB |
-| `packages/system-worker` | Housekeeping: outbox relay, storage GC, stuck-run reaper, schedule reconcile |
-| `packages/standard-ui` | Shared React components, theme styles, icons, and DialogSDK |
-| `packages/frontend` | React/Vite app: Blueprint controls, Tailwind layout, typed SDK stores, and file-based routes |
+| `platform/server` (`@quarry/platform-server`) | The main server (NestJS): identity, Library, grants, Keychain, audit's store, the realtime gateway, token minting; **all migrations**; the proxy to each application's server (`/api/<application>/…`) |
+| `platform/kernel` (`@quarry/platform-kernel`) | The shared kernel every server runs in-process: auth, the database layer, queues and storage, Identity / Library / Gatekeeper / Audit / Realtime, microservice calls over NATS |
+| `platform/system-worker` | Housekeeping: storage GC, stuck-run reaper, schedule reconcile, sweeps, storing audit records |
+| `platform/frontend` | The web app (React/Vite): every application's UI on one shell, typed SDK stores, file-based routes |
+| `applications/catalog/server` | Datasets, their storage and DuckDB — its own process and database login |
+| `applications/data-connection/server` | Sources, syncs and their runs — its own process and login; Catalog and Keychain through microservice calls |
+| `applications/data-connection/worker` | Runs syncs and source probes — the only process that reaches source systems |
+| `applications/code-workspace/{worker,runtime,vscode-extension,transforms-python}` | IDE sessions and checks (Docker); the runtime in a session or a job; the VS Code extension; the Python transforms library. Its server code is still in the main server, paused by the split |
+| `applications/forge/agent` | Runs build jobs in containers. Forge's server code is still in the main server, paused by the split |
+| `libraries/shared` | Domain types + API contracts (zod), server helpers |
+| `libraries/standard-ui` | Shared React components, theme styles, icons, and DialogSDK |
+| `libraries/integrations` | One folder per external system (Postgres, …): source definition, credential template, runtime |
 
 ## Application logs
 

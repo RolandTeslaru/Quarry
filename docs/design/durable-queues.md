@@ -97,7 +97,7 @@ export namespace DurableQueue {
 
 Each domain declares its own beside its queue: `<Service>.DurableQueue.<Name>`.
 
-### Server — `packages/platform-server/infra/durable-queue/`
+### Server — `platform/kernel/infra/durable-queue/`
 
 | Piece | Nest pattern (as `@nestjs/bullmq`) | Does |
 |---|---|---|
@@ -176,7 +176,7 @@ No delivery columns: `scheduled` means "may be sent" — whether its message is 
 ### 2. Shared: the queue and its durable queue
 
 ```ts
-// packages/shared/domain/Identity/queue.ts
+// libraries/shared/domain/Identity/queue.ts
 export namespace Queue {
     export namespace SendInvitation {
         export const Job = z.object({ invitationRid: Invitation.Rid })
@@ -189,7 +189,7 @@ export namespace Queue {
     }
 }
 
-// packages/shared/domain/Identity/durable-queue.ts
+// libraries/shared/domain/Identity/durable-queue.ts
 export namespace DurableQueue {
     export const SendInvitation = Foundations.DurableQueue.define({
         queue:            Queue.SendInvitation.Definition,

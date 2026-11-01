@@ -41,10 +41,10 @@ export namespace Queue {
 
 `Name` is validated and branded because a mismatched name is a silent failure: jobs land on a queue no processor listens to. `<service>.<job>`, kebab-case, exactly one dot, no colons (BullMQ uses colons in Redis keys).
 
-### The runtime — `platform-server/infra/queue.ts`
+### The runtime — `platform/kernel/infra/queue.ts`
 
 ```ts
-/** The only way the server enqueues (platform-server/infra/queue.ts). The workers consume with @nestjs/bullmq processors on a typed JobProcessor base. */
+/** The only way the server enqueues (platform/kernel/infra/queue.ts). The workers consume with @nestjs/bullmq processors on a typed JobProcessor base. */
 @Injectable()
 export class QueueManager {
     add<Q extends Foundations.Queue.Definition>(queue: Q, job: InputOf<Q>, options?: JobsOptions): Promise<Job>;
@@ -56,7 +56,7 @@ export class QueueManager {
 ```
 
 ```ts
-// data-connection-worker/src/infra.ts, system-worker/src/infra.ts — the consumer side
+// applications/data-connection/worker/src/infra.ts, platform/system-worker/src/infra.ts — the consumer side
 /** Base for @Processor classes: parses job.data before `handle` sees it, and the result before BullMQ stores it. */
 export abstract class JobProcessor<Q extends Foundations.Queue.Definition> extends WorkerHost { … }
 ```
@@ -92,20 +92,20 @@ export namespace Queue {                                    // → DataConnectio
 }
 ```
 
-**Contract vs policy.** `shared` holds what both sides must agree on: name, payload, result, default options, the dedup key. Operational tuning stays in the server next to the code that uses it — `OUTBOX_RELAY_EVERY_MS`, `STORAGE_GC_EVERY_MS`, `SYNC_REAPER_EVERY_MS`, `STALE_HEARTBEAT_MINUTES` in their processors, `PROBE_TIMEOUT_MS` in `DataConnectionService`.
+**Contract vs policy.** `shared` holds what both sides must agree on: name, payload, result, default options, the dedup key. Operational tuning stays in the server next to the code that uses it — `OUTBOX_RELAY_EVERY_MS`, `STORAGE_GC_EVERY_MS`, `SYNC_REAPER_EVERY_MS`, `STALE_HEARTBEAT_MINUTES` in their processors, `PROBE_TIMEOUT_MS` in `SourceService`.
 
 ### Using them
 
 ```ts
-// producer — DataConnectionService (server)
+// producer — SyncService (server)
 await this.queueManager.add(DataConnection.Queue.Sync.Definition,
     { syncRid, trigger: 'manual', triggeredBy: principal.userRid },
     { deduplication: DataConnection.Queue.Sync.deduplication(syncRid) });
 
-// request/reply — DataConnectionService.testSource (server)
+// request/reply — SourceService.test (server)
 const result = await this.queueManager.request(DataConnection.Queue.SourceProbe.Definition, { op: 'test', source }, PROBE_TIMEOUT_MS);
 
-// consumer — data-connection-worker/src/processors.ts (its own package)
+// consumer — applications/data-connection/worker/src/processors.ts (its own package)
 @Processor(DataConnection.Queue.Sync.Definition.name, { concurrency: 1 })
 export class SyncProcessor extends JobProcessor<typeof DataConnection.Queue.Sync.Definition> {
     protected readonly definition = DataConnection.Queue.Sync.Definition;

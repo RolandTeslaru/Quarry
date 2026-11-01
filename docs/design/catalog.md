@@ -48,7 +48,7 @@ On commit a transaction gets the next **sequence** on its branch (1, 2, 3…). S
 - **One open transaction per dataset branch** (unique index `transaction_one_open`). A second writer fails with 409.
 - **An upload without a commit is invisible.** Commit is a single Postgres transaction; that's the atomicity point. S3 is just bytes.
 - **Schema describes, checks enforce.** The schema is metadata written by the writer. Validation (types, key uniqueness) is a separate, optional step that can fail a transaction before commit — not built yet.
-- **Only Catalog writes Catalog's tables.** Other services go through `catalog.transaction`.
+- **Only Catalog writes Catalog's tables.** Other services go through `TransactionService`.
 - **Writers only add files.** Nothing in the write protocol deletes bytes: a `remove` drops a logical path from the view, and only background GC deletes objects ([§6](#6-events-and-housekeeping), [§7](#7-not-built-yet)). There is deliberately no "purge files" call — a writer deleting bytes could break old views and other branches.
 
 ### Schema type system
@@ -74,9 +74,9 @@ Each source's columns are mapped onto these; unmappable types become `string` (w
 | Called by | the API (users), other services | writers — the sync runner, the sync reaper, and `catalog.storage` |
 | Spans | one request | a job: open, minutes of uploading, commit |
 
-`catalog.storage` (`CatalogStorage`, `storage/catalog-storage.service.ts`) is the writer and reader for files that come through the API: uploads, previews and schema edits. It uses `catalog.transaction` like any other writer, plus an in-process DuckDB (`files/duckdb.ts`) for what it must know about a file's contents.
+`catalog.storage` (`CatalogStorage`, `storage/catalog-storage.service.ts`) is the writer and reader for files that come through the API: uploads, previews and schema edits. It uses `TransactionService` like any other writer, plus an in-process DuckDB (`files/duckdb.ts`) for what it must know about a file's contents.
 
-`catalog.transaction` is a `DatasetTransactions` instance (`transaction/dataset-transactions.ts`) — a class only so its methods can carry `@SecurityGate`; it's provided inside Catalog and not exported. Both halves use `DatasetRepository` / `TransactionRepository`. Creating a dataset is `DatasetRepository.create` under `@EnsureResource('dataset')` — the library row, the dataset row and branch `main` in one transaction.
+`TransactionService` (`src/transaction/transaction.service.ts`) is the write protocol, in its own module beside Catalog (`TransactionModule`, which exports only it): every caller — Catalog, its storage, Forge — goes through it, never `TransactionRepository`. Ungated: users read a view through `catalog.view`, which is. Creating a dataset is `DatasetRepository.create` under `@EnsureResource('dataset')` — the library row, the dataset row and branch `main` in one transaction.
 
 ### HTTP API (`Catalog.API`)
 
@@ -206,7 +206,7 @@ Nothing readable depends on listing the bucket — the catalog's file list is th
 
 ## 6. Housekeeping
 
-Scheduled by the **system worker** (`packages/system-worker`), which has no database: the Postgres part of each job is a server endpoint (`Catalog.API.Internal`: `POST /internal/storage-gc`). Queue definitions in `Catalog.Queue` ([jobs.md](jobs.md)).
+Scheduled by the **system worker** (`platform/system-worker`), which has no database: the Postgres part of each job is a server endpoint (`Catalog.API.Internal`: `POST /internal/storage-gc`). Queue definitions in `Catalog.Queue` ([jobs.md](jobs.md)).
 
 | Job | Cadence | Does |
 |---|---|---|

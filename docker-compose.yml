@@ -22,6 +22,20 @@ services:
       timeout: 5s
       retries: 20
 
+  # Service-to-service calls (docs/design/architecture-split.md §8): request–reply between the services,
+  # one instance per call through queue groups. Nothing persisted — durable work stays on the outbox.
+  nats:
+    image: nats:2.11-alpine
+    restart: unless-stopped
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    command: ["--http_port", "8222"]
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -101,13 +115,13 @@ services:
 
   # ── app (profile "app") — one image, three packages ─────────────────────────
 
-  # packages/server — the CRUD API, plus /api/internal/… for the workers. The only container with database access.
+  # platform/server — the CRUD API, plus /api/internal/… for the workers. The only container with database access.
   server:
     profiles: [app]
     build: .
     image: quarry:latest
     restart: unless-stopped
-    command: ["node", "packages/server/dist/server/src/api.js"]
+    command: ["node", "platform/server/dist/platform/server/src/api.js"]
     depends_on:
       postgres: { condition: service_healthy }
       redis:    { condition: service_healthy }
@@ -131,13 +145,13 @@ services:
     ports:
       - "${API_PORT:-4000}:4000"
 
-  # packages/data-connection-worker — the only container that reaches source systems; it decrypts their credentials.
+  # applications/data-connection/worker — the only container that reaches source systems; it decrypts their credentials.
   # No DATABASE_URL: run bookkeeping goes through the server's /internal API.
   data-connection-worker:
     profiles: [app]
     image: quarry:latest
     restart: unless-stopped
-    command: ["node", "packages/data-connection-worker/dist/data-connection-worker/src/main.js"]
+    command: ["node", "applications/data-connection/worker/dist/applications/data-connection/worker/src/main.js"]
     depends_on:
       server: { condition: service_started }
     healthcheck:
@@ -160,12 +174,12 @@ services:
       S3_BUCKET: ${S3_BUCKET:-datasets}
       QUARRY_ENCRYPTION_KEY: ${QUARRY_ENCRYPTION_KEY:?set QUARRY_ENCRYPTION_KEY (openssl rand -hex 32)}
 
-  # packages/system-worker — housekeeping on a schedule. No DATABASE_URL either.
+  # platform/system-worker — housekeeping on a schedule. No DATABASE_URL either.
   system-worker:
     profiles: [app]
     image: quarry:latest
     restart: unless-stopped
-    command: ["node", "packages/system-worker/dist/system-worker/src/main.js"]
+    command: ["node", "platform/system-worker/dist/platform/system-worker/src/main.js"]
     depends_on:
       server: { condition: service_started }
     healthcheck:

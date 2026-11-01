@@ -205,7 +205,7 @@ Compile-time guarantees (verified with `tsc --strict --experimentalDecorators`):
 
 Services check with the caller's principal (`@SecurityGate`, `assert`), then **pass that same principal to the repositories they call** — repositories don't re-check; the service layer is the one place authorization happens. Passing the real principal down means the transaction carries `app.user_rid` (and `app.via` for delegates) for audit, and repositories derive `created_by` / `started_by` / `granted_by` / `trashed_by` from it with `Principal.actorOf` — callers never pass an actor by hand. Repository methods are `@Transactional()` (any principal) unless system-only (`@Transactional('service')`). `app.user_rid` also drives row-level security: the policies ask `gatekeeper.can(rid, action)` for that user, so a repository call a service forgot to gate is still filtered or refused by Postgres.
 
-Nesting gated service calls is **safe** — unlike `@Transactional`, a gate holds no transaction or connection, it's just a read. Three rules:
+Nesting gated microservice calls is **safe** — unlike `@Transactional`, a gate holds no transaction or connection, it's just a read. Three rules:
 
 1. **Pass the caller's principal down service → service.** Every hop is then checked against what that user may do; checking the same resource twice costs nothing (request memo).
 2. **`Principal.SELF` is an explicit escalation — only for genuine system work** (housekeeping, Gatekeeper's lookup, auth bootstrap, failure cleanup). Never to replace a user's or delegate's principal: that's the confused-deputy bug — the work does something the user couldn't. Background work for a user is a **delegate**, not `SELF`.

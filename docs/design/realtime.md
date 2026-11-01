@@ -58,7 +58,7 @@ Any other channel is refused.
   - **Authentication:** `?token=<GoTrue JWT>`, checked by `TokenVerifier` (the same check as the HTTP guard: valid token, active member). Messages arriving during the check are held, then handled. No or bad token → closed with 1008.
   - **Authorization on every subscribe:** the channel is read back to its resource or owner (`DataConnection.Event.sourceOf`, `Identity.Event.userOf`) and checked — Gatekeeper `discover`, or the user's own RID. Refused → a `forbidden` event on that channel.
   - **Relay:** one Redis subscriber for the gateway; a channel is subscribed in Redis while at least one socket listens to it.
-- **Who emits:** `DataConnectionService.Runs` — `run:updated` on the source's channel when a run starts, completes or fails (including the reaper's "worker lost"), and on a failure a notification to the user the run acted for (who pressed run, or the sync's creator for a scheduled run). Workers report through `/internal` endpoints, so events come from the server, after the database changed.
+- **Who emits:** `SyncRunService` — `run:updated` on the source's channel when a run starts, completes or fails (including the reaper's "worker lost"), and on a failure a notification to the user the run acted for (who pressed run, or the sync's creator for a scheduled run). Workers report through `/internal` endpoints, so events come from the server, after the database changed.
 
 Accepted: a subscription isn't re-checked while it lasts — a user who loses access keeps that channel until they unsubscribe or reconnect.
 

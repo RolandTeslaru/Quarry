@@ -87,7 +87,7 @@ Three packages, three processes, and a strict split:
 
 | Package | Data Connection parts | Database | Source credentials |
 |---|---|---|---|
-| **server** | `DataConnectionService` + controllers: sources, syncs, enqueue runs, ask for probes — and the **run lifecycle** behind `/api/internal/…` (start, heartbeat, complete, fail, reap, scheduled syncs) | **yes — the only one** | stores them encrypted (Keychain); decrypts only to reveal |
+| **server** | `SourceService`, `SyncService`, `SyncRunService` + their controllers: sources, syncs, enqueue runs, ask for probes — and the **run lifecycle** behind `/api/internal/…` (start, heartbeat, complete, fail, reap, scheduled syncs) | **yes — the only one** | stores them encrypted (Keychain); decrypts only to reveal |
 | **data-connection-worker** | `src/processors.ts`: `SyncProcessor` (one run), `SourceProbeProcessor`; `src/infra.ts` (DuckDB, `SourceRuntimes` — decrypts the credential, the server client) | no | **decrypts them for runs and probes** |
 | **system-worker** | `src/processors.ts`: `SyncReaperProcessor`, `Schedules` (reconcile on boot) — plus Catalog's outbox relay and storage GC | no | no |
 
@@ -104,7 +104,7 @@ Anything that touches a source from the server goes through the `data-connection
 Each external system is a **definition** (what it is) plus a **runtime** (how to talk to it), side by side in their own package — like PretzelGraph's `nodes` package with its Gateway definitions and sockets:
 
 ```
-packages/integrations/                @quarry/integrations
+libraries/integrations/                @quarry/integrations
 ├── definitions.ts           entry point — SOURCE_DEFINITIONS, CREDENTIAL_TEMPLATES, find…, toWire   API-safe: imports no runtime
 ├── runtimes.ts              entry point — SOURCE_RUNTIMES: definition id → runtime class  Data Connection worker only
 ├── core/
@@ -118,7 +118,7 @@ packages/integrations/                @quarry/integrations
     └── runtime.ts           PostgresRuntime extends SourceRuntime
 ```
 
-The server imports `@quarry/integrations/definitions` only (validation, the definitions list, the credential templates). The Data Connection worker imports `@quarry/integrations/runtimes` and passes its `DuckDb` in as the `RuntimeContext` (`SourceRuntimes` in `data-connection-worker/src/infra.ts`). The server's build contains no runtime and no DuckDB.
+The server imports `@quarry/integrations/definitions` only (validation, the definitions list, the credential templates). The Data Connection worker imports `@quarry/integrations/runtimes` and passes its `DuckDb` in as the `RuntimeContext` (`SourceRuntimes` in `applications/data-connection/worker/src/infra.ts`). The server's build contains no runtime and no DuckDB.
 
 **The definition** is data: metadata, capabilities (`explore`), its **credential template** (`credential: Credential` from `./credential.ts`, or `null` — like a PretzelGraph blueprint's `credentials`), its **sync** (`sync: defineSync({ Config, transaction })` — what a sync can copy, its Config a discriminated union on `kind`, rendered as one form where the `kind` switch mounts the fields), and its **Config as a zod 4 schema**, annotated with `.meta()` for forms — settings that aren't part of the login (Postgres has none yet). The API validates a new source's `config` against it and serves every definition at `GET /sources/definitions`, with Config converted to **JSON Schema** (`z.toJSONSchema`) — a client renders the form from that. A switch that mounts other inputs is a discriminated union (one per sub-object), which becomes `oneOf` with a `const` per option.
 
@@ -143,7 +143,7 @@ abstract class SourceRuntime<D extends SourceDefinition> {
 
 `SourceRuntimes.with(source, credential, fn)` decrypts the credential, runs open → fn → close, closing even on failure, and refuses to boot if a definition has no runtime. **The boundary:** the API imports `definitions.ts` only; `runtimes.ts` (and with it drivers and DuckDB) is provided only in the Data Connection worker.
 
-**Adding a system:** a folder in `packages/integrations` with `definition.ts` + `runtime.ts` (+ `credential.ts` if it logs in), one entry in `definitions.ts`, one in `runtimes.ts`. Its credential template joins the Keychain catalogue by being named on the definition. Later the same folder can hold its outbound pieces (writeback webhooks, exports).
+**Adding a system:** a folder in `libraries/integrations` with `definition.ts` + `runtime.ts` (+ `credential.ts` if it logs in), one entry in `definitions.ts`, one in `runtimes.ts`. Its credential template joins the Keychain catalogue by being named on the definition. Later the same folder can hold its outbound pieces (writeback webhooks, exports).
 
 The commit schema isn't asked of the source: after `read`, the Data Connection worker describes the Parquet it wrote (`describeParquet`, DuckDB), so every source type gets it for free.
 
@@ -178,9 +178,9 @@ The server decides, at every step: it loads the sync as `SELF`, then acts as a *
 
 ### Run flow
 
-| # | Data Connection worker (`SyncProcessor`, `data-connection-worker/src/processors.ts`) | Server (`DataConnectionService`, via `/api/internal/…`) |
+| # | Data Connection worker (`SyncProcessor`, `applications/data-connection/worker/src/processors.ts`) | Server (`SyncRunService`, via `/api/internal/…`) |
 |---|---|---|
-| 1 | `POST /internal/sync-runs` `{ syncRid, trigger, triggeredBy }` | Load the sync (skip if missing or disabled) and its source as the delegate; decide snapshot/append from the integration and the sync's config; read the last run's `state`; insert the run (`running`); `catalog.transaction.open`; return source, sync config, state, destination (`s3://…/{dataset}/{transaction}/`) |
+| 1 | `POST /internal/sync-runs` `{ syncRid, trigger, triggeredBy }` | Load the sync (skip if missing or disabled) and its source as the delegate; decide snapshot/append from the integration and the sync's config; read the last run's `state`; insert the run (`running`); `TransactionService.open`; return source, sync config, state, destination (`s3://…/{dataset}/{transaction}/`) |
 | 2 | Heartbeat every 30 s: `POST …/:runRid/heartbeat` | `heartbeat_at = now()` |
 | 3 | Open the source's runtime → `sync(config, { destination, state })` → close: Parquet straight to the destination | — |
 | 4 | Describe what was written: rows per key (footers), column schema | — |

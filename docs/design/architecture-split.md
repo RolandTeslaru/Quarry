@@ -18,6 +18,7 @@ _Plan, 2026-10-31. Not started. From [architecture-today.md](architecture-today.
 | Tokens | **The main server mints every token** Quarry signs: session tokens (IDE, checks, jobs), tokens for a user for a purpose, service tokens (§8) |
 | Service-to-service | **NestJS microservices over NATS**, through an **injectable client per service** (`this.forge.publishRecipes(…)`), generated from that service's contracts; never the public HTTP. **Authenticated per service**: every call says which service is calling, besides which user it acts for (§8) |
 | Browsers | **Through the main server, as a reverse proxy** to each service. Services call each other directly, not through it |
+| Layout (decided 2026-11-01) | **`platform/`** — `server` (the main server, `@quarry/platform-server`), `kernel` (`@quarry/platform-kernel`), `system-worker`, `frontend`. **`applications/<application>/<part>`** — `server`, `worker`, `runtime`, `agent`, `vscode-extension`, named `@quarry/<application>-<part>` (the VS Code extension keeps its extension name, `quarry-code-workspace`). **`libraries/`** — `shared`, `standard-ui`, `integrations`. Each application's backend is its **server**; Code Workspaces' and Forge's stays in the main server until their phases |
 
 ## 2. The target
 
@@ -89,7 +90,7 @@ Every server, main or product, also has the **shared kernel** in-process (§4), 
 
 ## 4. The shared kernel
 
-One package (working name `@quarry/platform-server`), imported by every server, same version everywhere (lockstep).
+One package (working name `@quarry/platform-kernel`), imported by every server, same version everywhere (lockstep).
 
 | Part | Gives | Reads / writes |
 |---|---|---|
@@ -113,6 +114,8 @@ Today: one owner connection; user transactions `SET LOCAL ROLE quarry_user`. Tar
 | `<service>_user` (e.g. `code_workspace_user`) | `NOLOGIN` — the service switches to it for a user's transaction | users and delegates, as today | the Gatekeeper policies (as `quarry_user` has today) on the tables it's granted; its type restriction on `library.resource` |
 
 **Grants** follow §3 and §4: each `<service>_user` gets its own schema's tables as `quarry_user` has them today; select on `library.*` and `identity.user`; `EXECUTE` on Gatekeeper's functions; insert on `foundations.outbox`. Nothing on another product's schema — that goes through the other service's API.
+
+**One function makes them** (built 2026-11-01): `foundations.create_service_roles(schema, resource_types)` in `migrations/foundations/001_initial.sql`, called once at the end of each service's schema's migration — `SELECT foundations.create_service_roles('catalog', ARRAY['dataset'])`. It creates both roles and grants everything below. Its schema's tables are granted whole (select, insert, update, delete) to both roles: row-level security decides what a user may do — a command with no policy is refused — so per-table grants would only repeat the policies. Kysely's migration history (`<schema>.kysely_migration`) is left out: only the main server migrates.
 
 **Library's type rule** — one restrictive policy per role, on top of Gatekeeper's permissive ones (a row must pass both):
 
@@ -168,11 +171,11 @@ Inside one service nothing changes: its rows, its Library rows, its outbox messa
 | **Service** | publish a check's recipes, commit a job's outputs, a run's decrypted credential, a build for a user | the services that call names allows, **never a browser** | the calling service, and the user it acts for where there is one | **NestJS microservices over NATS**, internal network only |
 | **Executor** | claim a job, report a check step | the workers and the ForgeAgent | their own credential | HTTP internal endpoints, as today (may move to the transport later) |
 
-**The rule: services never call each other's HTTP.** Everything one service asks of another — even "create this build as this user", which a browser could also ask — is a service call. Public endpoints are for browsers only, so the two can't be confused, and a service call has no HTTP route the proxy could ever expose.
+**The rule: services never call each other's HTTP.** Everything one service asks of another — even "create this build as this user", which a browser could also ask — is a microservice call. Public endpoints are for browsers only, so the two can't be confused, and a microservice call has no HTTP route the proxy could ever expose.
 
 ### Hybrid apps on NATS
 
-Each service is a NestJS **hybrid app**: `NestFactory.create(…)` serves HTTP (public endpoints, through the main server's proxy), and `app.connectMicroservice(…)` serves its **service calls** over **NATS**.
+Each service is a NestJS **hybrid app**: `NestFactory.create(…)` serves HTTP (public endpoints, through the main server's proxy), and `app.connectMicroservice(…)` serves its **microservice calls** over **NATS**.
 
 Why NATS: a request goes to **one** instance of a queue group, so a service scales out without handling a call twice — Nest's Redis transport is pub/sub, where every instance gets every request; TCP needs a load balancer and discovery in front; gRPC would mean `.proto` files beside the zod contracts. NATS is one small server to run.
 
@@ -215,7 +218,7 @@ export class CIService {
 }
 ```
 
-- **Generated from `Calls`**, not written by hand: a mapped type plus one helper (`createServiceClient(Forge.Service.Calls)`) turn each entry into a method `(principal, request) => Promise<Response>`, typed from the contract. Adding a call to `Calls` adds the method — no per-method wrapper to keep in step.
+- **Generated from `Calls`**, not written by hand: a mapped type plus one helper (`createMicroserviceClient(Forge.Service.Calls)`) turn each entry into a method `(principal, request) => Promise<Response>`, typed from the contract. Adding a call to `Calls` adds the method — no per-method wrapper to keep in step.
 - **Each method** sends `{ principal, request }` with the call's `PATTERN`, attaches the identities (below), and parses the response with the contract.
 - **`ForgeClientModule`** provides `ForgeClient`, configured with the transport and the calling service's credentials; a service imports the clients of the services it calls. Clients and their modules live in a shared server package; contracts in `@quarry/shared/domain/<Domain>`.
 
@@ -225,18 +228,18 @@ On the callee, a controller of its own, apart from the public HTTP ones:
 
 ```ts
 @Controller()
-export class ForgeServiceCalls {
+export class ForgeMicroserviceController {
 
     constructor(private readonly forge: ForgeService) {}
 
-    @ServiceCall(Forge.Service.PublishRecipes, { from: ['code-workspace'] })
+    @MicroserviceCall(Forge.Service.PublishRecipes, { from: ['code-workspace'] })
     publishRecipes(@Caller() principal: Principal.User, @Payload() request: Forge.Service.PublishRecipes.Request) {
         return this.forge.recipes.publish(principal, request.workspaceRid, request.branch, request.recipes)
     }
 }
 ```
 
-`@ServiceCall(call, { from })` is `@MessagePattern(call.PATTERN)` plus a **guard** (a valid service token, from one of `from`), zod parsing of the request, and resolving `@Caller()` — the principal the call acts as. Inside, it's the same service code as today: Gatekeeper and RLS apply to that principal.
+`@MicroserviceCall(call, { from })` is `@MessagePattern(call.PATTERN)` plus a **guard** (a valid service token, from one of `from`), zod parsing of the request, and resolving `@Caller()` — the principal the call acts as. Inside, it's the same service code as today: Gatekeeper and RLS apply to that principal.
 
 ### Identities on a call
 
@@ -282,20 +285,20 @@ Each step lands on its own and leaves Quarry working; the services only become s
 
 ## Phase 1 — the kernel and Catalog (built 2026-11-01, branch `split/phase-1`)
 
-Steps 1, 3 and Catalog's part of 5, ahead of the rest: Catalog runs as a service of its own; Data Connection, Code Workspaces and Forge are paused — they call Catalog in-process today and come back as services in phase 2, with the service-call framework (§8), which phase 1 doesn't need: nothing calls Catalog service-to-service yet, and the main server never calls it either (browsers through the proxy; the platform's data through the shared kernel; audit through the outbox).
+Steps 1, 3 and Catalog's part of 5, ahead of the rest: Catalog runs as a service of its own; Data Connection, Code Workspaces and Forge are paused — they call Catalog in-process today and come back as services in phase 2, with the microservice-calls framework (§8), which phase 1 doesn't need: nothing calls Catalog service-to-service yet, and the main server never calls it either (browsers through the proxy; the platform's data through the shared kernel; audit through the outbox).
 
 **As built**
 
 | Part | What | Where |
 |---|---|---|
 | **Roles** | `quarry_user` is now the privilege-less group every policy names; `main_user` (member) holds the grants it had — the main server switches to it; `catalog_service` (login) and `catalog_user` (member) for Catalog, with only Catalog's grants, the restrictive Library policies (`dataset`, new `folder`), and permissive policies of `catalog_service`'s own on Catalog's tables. Checked first in a scratch database: a member gets the group's policies, the group grants nothing, a restrictive policy per role holds | `migrations/foundations`, `migrations/catalog`, every schema's `GRANT … TO main_user` |
-| **Packages** | **`@quarry/platform-server`** — the kernel: `auth/` (guard, verifier, principals), `db/` (pool, repositories, liveness, the migrator, service logins), `infra/` (queues, durable queues, storage), `http/` (health, request log, Zod pipe), the Identity, Library, Gatekeeper and Audit **modules**, `testing/` (the test database, for every package's tests). **`@quarry/catalog-service`** — `src/catalog/` (the Catalog module), `src/main.ts`, its module, its tests. **`@quarry/server`** — the main server: `api.ts`, **all migrations** (`MIGRATIONS_FOLDER`), session tokens, the platform's controllers (Identity, Library, grants, audit), Keychain, Realtime, the proxy, the paused products. Each package imports itself and the others by package name (`@quarry/platform-server/db/pool`) — never `@/` across packages, which resolves into whichever package compiles the file | `packages/platform-server`, `packages/catalog-service`, `packages/server` |
-| **Per-process login** | `useDatabaseLogin({ url, userRole })` before the first query; the main server defaults to `DATABASE_URL` and `main_user`. The main server sets `catalog_service`'s password from `CATALOG_DATABASE_URL` after migrating — dev and tests; production creates the login with the infrastructure | `platform-server/db/pool.ts`, `platform-server/db/service-logins.ts` |
-| **Catalog service** | Its own process: `CatalogServiceModule` (Catalog plus the kernel modules: Identity, Library, Gatekeeper, Audit, infra), own port (`CATALOG_PORT`, 4010), own login. Waits for the main server's health — after migrations and the login. Doesn't bootstrap admins (it can't write `identity.user`) | `catalog-service/src/main.ts`, `catalog-service.module.ts`; `npm run dev:catalog` |
-| **Proxy** | The main server forwards `/api/datasets/**` to Catalog unchanged, bodies streamed, before Nest's parsers. Routes kept as they were — no `/api/catalog/` prefix yet | `server/src/http/service-proxy.ts`, `server/src/http/main-server.ts` |
-| **Audit through the outbox** | `audit.record` messages, queued in the access's transaction; relayed after the request (`AuditRelayMiddleware`); consumed by the system worker; stored once (`event_id` unique) and acked by the main server. Users can't insert audit records any more | `shared/domain/Audit/{queue,durable-queue,api/internal}.ts`, `platform-server/services/Audit/*`, `server/src/services/Audit/audit.internal.controller.ts`, system worker `audit-record.processor.ts` |
+| **Packages** | **`@quarry/platform-kernel`** — the kernel: `auth/` (guard, verifier, principals), `db/` (pool, repositories, liveness, the migrator, service logins), `infra/` (queues, durable queues, storage), `http/` (health, request log, Zod pipe), the Identity, Library, Gatekeeper and Audit **modules**, `testing/` (the test database, for every package's tests). **`@quarry/catalog-server`** — `src/catalog/` (the Catalog module), `src/main.ts`, its module, its tests. **`@quarry/platform-server`** — the main server: `api.ts`, **all migrations** (`MIGRATIONS_FOLDER`), session tokens, the platform's controllers (Identity, Library, grants, audit), Keychain, Realtime, the proxy, the paused products. Each package imports itself and the others by package name (`@quarry/platform-kernel/db/pool`) — never `@/` across packages, which resolves into whichever package compiles the file | `platform/kernel`, `applications/catalog/server`, `platform/server` |
+| **Per-process login** | `useDatabaseLogin({ url, userRole })` before the first query; the main server defaults to `DATABASE_URL` and `main_user`. The main server sets `catalog_service`'s password from `CATALOG_DATABASE_URL` after migrating — dev and tests; production creates the login with the infrastructure | `platform/kernel/db/pool.ts`, `platform/kernel/db/service-logins.ts` |
+| **Catalog service** | Its own process: `CatalogMicroserviceModule` (Catalog plus the kernel modules: Identity, Library, Gatekeeper, Audit, infra), own port (`CATALOG_PORT`, 4010), own login. Waits for the main server's health — after migrations and the login. Doesn't bootstrap admins (it can't write `identity.user`) | `applications/catalog/server/src/main.ts`, `microservice.module.ts`; `npm run dev:catalog` |
+| **Proxy** | The main server forwards `/api/datasets/**` to Catalog unchanged, bodies streamed, before Nest's parsers. Routes kept as they were — no `/api/catalog/` prefix yet | `platform/server/src/http/service-proxy.ts`, `platform/server/src/http/main-server.ts` |
+| **Audit through the outbox** | `audit.record` messages, queued in the access's transaction; relayed after the request (`AuditRelayMiddleware`); consumed by the system worker; stored once (`event_id` unique) and acked by the main server. Users can't insert audit records any more | `shared/domain/Audit/{queue,durable-queue,api/internal}.ts`, `platform/kernel/services/Audit/*`, `platform/server/src/services/Audit/controllers/internal-http.controller.ts`, system worker `audit-record.processor.ts` |
 | **Storage GC** | The system worker calls Catalog directly (`getCatalogApi()`, `CATALOG_URL`) | `shared/server/internal-api.ts` |
-| **Paused** | Data Connection, Code Workspaces, Forge: out of `ApiModule`, out of `npm run dev` (with their workers), out of the frontend's app list (routes kept), their tests excluded in `vitest.config.ts`. Code unchanged, but for imports: they still call Catalog in-process, now as `@quarry/catalog-service/catalog/…` — the server's one dependency on a service package, temporary, gone when they call Catalog's client in phase 2 | |
+| **Paused** | Data Connection, Code Workspaces, Forge: out of `MainServerModule`, out of `npm run dev` (with their workers), out of the frontend's app list (routes kept), their tests excluded in `vitest.config.ts`. Code unchanged, but for imports: they still call Catalog in-process, now as `@quarry/catalog-server/catalog/…` — the server's one dependency on a service package, temporary, gone when they call Catalog's client in phase 2 | |
 
 **Where it differs from the plan**
 
@@ -306,14 +309,49 @@ Steps 1, 3 and Catalog's part of 5, ahead of the rest: Catalog runs as a service
 
 **Tests**
 
-- `catalog-service/test/catalog/roles.test.ts` — on Catalog's login: creates datasets and folders; refused another product's resource (`catalog_creates`), changing a folder or project (0 rows), writing `identity`, reaching `audit` or `keychain`; `catalog_service` reads its own and the platform's tables, nothing else, and can't write the Library.
-- `catalog-service/test/catalog/transaction-batches.test.ts` — on `CatalogHarness`: Catalog's modules on Catalog's login.
-- `server/test/audit/records.test.ts` — queued not stored; stored once however often delivered, and acked; nothing for a service principal.
-- `server/test/e2e/catalog-service.e2e.test.ts` — the main server in-process, **Catalog as a real separate process** (`catalog-service/src/main.ts`, as `npm run dev:catalog` runs it): a user uploads a CSV through the main server's proxy, previews it, and the main server's Library lists it; an open queues its audit record from Catalog's transaction; a create where the user can't write is refused by Catalog. Run six times in a row, green; once, earlier, every proxied request came back 500 while Catalog's log showed 201/200 — not reproduced since, cause not found.
-- `server/test/architecture/security-gates.test.ts` scans every service module, the paused ones included; `server/test/infra/durable-queues.test.ts` on `MainServerHarness`.
-- `server/test/architecture/package-boundaries.test.ts` — the kernel imports no server, service or product (and no `@/`); Catalog imports nothing of the main server's.
+- `applications/catalog/server/test/catalog/roles.test.ts` — on Catalog's login: creates datasets and folders; refused another product's resource (`catalog_creates`), changing a folder or project (0 rows), writing `identity`, reaching `audit` or `keychain`; `catalog_service` reads its own and the platform's tables, nothing else, and can't write the Library.
+- `applications/catalog/server/test/catalog/transaction-batches.test.ts` — on `CatalogHarness`: Catalog's modules on Catalog's login.
+- `platform/server/test/audit/records.test.ts` — queued not stored; stored once however often delivered, and acked; nothing for a service principal.
+- `platform/server/test/e2e/catalog-service.e2e.test.ts` — the main server in-process, **Catalog as a real separate process** (`applications/catalog/server/src/main.ts`, as `npm run dev:catalog` runs it): a user uploads a CSV through the main server's proxy, previews it, and the main server's Library lists it; an open queues its audit record from Catalog's transaction; a create where the user can't write is refused by Catalog. Run six times in a row, green; once, earlier, every proxied request came back 500 while Catalog's log showed 201/200 — not reproduced since, cause not found.
+- `platform/server/test/architecture/security-gates.test.ts` scans every service module, the paused ones included; `platform/server/test/infra/durable-queues.test.ts` on `MainServerHarness`.
+- `platform/server/test/architecture/package-boundaries.test.ts` — the kernel imports no server, service or product (and no `@/`); Catalog imports nothing of the main server's.
 
 **To run it:** reset the dev database (the migrations changed in place); `.env` gains `CATALOG_DATABASE_URL`, `CATALOG_PORT`, `CATALOG_URL` (`.env.example`); `npm run dev` now starts the main server, Catalog, the system worker and the frontend.
+
+## Phase 2 — Data Connection, and microservice calls (built 2026-11-01, branch `split/phase-1`)
+
+Data Connection before Forge: it uses the microservice-calls framework (§8) the same way Forge will, but its calls into Catalog are plain request–reply — create its output dataset, open a run's transaction, register the files, commit or abort — with nothing to make atomic across the two. So the framework is proven before Forge's output-commit protocol (§7), which is phase 3's.
+
+1. **The microservice-calls framework** (§8): NATS in the dev infrastructure; `Catalog.Microservice.Calls` with Data Connection's calls (`createDataset`, `get`, `transaction.open`, `registerChanges`, `commit`, `abort`); `createMicroserviceClient` and an injectable `CatalogClient`; `@MicroserviceCall` on Catalog's handlers, with the guard; service tokens minted by the main server, asymmetric.
+2. **`@quarry/data-connection-server`** — sources, syncs, sync runs; roles `data_connection_service` / `data_connection_user`, Library writes restricted to `source` and new folders. Its output datasets are created by Catalog through the client, as the user — its role can't insert a dataset.
+3. **Its executors** — the Data Connection worker calls the new service's internal API; the system worker's sync reaper and schedule reconcile too.
+4. **Realtime's emit into the kernel** — sync runs are announced live. The gateway stays in the main server and authorizes a source's channel by reading `data_connection.source`.
+5. **Keychain stays in the main server** (decided 2026-11-01): it serves one microservice call, `Keychain.Microservice.getEncryptedBlob`, to Data Connection; the worker keeps decrypting with `QUARRY_ENCRYPTION_KEY`. Keychain as its own service — decrypting for an authorized run, the key out of the worker — is a later, small phase of its own: a move plus that one call.
+6. **Back**: the Data Connection app, its worker in `npm run dev`, its tests (on the client), the source-probe end-to-end test.
+
+**Route prefixes** (decided 2026-11-01): **one per service** — `/api/catalog/…`, `/api/data-connection/…`, later `/api/forge/…`, `/api/code-workspaces/…`; the main server's own routes stay at `/api/…`. The proxy forwards by prefix. The rename is in the shared `*.API` namespaces, which every TypeScript caller goes through; the one other caller is the Python transforms library's preview sample (`client.py`, `/api/datasets/{rid}/sample` → `/api/catalog/datasets/{rid}/sample`). Catalog moves to its prefix in this phase too.
+
+**NATS** (decided 2026-11-01) carries the microservice calls: a `nats` container in docker-compose, started by `npm run infra`, `NATS_URL` in `.env`; each service a NestJS hybrid app on the NATS transport, in a queue group per service so one instance takes each call.
+
+**As built**
+
+| Part | What | Where |
+|---|---|---|
+| **NATS** | `nats` in docker-compose (`npm run infra`), `NATS_URL`. Each server a hybrid app (`connectMicroserviceCalls(app, service)`), its service's queue group | `platform/kernel/microservice/microservice-calls.module.ts` |
+| **Contracts** | `Foundations.MicroserviceCall` (the message: service token, who it acts as, the request; failures as HTTP statuses); `Catalog.Microservice`, `Keychain.Microservice`, `Identity.Microservice` — each call `PATTERN`, `Request`, `Response`, and `Calls` by method name | `shared/domain/Foundations/MicroserviceCall.ts`, `shared/domain/{Catalog,Keychain,Identity}/service.ts` |
+| **Clients** | `createMicroserviceClient(calls)` → `CatalogClient`, `KeychainClient`, `IdentityClient`, injected like services: `this.catalog.openTransaction(principal, request)`. `MicroserviceCaller` attaches the service token and who it acts as — the request's own token for its user (`RequestIdentity`, set by `AuthGuard`), a token the main server mints for a delegate or a user outside their request (`identity.mint-user-token`, reused while it lasts), nothing for the service itself — and rethrows a refusal as the exception the callee threw (`NotFoundException`, …) | `platform/kernel/microservice/{microservice-client,microservice-caller,clients}.ts`, `auth/request-identity.ts` |
+| **Handlers** | `@MicroserviceCall(definition, { from })` on a controller method that gets `(principal, request)`; `MicroserviceCallReceiver` checks the service token and `from` (401 / 403), resolves the principal (the user's token verified as on HTTP; a delegate; the calling service as `SELF`), parses the request, and runs the handler with that user as the request identity. No HTTP route | `platform/kernel/microservice/{microservice-call.decorator,microservice-call-receiver}.ts` |
+| **Service tokens** | EdDSA JWTs, `sub` the service, 1 h. The main server signs them (`QUARRY_SERVICE_TOKEN_PRIVATE_KEY`, it alone) at `POST /api/internal/service-tokens`, for the service whose secret (`QUARRY_SERVICE_SECRET_<SERVICE>`) matches; everyone verifies with `QUARRY_SERVICE_TOKEN_PUBLIC_KEY`. HTTP, not a call: a service needs its token before its first call | `platform/kernel/microservice/service-tokens.ts`, `platform/server/src/auth/service-tokens.controller.ts` |
+| **Subjects' namespace** | `QUARRY_MICROSERVICE_CALLS_NAMESPACE` prefixes every subject; tests set their test database's name — a dev server on the same NATS (same queue group) once took a test's calls and answered from the dev database | `platform/kernel/microservice/subjects.ts` |
+| **Served** | Catalog: `createDataset`, `get`, `openTransaction`, `registerChanges`, `commitTransaction`, `abortTransaction`, `from: ['data-connection']`. The main server: `keychain.get-encrypted-blob`, `identity.mint-user-token` | `applications/catalog/server/src/microservice.controller.ts`, `platform/server/src/services/{Keychain,Identity}/controllers/microservice-calls.controller.ts` |
+| **`@quarry/data-connection-server`** | The module moved, since split into `src/{source,sync,sync-run}/`, its calls through `CatalogClient` and `KeychainClient`; `/api/data-connection/…`; port `DATA_CONNECTION_PORT` (4020), login `DATA_CONNECTION_DATABASE_URL` — roles `data_connection_service` / `data_connection_user`, Library writes restricted to `source` and new folders | `applications/data-connection/server`, `migrations/data_connection/001_initial.sql` |
+| **Realtime** | `RealtimeService` (emit) and a global `RealtimeModule` in the kernel; the gateway stays the main server's (`RealtimeGatewayModule`) | `platform/kernel/services/Realtime/`, `platform/server/src/services/Realtime/` |
+| **Workers** | The Data Connection worker calls the service's internal API (`getDataConnectionApi()`, `DATA_CONNECTION_URL`) and waits for its health; the system worker's sync reaper and schedule reconcile too | `shared/server/internal-api.ts` |
+| **Back** | `npm run dev` starts the main server, Catalog, Data Connection and its worker, the system worker, the frontend; Data Connection's app is listed again | root `package.json`, `frontend/src/shell/apps.ts` |
+
+**Tests** — Data Connection's 8 files (113) on the service's own login, in-process, with **the main server and Catalog as processes** started once per run (`applications/data-connection/server/test/support/global-setup.ts`): every Catalog and Keychain call goes over NATS as in production, delegates' tokens minted by the main server. Platform-only fixtures (users, projects, grants, trashing a dataset) through the owner's connection; credentials and dataset versions through the main server's and Catalog's HTTP APIs as the user; audit records read from the outbox (no system worker in the tests). The source-probe end-to-end test serves Data Connection's HTTP API to a real worker process. The Catalog end-to-end test (server) now also covers the framework: a call as the user with a minted token, a delegate, a service cleaning up as itself, Gatekeeper refusing on Catalog's side, a caller not in `from` (403), an unsigned token (401). `repositories` and `package-boundaries` scan every package.
+
+**Then:** phase 3 — Forge (the output-commit protocol, `/api/builds`, the ForgeAgent's endpoints, job tokens from the main server); phase 4 — Code Workspaces (publishing through `ForgeClient` and `CatalogClient`); Keychain's own phase; later, syncs as Forge jobs.
 
 ## 11. Open questions
 

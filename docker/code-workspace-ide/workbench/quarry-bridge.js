@@ -3,7 +3,7 @@
 //    each answered by Quarry's page: an extension calls one with executeCommand and gets the page's answer;
 //  - the extension's commands Quarry's page executes here (`quarry:execute`), through VS Code's own executeCommand, which
 //    the Dockerfile's patch hands over as `globalThis.quarryExecuteCommand`.
-// The messages are CodeWorkspace.Workbench's (packages/shared/domain/CodeWorkspace/Workbench.ts).
+// The messages are CodeWorkspace.Workbench's (libraries/shared/domain/CodeWorkspace/Workbench.ts).
 (() => {
     const COMMANDS = ['quarry.workbench.pickResource'];
 

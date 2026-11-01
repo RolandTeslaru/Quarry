@@ -127,7 +127,7 @@ In practice: joining `library.resource` for a resource's name, parent and trashe
 | Catalog, Data Connection, Keychain (`@Audit` methods: view, sample, read passes, preview, test, explore, reveal, use) | `audit.access_event` | `@Audit(action)` decorator → `audit.record` |
 | Code Workspace (`CheckPublisher`, a passing check) | `catalog.dataset` (new outputs), `forge.recipe*`, `forge.current_recipe` | `catalog.getOrCreateByReference`, `forge.recipes.publish` — as the pusher |
 | Data Connection (a sync) | `catalog` datasets and transactions | Catalog's service |
-| Forge (`finishJob`) | `catalog.transaction` (commit or abort outputs) | Catalog's exported `TransactionRepository`, **in Forge's transaction** — the job, its outputs' commits and its children scheduled together |
+| Forge (`finishJob`) | `catalog.transaction` (commit or abort outputs) | Catalog's `TransactionService.commitBatch`, **in Forge's transaction** (`@Transactional` joins it) — the job, its outputs' commits and its children scheduled together |
 | Forge, Code Workspace | `foundations.outbox` | a durable queue's `add`, in the domain's transaction |
 
 ## 5. Database roles and row-level security

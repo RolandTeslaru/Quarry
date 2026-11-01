@@ -4,7 +4,7 @@ A **session** is one user's container on one workspace — the computer behind t
 
 | | |
 |---|---|
-| Identity | `Session.Key` = `<workspace rid>\|<user rid>` (`code-workspace-worker/src/domain/Session.ts`) |
+| Identity | `Session.Key` = `<workspace rid>\|<user rid>` (`applications/code-workspace/worker/src/domain/Session.ts`) |
 | Container | `quarry-code-workspace-session-<workspace uuid>-<user uuid>`, from `CODE_WORKSPACE_IDE_IMAGE` |
 | Volume | same name, mounted at `/workspace` — the working copy (`/workspace/repo`) and uv's cache survive stops |
 | Secret | 48 hex characters (`Session.createSecret`) — the IDE's path `/s/<secret>/` and VS Code's connection token |

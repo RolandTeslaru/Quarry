@@ -40,9 +40,9 @@ flowchart LR
 
 | Container | Package | Database | Purpose |
 |---|---|---|---|
-| `server` | `packages/server` | **yes — the only one** | HTTP API (runs migrations on boot); the run lifecycle and housekeeping behind `/api/internal/…`; never talks to source systems |
-| `data-connection-worker` | `packages/data-connection-worker` | no | Sync runs, connection tests, table exploration — the only container with network routes to sources and DuckDB; decrypts source credentials |
-| `system-worker` | `packages/system-worker` | no | Housekeeping on a schedule: outbox relay, storage GC, reaper, schedule reconcile |
+| `server` | `platform/server` | **yes — the only one** | HTTP API (runs migrations on boot); the run lifecycle and housekeeping behind `/api/internal/…`; never talks to source systems |
+| `data-connection-worker` | `applications/data-connection/worker` | no | Sync runs, connection tests, table exploration — the only container with network routes to sources and DuckDB; decrypts source credentials |
+| `system-worker` | `platform/system-worker` | no | Housekeeping on a schedule: outbox relay, storage GC, reaper, schedule reconcile |
 | `postgres` | — | | All service schemas + GoTrue's `auth` |
 | `redis` | — | | BullMQ only; disposable (rebuilt from Postgres on boot) |
 | `gotrue` | — | | Authentication, JWTs |
@@ -79,20 +79,20 @@ Quarry/
 └── packages/
     ├── shared/                   @quarry/shared — domain types + API contracts, used by server and frontend
     ├── integrations/             @quarry/integrations — one folder per external system: definition.ts + runtime.ts
-    ├── server/                   @quarry/server — the CRUD backend; the only package with database access
-    ├── data-connection-worker/              @quarry/data-connection-worker — syncs + source probes (DuckDB, source credentials)
-    ├── system-worker/            @quarry/system-worker — housekeeping on a schedule
+    ├── server/                   @quarry/platform-server — the CRUD backend; the only package with database access
+    ├── applications/data-connection/worker/              @quarry/data-connection-worker — syncs + source probes (DuckDB, source credentials)
+    ├── platform/system-worker/            @quarry/platform-system-worker — housekeeping on a schedule
     └── frontend/                 later
 ```
 
-### `packages/shared`
+### `libraries/shared`
 
 Domain models and API contracts only: zod schemas, branded IDs, RID types, request/response types, typed API client functions (axios). **No database, no NestJS, no Node-only imports** — the frontend imports it too.
 
 Same layout as PretzelGraph's shared domain: **entity files are pure domain** (IDs, schemas, rules); **contracts live on the service namespace**: the HTTP surface in an `api/` folder (`<Service>.API`, grouped by entity — `Catalog.API.Dataset.Create.Request`, `Library.API.Resource.move(api, rid, req)`), and background-job contracts in a `queue/` folder (`<Service>.Queue` — `DataConnection.Queue.Sync.Definition`; see [jobs.md](jobs.md)). Each `<Service>.API` mirrors that service's controllers one-to-one. `Request` types are `z.input` (what a client sends, defaults optional); controllers receive the parsed `z.output`.
 
 ```
-packages/shared/
+libraries/shared/
 └── domain/
     ├── index.ts                  re-exports every service namespace
     ├── Foundations/
@@ -136,14 +136,14 @@ packages/shared/
         └── index.ts
 ```
 
-### `packages/integrations`
+### `libraries/integrations`
 
 One folder per external system — a source **definition** (`definition.ts`: metadata, capabilities, credential template, zod Config) next to its **credential template** (`credential.ts`) and **runtime** (`runtime.ts`: the live connection), plus `core/` contracts. Two entry points keep the credential boundary: `@quarry/integrations/definitions` (API-safe, imported by the API) and `@quarry/integrations/runtimes` (drivers, imported by the Data Connection worker only). Depends on `@quarry/shared`, zod and DuckDB — never on the server. Details: [data-connection.md §3](data-connection.md#3-source-definitions-and-runtimes).
 
-### `packages/server`
+### `platform/server`
 
 ```
-packages/server/
+platform/server/
 ├── migrations/                   .sql migrations, one folder per Postgres schema (run in this order)
 │   ├── foundations/              001_initial.sql — the `foundations.rid` domain, needed by every other schema
 │   ├── identity/                 001_initial.sql
@@ -153,8 +153,8 @@ packages/server/
 │   ├── catalog/                  001_initial.sql
 │   └── data_connection/          001_initial.sql
 └── src/
-    ├── api.ts                    entry: NestFactory.create(ApiModule)
-    ├── api.module.ts             service modules + all controllers (incl. the /internal ones) + AuthGuard
+    ├── api.ts                    entry: NestFactory.create(MainServerModule)
+    ├── main-server.module.ts     service modules + all controllers (incl. the /internal ones) + AuthGuard
     ├── load-env.ts
     │
     ├── auth/                     authentication → Principal
@@ -187,19 +187,19 @@ packages/server/
         └── DataConnection/
 ```
 
-Each service module (`*.module.ts`) registers **providers only** (services, repositories) and exports its public services; controllers are listed in `api.module.ts`. The server never consumes a queue, opens a source, or runs DuckDB.
+Each service module (`*.module.ts`) registers **providers only** (services, repositories) and exports its public services; controllers are listed in `main-server.module.ts`. The server never consumes a queue, opens a source, or runs DuckDB.
 
-### `packages/data-connection-worker` and `packages/system-worker`
+### `applications/data-connection/worker` and `platform/system-worker`
 
 ```
-packages/data-connection-worker/src/             NestJS app — @nestjs/bullmq processors + GET /health (port 4101)
+applications/data-connection/worker/src/             NestJS app — @nestjs/bullmq processors + GET /health (port 4101)
 ├── main.ts           waits for the server, NestFactory.create(WorkerModule), listens on WORKER_PORT
 ├── worker.module.ts  BullModule (Redis), the two queues, HealthController, providers
 ├── processors.ts     SyncProcessor (one run: server start → runtime open/read/close → describe Parquet → server
 │                     complete / fail; concurrency 1) · SourceProbeProcessor (test, explore; concurrency 4)
 └── infra.ts          env, server client, JobProcessor base, DuckDb, SourceRuntimes (decrypts credentials), describeParquet
 
-packages/system-worker/src/                      NestJS app — GET /health on port 4102
+platform/system-worker/src/                      NestJS app — GET /health on port 4102
 ├── main.ts
 ├── worker.module.ts  BullModule, its queues (+ sync, which it produces), HealthController
 ├── schedules.ts      Schedules — on boot: the repeating schedules, reconcile sync schedulers
@@ -214,7 +214,7 @@ Both are NestJS apps like the server, but without controllers beyond `GET /healt
 
 ## 3. Services in detail
 
-Naming follows Pretzel: `<name>.module.ts`, `.controller.ts`, `.service.ts`, `.repository.ts`, `.db.ts` (database module: rows, tables, `toDomain`), `.processor.ts` (BullMQ consumer).
+Naming follows Pretzel: `<name>.module.ts`, `.service.ts`, `.repository.ts`, `.db.ts` (database module: rows, tables, `toDomain`), `.processor.ts` (BullMQ consumer). A module's entry points sit in `controllers/`: `http.controller.ts` (public, through the main server), `internal-http.controller.ts` (`/api/internal/…`, for the workers), `service-calls.controller.ts` (NATS, for other services) — only those it has; classes keep the module prefix (`CatalogController`, `CatalogInternalController`, `CatalogMicroserviceController`).
 
 ### Identity — schema `identity`
 
@@ -225,9 +225,7 @@ services/Identity/
 ├── user.repository.ts
 ├── group.repository.ts
 ├── identity.service.ts       users (invite, deactivate, set admin), groups, membership
-├── me.controller.ts          GET/PATCH /api/me
-├── users.controller.ts       /api/users (admin)
-└── groups.controller.ts      /api/groups
+└── controllers/http.controller.ts  /api/me, /api/users, /api/groups
 ```
 
 | Tables | `identity.user` · `identity.group` · `identity.group_member` |
@@ -243,7 +241,7 @@ services/Library/
 ├── resource.repository.ts    insert (every library row), get, open, children, path, move, rename, trash — exported for @EnsureResource
 ├── ensure-resource.ts          @EnsureResource('<type>') — a subtype's create method has ResourceRepository.insert write its library row first, joining its transaction (see §5)
 ├── library.service.ts        projects, folders, move, trash; @SecurityGate on each
-└── library.controller.ts     /api/projects, /api/folders, /api/resources/:rid (+ /path, /children, /name, /move, /trash)
+└── controllers/http.controller.ts   /api/projects, /api/folders, /api/resources/:rid (+ /path, /children, /name, /move, /trash)
 ```
 
 | Tables | `library.resource_type` · `library.resource` · `library.resource_ancestor` (+ triggers) |
@@ -261,7 +259,7 @@ services/Gatekeeper/
 ├── security-gate.ts          @SecurityGate(action)
 ├── request-memo.ts           AsyncLocalStorage memo keyed (principal, rid, action)
 ├── epoch.listener.ts         LISTEN gatekeeper_epoch (for the deferred decision cache)
-└── grants.controller.ts      /api/resources/:rid/grants
+└── controllers/http.controller.ts   /api/resources/:rid/grants
 ```
 
 | Tables | `gatekeeper.role` · `gatekeeper.role_grant` · `gatekeeper.epoch` (+ epoch triggers on foundation tables) |
@@ -273,7 +271,7 @@ services/Gatekeeper/
 ```
 services/Keychain/
 ├── keychain.module.ts        KeychainService + KeychainRepository
-├── keychain.controller.ts    /api/keychain/templates, /credentials, /:rid, /:rid/values, /:rid/reveal
+├── controllers/http.controller.ts   /api/keychain/templates, /credentials, /:rid, /:rid/values, /:rid/reveal
 ├── keychain.service.ts       templates, list, create, get, updateValues, reveal (write); getEncryptedBlob (read — for Data Connection)
 └── keychain.repository.ts    KeychainDB (rows) + create (library row + credential), get, list, setBlob
 ```
@@ -290,13 +288,19 @@ Sub-concepts get their own folder — `transaction/`, `outbox/` — so a service
 services/Catalog/
 ├── catalog.module.ts
 ├── catalog.db.ts                 CatalogDB: Dataset/Branch/Transaction/TransactionChange/Outbox rows, Tables
-├── catalog.service.ts            Catalog's one entry point: create, get, view; .transaction = the write protocol; outbox + storage GC for /internal
-├── catalog.controller.ts         /api/datasets, /:rid, /:rid/view
-├── catalog.internal.controller.ts  system worker only: /api/internal/outbox, /storage-gc
+├── catalog.service.ts            Catalog's entry point: create, get, view; outbox + storage GC for /internal
+├── controllers/http.controller.ts            /api/datasets, /:rid, /:rid/view
+├── controllers/internal-http.controller.ts    system worker only: /api/internal/outbox, /storage-gc
 ├── dataset.repository.ts         create (library row + dataset + branch main), get
-├── transaction/
-│   ├── dataset-transactions.ts   the write protocol, reached as catalog.transaction: open → upload under Dataset.getStoragePrefix → registerChanges → commit / abort
-│   └── transaction.repository.ts open, registerChanges, commit, abort, resolveView, housekeeping queries
+```
+
+Beside it, its own module (`src/transaction/`, in the Catalog microservice):
+
+```
+transaction/
+├── transaction.module.ts         exports TransactionService only
+├── transaction.service.ts        TransactionService, the way in: open → upload under Dataset.getStoragePrefix → registerChanges → commit / abort; resolveView; housekeeping
+└── transaction.repository.ts     open, registerChanges, commit, abort, resolveView, housekeeping queries
 ```
 
 | Tables | `catalog.dataset` · `catalog.branch` · `catalog.transaction` · `catalog.transaction_change` |
@@ -307,19 +311,28 @@ services/Catalog/
 ### DataConnection — schema `data_connection`
 
 ```
-services/DataConnection/
-├── data-connection.controller.ts           /api/sources/definitions, /:rid, /test, /explore, /syncs, /syncs/:syncRid/run
-├── data-connection.internal.controller.ts  workers only: /api/internal/sync-runs (start, heartbeat, complete, fail, reap),
-│                                           /api/internal/syncs/scheduled
-├── data-connection.service.ts      sources, syncs, probes (request–reply to the Data Connection worker); the run lifecycle
-│                                   and housekeeping the workers drive through /internal
-├── data-connection.module.ts       DataConnectionService + the repositories; no runtimes; imports Keychain
+applications/data-connection/server/src/
+├── microservice.module.ts          the three modules + their controllers
 ├── data-connection.db.ts           DataConnectionDB: Source/Sync/SyncRun rows, Tables
-└── repository/
-    ├── data-connection.repository.ts   the facade: .source · .sync · .run (each a Pick of what's safe on its own)
-    ├── source.repository.ts            create (library row + source), get, open, list
-    ├── sync.repository.ts              create, get, listForSource, listScheduled
-    └── sync-run.repository.ts          start, attachTransaction, heartbeat, succeed, fail, latestState, list, stuck
+├── source/
+│   ├── source.module.ts            no runtimes; KeychainClient for credentials
+│   ├── source.service.ts           SourceService: create, get, open, list, credentialOf; probes (test, explore, preview —
+│   │                               request–reply to the Data Connection worker)
+│   ├── source.repository.ts        create (library row + source), get, open, list
+│   └── controllers/http.controller.ts           /api/data-connection/sources, /definitions, /:rid, /open, /test, /explore, /tables/…/preview
+├── sync/
+│   ├── sync.module.ts              CatalogClient for output datasets
+│   ├── sync.service.ts             SyncService: create (output dataset + scheduler), list, run, scheduled, require
+│   ├── sync-definition.ts          the integration's sync definition; a new sync's config, validated
+│   ├── sync.repository.ts          create, get, listForSource, listScheduled
+│   ├── controllers/http.controller.ts           /:rid/syncs, /:rid/syncs/:syncRid/run
+│   └── controllers/internal-http.controller.ts  system worker only: /api/internal/syncs/scheduled
+└── sync-run/
+    ├── sync-run.module.ts
+    ├── sync-run.service.ts         SyncRunService: list; the lifecycle the workers drive (start, heartbeat, complete, fail, reap)
+    ├── sync-run.repository.ts      start, attachTransaction, heartbeat, succeed, fail, latestState, list, stuck
+    ├── controllers/http.controller.ts           /:rid/syncs/:syncRid/runs
+    └── controllers/internal-http.controller.ts  workers only: /api/internal/sync-runs (start, heartbeat, complete, fail, reap)
 ```
 
 | Tables | `data_connection.source` · `data_connection.sync` · `data_connection.sync_run` |
@@ -344,11 +357,11 @@ The server only *produces* `sync` jobs (run now, and the cron schedulers it upse
 | `gatekeeper.role_grant` | Gatekeeper | 〃 | 〃 |
 | `gatekeeper.epoch` | Gatekeeper | 〃 | 〃 |
 | `keychain.credential` | Keychain | `services/Keychain/keychain.repository.ts` (`KeychainDB`) | `migrations/keychain/` |
-| `catalog.dataset` | Catalog | `catalog-service/src/catalog/catalog.db.ts` | `migrations/catalog/` |
+| `catalog.dataset` | Catalog | `applications/catalog/server/src/catalog/catalog.db.ts` | `migrations/catalog/` |
 | `catalog.branch` | Catalog | 〃 | 〃 |
 | `catalog.transaction` | Catalog | 〃 | 〃 |
 | `catalog.transaction_change` | Catalog | 〃 | 〃 |
-| `data_connection.source` | DataConnection | `services/DataConnection/data-connection.db.ts` | `migrations/data_connection/` |
+| `data_connection.source` | DataConnection | `applications/data-connection/server/src/data-connection.db.ts` | `migrations/data_connection/` |
 | `data_connection.sync` | DataConnection | 〃 | 〃 |
 | `data_connection.sync_run` | DataConnection | 〃 | 〃 |
 | `auth.*` | GoTrue | — not ours | GoTrue's own |
@@ -363,7 +376,7 @@ Two representations, as in Pretzel, joined by `toDomain`:
 
 | | Domain model | Row |
 |---|---|---|
-| Lives in | `@quarry/shared` — `Dataset.Schema` | `@quarry/server` — `CatalogDB.Dataset.Row` in `catalog.db.ts` |
+| Lives in | `@quarry/shared` — `Dataset.Schema` | `@quarry/platform-server` — `CatalogDB.Dataset.Row` in `catalog.db.ts` |
 | Shape | camelCase, what the API returns and the frontend renders | snake_case, column for column |
 | Used by | services, controllers, frontend | repositories only |
 
@@ -453,7 +466,7 @@ The domain `Dataset` is the **library fields + the catalog fields**. The reposit
 ### The DB module — rows and typed tables
 
 ```ts
-// catalog-service/src/catalog/catalog.db.ts — imports the domain's as `Dataset as DatasetD`:
+// applications/catalog/server/src/catalog/catalog.db.ts — imports the domain's as `Dataset as DatasetD`:
 // inside CatalogDB, a bare `Dataset` is CatalogDB.Dataset
 export namespace CatalogDB {
 
@@ -548,7 +561,7 @@ An arrow means "may import / call" — never the other way. On top of that, ever
 - **Gatekeeper** reads Library ancestry and Identity membership.
 - **Keychain** uses Library (statements) and Gatekeeper.
 - **Catalog** uses Library (statements) and Gatekeeper.
-- **DataConnection** uses Library, Gatekeeper, `KeychainService` (`getEncryptedBlob` — a source's credential for the worker) and `CatalogService` (`catalog.transaction`) to write datasets.
+- **DataConnection** uses Library, Gatekeeper, `KeychainService` (`getEncryptedBlob` — a source's credential for the worker) and Catalog's `TransactionService` to write datasets.
 
 No cycles: a service never depends on one to its right.
 
@@ -558,16 +571,16 @@ No cycles: a service never depends on one to its right.
 
 | Step | Where | Runs as |
 |---|---|---|
-| `POST /api/sources/:rid/syncs/:syncRid/run` | `data-connection.controller.ts` → AuthGuard builds `Principal.User` | user |
-| Check `write` on the source and on the output dataset | `DataConnectionService.runSync` (`@SecurityGate('write')` on the source + explicit `assert` on the dataset) | user |
-| Enqueue `DataConnection.Queue.Sync` (deduplicated by `syncRid`) | `DataConnectionService` via `QueueManager.add` (`infra/queue.ts`) | — |
-| **— data-connection-worker** (`packages/data-connection-worker`) **picks up the job** | `SyncProcessor` (`src/processors.ts`) | no principal — it has no database |
-| `POST /api/internal/sync-runs` | server: `DataConnectionInternalController` (`data-connection.internal.controller.ts`) → `DataConnectionService.startRun`; AuthGuard checks the service token | `SELF('sync.start')` loads the sync — only now is it known who the run acts for |
+| `POST /api/sources/:rid/syncs/:syncRid/run` | `data-connection/controllers/http.controller.ts` → AuthGuard builds `Principal.User` | user |
+| Check `write` on the source and on the output dataset | `SyncService.run` (`@SecurityGate('write')` on the source + explicit `assert` on the dataset) | user |
+| Enqueue `DataConnection.Queue.Sync` (deduplicated by `syncRid`) | `SyncService` via `QueueManager.add` (`infra/queue.ts`) | — |
+| **— data-connection-worker** (`applications/data-connection/worker`) **picks up the job** | `SyncProcessor` (`src/processors.ts`) | no principal — it has no database |
+| `POST /api/internal/sync-runs` | server: `SyncRunInternalController` (`sync-run/controllers/internal-http.controller.ts`) → `SyncRunService.start`; AuthGuard checks the service token | `SELF('sync.start')` loads the sync — only now is it known who the run acts for |
 | Decide the actor | `Principal.onBehalfOf(job.triggeredBy ?? sync.created_by, 'sync:<syncRid>')` | **delegate** of whoever pressed run (manual) or the sync's creator (scheduled) |
 | Insert `sync_run` (unique running per sync) | `repository.run.start` | delegate |
-| Open dataset transaction — Gatekeeper checks `write` on the dataset **as that user** | `catalog.transaction.open` (`@SecurityGate('write')`) → `TransactionRepository.open` | delegate (`started_by` = the user) |
+| Open dataset transaction — Gatekeeper checks `write` on the dataset **as that user** | `TransactionService.open` (`@SecurityGate('write')`) → `TransactionRepository.open` | delegate (`started_by` = the user) |
 | Decrypt credential, `COPY (SELECT …) TO s3://…`; heartbeat every 30 s | Data Connection worker: `SourceRuntimes` (`src/infra.ts`) + `integrations/Postgres/runtime.ts` | — |
-| `POST …/:runRid/complete`: list the prefix, register files + schema, commit | server: `DataConnectionService.completeRun` → `catalog.transaction.registerChanges` / `commit` | delegate |
+| `POST …/:runRid/complete`: list the prefix, register files + schema, commit | server: `SyncRunService.complete` → `TransactionService.registerChanges` / `commit` | delegate |
 | Mark run succeeded with its `state_to` | `repository.run.succeed` | delegate |
 
 On failure the Data Connection worker calls `POST …/:runRid/fail`: the server aborts the transaction and marks the run failed — as `SELF`, so cleanup succeeds even if the user lost access mid-run; storage GC later removes the orphaned files. If the Data Connection worker dies mid-run, the system worker's reaper (`POST /internal/sync-runs/reap`) does the same for runs stuck in `running`.

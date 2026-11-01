@@ -7,7 +7,7 @@ _Started 2026-10-27 with Forge. Before this, only `transforms-python` had tests 
 | Layer | What | Infrastructure | Where |
 |---|---|---|---|
 | **Unit** | pure logic — plan helpers, schemas, small functions | none | next to the file: `src/**/*.test.ts` |
-| **Integration** | a service and its repository against a **real Postgres and Redis**: flows, conditional updates, constraints, row-level security | the test database | the package's `test/`, by service: `packages/server/test/forge/` |
+| **Integration** | a service and its repository against a **real Postgres and Redis**: flows, conditional updates, constraints, row-level security | the test database | the package's `test/`, by service: `platform/server/test/forge/` |
 | **End to end** | several processes — server, ForgeAgent, system worker — over HTTP, Redis and the socket | everything running | the repo root, `tests/e2e/` (not yet) |
 
 Most of the value is in integration tests: Forge's correctness lives in SQL — `WHERE status IN (…) AND attempt = …`, unique keys, RLS policies — which a mocked repository wouldn't exercise. Mock only real external boundaries; Postgres and Redis aren't mocked.
@@ -16,11 +16,11 @@ Most of the value is in integration tests: Forge's correctness lives in SQL — 
 
 ```
 npm test                         # from the repo root: shared and server
-npm run test:watch -w packages/server
-npm run typecheck -w packages/server   # source and tests (tsconfig.test.json)
+npm run test:watch -w platform/server
+npm run typecheck -w platform/server   # source and tests (tsconfig.test.json)
 ```
 
-Needs the dev Postgres and Redis (`npm run infra`). **Vitest** (5.0.4) with **unplugin-swc**: SWC emits the decorator metadata Nest's dependency injection needs, which Vitest's default esbuild doesn't. Config: `packages/server/vitest.config.ts`.
+Needs the dev Postgres and Redis (`npm run infra`). **Vitest** (5.0.4) with **unplugin-swc**: SWC emits the decorator metadata Nest's dependency injection needs, which Vitest's default esbuild doesn't. Config: `platform/server/vitest.config.ts`.
 
 ## Isolation
 
@@ -55,7 +55,7 @@ Data Connection's, checked the same way (each mutation failed only the tests nam
 
 **`@quarry/shared`** (97 unit tests, next to the code; Vitest without SWC — no decorators): `Build.Plan` (`getParents`, `getReadyChildren` on a diamond, schema), `Build.Target`, `Job` (`getOutputTransactions`, unfinished statuses), `Queue.RunJob` (job ids — no `:`, one per attempt) and `DurableQueue.RunJob`, `Forge.Event` (channel round trip, `create` without channel), `DataConnection.Event` and `CodeWorkspace.Event` (the same, per source and per workspace), `DataConnection.Sync.Schedule` (five-field cron or null), `DataConnection.Queue.Sync` (one deduplication id per sync, triggers), `Realtime.Event.defineFactory`, `Branch`, `CodeWorkspace.Git` (`Commit`, `Heads`, `getMovedHeads`), `ModuleFunctionPath`, `Rid`, `Check.Config` (quarry-ci.yml's rules) and `Check.Manifest`. Its `tsconfig.json` excludes `*.test.ts`, so `tsc -b` never emits tests into `dist`; `tsconfig.test.json` typechecks them.
 
-**`packages/server`** (283 integration and end-to-end tests, and 1 expected failure):
+**`platform/server`** (283 integration and end-to-end tests, and 1 expected failure):
 
 | File | Covers |
 |---|---|
@@ -85,7 +85,7 @@ Data Connection's, checked the same way (each mutation failed only the tests nam
 | `test/e2e/source-probes.e2e` | **a real Data Connection worker process** (request–reply over Redis) against a throwaway Postgres database: test passes, explore lists the tables across schemas, preview returns typed columns and rows, each probe audited; a missing table, a wrong password (424 with the reason, no password in it) and an unreachable host fail cleanly |
 | `test/e2e/forge-agent.e2e` | **a real ForgeAgent process** against the server over HTTP on a random port: a one-job build and a diamond run to the end in dependency order; canceling against a running agent (no canceled job turns succeeded); a late finish of a canceled job refused |
 
-The end-to-end file lives in the server package for now (it drives the server and spawns `packages/forge-agent`); it moves to `tests/e2e/` at the root when more packages take part. It boots the agent with ts-node (~3 s) and was stable over repeated runs.
+The end-to-end file lives in the server package for now (it drives the server and spawns `applications/forge/agent`); it moves to `tests/e2e/` at the root when more packages take part. It boots the agent with ts-node (~3 s) and was stable over repeated runs.
 
 **What the tests found** (fixed when written):
 

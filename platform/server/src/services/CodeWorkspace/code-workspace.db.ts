@@ -1,0 +1,70 @@
+import { z } from 'zod';
+import { CodeWorkspace, Foundations, Identity } from '@quarry/shared/domain';
+import { defineDatabase } from '@quarry/platform-kernel/db/pool';
+import type { Table } from '@quarry/platform-kernel/db/table';
+import type { IdentityDB } from '@quarry/platform-kernel/services/Identity/identity.db';
+import { LibraryDB } from '@quarry/platform-kernel/services/Library/library.db';
+
+import CI = CodeWorkspace.CI;
+
+/** The `code_workspace` schema: Code Workspaces. */
+export namespace CodeWorkspaceDB {
+
+    export namespace Workspace {
+        export const Row = z.object({
+            rid:         CodeWorkspace.Rid,
+            type:        z.literal('workspace'),
+            template_id: CodeWorkspace.Template.Id,
+        });
+        export type Row = z.infer<typeof Row>;
+
+        export const toDomain = (row: Pick<Row, 'template_id'>, resource: LibraryDB.Resource.Row) => CodeWorkspace.Schema.parse({
+            ...LibraryDB.Resource.toBase(resource),
+            templateId: row.template_id,
+        });
+    }
+
+    export namespace CheckRun {
+        export const Row = z.object({
+            rid:           CI.CheckRun.Rid,
+            workspace_rid: CodeWorkspace.Rid,
+            branch:        Foundations.Branch,
+            commit:        CodeWorkspace.Git.Commit,
+            status:        CI.CheckRun.Status,
+            steps:         CI.CheckRun.Step.Schema.array(),
+            published:     z.boolean(),
+            failure:       CI.CheckRun.Failure.nullable(),
+            pushed_by:     Identity.User.Rid.nullable(),
+            created_at:    z.date(),
+            scheduled_at:  z.date().nullable(),
+            started_at:    z.date().nullable(),
+            reported_at:   z.date().nullable(),
+            finished_at:   z.date().nullable(),
+        });
+        export type Row = z.infer<typeof Row>;
+
+        export const toDomain = (row: Row) => CI.CheckRun.Schema.parse({
+            rid:          row.rid,
+            workspaceRid: row.workspace_rid,
+            branch:       row.branch,
+            commit:       row.commit,
+            status:       row.status,
+            steps:        row.steps,
+            published:    row.published,
+            failure:      row.failure,
+            pushedBy:     row.pushed_by,
+            createdAt:    row.created_at,
+            scheduledAt:  row.scheduled_at,
+            startedAt:    row.started_at,
+            reportedAt:   row.reported_at,
+            finishedAt:   row.finished_at,
+        });
+    }
+
+    export interface Tables {
+        'code_workspace.workspace': Table<typeof Workspace.Row, 'type'>;
+        'code_workspace.check_run': Table<typeof CheckRun.Row, 'status' | 'steps' | 'published' | 'failure' | 'created_at' | 'scheduled_at' | 'started_at' | 'reported_at' | 'finished_at'>;
+    }
+
+    export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();
+}

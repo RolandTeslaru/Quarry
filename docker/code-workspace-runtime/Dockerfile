@@ -1,5 +1,5 @@
 # The Code Workspaces runtime image (docs/design/forge-runtimes.md): a Forge job container. The runtime
-# (packages/code-workspace-runtime, bundled into one file) is its main process and talks to the ForgeAgent
+# (applications/code-workspace/runtime, bundled into one file) is its main process and talks to the ForgeAgent
 # over stdin and stdout. It runs as root, which the ForgeAgent strips down to switching users
 # (--cap-drop ALL --cap-add SETUID --cap-add SETGID), and spawns every Python process as `transform`.
 #
@@ -22,7 +22,7 @@ COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=uv /uv /uvx /usr/local/bin/
 
 # quarry.transforms and the engines, at its lock's versions.
-COPY packages/transforms-python /opt/quarry/transforms-python
+COPY applications/code-workspace/transforms-python /opt/quarry/transforms-python
 RUN cd /opt/quarry/transforms-python \
     && uv export --frozen --no-dev --extra pandas --no-emit-project --output-file /tmp/requirements.txt \
     && uv pip install --system --no-cache -r /tmp/requirements.txt \
@@ -36,6 +36,6 @@ RUN groupadd --gid 1001 transform \
     && mkdir /work /cache \
     && chown transform:transform /cache
 
-COPY packages/code-workspace-runtime/dist/runtime.js /opt/quarry/runtime/runtime.js
+COPY applications/code-workspace/runtime/dist/runtime.js /opt/quarry/runtime/runtime.js
 
 ENTRYPOINT ["tini", "--", "node", "/opt/quarry/runtime/runtime.js"]
