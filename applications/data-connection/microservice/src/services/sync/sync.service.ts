@@ -5,7 +5,7 @@ import { QueueManager } from '@quarry/platform-kernel/infra/queue';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
 import { SecurityGate } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
-import { DataConnectionDB } from '../data-connection.db';
+import { DataConnectionDB } from '../../data-connection.db';
 import { SourceService } from '../source/source.service';
 import { validateSyncConfig } from './sync-definition';
 import { SyncRepository } from './sync.repository';

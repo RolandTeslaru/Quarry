@@ -14,14 +14,14 @@ import { LibraryModule } from '@quarry/platform-kernel/services/Library/library.
 import { GatekeeperModule } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.module';
 import { RequestMemoMiddleware } from '@quarry/platform-kernel/services/Gatekeeper/request-memo';
 import { RealtimeModule } from '@quarry/platform-kernel/services/Realtime/realtime.module';
-import { SourceModule } from '@quarry/data-connection-microservice/source/source.module';
-import { SourceController } from '@quarry/data-connection-microservice/source/controllers/http.controller';
-import { SyncModule } from '@quarry/data-connection-microservice/sync/sync.module';
-import { SyncController } from '@quarry/data-connection-microservice/sync/controllers/http.controller';
-import { SyncInternalController } from '@quarry/data-connection-microservice/sync/controllers/internal-http.controller';
-import { SyncRunModule } from '@quarry/data-connection-microservice/sync-run/sync-run.module';
-import { SyncRunController } from '@quarry/data-connection-microservice/sync-run/controllers/http.controller';
-import { SyncRunInternalController } from '@quarry/data-connection-microservice/sync-run/controllers/internal-http.controller';
+import { SourceModule } from '@quarry/data-connection-microservice/services/source/source.module';
+import { SourceController } from '@quarry/data-connection-microservice/services/source/controllers/http.controller';
+import { SyncModule } from '@quarry/data-connection-microservice/services/sync/sync.module';
+import { SyncController } from '@quarry/data-connection-microservice/services/sync/controllers/http.controller';
+import { SyncInternalController } from '@quarry/data-connection-microservice/services/sync/controllers/internal-http.controller';
+import { SyncRunModule } from '@quarry/data-connection-microservice/services/sync-run/sync-run.module';
+import { SyncRunController } from '@quarry/data-connection-microservice/services/sync-run/controllers/http.controller';
+import { SyncRunInternalController } from '@quarry/data-connection-microservice/services/sync-run/controllers/internal-http.controller';
 
 /**
  * The Data Connection service (docs/design/architecture-split.md, phase 2): sources, syncs and their

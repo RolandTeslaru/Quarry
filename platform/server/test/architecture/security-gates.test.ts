@@ -6,9 +6,9 @@ import { destroyPool } from '@quarry/platform-kernel/db/pool';
 import { getMethodsRequiringLive } from '@quarry/platform-kernel/db/liveness';
 import { CatalogModule } from '@quarry/catalog-microservice/catalog/catalog.module';
 import { CodeWorkspaceModule } from '@quarry/code-workspace-microservice/services/code-workspace/code-workspace.module';
-import { SourceModule } from '@quarry/data-connection-microservice/source/source.module';
-import { SyncModule } from '@quarry/data-connection-microservice/sync/sync.module';
-import { SyncRunModule } from '@quarry/data-connection-microservice/sync-run/sync-run.module';
+import { SourceModule } from '@quarry/data-connection-microservice/services/source/source.module';
+import { SyncModule } from '@quarry/data-connection-microservice/services/sync/sync.module';
+import { SyncRunModule } from '@quarry/data-connection-microservice/services/sync-run/sync-run.module';
 import { ForgeModule } from '@quarry/forge-microservice/services/forge/forge.module';
 import { isGated } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
 

@@ -4,7 +4,7 @@ import { Catalog, DataConnection, Dataset, Identity } from '@quarry/shared/domai
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
-import { DataConnectionDB } from '../data-connection.db';
+import { DataConnectionDB } from '../../data-connection.db';
 
 /** data_connection.sync_run. */
 @Injectable()

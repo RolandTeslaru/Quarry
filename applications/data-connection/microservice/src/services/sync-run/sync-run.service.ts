@@ -6,7 +6,7 @@ import { RealtimeService } from '@quarry/platform-kernel/services/Realtime/realt
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
 import { SecurityGate } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
-import { DataConnectionDB } from '../data-connection.db';
+import { DataConnectionDB } from '../../data-connection.db';
 import { SourceService } from '../source/source.service';
 import { SourceRepository } from '../source/source.repository';
 import { SyncService } from '../sync/sync.service';

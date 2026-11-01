@@ -15,9 +15,9 @@ import { FileStorage } from '@quarry/platform-kernel/infra/file-storage';
 import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { LibraryService } from '@quarry/platform-kernel/services/Library/library.service';
-import { SourceService } from '@quarry/data-connection-microservice/source/source.service';
-import { SyncService } from '@quarry/data-connection-microservice/sync/sync.service';
-import { SyncRunService } from '@quarry/data-connection-microservice/sync-run/sync-run.service';
+import { SourceService } from '@quarry/data-connection-microservice/services/source/source.service';
+import { SyncService } from '@quarry/data-connection-microservice/services/sync/sync.service';
+import { SyncRunService } from '@quarry/data-connection-microservice/services/sync-run/sync-run.service';
 import { DataConnectionMicroserviceModule } from '@quarry/data-connection-microservice/microservice.module';
 
 import Internal = DataConnection.API.Internal;
