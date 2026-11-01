@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { describe, expect, it } from "vitest"
-import { Realtime } from "./Realtime"
+import { Realtime } from "../Realtime"
 
 const Channel = Realtime.Channel.brand("Test.Channel")
 

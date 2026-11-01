@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { Event } from "./Event"
-import { Source } from "./Source"
-import { Sync } from "./Sync"
-import { SyncRun } from "./SyncRun"
+import { Event } from "../Event"
+import { Source } from "../Source"
+import { Sync } from "../Sync"
+import { SyncRun } from "../SyncRun"
 
 describe("DataConnection.Event", () => {
 

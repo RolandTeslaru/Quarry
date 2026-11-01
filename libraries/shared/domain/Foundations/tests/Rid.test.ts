@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { Rid } from "./Rid"
+import { Rid } from "../Rid"
 
 describe("Rid", () => {
 

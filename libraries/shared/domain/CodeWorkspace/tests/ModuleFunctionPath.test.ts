@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ModuleFunctionPath } from "./ModuleFunctionPath"
+import { ModuleFunctionPath } from "../ModuleFunctionPath"
 
 describe("ModuleFunctionPath", () => {
 

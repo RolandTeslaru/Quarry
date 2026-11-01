@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { Event } from "./Event"
-import { CheckRun } from "./CI/CheckRun"
-import { Workspace } from "./Workspace"
+import { Event } from "../Event"
+import { CheckRun } from "../CI/CheckRun"
+import { Workspace } from "../Workspace"
 
 describe("CodeWorkspace.Event", () => {
 

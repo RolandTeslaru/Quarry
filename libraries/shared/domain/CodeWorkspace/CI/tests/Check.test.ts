@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { Check } from "./Check"
+import { Check } from "../Check"
 
 const PUBLISH = { name: "Publish transforms", uses: "quarry/publish-transforms" }
 const RID = "ri.catalog.main.dataset.01234567-89ab-cdef-0123-456789abcdef"

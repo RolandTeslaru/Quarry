@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { Queue } from "./queue"
-import { Sync } from "./Sync"
+import { Queue } from "../queue"
+import { Sync } from "../Sync"
 
 describe("DataConnection.Sync", () => {
 

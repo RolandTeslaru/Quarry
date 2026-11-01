@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { Foundations } from "../Foundations"
-import { Git } from "./Git"
+import { Foundations } from "../../Foundations"
+import { Git } from "../Git"
 
 const MAIN = Foundations.MAIN_BRANCH
 const FEATURE = Foundations.Branch.parse("feature/orders")
