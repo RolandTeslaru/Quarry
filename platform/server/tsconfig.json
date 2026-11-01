@@ -10,8 +10,8 @@
             "@quarry/platform-kernel/*": [
                 "../kernel/*"
             ],
-            "@quarry/catalog-server/*": [
-                "../../applications/catalog/server/src/*"
+            "@quarry/catalog-microservice/*": [
+                "../../applications/catalog/microservice/src/*"
             ],
             "@quarry/shared/*": [
                 "../../libraries/shared/*"
@@ -19,14 +19,14 @@
             "@quarry/integrations/*": [
                 "../../libraries/integrations/*"
             ],
-            "@quarry/data-connection-server/*": [
-                "../../applications/data-connection/server/src/*"
+            "@quarry/data-connection-microservice/*": [
+                "../../applications/data-connection/microservice/src/*"
             ],
-            "@quarry/forge-server/*": [
-                "../../applications/forge/server/src/*"
+            "@quarry/forge-microservice/*": [
+                "../../applications/forge/microservice/src/*"
             ],
-            "@quarry/code-workspace-server/*": [
-                "../../applications/code-workspace/server/src/*"
+            "@quarry/code-workspace-microservice/*": [
+                "../../applications/code-workspace/microservice/src/*"
             ]
         },
         "rootDir": "../..",

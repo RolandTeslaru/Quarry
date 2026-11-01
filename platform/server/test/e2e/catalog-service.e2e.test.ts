@@ -182,7 +182,7 @@ describe('the Catalog service, through the main server', () => {
 
 function startCatalog(serverUrl: string, port: number, onOutput: (chunk: string) => void): ChildProcess {
     const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', 'src/main.ts'], {
-        cwd: path.resolve(__dirname, '../../../../applications/catalog/server'),
+        cwd: path.resolve(__dirname, '../../../../applications/catalog/microservice'),
         env: {
             ...process.env,                     // the test database and Redis, and CATALOG_DATABASE_URL (test/support/env.ts)
             QUARRY_SERVER_URL: serverUrl,

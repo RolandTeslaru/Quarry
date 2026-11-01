@@ -40,10 +40,10 @@
         "zod": "^4.3.6"
     },
     "devDependencies": {
-        "@quarry/catalog-server": "*",
-        "@quarry/code-workspace-server": "*",
-        "@quarry/data-connection-server": "*",
-        "@quarry/forge-server": "*",
+        "@quarry/catalog-microservice": "*",
+        "@quarry/code-workspace-microservice": "*",
+        "@quarry/data-connection-microservice": "*",
+        "@quarry/forge-microservice": "*",
         "@swc/core": "1.16.18",
         "@types/busboy": "^1.5.4",
         "@types/express": "^5.0.6",

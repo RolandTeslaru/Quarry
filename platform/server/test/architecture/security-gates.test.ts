@@ -4,12 +4,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MainServerModule } from '@/main-server.module';
 import { destroyPool } from '@quarry/platform-kernel/db/pool';
 import { getMethodsRequiringLive } from '@quarry/platform-kernel/db/liveness';
-import { CatalogModule } from '@quarry/catalog-server/catalog/catalog.module';
-import { CodeWorkspaceModule } from '@quarry/code-workspace-server/services/code-workspace/code-workspace.module';
-import { SourceModule } from '@quarry/data-connection-server/source/source.module';
-import { SyncModule } from '@quarry/data-connection-server/sync/sync.module';
-import { SyncRunModule } from '@quarry/data-connection-server/sync-run/sync-run.module';
-import { ForgeModule } from '@quarry/forge-server/services/forge/forge.module';
+import { CatalogModule } from '@quarry/catalog-microservice/catalog/catalog.module';
+import { CodeWorkspaceModule } from '@quarry/code-workspace-microservice/services/code-workspace/code-workspace.module';
+import { SourceModule } from '@quarry/data-connection-microservice/source/source.module';
+import { SyncModule } from '@quarry/data-connection-microservice/sync/sync.module';
+import { SyncRunModule } from '@quarry/data-connection-microservice/sync-run/sync-run.module';
+import { ForgeModule } from '@quarry/forge-microservice/services/forge/forge.module';
 import { isGated } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
 
 /** Every service module — the main server's and each service's: the rule is the code's, not a deployment's. */

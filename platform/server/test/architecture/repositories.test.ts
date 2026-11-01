@@ -5,23 +5,23 @@ import { describe, expect, it } from 'vitest';
 const ROOT = path.resolve(__dirname, '../../../..');
 
 /** Every package with services' code: the main server's, and each service's. */
-const SOURCES = ['platform/server', 'applications/catalog/server', 'applications/data-connection/server', 'applications/forge/server', 'applications/code-workspace/server'].map((pkg) => path.join(ROOT, pkg, 'src'));
+const SOURCES = ['platform/server', 'applications/catalog/microservice', 'applications/data-connection/microservice', 'applications/forge/microservice', 'applications/code-workspace/microservice'].map((pkg) => path.join(ROOT, pkg, 'src'));
 
 /** A service's facade repository: `…/repository/<name>.repository.ts` whose class composes the rest. */
 const FACADES = [
-    'applications/forge/server/src/services/forge/repository/forge.repository.ts',
+    'applications/forge/microservice/src/services/forge/repository/forge.repository.ts',
 ];
 
 /** Sub-repositories in their concept's folder, not beside a facade: only their service, the facade if it composes them, and the module that provides them may import these. */
 const CONCEPT_SUB_REPOSITORIES: Record<string, string[]> = {
-    'applications/forge/server/src/services/job/job.repository.ts': [
-        'applications/forge/server/src/services/job/job.service.ts',
-        'applications/forge/server/src/services/forge/repository/forge.repository.ts',
-        'applications/forge/server/src/services/forge/forge.module.ts',
+    'applications/forge/microservice/src/services/job/job.repository.ts': [
+        'applications/forge/microservice/src/services/job/job.service.ts',
+        'applications/forge/microservice/src/services/forge/repository/forge.repository.ts',
+        'applications/forge/microservice/src/services/forge/forge.module.ts',
     ],
-    'applications/forge/server/src/services/recipe/recipe.repository.ts': [
-        'applications/forge/server/src/services/recipe/recipe.service.ts',
-        'applications/forge/server/src/services/forge/forge.module.ts',
+    'applications/forge/microservice/src/services/recipe/recipe.repository.ts': [
+        'applications/forge/microservice/src/services/recipe/recipe.service.ts',
+        'applications/forge/microservice/src/services/forge/forge.module.ts',
     ],
 };
 
@@ -94,10 +94,10 @@ function resolveImport(from: string, specifier: string): string | null {
     if (specifier.startsWith('@/'))
         return `${path.join(SOURCES.find((source) => from.startsWith(source))!, specifier.slice(2))}.ts`;
 
-    const service = /^@quarry\/(catalog|data-connection|forge|code-workspace)-server\/(.*)$/.exec(specifier);
+    const service = /^@quarry\/(catalog|data-connection|forge|code-workspace)-microservice\/(.*)$/.exec(specifier);
 
     if (service)
-        return `${path.join(ROOT, 'applications', service[1], 'server/src', service[2])}.ts`;
+        return `${path.join(ROOT, 'applications', service[1], 'microservice/src', service[2])}.ts`;
 
     if (specifier.startsWith('.'))
         return `${path.resolve(path.dirname(from), specifier)}.ts`;
