@@ -164,6 +164,21 @@ ALTER TABLE library.resource_ancestor ENABLE ROW LEVEL SECURITY;
 CREATE POLICY discover ON library.resource_ancestor FOR SELECT TO quarry_user
     USING (gatekeeper.can(resource_rid, 'discover'));
 
+-- library.lineage_edge: an edge shows when both its ends do. Its declarer's editors see all of theirs: replacing a
+-- declaration has to reach edges to resources they've since lost.
+ALTER TABLE library.lineage_edge ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY discover ON library.lineage_edge FOR SELECT TO quarry_user
+    USING (gatekeeper.can(upstream_rid, 'discover') AND gatekeeper.can(downstream_rid, 'discover'));
+CREATE POLICY declarer ON library.lineage_edge FOR SELECT TO quarry_user
+    USING (gatekeeper.can(declared_by_rid, 'write'));
+CREATE POLICY declare ON library.lineage_edge FOR INSERT TO quarry_user
+    WITH CHECK (gatekeeper.can(declared_by_rid, 'write')
+                AND gatekeeper.can(upstream_rid, 'read')
+                AND gatekeeper.can(downstream_rid, 'write'));
+CREATE POLICY replace ON library.lineage_edge FOR DELETE TO quarry_user
+    USING (gatekeeper.can(declared_by_rid, 'write'));
+
 -- gatekeeper.role_grant: who has access is read; changing it is manage.
 ALTER TABLE gatekeeper.role_grant ENABLE ROW LEVEL SECURITY;
 

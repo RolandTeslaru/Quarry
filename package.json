@@ -9,16 +9,16 @@
     ],
     "scripts": {
         "dev:all": "npm run infra && npm run dev",
-        "dev": "concurrently -n server,catalog,dc,forge,cw,cw-worker,system,web -c cyan,magenta,blue,white,gray,blueBright,yellow,green \"npm:dev:server\" \"npm:dev:catalog\" \"npm:dev:data-connection-service\" \"npm:dev:forge-service\" \"npm:dev:code-workspace-service\" \"npm:dev:code-workspace\" \"npm:dev:system\" \"npm:dev:frontend\"",
+        "dev": "concurrently -n server,catalog,dc,forge,cw,lineage,cw-worker,system,web -c cyan,magenta,blue,white,gray,cyanBright,blueBright,yellow,green \"npm:dev:server\" \"npm:dev:catalog\" \"npm:dev:data-connection-service\" \"npm:dev:forge-service\" \"npm:dev:code-workspace-service\" \"npm:dev:lineage-explorer-service\" \"npm:dev:code-workspace\" \"npm:dev:system\" \"npm:dev:frontend\"",
         "dev:server": "npm run dev:api --workspace=platform/server",
         "dev:catalog": "npm run dev --workspace=applications/catalog/microservice",
         "dev:system": "npm run dev --workspace=platform/system-worker",
         "dev:code-workspace": "npm run dev --workspace=applications/code-workspace/worker",
         "dev:forge-agent": "npm run dev --workspace=applications/forge/agent",
         "migrate": "npm run migrate --workspace=platform/server",
-        "test": "npm run test --workspace=libraries/shared --workspace=applications/catalog/microservice --workspace=applications/data-connection/microservice --workspace=applications/forge/microservice --workspace=applications/code-workspace/microservice --workspace=platform/server --workspace=applications/code-workspace/runtime",
-        "typecheck": "tsc -b libraries/shared && npm run typecheck --workspace=libraries/integrations --workspace=platform/kernel --workspace=applications/catalog/microservice --workspace=applications/data-connection/microservice --workspace=applications/forge/microservice --workspace=applications/code-workspace/microservice --workspace=platform/server --workspace=platform/system-worker --workspace=applications/code-workspace/worker --workspace=applications/forge/agent --workspace=applications/code-workspace/runtime --workspace=applications/data-connection/runtime --workspace=applications/code-workspace/vscode-extension --workspace=libraries/standard-ui --workspace=platform/frontend",
-        "build": "npm run build --workspace=applications/catalog/microservice --workspace=applications/data-connection/microservice --workspace=applications/forge/microservice --workspace=applications/code-workspace/microservice --workspace=platform/server --workspace=platform/system-worker --workspace=applications/code-workspace/worker --workspace=applications/forge/agent --workspace=platform/frontend",
+        "test": "npm run test --workspace=libraries/shared --workspace=applications/catalog/microservice --workspace=applications/data-connection/microservice --workspace=applications/forge/microservice --workspace=applications/code-workspace/microservice --workspace=applications/lineage-explorer/microservice --workspace=platform/server --workspace=applications/code-workspace/runtime",
+        "typecheck": "tsc -b libraries/shared && npm run typecheck --workspace=libraries/integrations --workspace=platform/kernel --workspace=applications/catalog/microservice --workspace=applications/data-connection/microservice --workspace=applications/forge/microservice --workspace=applications/code-workspace/microservice --workspace=applications/lineage-explorer/microservice --workspace=platform/server --workspace=platform/system-worker --workspace=applications/code-workspace/worker --workspace=applications/forge/agent --workspace=applications/code-workspace/runtime --workspace=applications/data-connection/runtime --workspace=applications/code-workspace/vscode-extension --workspace=libraries/standard-ui --workspace=platform/frontend",
+        "build": "npm run build --workspace=applications/catalog/microservice --workspace=applications/data-connection/microservice --workspace=applications/forge/microservice --workspace=applications/code-workspace/microservice --workspace=applications/lineage-explorer/microservice --workspace=platform/server --workspace=platform/system-worker --workspace=applications/code-workspace/worker --workspace=applications/forge/agent --workspace=platform/frontend",
         "build:code-workspace-ide": "npm run build --workspace=applications/code-workspace/runtime && npm run package --workspace=applications/code-workspace/vscode-extension && docker build -f docker/code-workspace-ide/Dockerfile -t quarry/code-workspace-ide:dev .",
         "build:code-workspace-runtime": "npm run build --workspace=applications/code-workspace/runtime && docker build -f docker/code-workspace-runtime/Dockerfile -t quarry/code-workspace-runtime:dev .",
         "build:data-connection-runtime": "npm run build --workspace=applications/data-connection/runtime && docker build -f docker/data-connection-runtime/Dockerfile -t quarry/data-connection-runtime:dev .",
@@ -26,7 +26,8 @@
         "dev:frontend": "npm run dev --workspace=platform/frontend",
         "dev:data-connection-service": "npm run dev --workspace=applications/data-connection/microservice",
         "dev:forge-service": "npm run dev --workspace=applications/forge/microservice",
-        "dev:code-workspace-service": "npm run dev --workspace=applications/code-workspace/microservice"
+        "dev:code-workspace-service": "npm run dev --workspace=applications/code-workspace/microservice",
+        "dev:lineage-explorer-service": "npm run dev --workspace=applications/lineage-explorer/microservice"
     },
     "devDependencies": {
         "@types/node": "^22.10.2",

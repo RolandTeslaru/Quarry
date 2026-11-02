@@ -3,6 +3,7 @@ import { Dataset, Forge, Foundations, Library } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
+import { LibraryService } from '@quarry/platform-kernel/services/Library/library.service';
 import { ForgeDB } from '../forge/forge.db';
 
 /** A recipe as a producer publishes it — Forge fills in the RID, branch, producer and who. */
@@ -17,10 +18,16 @@ export interface PublishedRecipe {
 @Injectable()
 export class RecipeRepository extends Repository(ForgeDB.database) {
 
+    constructor(private readonly library: LibraryService) {
+        super();
+    }
+
     /**
      * Replaces everything the producer publishes on the branch: inserts the new
      * recipes, drops the producer's old pointers, points each output at its new
-     * recipe. An output another producer owns is a conflict.
+     * recipe, and declares the producer's lineage: each input → each output, or
+     * the producer → each output for a recipe with no inputs. An output another
+     * producer owns is a conflict.
      */
     @Transactional()
     public async publish(
@@ -51,8 +58,19 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
 
         const published: Forge.Recipe[] = [];
 
-        for (const recipe of recipes)
+        const edges: Pick<Library.Lineage.Edge, 'upstreamRid' | 'downstreamRid'>[] = [];
+
+        for (const recipe of recipes) {
             published.push(await this.insert(principal, producerRid, branch, recipe));
+
+            const upstreamRids = recipe.inputDatasetRids.length > 0 ? recipe.inputDatasetRids : [producerRid];
+
+            for (const upstreamRid of upstreamRids)
+                for (const downstreamRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[])
+                    edges.push({ upstreamRid, downstreamRid });
+        }
+
+        await this.library.lineage.declare(principal, producerRid, branch, edges);       // joins this transaction
 
         return published;
     }

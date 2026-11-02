@@ -28,6 +28,7 @@ async function bootstrap(): Promise<void> {
         dataConnection: process.env.DATA_CONNECTION_URL ?? 'http://localhost:4020',
         forge:          process.env.FORGE_URL ?? 'http://localhost:4030',
         codeWorkspace:  process.env.CODE_WORKSPACE_URL ?? 'http://localhost:4040',
+        lineageExplorer: process.env.LINEAGE_EXPLORER_URL ?? 'http://localhost:4050',
     });
     app.enableShutdownHooks();
     await connectMicroserviceCalls(app, 'main');

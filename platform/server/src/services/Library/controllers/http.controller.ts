@@ -41,6 +41,28 @@ export class LibraryController {
         return { resource: await this.library.get(principal, rid) };
     }
 
+    @Get('resources/:rid/lineage/upstream')
+    async getUpstream(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', RidParam) rid: Library.Resource.Rid,
+        @Query(new ZodPipe(API.Lineage.Get.Request)) query: API.Lineage.Get.Request,
+    ): Promise<API.Lineage.Get.Response> {
+        const { branch, ...walk } = query;
+
+        return { graph: await this.library.lineage.getUpstream(principal, rid, branch, walk) };
+    }
+
+    @Get('resources/:rid/lineage/downstream')
+    async getDownstream(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', RidParam) rid: Library.Resource.Rid,
+        @Query(new ZodPipe(API.Lineage.Get.Request)) query: API.Lineage.Get.Request,
+    ): Promise<API.Lineage.Get.Response> {
+        const { branch, ...walk } = query;
+
+        return { graph: await this.library.lineage.getDownstream(principal, rid, branch, walk) };
+    }
+
     /** An app opened the resource's page: the resource, the open recorded (audit). */
     @Post('resources/:rid/open')
     @HttpCode(200)

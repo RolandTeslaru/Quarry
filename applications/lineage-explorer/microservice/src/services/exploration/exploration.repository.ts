@@ -1,0 +1,86 @@
+import { Injectable } from '@nestjs/common';
+import { type Foundations, type Library, LineageExplorer, type Platform } from '@quarry/shared/domain';
+import { Principal } from '@quarry/platform-kernel/auth/principal';
+import { requireAffected } from '@quarry/platform-kernel/db/errors';
+import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
+import { json } from '@quarry/platform-kernel/db/table';
+import { AuditRepository } from '@quarry/platform-kernel/services/Audit/audit.repository';
+import { EnsureResource } from '@quarry/platform-kernel/services/Library/ensure-resource';
+import { ResourceRepository } from '@quarry/platform-kernel/services/Library/resource.repository';
+import { LineageExplorerDB } from './lineage-explorer.db';
+
+/** lineage_explorer.exploration (and its library row). */
+@Injectable()
+export class ExplorationRepository extends Repository(LineageExplorerDB.database) {
+
+    constructor(
+        readonly resources:     ResourceRepository,          // @EnsureResource's
+        private readonly audit: AuditRepository,
+    ) {
+        super();
+    }
+
+    /** Library row (via @EnsureResource) + exploration row, in one transaction. */
+    @Transactional()
+    @EnsureResource('lineage-exploration')
+    async create(principal: Principal, values: {
+        rid:         LineageExplorer.Exploration.Rid;
+        name:        string;
+        description: string | null;
+        parentRid:   Library.Resource.Rid;
+        branch:      Foundations.Branch;
+        nodes:       LineageExplorer.Exploration['nodes'];
+    }): Promise<LineageExplorer.Exploration> {
+        const exploration = await this.trx
+            .insertInto('lineage_explorer.exploration')
+            .values({
+                rid:    values.rid,
+                branch: values.branch,
+                nodes:  json(values.nodes),
+            })
+            .returningAll()
+            .executeTakeFirstOrThrow();
+
+        return LineageExplorerDB.Exploration.toDomain(exploration, this.resource);
+    }
+
+    /** Live explorations only. */
+    @Transactional()
+    async get(principal: Principal, rid: LineageExplorer.Exploration.Rid): Promise<LineageExplorer.Exploration | null> {
+        const row = await this.trx
+            .selectFrom('lineage_explorer.exploration as e')
+            .innerJoin('library.resource as r', 'r.rid', 'e.rid')
+            .selectAll('r')
+            .select(['e.branch', 'e.nodes'])
+            .where('e.rid', '=', rid)
+            .where('r.trashed_at', 'is', null)
+            .executeTakeFirst();
+
+        if (!row)
+            return null;
+
+        const { branch, nodes, ...resource } = row;
+
+        return LineageExplorerDB.Exploration.toDomain({ rid, type: 'lineage-exploration', branch, nodes }, resource);
+    }
+
+    /** An app opening the exploration: it, and the audit `open`, in one transaction. Null: not there, or not theirs to see. */
+    @Transactional('user')
+    async open(principal: Principal.User, rid: LineageExplorer.Exploration.Rid, application: Platform.Application.Id): Promise<LineageExplorer.Exploration | null> {
+        const exploration = await this.get(principal, rid);     // joins this transaction
+
+        if (exploration)
+            await this.audit.recordOpen(principal, { rid, type: 'lineage-exploration', application });     // joins this transaction
+
+        return exploration;
+    }
+
+    @Transactional()
+    async save(principal: Principal, rid: LineageExplorer.Exploration.Rid, nodes: LineageExplorer.Exploration['nodes']): Promise<void> {
+        requireAffected(await this.trx
+            .updateTable('lineage_explorer.exploration')
+            .set({ nodes: json(nodes) })
+            .where('rid', '=', rid)
+            .executeTakeFirst());
+    }
+}

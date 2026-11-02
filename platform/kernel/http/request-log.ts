@@ -6,7 +6,8 @@ const log = System.log.withContext('HTTP');
 /**
  * One line per request, when it finishes: method, path, status, duration.
  * The path only — a query string can carry a token. 5xx logs as an error,
- * 4xx as a warning.
+ * 4xx as a warning, the rest at debug: heartbeats and polling would drown what
+ * the services report themselves.
  */
 export function requestLog(request: Request, response: Response, next: NextFunction): void {
     const startedAt = performance.now();
@@ -21,7 +22,7 @@ export function requestLog(request: Request, response: Response, next: NextFunct
         else if (status >= 400)
             log.warning(line, meta);
         else
-            log.info(line, meta);
+            log.debug(line, meta);
     });
 
     next();

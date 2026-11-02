@@ -8,6 +8,7 @@ export const TYPE_ICONS: Record<Library.Resource.Type, string> = {
     'source':     'database',
     'credential': 'key',
     'workspace':  'code',
+    'lineage-exploration': 'type-hierarchy',
 }
 
 export const TYPE_LABELS: Record<Library.Resource.Type, string> = {
@@ -17,4 +18,5 @@ export const TYPE_LABELS: Record<Library.Resource.Type, string> = {
     'source':     'source',
     'credential': 'credential',
     'workspace':  'code workspace',
+    'lineage-exploration': 'lineage exploration',
 }

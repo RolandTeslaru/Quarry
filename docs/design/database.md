@@ -295,6 +295,10 @@ CREATE TRIGGER resource_ancestry_move
     EXECUTE FUNCTION library.ancestry_move();
 ```
 
+### Lineage
+
+`library.lineage_edge` records how resources feed each other: `upstream_rid`, `downstream_rid`, `branch` and `declared_by_rid`, all resource columns `ON DELETE CASCADE`. See [lineage.md](lineage.md).
+
 ### Lifecycle
 
 1. **Trash** — set `trashed_at`. Library hides the resource and its descendants (any ancestor trashed → hidden); restorable.

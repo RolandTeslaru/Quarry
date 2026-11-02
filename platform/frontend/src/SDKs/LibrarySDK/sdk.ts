@@ -42,6 +42,16 @@ export class LibrarySDKImpl extends BaseSDK<LibrarySDK.State> {
             queryKey: ['library', 'path', rid] as const,
             queryFn: () => this.actions.resource.getPath(rid),
         }),
+
+        upstream: (rid: Library.Resource.Rid, request: Library.API.Lineage.Get.Request) => ({
+            queryKey: ['library', 'lineage', 'upstream', rid, request] as const,
+            queryFn: () => this.actions.lineage.getUpstream(rid, request),
+        }),
+
+        downstream: (rid: Library.Resource.Rid, request: Library.API.Lineage.Get.Request) => ({
+            queryKey: ['library', 'lineage', 'downstream', rid, request] as const,
+            queryFn: () => this.actions.lineage.getDownstream(rid, request),
+        }),
     }
 
     public override cleanup(): void {

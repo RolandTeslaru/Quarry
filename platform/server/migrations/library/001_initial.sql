@@ -20,7 +20,8 @@ INSERT INTO library.resource_type VALUES
     ('dataset',    false, true),
     ('source',     false, true),
     ('credential', false, false),
-    ('workspace',  false, true);                         -- a Code Workspace
+    ('workspace',  false, true),                         -- a Code Workspace
+    ('lineage-exploration', false, true);                -- a saved graph in Lineage Explorer
 
 CREATE TABLE library.resource (
     rid         foundations.rid PRIMARY KEY,
@@ -59,6 +60,19 @@ CREATE TABLE library.resource_ancestor (
 );
 
 CREATE INDEX resource_ancestor_by_ancestor ON library.resource_ancestor (ancestor_rid, depth);
+
+-- How resources feed each other, whatever their types (docs/design/lineage.md). Identified by its two ends and
+-- its branch; a declarer replaces all of its edges on a branch. Purging an end or the declarer removes the edge.
+CREATE TABLE library.lineage_edge (
+    upstream_rid    foundations.rid NOT NULL REFERENCES library.resource(rid) ON DELETE CASCADE,
+    downstream_rid  foundations.rid NOT NULL REFERENCES library.resource(rid) ON DELETE CASCADE,
+    branch          text NOT NULL,
+    declared_by_rid foundations.rid NOT NULL REFERENCES library.resource(rid) ON DELETE CASCADE,
+    PRIMARY KEY (upstream_rid, downstream_rid, branch)
+);
+
+CREATE INDEX lineage_edge_by_downstream ON library.lineage_edge (downstream_rid, branch);
+CREATE INDEX lineage_edge_by_declarer   ON library.lineage_edge (declared_by_rid, branch);
 
 -- Trigger functions are SECURITY DEFINER: they must see the whole tree and write the
 -- closure table, whatever the user's row-level access (RLS: gatekeeper/001_initial.sql).
@@ -152,7 +166,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
 $$;
 
 GRANT USAGE ON SCHEMA library TO main_user;
-GRANT SELECT ON library.resource_type, library.resource_ancestor TO main_user;
+GRANT SELECT ON library.resource_type, library.resource_ancestor, library.lineage_edge TO main_user;
 GRANT SELECT, INSERT, UPDATE ON library.resource TO main_user;
--- RLS on library.resource and resource_ancestor is installed by gatekeeper/001_initial.sql,
+-- RLS on library.resource, resource_ancestor and lineage_edge is installed by gatekeeper/001_initial.sql,
 -- which defines the rank function the policies call.

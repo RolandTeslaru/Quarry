@@ -232,6 +232,20 @@ export class ForgeHarness {
             values (${resourceRid}, ${member.userRid}, ${role}, ${granter.userRid})`.execute(this.owner);
     }
 
+    /** Removes a member's role on a resource; the owner writes it here. */
+    public async revoke(resourceRid: Library.Resource.Rid, member: Principal.User): Promise<void> {
+        await sql`delete from gatekeeper.role_grant where resource_rid = ${resourceRid} and user_rid = ${member.userRid}`.execute(this.owner);
+    }
+
+    /** A declarer's lineage edges on a branch as `upstream → downstream`, sorted; the owner reads them, whoever can see them. */
+    public async getLineage(declaredByRid: Library.Resource.Rid, branch: Foundations.Branch = MAIN): Promise<string[]> {
+        const { rows } = await sql<{ upstream_rid: string; downstream_rid: string }>`
+            select upstream_rid, downstream_rid from library.lineage_edge
+             where declared_by_rid = ${declaredByRid} and branch = ${branch}`.execute(this.owner);
+
+        return rows.map((row) => `${row.upstream_rid} → ${row.downstream_rid}`).sort();
+    }
+
     /** Trashes a resource whatever its type — the Library app's, in the main server; the owner writes it here. */
     public async trash(principal: Principal.User, rid: Library.Resource.Rid): Promise<void> {
         await sql`update library.resource set trashed_at = now(), trashed_by = ${principal.userRid} where rid = ${rid}`.execute(this.owner);

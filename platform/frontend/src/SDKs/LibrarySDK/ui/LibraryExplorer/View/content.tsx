@@ -9,7 +9,7 @@ import { LibraryContextMenu } from '../context-menus'
 import { ItemCard } from './items'
 
 // Sections in this order; anything else the server lists comes after.
-const TYPE_ORDER: Library.Resource.Type[] = ['project', 'folder', 'dataset', 'source', 'workspace']
+const TYPE_ORDER: Library.Resource.Type[] = ['project', 'folder', 'dataset', 'source', 'workspace', 'lineage-exploration']
 
 const TYPE_LABELS: Record<Library.Resource.Type, string> = {
     'project':        'Project',
@@ -18,6 +18,7 @@ const TYPE_LABELS: Record<Library.Resource.Type, string> = {
     'source':         'Source',
     'credential':     'Credential',
     'workspace':      'Code workspace',
+    'lineage-exploration': 'Lineage exploration',
 }
 
 const SKELETON_CARDS = [0, 1, 2, 3, 4, 5, 6, 7]

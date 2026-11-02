@@ -6,6 +6,7 @@ export const SERVICE_LOGINS = [
     { role: 'data_connection_service', url: 'DATA_CONNECTION_DATABASE_URL' },
     { role: 'forge_service',           url: 'FORGE_DATABASE_URL' },
     { role: 'code_workspace_service',  url: 'CODE_WORKSPACE_DATABASE_URL' },
+    { role: 'lineage_explorer_service', url: 'LINEAGE_EXPLORER_DATABASE_URL' },
 ] as const;
 
 /**

@@ -18,6 +18,7 @@ export default defineConfig({
             { find: /^@quarry\/data-connection-microservice\/(.*)$/, replacement: path.resolve(__dirname, '../../applications/data-connection/microservice/src/$1') },
             { find: /^@quarry\/forge-microservice\/(.*)$/, replacement: path.resolve(__dirname, '../../applications/forge/microservice/src/$1') },
             { find: /^@quarry\/code-workspace-microservice\/(.*)$/, replacement: path.resolve(__dirname, '../../applications/code-workspace/microservice/src/$1') },
+            { find: /^@quarry\/lineage-explorer-microservice\/(.*)$/, replacement: path.resolve(__dirname, '../../applications/lineage-explorer/microservice/src/$1') },
             { find: /^@quarry\/shared\/(.*)$/,       replacement: path.resolve(__dirname, '../../libraries/shared/$1') },
             { find: /^@quarry\/integrations\/(.*)$/, replacement: path.resolve(__dirname, '../../libraries/integrations/$1') },
         ],

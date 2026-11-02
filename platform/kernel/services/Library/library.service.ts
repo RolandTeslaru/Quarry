@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { Library, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { LibraryDB } from './library.db';
+import { LineageService } from './lineage.service';
 import { ResourceRepository } from './resource.repository';
 
 /**
@@ -12,7 +13,10 @@ import { ResourceRepository } from './resource.repository';
 @Injectable()
 export class LibraryService {
 
-    constructor(private readonly repository: ResourceRepository) {}
+    constructor(
+        private readonly repository: ResourceRepository,
+        public readonly lineage:     LineageService,
+    ) {}
 
     /** Projects the principal can discover (RLS). */
     async listProjects(principal: Principal): Promise<Library.Resource.Base[]> {

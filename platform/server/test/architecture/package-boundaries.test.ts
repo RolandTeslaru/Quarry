@@ -26,14 +26,15 @@ function getImports(pkg: string, forbidden: RegExp): string[] {
 describe('package boundaries', () => {
 
     it("the kernel imports no server, service or product — and no `@/`, which would resolve into its importer's package", () => {
-        expect(getImports('platform/kernel', /^@\/|^@quarry\/(platform-server|catalog-microservice|data-connection-microservice|forge-microservice|code-workspace-microservice)\b|\/(platform\/server|applications)\//)).toEqual([]);
+        expect(getImports('platform/kernel', /^@\/|^@quarry\/(platform-server|catalog-microservice|data-connection-microservice|forge-microservice|code-workspace-microservice|lineage-explorer-microservice)\b|\/(platform\/server|applications)\//)).toEqual([]);
     });
 
     it("the services import nothing of the main server's, nor each other's", () => {
-        expect(getImports('applications/catalog/microservice', /^@\/|^@quarry\/(platform-server|data-connection-microservice|forge-microservice|code-workspace-microservice)\b|platform\/server\/src\//)).toEqual([]);
-        expect(getImports('applications/data-connection/microservice', /^@\/|^@quarry\/(platform-server|catalog-microservice|forge-microservice|code-workspace-microservice)\b|platform\/server\/src\//)).toEqual([]);
+        expect(getImports('applications/catalog/microservice', /^@\/|^@quarry\/(platform-server|data-connection-microservice|forge-microservice|code-workspace-microservice|lineage-explorer-microservice)\b|platform\/server\/src\//)).toEqual([]);
+        expect(getImports('applications/data-connection/microservice', /^@\/|^@quarry\/(platform-server|catalog-microservice|forge-microservice|code-workspace-microservice|lineage-explorer-microservice)\b|platform\/server\/src\//)).toEqual([]);
         // Its code only: its tests write real Parquet with Catalog's DuckDB, where a job's runtime would.
-        expect(getImports('applications/forge/microservice/src', /^@\/|^@quarry\/(platform-server|catalog-microservice|data-connection-microservice|code-workspace-microservice)\b|platform\/server\/src\//)).toEqual([]);
-        expect(getImports('applications/code-workspace/microservice/src', /^@\/|^@quarry\/(platform-server|catalog-microservice|data-connection-microservice|forge-microservice)\b|platform\/server\/src\//)).toEqual([]);
+        expect(getImports('applications/forge/microservice/src', /^@\/|^@quarry\/(platform-server|catalog-microservice|data-connection-microservice|code-workspace-microservice|lineage-explorer-microservice)\b|platform\/server\/src\//)).toEqual([]);
+        expect(getImports('applications/code-workspace/microservice/src', /^@\/|^@quarry\/(platform-server|catalog-microservice|data-connection-microservice|forge-microservice|lineage-explorer-microservice)\b|platform\/server\/src\//)).toEqual([]);
+        expect(getImports('applications/lineage-explorer/microservice', /^@\/|^@quarry\/(platform-server|catalog-microservice|data-connection-microservice|forge-microservice|code-workspace-microservice)\b|platform\/server\/src\//)).toEqual([]);
     });
 });

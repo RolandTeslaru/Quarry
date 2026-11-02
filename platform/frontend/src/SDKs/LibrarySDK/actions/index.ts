@@ -3,6 +3,7 @@ import type { LibrarySDKImpl } from '../sdk'
 import { ProjectActions } from './project'
 import { FolderActions } from './folder'
 import { ResourceActions } from './resource'
+import { LineageActions } from './lineage'
 
 /** `LibrarySDK.actions`: its groups, by what they act on. */
 export class LibraryActions extends ActionGroup<LibrarySDKImpl> {
@@ -14,4 +15,6 @@ export class LibraryActions extends ActionGroup<LibrarySDKImpl> {
     public readonly folder = new FolderActions(this.sdk)
 
     public readonly resource = new ResourceActions(this.sdk)
+
+    public readonly lineage = new LineageActions(this.sdk)
 }

@@ -27,6 +27,9 @@
             ],
             "@quarry/code-workspace-microservice/*": [
                 "../../applications/code-workspace/microservice/src/*"
+            ],
+            "@quarry/lineage-explorer-microservice/*": [
+                "../../applications/lineage-explorer/microservice/src/*"
             ]
         },
         "rootDir": "../..",

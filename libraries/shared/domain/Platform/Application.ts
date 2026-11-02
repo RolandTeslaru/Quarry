@@ -14,6 +14,7 @@ export namespace Application {
         "pipeline-builder",
         "code-workspaces",
         "forge",
+        "lineage-explorer",
         "layout-demo",                                   // test apps: the shell's layouts
         "minimal-demo",
     ])

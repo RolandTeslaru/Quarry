@@ -1,0 +1,59 @@
+import { Injectable } from '@nestjs/common';
+import { type Foundations, Library } from '@quarry/shared/domain';
+import type { Principal } from '@quarry/platform-kernel/auth/principal';
+import { LibraryDB } from './library.db';
+import { LineageRepository } from './lineage.repository';
+
+/**
+ * How resources feed each other (docs/design/lineage.md). Reached as `library.lineage`.
+ * Row-level security decides what shows. A read goes one hop unless a walk says otherwise.
+ */
+@Injectable()
+export class LineageService {
+
+    constructor(private readonly repository: LineageRepository) {}
+
+    /** Replaces everything the declarer has on the branch. Call it inside the transaction that publishes what the edges describe. */
+    public async declare(
+        principal:     Principal,
+        declaredByRid: Library.Resource.Rid,
+        branch:        Foundations.Branch,
+        edges:         Pick<Library.Lineage.Edge, 'upstreamRid' | 'downstreamRid'>[],
+    ): Promise<Library.Lineage.Edge[]> {
+        const rows = await this.repository.declare(principal, declaredByRid, branch, edges);
+
+        return rows.map(LibraryDB.LineageEdge.toDomain);
+    }
+
+    /** What feeds the resource. */
+    public async getUpstream(
+        principal: Principal,
+        rid:       Library.Resource.Rid,
+        branch:    Foundations.Branch,
+        walk:      Library.Lineage.Walk = Library.Lineage.Walk.ONE_HOP,
+    ): Promise<Library.Lineage.Graph> {
+        return LibraryDB.LineageGraph.toDomain(await this.repository.getUpstream(principal, rid, branch, walk));
+    }
+
+    /** What the resource feeds. */
+    public async getDownstream(
+        principal: Principal,
+        rid:       Library.Resource.Rid,
+        branch:    Foundations.Branch,
+        walk:      Library.Lineage.Walk = Library.Lineage.Walk.ONE_HOP,
+    ): Promise<Library.Lineage.Graph> {
+        return LibraryDB.LineageGraph.toDomain(await this.repository.getDownstream(principal, rid, branch, walk));
+    }
+
+    /** The edges among these resources: an end that's trashed or hidden leaves its edges out. */
+    public async getEdgesBetween(principal: Principal, rids: Library.Resource.Rid[], branch: Foundations.Branch): Promise<Library.Lineage.Edge[]> {
+        const rows = await this.repository.getEdgesBetween(principal, rids, branch);
+
+        return rows.map(LibraryDB.LineageEdge.toDomain);
+    }
+
+    /** These resources, those that are live and visible, and the edges among them. */
+    public async getGraph(principal: Principal, rids: Library.Resource.Rid[], branch: Foundations.Branch): Promise<Library.Lineage.Graph> {
+        return LibraryDB.LineageGraph.toDomain(await this.repository.getGraph(principal, rids, branch));
+    }
+}

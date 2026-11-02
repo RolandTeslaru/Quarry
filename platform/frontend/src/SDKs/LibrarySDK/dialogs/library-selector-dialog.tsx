@@ -30,6 +30,7 @@ const NOUNS: Record<Library.Resource.Type, string> = {
     'source':         'a source',
     'credential':     'a credential',
     'workspace':      'a code workspace',
+    'lineage-exploration': 'a lineage exploration',
 }
 
 const titleOf = (accept: readonly LibrarySelector.Accept[]) =>

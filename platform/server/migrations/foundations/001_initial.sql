@@ -77,7 +77,7 @@ GRANT EXECUTE ON FUNCTION foundations.ack_outbox(text, text[]) TO main_user;
 --   <schema>_user      a user's or delegate's transaction in the service: a member of quarry_user, so
 --                      every policy applies; its schema's tables (RLS decides what it may do with them —
 --                      a command with no policy is refused), the platform's tables read, Library rows
---                      of its own resource types (and new folders), the outbox to append.
+--                      of its own resource types (and new folders), lineage edges, the outbox to append.
 --
 -- Neither can touch another product's schema; that goes through the other service's calls. Kysely's
 -- migration history, kept in each schema, isn't the service's: only the main server migrates.
@@ -125,6 +125,7 @@ BEGIN
                    p_schema || '_creates', user_role, p_resource_types || ARRAY['folder']);
     EXECUTE format('CREATE POLICY %I ON library.resource AS RESTRICTIVE FOR UPDATE TO %I USING (type = ANY (%L::text[])) WITH CHECK (type = ANY (%L::text[]))',
                    p_schema || '_changes', user_role, p_resource_types, p_resource_types);
+    EXECUTE format('GRANT SELECT, INSERT, DELETE ON library.lineage_edge TO %I', user_role);
     EXECUTE format('GRANT SELECT ON gatekeeper.role TO %I', user_role);
     EXECUTE format('GRANT INSERT ON foundations.outbox TO %I', user_role);
     EXECUTE format('GRANT SELECT (queue_name, job_id) ON foundations.outbox TO %I', user_role);

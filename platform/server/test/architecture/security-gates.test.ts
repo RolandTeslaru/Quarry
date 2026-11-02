@@ -10,10 +10,11 @@ import { DataConnectionModule } from '@quarry/data-connection-microservice/servi
 import { SourceModule } from '@quarry/data-connection-microservice/services/source/source.module';
 import { SyncModule } from '@quarry/data-connection-microservice/services/sync/sync.module';
 import { ForgeModule } from '@quarry/forge-microservice/services/forge/forge.module';
+import { ExplorationModule } from '@quarry/lineage-explorer-microservice/services/exploration/exploration.module';
 import { isGated } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
 
 /** Every service module — the main server's and each service's: the rule is the code's, not a deployment's. */
-@Module({ imports: [MainServerModule, CatalogModule, SourceModule, SyncModule, DataConnectionModule, CodeWorkspaceModule, ForgeModule] })
+@Module({ imports: [MainServerModule, CatalogModule, SourceModule, SyncModule, DataConnectionModule, CodeWorkspaceModule, ForgeModule, ExplorationModule] })
 class EveryServiceModule {}
 
 /**
