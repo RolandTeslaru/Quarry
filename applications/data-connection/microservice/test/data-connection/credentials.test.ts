@@ -1,13 +1,13 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { type DataConnection, Keychain, type Library } from '@quarry/shared/domain';
+import { type DataConnection, Forge, Keychain, type Library } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { DataConnectionHarness, type PostgresLogin } from '../support/data-connection-fixtures';
 
 /**
- * The credential boundary: the server hands a source's credential only to
- * someone who may use it (read on the credential), and only encrypted — for the
- * Data Connection worker to decrypt. Its values never appear in anything a user gets.
+ * The credential boundary: a source's credential goes only to someone who may use it
+ * (read on the credential), and its values only to a running job. They never appear
+ * in anything a user gets.
  */
 describe('source credentials', () => {
 
@@ -73,18 +73,26 @@ describe('source credentials', () => {
         });
     });
 
-    describe('a run', () => {
+    describe('a running job', () => {
 
-        it('hands the worker the credential encrypted, never its values', async () => {
+        it("gets the credential's values, and its source", async () => {
             const sync = await harness.createSync(admin, source);
-            const started = await harness.startRun(sync, editor);
+            const job = await harness.runningJob(editor, sync);
 
-            expect(started.credential).toMatchObject({ rid: credential.rid, templateId: 'postgres' });
-            expect(started.credential?.blob).toBeTruthy();
-            expect(JSON.stringify(started)).not.toContain(LOGIN.password);
+            const connection = await harness.dataConnection.getJobConnection({ ...editor, via: 'forge-job' }, job.rid);
+
+            expect(connection.source.rid).toBe(source.rid);
+            expect(connection.credential).toMatchObject({ host: LOGIN.host, password: LOGIN.password });
         });
 
-        it("acting for someone who can't read the credential: refused, the run recorded failed, no transaction left open", async () => {
+        it("refuses a person's own session, whatever they may read", async () => {
+            const sync = await harness.createSync(admin, source);
+            const job = await harness.runningJob(admin, sync);
+
+            await expect(harness.dataConnection.getJobConnection(admin, job.rid)).rejects.toBeInstanceOf(ForbiddenException);
+        });
+
+        it("refuses a job started by someone who can't read the credential", async () => {
             // The credential lives where the editor has no grant; the source and its sync where they're an editor.
             const elsewhere = await harness.createProject(admin);
             const hidden = await harness.createCredential(admin, elsewhere, LOGIN);
@@ -92,31 +100,22 @@ describe('source credentials', () => {
                 parentRid: projectRid, name: 'Hidden login', description: null, definitionId: 'postgres', config: {}, credentialRid: hidden.rid, outputFolderRid: null,
             });
             const sync = await harness.createSync(admin, hiddenSource);
+            const job = await harness.runningJob(editor, sync);
 
-            await expect(harness.startRun(sync, editor)).rejects.toBeInstanceOf(NotFoundException);
-
-            const [run] = await harness.runs(admin, sync);
-
-            expect(run).toMatchObject({ status: 'failed', triggeredBy: editor.userRid, transactionRid: null });
-            expect(await harness.openTransactions(sync.outputDatasetRid)).toBe(0);
+            await expect(harness.dataConnection.getJobConnection({ ...editor, via: 'forge-job' }, job.rid)).rejects.toBeInstanceOf(NotFoundException);
         });
     });
 
     describe('nothing a user gets contains its values or its blob', () => {
 
-        it('not sources, syncs, runs or the credential itself', async () => {
-            const sync = await harness.createSync(admin, source);
-            const started = await harness.startRun(sync, admin);
-            const blob = started.credential?.blob;
-
-            await harness.completeRun(started, [1], 'a');
+        it('not sources, syncs or the credential itself', async () => {
+            await harness.createSync(admin, source);
 
             const responses = [
                 await harness.sources.get(viewer, source.rid),
                 await harness.sources.open(viewer, source.rid, 'data-connection'),
                 await harness.sources.list(viewer),
                 await harness.syncs.list(viewer, source.rid),
-                await harness.syncRuns.list(viewer, source.rid, sync.rid),
                 // Keychain's own API — the main server's — as the viewer.
                 await Keychain.API.Credential.get(await harness.getApi(viewer), credential.rid),
                 await Keychain.API.Credential.list(await harness.getApi(viewer)),
@@ -127,7 +126,6 @@ describe('source credentials', () => {
 
                 expect(json).not.toContain(LOGIN.password);
                 expect(json).not.toContain(LOGIN.host);
-                expect(blob && json.includes(blob)).toBeFalsy();
             }
         });
     });

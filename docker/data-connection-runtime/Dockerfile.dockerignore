@@ -1,0 +1,3 @@
+# The runtime image needs only the bundled runtime.
+*
+!applications/data-connection/runtime/dist/runtime.js

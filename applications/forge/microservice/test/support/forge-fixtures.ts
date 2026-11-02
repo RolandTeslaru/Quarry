@@ -195,6 +195,7 @@ export class ForgeHarness {
             attempt: job.attempt,
             status,
             failure: status === 'failed' ? { message: 'test failure' } : null,
+            incrementalStates: {},
         });
     }
 

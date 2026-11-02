@@ -20,7 +20,7 @@ import { KeychainRepository, type StoredCredential } from './keychain.repository
  *   manage    share it (Gatekeeper grants)
  *
  * The server encrypts on write and decrypts only to reveal; everything else
- * (runs, probes) gets the blob, which the Data Connection worker decrypts.
+ * (runs, probes) gets the blob, which the Data Connection service decrypts.
  *
  * Rows are RLS's: discover to see one, write to create or change one. Reveal
  * and use are gated here — the blob sits on a row a discoverer can read, so

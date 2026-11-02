@@ -4,22 +4,19 @@ import { DataConnection, Keychain, Library, type Platform } from '@quarry/shared
 import { findDefinition, SOURCE_DEFINITIONS_WIRE } from '@quarry/integrations/definitions';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
-import { QueueManager } from '@quarry/platform-kernel/infra/queue';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { KeychainClient } from '@quarry/platform-kernel/microservice/clients';
 import { LibraryService } from '@quarry/platform-kernel/services/Library/library.service';
 import { SecurityGate } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
 import { Audit } from '@quarry/platform-kernel/services/Audit/audit.decorator';
 import { AuditService } from '@quarry/platform-kernel/services/Audit/audit.service';
+import { SourceProbes } from './source-probes';
 import { SourceRepository } from './source.repository';
 
-/** How long the server waits for the Data Connection worker to answer a source probe. */
-const PROBE_TIMEOUT_MS = 15_000;
-
 /**
- * Sources: create, get, open, list, and probes of the source system (test, explore, preview). Never
- * decrypts a source's credential: anything that touches a source system is asked of the Data
- * Connection worker, which gets the credential encrypted (Keychain's getEncryptedBlob checks read on it).
+ * Sources: create, get, open, list, and probes of the source system (test, explore, preview), run here
+ * through SourceProbes with the credential from Keychain (whose getEncryptedBlob checks read on it). A running
+ * sync job gets it decrypted, from DataConnectionService.
  */
 @Injectable()
 export class SourceService {
@@ -31,7 +28,7 @@ export class SourceService {
         readonly audit:                AuditService,
         private readonly keychain:     KeychainClient,
         private readonly library:      LibraryService,
-        private readonly queueManager: QueueManager,
+        private readonly probes:       SourceProbes,
         private readonly repository:   SourceRepository,
     ) {}
 
@@ -121,10 +118,7 @@ export class SourceService {
         const source = await this.require(principal, rid);
         const credential = await this.credentialOf(principal, source);
 
-        const queueDefinition = DataConnection.Queue.SourceProbe.Definition;
-
-        const result = await this.queueManager.request(queueDefinition, { op: 'test', source, credential }, PROBE_TIMEOUT_MS);
-        const tested = result.op === 'test' ? { ok: result.ok, error: result.error } : { ok: false, error: 'Unexpected probe result' };
+        const tested = await this.probes.test(source, credential);
 
         if (!tested.ok)
             this.log.warning('Connection test failed', { sourceRid: rid, error: tested.error });
@@ -139,11 +133,7 @@ export class SourceService {
         const source = await this.require(principal, rid);
         const credential = await this.credentialOf(principal, source);
 
-        const queueDefinition = DataConnection.Queue.SourceProbe.Definition;
-
-        const result = await this.queueManager.request(queueDefinition, { op: 'explore', source, credential }, PROBE_TIMEOUT_MS);
-
-        return { tables: result.op === 'explore' ? result.tables : [] };
+        return { tables: await this.probes.explore(source, credential) };
     }
 
     /** A table's first rows, read live — gated and audited like explore. */
@@ -153,14 +143,7 @@ export class SourceService {
         const source = await this.require(principal, rid);
         const credential = await this.credentialOf(principal, source);
 
-        const queueDefinition = DataConnection.Queue.SourceProbe.Definition;
-
-        const result = await this.queueManager.request(queueDefinition, { op: 'preview', source, credential, table, limit }, PROBE_TIMEOUT_MS);
-
-        if (result.op !== 'preview')
-            throw new BadRequestException('Unexpected probe result');
-
-        return result.preview;
+        return this.probes.preview(source, credential, table, limit);
     }
 
     /** The source's credential, encrypted, for the worker — asserts the principal may use it (read). */

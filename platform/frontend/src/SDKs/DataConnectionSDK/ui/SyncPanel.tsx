@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@quarry/standard-ui/foundations/button'
-import { Callout } from '@quarry/standard-ui/foundations/callout'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import type { DataConnection } from '@quarry/shared/domain'
+import { ForgeSDK } from '@/SDKs/ForgeSDK/sdk'
 import { DataConnectionSDK } from '../sdk'
 import { RunHistory } from './RunHistory'
 import { Empty } from '@/components/Empty'
@@ -17,7 +17,6 @@ interface Props {
 
 export function SyncPanel({ source }: Props) {
     const [selectedRid, setSelectedRid] = useState<DataConnection.Sync.Rid | null>(null)
-    const [queuedRid, setQueuedRid] = useState<DataConnection.Sync.Rid | null>(null)
 
     const [syncsByRid, [syncsRequest]] = DataConnectionSDK.useWith(
         state => state.syncs[source.rid] ?? {},
@@ -30,12 +29,9 @@ export function SyncPanel({ source }: Props) {
     const selected = (selectedRid && syncsByRid[selectedRid]) || syncs[0]
 
     const runSync = withTask(async (sync: DataConnection.Sync) => {
-        setQueuedRid(null)
         setSelectedRid(sync.rid)
 
-        await DataConnectionSDK.actions.sync.run(source.rid, sync.rid)
-
-        setQueuedRid(sync.rid)
+        await ForgeSDK.actions.build.start(sync.outputDatasetRid)
     })
 
     return (
@@ -94,13 +90,7 @@ export function SyncPanel({ source }: Props) {
                 </div>
             )}
 
-            {queuedRid && (
-                <Callout intent='success' className='mt-4'>
-                    Run queued. It will appear in history when a worker starts it.
-                </Callout>
-            )}
-
-            {selected && <RunHistory key={selected.rid} sourceRid={source.rid} sync={selected} />}
+            {selected && <RunHistory key={selected.rid} sync={selected} />}
         </section>
     )
 }

@@ -5,20 +5,20 @@ import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { DataConnectionHarness } from '../support/data-connection-fixtures';
 
 /**
- * Who may do what with sources, syncs and runs — row-level security and
+ * Who may do what with sources and syncs — row-level security and
  * Gatekeeper, as members who aren't admins. An admin sets up a project with a
  * source (and its credential) and a sync; members get a role on the project
  * (inherited by everything in it), or none.
  *
  *   discoverer (1) see the source and its syncs
- *   viewer     (2) also read it: run history, test, explore, preview
- *   editor     (3) also create sources and syncs, run them
+ *   viewer     (2) also read it: test, explore, preview
+ *   editor     (3) also create sources and syncs
  *   no grant       see nothing: 404, never 403 — and the same 404 as a source that doesn't exist
  *
- * Probes (test, explore, preview) are gated before anything is asked of the
- * worker, so the refusals need no worker; their successes are in test/e2e.
+ * Probes (test, explore, preview) are gated before anything opens the source,
+ * so the refusals need no source; their successes are in test/e2e.
  */
-describe('source, sync and run permissions', () => {
+describe('source and sync permissions', () => {
 
     let harness: DataConnectionHarness;
     let admin: Principal.User;
@@ -159,36 +159,6 @@ describe('source, sync and run permissions', () => {
 
         it('someone without a grant may not create one: 404', async () => {
             await expect(newSync(outsider, 'Outsider sync')).rejects.toBeInstanceOf(NotFoundException);
-        });
-    });
-
-    describe('running a sync now (write on the source and the output dataset)', () => {
-
-        it('an editor may', async () => {
-            await expect(harness.syncs.run(editor, source.rid, sync.rid)).resolves.toBeUndefined();
-        });
-
-        it.each(['viewer', 'discoverer'] as const)('a %s may not: 403', async (who) => {
-            await expect(harness.syncs.run(members()[who], source.rid, sync.rid)).rejects.toBeInstanceOf(ForbiddenException);
-        });
-
-        it('someone without a grant may not: 404', async () => {
-            await expect(harness.syncs.run(outsider, source.rid, sync.rid)).rejects.toBeInstanceOf(NotFoundException);
-        });
-    });
-
-    describe('run history (read on the source)', () => {
-
-        it.each(['admin', 'editor', 'viewer'] as const)('%s sees it', async (who) => {
-            await expect(harness.syncRuns.list(members()[who], source.rid, sync.rid)).resolves.toBeInstanceOf(Array);
-        });
-
-        it('a discoverer may not: 403 — not a silently empty history', async () => {
-            await expect(harness.syncRuns.list(discoverer, source.rid, sync.rid)).rejects.toBeInstanceOf(ForbiddenException);
-        });
-
-        it('someone without a grant may not: 404', async () => {
-            await expect(harness.syncRuns.list(outsider, source.rid, sync.rid)).rejects.toBeInstanceOf(NotFoundException);
         });
     });
 });

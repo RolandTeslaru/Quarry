@@ -149,7 +149,7 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
 
         // Its outputs become new versions before any child is scheduled: a child pins its inputs when it's claimed.
         if (outcome.status === 'succeeded') {
-            await this._catalog.commitTransactions(principal, { transactions: job.outputTransactions });
+            await this._catalog.commitTransactions(principal, { transactions: job.outputTransactions, incrementalStates: outcome.incrementalStates });
 
             scheduled = await this.scheduleReadyChildren(principal, build, job);
         }

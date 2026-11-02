@@ -51,7 +51,7 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
             throw error;
         }
 
-        const { job, recipe, token } = claimed;
+        const { job, recipe, token, incrementalStates } = claimed;
 
         this.log.info(`Picked up ${message.jobRid} (attempt ${message.attempt})`, {
             build:     job.buildRid,
@@ -94,6 +94,7 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
                 job,
                 recipe,
                 token,
+                incrementalStates,
             });
         }
         catch (error) {

@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { Dataset } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { CatalogHarness } from '../support/catalog-fixtures';
 
@@ -19,6 +20,51 @@ describe('transaction batches', () => {
 
     afterAll(async () => {
         await harness.stop();
+    });
+
+    describe('incremental state', () => {
+
+        /** An incremental append on the dataset, committed with this mark. */
+        async function appendWith(datasetRid: Dataset.Rid, incrementalState: string | null): Promise<void> {
+            const [append] = await harness.transaction.openBatch(user, [{ datasetRid, type: 'append', provenance: {}, incrementalColumn: 'updated_at' }]);
+
+            await harness.transaction.commitBatch(user, [{ ...append, incrementalState }]);
+        }
+
+        it('returns the newest committed mark, and null before there is one', async () => {
+            const { datasets } = await harness.createDatasets(user, ['a']);
+
+            expect(await harness.transaction.getIncrementalStates(user, [datasets.a])).toEqual({ [datasets.a]: null });
+
+            await appendWith(datasets.a, '1');
+            await appendWith(datasets.a, '2');
+
+            expect(await harness.transaction.getIncrementalStates(user, [datasets.a])).toEqual({ [datasets.a]: '2' });
+        });
+
+        it('ignores an open or aborted append', async () => {
+            const { datasets } = await harness.createDatasets(user, ['a']);
+
+            await appendWith(datasets.a, '1');
+
+            const [append] = await harness.transaction.openBatch(user, [{ datasetRid: datasets.a, type: 'append', provenance: {}, incrementalColumn: 'updated_at' }]);
+
+            await harness.transaction.abortBatch(user, [append]);
+
+            expect(await harness.transaction.getIncrementalStates(user, [datasets.a])).toEqual({ [datasets.a]: '1' });
+        });
+
+        it('forgets the mark after a snapshot: it replaced what the mark described', async () => {
+            const { datasets } = await harness.createDatasets(user, ['a']);
+
+            await appendWith(datasets.a, '1');
+
+            const [snapshot] = await harness.transaction.openBatch(user, [{ datasetRid: datasets.a, type: 'snapshot', provenance: {} }]);
+
+            await harness.transaction.commitBatch(user, [snapshot]);
+
+            expect(await harness.transaction.getIncrementalStates(user, [datasets.a])).toEqual({ [datasets.a]: null });
+        });
     });
 
     describe('openBatch', () => {

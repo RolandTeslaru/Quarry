@@ -1,11 +1,9 @@
 import { Table } from '@quarry/standard-ui/foundations/table'
-import { Badge } from '@quarry/standard-ui/foundations/Badge'
-import { Icon } from '@quarry/standard-ui/icons'
 import type { Dataset, Forge } from '@quarry/shared/domain'
+import { BuildStatus } from '@/SDKs/ForgeSDK/ui/BuildStatus'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { ResourceLink } from '@/components/ResourceLink'
 import { dateTime } from '@/utils/format'
-import { BUILD_STATUSES } from '../constants'
 
 interface BuildTableProps {
     builds: Forge.Build[]
@@ -41,21 +39,6 @@ export function BuildTable({ builds }: BuildTableProps) {
                 ))}
             </Table.Body>
         </Table.Root>
-    )
-}
-
-interface BuildStatusProps {
-    status: Forge.Build.Status
-}
-
-function BuildStatus({ status }: BuildStatusProps) {
-    const look = BUILD_STATUSES[status]
-
-    return (
-        <Badge variant={look.variant}>
-            <Icon name={look.icon} />
-            {look.label}
-        </Badge>
     )
 }
 

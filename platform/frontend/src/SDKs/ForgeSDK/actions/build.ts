@@ -1,5 +1,6 @@
-import { Forge } from '@quarry/shared/domain'
-import { api } from '@/SDKs/api'
+import { type Dataset, Forge, Foundations } from '@quarry/shared/domain'
+import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
+import { api, describeError, errorMessage } from '@/SDKs/api'
 import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import type { ForgeSDKImpl } from '../sdk'
 
@@ -14,5 +15,48 @@ export class BuildActions extends ActionGroup<ForgeSDKImpl> {
         this.sdk.setState({ builds: data.builds })
 
         return data
+    }
+
+    /** The builds of one dataset, newest first. */
+    public async listForDataset(datasetRid: Dataset.Rid): Promise<Forge.API.ListBuilds.Response> {
+        const data = await Forge.API.listBuilds(api, { datasetRid })
+
+        this.sdk.setState(state => {
+            state.datasetBuilds[datasetRid] = data.builds
+        })
+
+        return data
+    }
+
+    /** One build, and its jobs. */
+    public async get(rid: Forge.Build.Rid): Promise<Forge.API.GetBuild.Response> {
+        const data = await Forge.API.getBuild(api, rid)
+
+        this.sdk.setState(state => {
+            state.buildJobs[rid] = data.jobs
+        })
+
+        return data
+    }
+
+    /** Starts a build of the dataset on main: whatever its current recipe says. */
+    public async start(datasetRid: Dataset.Rid): Promise<Forge.Build> {
+        try {
+            const { build } = await Forge.API.createBuild(api, {
+                branch:           Foundations.MAIN_BRANCH,
+                fallbackBranches: [],
+                target:           { type: 'manual', datasetRids: [datasetRid] },
+            })
+
+            await this.sdk.invalidate(this.sdk.query.datasetBuilds(datasetRid))
+
+            return build
+        }
+        catch (error) {
+            this.log.error('start failed', describeError(error))
+            NotificationSDK.toast.error("Couldn't start the build", { description: errorMessage(error) })
+
+            throw error
+        }
     }
 }

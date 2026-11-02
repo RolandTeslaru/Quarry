@@ -3,7 +3,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 import { Keychain } from "../domain"
 
 /**
- * Server and Data Connection worker only (never the browser): the server writes
+ * The main server and the Data Connection service only (never the browser): the main server writes
  * blobs, and both read them with the workspace's one key, QUARRY_ENCRYPTION_KEY.
  * One implementation so the format can't drift between the two.
  *

@@ -68,7 +68,7 @@ describe('output files', () => {
     it("refuses a job that isn't running: 409", async () => {
         const { datasets, job } = await runningJob();
 
-        await harness.forge.finishJob(job.rid, { attempt: 1, status: 'failed', failure: { message: 'test failure' } });
+        await harness.forge.finishJob(job.rid, { attempt: 1, status: 'failed', failure: { message: 'test failure' }, incrementalStates: {} });
 
         await expect(harness.jobs.getSignedOutputUrl(admin, job.rid, datasets.out, { filename: 'part-0.parquet' }))
             .rejects.toBeInstanceOf(ConflictException);
@@ -82,12 +82,12 @@ describe('output files', () => {
         await harness.jobs.registerOutputFile(admin, job.rid, datasets.out, { filename: 'part-0.parquet', bytes: 100 });
         await harness.jobs.registerOutputFile(admin, job.rid, datasets.out, { filename: 'part-1.parquet', bytes: 100 });
 
-        await harness.forge.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null });
+        await harness.forge.finishJob(job.rid, { attempt: 1, status: 'succeeded', failure: null, incrementalStates: {} });
 
         const view = await harness.view(admin, datasets.out);
 
         expect(view.sequence).toBe(1);
-        expect(view.files.map((file) => file.logicalPath).sort()).toEqual(['part-0.parquet', 'part-1.parquet']);
+        expect(view.files.map((file) => file.logicalPath).sort()).toEqual([`${job.outputTransactions[datasets.out]}/part-0.parquet`, `${job.outputTransactions[datasets.out]}/part-1.parquet`]);
         expect(view.files.map((file) => file.rowCount)).toEqual([1, 1]);
         expect(view.schema).toEqual({
             columns: [

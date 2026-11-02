@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { DataConnection } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@quarry/platform-kernel/auth/current-principal';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
@@ -7,7 +7,6 @@ import { SyncService } from '../sync.service';
 
 import API = DataConnection.API;
 const SourceRidParam = new ZodPipe(DataConnection.Source.Rid);
-const SyncRidParam = new ZodPipe(DataConnection.Sync.Rid);
 
 /** Mirrors DataConnection.API.Sync in @quarry/shared — a source's syncs. */
 @Controller('data-connection/sources')
@@ -27,15 +26,5 @@ export class SyncController {
         @Body(new ZodPipe(API.Sync.Create.Request)) body: API.Sync.Create.Request,
     ): Promise<API.Sync.Create.Response> {
         return { sync: await this.syncs.create(principal, rid, body) };
-    }
-
-    @Post(':rid/syncs/:syncRid/run')
-    @HttpCode(202)
-    async run(
-        @CurrentPrincipal() principal: Principal.User,
-        @Param('rid', SourceRidParam) rid: DataConnection.Source.Rid,
-        @Param('syncRid', SyncRidParam) syncRid: DataConnection.Sync.Rid,
-    ): Promise<void> {
-        await this.syncs.run(principal, rid, syncRid);
     }
 }

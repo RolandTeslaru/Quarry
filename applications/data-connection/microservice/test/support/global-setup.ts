@@ -12,28 +12,37 @@ declare module 'vitest' {
     export interface ProvidedContext {
         serverUrl:  string;
         catalogUrl: string;
+        forgeUrl:   string;
+        dataConnectionUrl: string;
     }
 }
 
 /**
- * Once per run: a fresh test database from the main server's migrations, then the main server and the
- * Catalog service as processes — what Data Connection's microservice calls reach (minting tokens, Keychain,
- * Catalog), as in production. Their addresses go to every test file (test/support/env.ts).
+ * Once per run: a fresh test database from the main server's migrations, then the main server, Catalog
+ * and Forge as processes — what Data Connection's microservice calls reach (minting tokens, Keychain,
+ * datasets, publishing recipes), as in production. Their addresses go to every test file (test/support/env.ts).
  */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
     await setUpTestDatabase(path.join(ROOT, 'platform/server/migrations'));
 
-    const [serverPort, catalogPort] = [await getFreePort(), await getFreePort()];
+    const [serverPort, catalogPort, forgePort, dataConnectionPort] = [await getFreePort(), await getFreePort(), await getFreePort(), await getFreePort()];
     const serverUrl = `http://127.0.0.1:${serverPort}`;
     const catalogUrl = `http://127.0.0.1:${catalogPort}`;
+    const forgeUrl = `http://127.0.0.1:${forgePort}`;
+    const dataConnectionUrl = `http://127.0.0.1:${dataConnectionPort}`;      // where a test that needs this service over HTTP serves it
 
-    const server = await start('main server', 'platform/server', 'src/api.ts', { PORT: String(serverPort), CATALOG_URL: catalogUrl }, 'API listening');
+    const server = await start('main server', 'platform/server', 'src/api.ts', { PORT: String(serverPort), CATALOG_URL: catalogUrl, FORGE_URL: forgeUrl, DATA_CONNECTION_URL: dataConnectionUrl }, 'API listening');
     const catalog = await start('Catalog', 'applications/catalog/microservice', 'src/main.ts', { QUARRY_SERVER_URL: serverUrl, CATALOG_PORT: String(catalogPort) }, 'Catalog listening');
+
+    const forge = await start('Forge', 'applications/forge/microservice', 'src/main.ts', { QUARRY_SERVER_URL: serverUrl, FORGE_PORT: String(forgePort) }, 'Forge listening');
 
     project.provide('serverUrl', serverUrl);
     project.provide('catalogUrl', catalogUrl);
+    project.provide('forgeUrl', forgeUrl);
+    project.provide('dataConnectionUrl', dataConnectionUrl);
 
     return async () => {
+        forge.kill('SIGTERM');
         catalog.kill('SIGTERM');
         server.kill('SIGTERM');
     };

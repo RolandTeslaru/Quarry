@@ -1,14 +1,10 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { DataConnection } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { DataConnectionHarness } from '../support/data-connection-fixtures';
 
 /**
- * Syncs: creating one (with its output dataset and, if scheduled, its BullMQ
- * job scheduler), listing them, "run now", and what the system worker mirrors
- * as schedules. Nothing consumes the test's sync queue, so a queued run stays
- * there to be looked at.
+ * Syncs: creating one, with its output dataset and its Forge recipe, and listing them.
  */
 describe('syncs', () => {
 
@@ -24,13 +20,6 @@ describe('syncs', () => {
         await harness.stop();
     });
 
-    /** The sync jobs waiting for a worker, for this sync. */
-    async function queued(sync: DataConnection.Sync): Promise<DataConnection.Queue.Sync.Job[]> {
-        const jobs = await harness.syncJobs.getJobs(['waiting', 'delayed', 'prioritized']);
-
-        return jobs.filter((job) => job.data.syncRid === sync.rid).map((job) => job.data as DataConnection.Queue.Sync.Job);
-    }
-
     describe('creating', () => {
 
         it('creates the sync and its output dataset, in the folder asked for', async () => {
@@ -41,6 +30,34 @@ describe('syncs', () => {
 
             expect(sync).toMatchObject({ sourceRid: source.rid, schedule: null, enabled: true, createdBy: user.userRid });
             expect(dataset).toMatchObject({ parentRid: projectRid, lastSequence: 0 });
+        });
+
+        it("publishes a recipe: no inputs, its dataset as the output, the source as producer", async () => {
+            const { source } = await harness.createSource(user);
+            const sync = await harness.createSync(user, source);
+
+            expect(await harness.getCurrentRecipe(user, sync.outputDatasetRid)).toMatchObject({
+                producerRid:        source.rid,
+                runtimeConfig:      { type: 'data-connection', sourceRid: source.rid, syncRid: sync.rid, syncConfig: sync.config },
+                inputDatasetRids:   [],
+                outputTransactions: { [sync.outputDatasetRid]: { type: 'append', incrementalColumn: 'updated_at' } },
+            });
+        });
+
+        it('publishes a snapshot for a sync with no incremental column', async () => {
+            const { source } = await harness.createSource(user);
+            const sync = await harness.createSync(user, source, { snapshot: true });
+
+            expect((await harness.getCurrentRecipe(user, sync.outputDatasetRid))?.outputTransactions).toEqual({ [sync.outputDatasetRid]: { type: 'snapshot' } });
+        });
+
+        it("keeps the source's other syncs published when another is created", async () => {
+            const { source } = await harness.createSource(user);
+            const first = await harness.createSync(user, source);
+            const second = await harness.createSync(user, source);
+
+            expect((await harness.getCurrentRecipe(user, first.outputDatasetRid))?.runtimeConfig).toMatchObject({ syncRid: first.rid });
+            expect((await harness.getCurrentRecipe(user, second.outputDatasetRid))?.runtimeConfig).toMatchObject({ syncRid: second.rid });
         });
 
         it("stores the config as the integration's schema parsed it (defaults filled in)", async () => {
@@ -72,22 +89,6 @@ describe('syncs', () => {
 
             await expect(harness.syncs.create(user, source.rid, request)).rejects.toBeInstanceOf(ConflictException);
         });
-
-        it('upserts a job scheduler for a scheduled sync, named after it', async () => {
-            const { source } = await harness.createSource(user);
-            const sync = await harness.createSync(user, source, { schedule: '0 3 * * *' });
-
-            const scheduler = await harness.syncJobs.getJobScheduler(sync.rid);
-
-            expect(scheduler).toMatchObject({ key: sync.rid, pattern: '0 3 * * *' });
-        });
-
-        it('upserts no scheduler for a manual sync', async () => {
-            const { source } = await harness.createSource(user);
-            const sync = await harness.createSync(user, source);
-
-            expect(await harness.syncJobs.getJobScheduler(sync.rid)).toBeFalsy();
-        });
     });
 
     describe('listing', () => {
@@ -104,78 +105,6 @@ describe('syncs', () => {
 
             expect(listed.map((sync) => sync.rid).sort()).toEqual([a.rid, b.rid].sort());
             expect(listed.map((sync) => sync.name)).toEqual([...listed.map((sync) => sync.name)].sort());
-        });
-    });
-
-    describe('run now', () => {
-
-        it('queues a run that acts for whoever pressed it', async () => {
-            const { source } = await harness.createSource(user);
-            const sync = await harness.createSync(user, source);
-
-            await harness.syncs.run(user, source.rid, sync.rid);
-
-            expect(await queued(sync)).toEqual([{ syncRid: sync.rid, trigger: 'manual', triggeredBy: user.userRid }]);
-        });
-
-        it('queues one run however often it is pressed before a worker takes it', async () => {
-            const { source } = await harness.createSource(user);
-            const sync = await harness.createSync(user, source);
-
-            await harness.syncs.run(user, source.rid, sync.rid);
-            await harness.syncs.run(user, source.rid, sync.rid);
-
-            expect(await queued(sync)).toHaveLength(1);
-        });
-
-        it("refuses a sync of another source: 404", async () => {
-            const { source } = await harness.createSource(user);
-            const { source: other } = await harness.createSource(user);
-            const sync = await harness.createSync(user, source);
-
-            await expect(harness.syncs.run(user, other.rid, sync.rid)).rejects.toBeInstanceOf(NotFoundException);
-            expect(await queued(sync)).toEqual([]);
-        });
-
-        it('refuses a sync whose output dataset is trashed: 404, nothing queued', async () => {
-            const { source } = await harness.createSource(user);
-            const sync = await harness.createSync(user, source);
-
-            await harness.trash(user, sync.outputDatasetRid);
-
-            await expect(harness.syncs.run(user, source.rid, sync.rid)).rejects.toBeInstanceOf(NotFoundException);
-            expect(await queued(sync)).toEqual([]);
-        });
-
-        it('while a run is running, the next one the worker starts is refused (409) and the running one carries on', async () => {
-            const { source } = await harness.createSource(user);
-            const sync = await harness.createSync(user, source);
-            const running = await harness.startRun(sync, user);
-
-            await harness.syncs.run(user, source.rid, sync.rid);         // queues: the queue doesn't know a run is running
-            await expect(harness.startRun(sync, user)).rejects.toBeInstanceOf(ConflictException);
-
-            expect(await harness.run(user, sync, running.runRid)).toMatchObject({ status: 'running' });
-            expect(await harness.runs(user, sync)).toHaveLength(1);
-        });
-    });
-
-    describe('schedules', () => {
-
-        it('lists every scheduled sync once, with its cron — and no manual ones', async () => {
-            const { source } = await harness.createSource(user);
-            const nightly = await harness.createSync(user, source, { schedule: '0 3 * * *' });
-            const hourly = await harness.createSync(user, source, { schedule: '0 * * * *' });
-            const manual = await harness.createSync(user, source);
-
-            const scheduled = await harness.syncs.scheduled();
-            const mine = scheduled.filter((sync) => [nightly.rid, hourly.rid, manual.rid].includes(sync.rid));
-
-            expect(mine.sort((a, b) => a.rid.localeCompare(b.rid))).toEqual([
-                { rid: nightly.rid, schedule: '0 3 * * *' },
-                { rid: hourly.rid, schedule: '0 * * * *' },
-            ].sort((a, b) => a.rid.localeCompare(b.rid)));
-            expect(new Set(scheduled.map((sync) => sync.rid)).size).toBe(scheduled.length);
         });
     });
 });

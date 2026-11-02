@@ -3,7 +3,6 @@ import type { AxiosInstance } from "axios"
 import { Resource as ResourceD } from "../../Library/Resource"
 import { Source as SourceD } from "../Source"
 import { Sync as SyncD } from "../Sync"
-import { SyncRun as SyncRunD } from "../SyncRun"
 
 /** Syncs live under their source; every path starts at the source. */
 export namespace Sync {
@@ -27,11 +26,6 @@ export namespace Sync {
         export type  Response = z.infer<typeof Response>
     }
 
-    export namespace ListRuns {
-        export const Response = z.object({ runs: SyncRunD.Schema.array() })
-        export type  Response = z.infer<typeof Response>
-    }
-
     export async function list(api: AxiosInstance, sourceRid: SourceD.Rid): Promise<List.Response> {
         const { data } = await api.get(`/api/data-connection/sources/${sourceRid}/syncs`)
         return List.Response.parse(data)
@@ -42,13 +36,4 @@ export namespace Sync {
         return Create.Response.parse(data)
     }
 
-    /** Queues a run (202). Deduplicated: a second request while one is waiting or running is a no-op. */
-    export async function run(api: AxiosInstance, sourceRid: SourceD.Rid, syncRid: SyncD.Rid): Promise<void> {
-        await api.post(`/api/data-connection/sources/${sourceRid}/syncs/${syncRid}/run`)
-    }
-
-    export async function listRuns(api: AxiosInstance, sourceRid: SourceD.Rid, syncRid: SyncD.Rid): Promise<ListRuns.Response> {
-        const { data } = await api.get(`/api/data-connection/sources/${sourceRid}/syncs/${syncRid}/runs`)
-        return ListRuns.Response.parse(data)
-    }
-}
+    /** Queues a run (202). Deduplicated: a second request while one is waiting or running is a no-op. */}

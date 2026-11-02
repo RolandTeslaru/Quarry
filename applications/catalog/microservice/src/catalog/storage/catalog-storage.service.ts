@@ -271,7 +271,7 @@ export class CatalogStorage {
 
         const file: Catalog.Transaction.FileChange = {
             op:          'add',
-            logicalPath: filename,
+            logicalPath: `${transactionRid}/${filename}`,     // unique per transaction: runs name their files alike, and a later append mustn't replace an earlier one
             format:      'parquet',
             key,
             bytes,

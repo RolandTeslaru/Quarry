@@ -50,7 +50,7 @@ export namespace Source {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** Runs in the Data Connection worker, which decrypts the credential — the server sends it encrypted. */
+    /** Runs in the Data Connection service, which decrypts the credential — the server sends it encrypted. */
     export namespace Test {
         export const Response = z.object({ ok: z.boolean(), error: z.string().nullable() })
         export type  Response = z.infer<typeof Response>

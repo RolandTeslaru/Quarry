@@ -184,9 +184,19 @@ export class ForgeService {
         });
         this.log.info(`Claimed ${rid} (attempt ${attempt})`);
 
+        const incrementalOutputs: Dataset.Rid[] = [];
+
+        for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[]) {
+            const output = recipe.outputTransactions[datasetRid];
+
+            if (output.type === 'append' && output.incrementalColumn)
+                incrementalOutputs.push(datasetRid);
+        }
+
         return {
             job,
             recipe,
+            incrementalStates: await this.catalog.getIncrementalStates(AGENT, { datasetRids: incrementalOutputs }),
             token: (await this.identity.mintUserToken(AGENT, { userRid: build.createdBy!, via: 'forge-job' })).token,
         };
     }

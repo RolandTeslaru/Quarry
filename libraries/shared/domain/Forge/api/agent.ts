@@ -1,5 +1,6 @@
 import { z } from "zod"
 import type { AxiosInstance } from "axios"
+import { Transaction } from "../../Catalog/Transaction"
 import { Job as JobD } from "../Job"
 import { Recipe as RecipeD } from "../Recipe"
 
@@ -15,6 +16,7 @@ export namespace Agent {
             job:    JobD.Schema,
             recipe: RecipeD.Schema,
             token:  z.string(),           // the build's starter, for the job's runtime only
+            incrementalStates: Transaction.Incremental.States,
         })
         export type  Response = z.infer<typeof Response>
     }
@@ -28,12 +30,13 @@ export namespace Agent {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** How the attempt ended. Idempotent: a repeat after it was recorded is accepted. */
+    /** How the attempt ended, and on success how far each incremental output got. */
     export namespace Finish {
         export const Request = z.object({
             attempt: z.number().int().positive(),
             status:  z.enum(["succeeded", "failed"]),
             failure: z.object({ message: z.string() }).nullable().default(null),
+            incrementalStates: Transaction.Incremental.States.default({}),
         })
         export type  Request = z.infer<typeof Request>
 

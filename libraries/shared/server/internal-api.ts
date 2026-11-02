@@ -38,9 +38,6 @@ const getServiceApi = (urlVariable: string): AxiosInstance =>
  */
 export const getCatalogApi = (): AxiosInstance => getServiceApi('CATALOG_URL');
 
-/** The Data Connection service's /internal API — its worker's run lifecycle, the system worker's reaper and schedules. */
-export const getDataConnectionApi = (): AxiosInstance => getServiceApi('DATA_CONNECTION_URL');
-
 /** The Forge service's /internal API — the system worker's sweep of its outbox. */
 export const getForgeApi = (): AxiosInstance => getServiceApi('FORGE_URL');
 

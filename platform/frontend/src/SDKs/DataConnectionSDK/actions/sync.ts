@@ -38,18 +38,4 @@ export class SyncActions extends ActionGroup<DataConnectionSDKImpl> {
             throw error
         }
     }
-
-    public async run(sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid): Promise<void> {
-        try {
-            await DataConnection.API.Sync.run(api, sourceRid, syncRid)
-
-            await this.sdk.invalidate(this.sdk.query.runs(sourceRid, syncRid))
-        }
-        catch (error) {
-            this.log.error('run failed', describeError(error))
-            NotificationSDK.toast.error("Couldn't start the sync", { description: errorMessage(error) })
-
-            throw error
-        }
-    }
 }

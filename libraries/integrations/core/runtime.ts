@@ -3,8 +3,8 @@ import type { DataConnection } from '@quarry/shared/domain';
 import type { ConfigOf, CredentialOf, SourceDefinition, SyncConfigOf } from './definition';
 
 /**
- * What every runtime gets from the Data Connection worker — an interface, so this
- * package doesn't depend on the worker; the worker passes its DuckDb.
+ * What every runtime gets from whoever opens it — an interface, so this package
+ * doesn't depend on them; they pass their DuckDB.
  */
 export interface RuntimeContext {
     /** A DuckDB connection the runtime owns and closes (closeSync). */
@@ -13,7 +13,7 @@ export interface RuntimeContext {
 
 /** What one sync run gets. */
 export interface SyncRunContext {
-    /** `s3://bucket/<dataset>/<transaction>/` — a fresh, empty prefix to write Parquet into. */
+    /** A fresh, empty folder to write Parquet into: `s3://bucket/<dataset>/<transaction>/`, or a local one with a trailing slash. */
     readonly destination: string;
     /** What the previous successful run returned as `state` (null on the first run) — opaque to everyone else. */
     readonly state:       string | null;
@@ -27,7 +27,7 @@ export interface SyncResult {
 
 /**
  * One live connection to one source — the implementation of a definition, in
- * `<System>/runtime.ts`. Created by the Data Connection worker's SourceRuntimes, never by
+ * `<System>/runtime.ts`. Created by SourceProbes or the Data Connection runtime, never by
  * DI; loaded through the `runtimes` entry point only.
  *
  *   sync run   open → sync(config, run) → close
@@ -38,7 +38,7 @@ export interface SyncResult {
  *
  * The connection lives on the instance: open() creates it, close() releases it.
  * `credential` holds the decrypted values of the source's credential (parsed
- * against the definition's template) — they exist only in the Data Connection worker's memory.
+ * against the definition's template) — they exist only in that process's memory.
  */
 export abstract class SourceRuntime<D extends SourceDefinition = SourceDefinition> {
 

@@ -33,7 +33,8 @@ export const Definition = defineSource({
     credential:   Credential,
     Config,
     sync: defineSync({
-        Config:          SyncConfig,
-        transactionType: (config) => (config.incrementalColumn ? 'append' : 'snapshot'),
+        Config:            SyncConfig,
+        transactionType:   (config) => (config.incrementalColumn ? 'append' : 'snapshot'),
+        incrementalColumn: (config) => config.incrementalColumn ?? null,
     }),
 });

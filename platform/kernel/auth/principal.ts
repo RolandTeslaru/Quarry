@@ -12,6 +12,11 @@ export namespace Principal {
         readonly type:          'user';
         readonly userRid:       Identity.User.Rid;
         readonly workspaceRole: Identity.User.WorkspaceRole;
+        /**
+         * The work a minted token was made for (`forge-job`, `check`), read from its signed claim; absent for
+         * someone's own session. Gatekeeper never reads it: only a route that must refuse a person checks it.
+         */
+        readonly via?:          string;
     }
 
     /**

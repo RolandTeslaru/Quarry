@@ -10,7 +10,7 @@ export { defineSource, defineSync, toWire, type ConfigOf, type CredentialOf, typ
  * Entry point for the API (and anything else): every source definition, and
  * nothing that can open a connection — this file must never import a runtime.
  *
- * Adding a system: a folder with definition.ts + runtime.ts (+ credential.ts
+ * Adding a system: a folder with source-definition.ts + runtime.ts (+ credential.ts
  * if it logs in), one entry here, one in runtimes.ts.
  */
 export const SOURCE_DEFINITIONS: Readonly<Record<DataConnection.Source.DefinitionId, SourceDefinition>> = {

@@ -1,16 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DataConnection } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
-import { QueueManager } from '@quarry/platform-kernel/infra/queue';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
 import { SecurityGate } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
-import { DataConnectionDB } from '../../data-connection.db';
+import { DataConnectionDB } from '../data-connection/data-connection.db';
 import { SourceService } from '../source/source.service';
+import { PublisherService } from '../publisher/publisher.service';
 import { validateSyncConfig } from './sync-definition';
 import { SyncRepository } from './sync.repository';
 
-/** Syncs: a source copied into a dataset, on demand or on a schedule (mirrored into BullMQ). */
+/** Syncs: what to copy from a source into a dataset. Each publishes a Forge recipe; running one is a build of its dataset. */
 @Injectable()
 export class SyncService {
 
@@ -18,14 +18,14 @@ export class SyncService {
         readonly gatekeeper:           GatekeeperService,
         private readonly sources:      SourceService,
         private readonly catalog:      CatalogClient,
-        private readonly queueManager: QueueManager,
+        private readonly publisher:    PublisherService,
         private readonly repository:   SyncRepository,
     ) {}
 
     /**
-     * Creates the output dataset (write on its folder: RLS) and the sync, then
-     * mirrors the schedule into BullMQ. Gated on the source up front: the
-     * dataset and the scheduler would otherwise exist before RLS refuses the sync row.
+     * Creates the output dataset (write on its folder: RLS) and the sync, then publishes
+     * the source's recipes. Gated on the source up front: the dataset would otherwise
+     * exist before RLS refuses the sync row.
      */
     @SecurityGate('write')
     async create(principal: Principal, sourceRid: DataConnection.Source.Rid, request: DataConnection.API.Sync.Create.Request): Promise<DataConnection.Sync> {
@@ -45,13 +45,7 @@ export class SyncService {
             schedule: request.schedule,
         });
 
-        if (row.schedule) {
-            const queueDefinition = DataConnection.Queue.Sync.Definition;
-
-            await this.queueManager.upsertScheduler(queueDefinition, row.rid, { pattern: row.schedule }, {
-                syncRid: row.rid, trigger: 'schedule', triggeredBy: null,
-            });
-        }
+        await this.publisher.publish(principal, source);
 
         return DataConnectionDB.Sync.toDomain(row);
     }
@@ -63,30 +57,6 @@ export class SyncService {
         const rows = await this.repository.listForSource(principal, sourceRid);
 
         return rows.map(DataConnectionDB.Sync.toDomain);
-    }
-
-    /** Queues a run now — a Redis job, so gated: write on the source and on the output dataset. Deduplicated per sync. */
-    @SecurityGate('write')
-    async run(principal: Principal, sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid): Promise<void> {
-        const sync = await this.require(principal, sourceRid, syncRid);
-
-        await this.gatekeeper.assert(principal, 'write', sync.output_dataset_rid);
-        await this.catalog.get(principal, { rid: sync.output_dataset_rid });          // 404 if the output is trashed
-
-        if (!sync.enabled)
-            throw new BadRequestException('Sync is disabled');
-
-        const queueDefinition = DataConnection.Queue.Sync.Definition;
-        const job = { syncRid, trigger: 'manual' as const, triggeredBy: Principal.actorOf(principal) };
-
-        await this.queueManager.add(queueDefinition, job, { deduplication: DataConnection.Queue.Sync.deduplication(syncRid) });
-    }
-
-    /** Every enabled sync with a schedule — the system worker mirrors them into BullMQ's job schedulers. */
-    async scheduled(): Promise<{ rid: DataConnection.Sync.Rid; schedule: string }[]> {
-        const rows = await this.repository.listScheduled(Principal.SELF('sync.scheduled'));
-
-        return rows.map((row) => ({ rid: row.rid, schedule: row.schedule! }));
     }
 
     /** The sync, if it belongs to this source and the principal can discover it (RLS) — or 404. */

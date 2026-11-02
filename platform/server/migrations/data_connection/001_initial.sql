@@ -10,7 +10,6 @@ CREATE SCHEMA IF NOT EXISTS data_connection;
 -- RID types, built on foundations.rid.
 CREATE DOMAIN data_connection.source_rid   AS foundations.rid CHECK (VALUE LIKE 'ri.data-connection.main.source.%');
 CREATE DOMAIN data_connection.sync_rid     AS foundations.rid CHECK (VALUE LIKE 'ri.data-connection.main.sync.%');
-CREATE DOMAIN data_connection.sync_run_rid AS foundations.rid CHECK (VALUE LIKE 'ri.data-connection.main.sync-run.%');
 
 CREATE TABLE data_connection.source (
     rid           data_connection.source_rid PRIMARY KEY,
@@ -52,30 +51,6 @@ CREATE TABLE data_connection.sync (
     UNIQUE (source_rid, name)
 );
 
-CREATE TABLE data_connection.sync_run (
-    rid              data_connection.sync_run_rid PRIMARY KEY,
-    sync_rid         data_connection.sync_rid NOT NULL REFERENCES data_connection.sync(rid) ON DELETE CASCADE,
-    status           text NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'succeeded', 'failed')),
-    transaction_rid  foundations.rid,                 -- catalog transaction; no FK (rule 3)
-    state_from     text,                     -- the previous successful run's state_to; opaque to all but the integration
-    state_to         text,                     -- what the next run starts from (e.g. a high-water mark)
-    row_count        bigint,
-    error            jsonb,
-    trigger          text NOT NULL CHECK (trigger IN ('manual', 'schedule')),
-    triggered_by     identity.user_rid REFERENCES identity.user(rid),   -- NULL for scheduled runs
-    started_at       timestamptz NOT NULL DEFAULT now(),
-    heartbeat_at     timestamptz NOT NULL DEFAULT now(),  -- runner updates ~every 30 s; the reaper's "is it alive" signal
-    finished_at      timestamptz,
-    CHECK ((status = 'running') = (finished_at IS NULL))
-);
-
--- At most one running run per sync
-CREATE UNIQUE INDEX sync_run_one_running
-    ON data_connection.sync_run (sync_rid)
-    WHERE status = 'running';
-
-CREATE INDEX sync_run_latest ON data_connection.sync_run (sync_rid, started_at DESC);
-
 -- ── row-level security (gatekeeper/001_initial.sql explains the setup) ─────
 --
 -- Access to a sync or a run is access to its source: syncs are listed with discover,
@@ -100,18 +75,10 @@ CREATE POLICY create_  ON data_connection.sync FOR INSERT TO quarry_user
     WITH CHECK (gatekeeper.can(source_rid, 'write') AND gatekeeper.can(output_dataset_rid, 'write'));
 
 -- Runs: started and finished by the run's delegate (manual: whoever pressed run; scheduled: the sync's creator).
-ALTER TABLE data_connection.sync_run ENABLE ROW LEVEL SECURITY;
-CREATE POLICY read   ON data_connection.sync_run FOR SELECT TO quarry_user
-    USING (gatekeeper.can(data_connection.source_of(sync_rid), 'read'));
-CREATE POLICY start  ON data_connection.sync_run FOR INSERT TO quarry_user
-    WITH CHECK (gatekeeper.can(data_connection.source_of(sync_rid), 'read'));
-CREATE POLICY record ON data_connection.sync_run FOR UPDATE TO quarry_user
-    USING (gatekeeper.can(data_connection.source_of(sync_rid), 'read'))
-    WITH CHECK (gatekeeper.can(data_connection.source_of(sync_rid), 'read'));
+
 
 GRANT USAGE ON SCHEMA data_connection TO main_user;
 GRANT SELECT, INSERT ON data_connection.source, data_connection.sync TO main_user;
-GRANT SELECT, INSERT, UPDATE ON data_connection.sync_run TO main_user;
 
 -- ── the service's roles: data_connection_service, data_connection_user (foundations.create_service_roles) ──
 SELECT foundations.create_service_roles('data_connection', ARRAY['source']);

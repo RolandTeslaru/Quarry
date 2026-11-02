@@ -18,7 +18,7 @@ export class TokenVerifier {
     constructor(private readonly identity: IdentityService) {}
 
     async user(token: string): Promise<Principal.User> {
-        let claims: { sub?: string; email?: unknown };
+        let claims: { sub?: string; email?: unknown; quarry_via?: unknown };
 
         try {
             ({ payload: claims } = await jwtVerify(token, this.key(), { audience: 'authenticated' }));
@@ -43,7 +43,9 @@ export class TokenVerifier {
         if (!member || member.deactivated_at)
             throw new ForbiddenException('Not a member of this workspace');
 
-        return { type: 'user', userRid: member.rid, workspaceRole: member.workspace_role };
+        const via = typeof claims.quarry_via === 'string' ? claims.quarry_via : undefined;
+
+        return { type: 'user', userRid: member.rid, workspaceRole: member.workspace_role, via };
     }
 
     private key(): Uint8Array {

@@ -6,41 +6,17 @@ import { BaseSDK } from '../core/BaseSDK'
 import { DataConnectionActions } from './actions'
 import { _createDataConnectionDialogs_, type _DataConnectionSDKDialogs } from './dialogs'
 import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
-import { observeDataConnection, type DataConnectionObserver, type ObserveOptions as ObserveOptions_ } from './observe'
 
 const DEFINITIONS_STALE_TIME = Infinity
 
 @SDK('DataConnection')
 export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
 
-    constructor() {
-        super()
-
-        // While a source is open, its runs stay live: follow its channel from onOpen to onClose.
-        this.observe({
-            source: {
-                onOpen:  sourceRid => {
-                    this.runtime.stopFollowing = this.actions.run.follow(sourceRid)
-                },
-                onClose: () => {
-                    this.runtime.stopFollowing?.()
-                    this.runtime.stopFollowing = null
-                },
-            },
-        }, { immediate: true })
-    }
-
-    public readonly runtime = {
-        /** Ends following the open source's runs. */
-        stopFollowing: null as (() => void) | null,
-    }
-
     public readonly useStore: BaseSDK.Store<DataConnectionSDK.State> = createWithEqualityFn(
         immer<DataConnectionSDK.State>(() => ({
             definitions: {},
             sources: {},
             syncs: {},
-            runs: {},
             tables: {},
             openSourceRid: null,
         })),
@@ -87,16 +63,6 @@ export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
             queryKey: ['data-connection', 'syncs', sourceRid] as const,
             queryFn: () => this.actions.sync.list(sourceRid),
         }),
-
-        runs: (sourceRid: DataConnection.Source.Rid, syncRid: DataConnection.Sync.Rid) => ({
-            queryKey: ['data-connection', 'runs', sourceRid, syncRid] as const,
-            queryFn: () => this.actions.run.list(sourceRid, syncRid),
-        }),
-    }
-
-    /** Named callbacks for this SDK's transitions (`source.onOpen`, `source.onClose`); returns its own removal. */
-    public observe(observer: DataConnectionSDK.Observer, options?: DataConnectionSDK.ObserveOptions): () => void {
-        return observeDataConnection(this, observer, options)
     }
 
     public override cleanup(): void {
@@ -104,7 +70,6 @@ export class DataConnectionSDKImpl extends BaseSDK<DataConnectionSDK.State> {
             definitions: {},
             sources: {},
             syncs: {},
-            runs: {},
             tables: {},
             openSourceRid: null,
         })
@@ -120,15 +85,11 @@ export namespace DataConnectionSDK {
         sources:     Record<DataConnection.Source.Rid, DataConnection.Source>
         /** Each source's syncs, by rid — in the server's order (keys keep insertion order). */
         syncs:       Record<DataConnection.Source.Rid, Record<DataConnection.Sync.Rid, DataConnection.Sync>>
-        runs:        Record<DataConnection.Sync.Rid, DataConnection.SyncRun[]>
         tables:      Record<DataConnection.Source.Rid, DataConnection.Source.Table[]>
-        /** The source whose page is open (the route sets it); its runs are followed live. */
+        /** The source whose page is open (the route sets it). */
         openSourceRid: DataConnection.Source.Rid | null
     }
 
     export type Actions = DataConnectionActions
     export type Dialogs = _DataConnectionSDKDialogs
-
-    export type Observer       = DataConnectionObserver
-    export type ObserveOptions = ObserveOptions_
 }

@@ -98,9 +98,19 @@ export class TransactionService {
         return this.repository.commit(principal, datasetRid, transactionRid, schema);
     }
 
-    /** Commits these open transactions in one database transaction (or the caller's), each with the schema staged on it. */
-    async commitBatch(principal: Principal, transactions: Pick<Catalog.Transaction, 'rid' | 'datasetRid'>[]): Promise<void> {
+    /** Commits these open transactions in one database transaction (or the caller's), each with the schema staged on it and, if incremental, how far it got. */
+    async commitBatch(principal: Principal, transactions: (Pick<Catalog.Transaction, 'rid' | 'datasetRid'> & { incrementalState?: string | null })[]): Promise<void> {
         await this.repository.commitBatch(principal, transactions);
+    }
+
+    /** How far each dataset's incremental writer got. */
+    async getIncrementalStates(principal: Principal, datasetRids: Dataset.Rid[], branch = Foundations.MAIN_BRANCH): Promise<Catalog.Transaction.Incremental.States> {
+        const states: Catalog.Transaction.Incremental.States = {};
+
+        for (const datasetRid of datasetRids)
+            states[datasetRid] = await this.repository.getIncrementalState(principal, datasetRid, branch);
+
+        return states;
     }
 
     /** Aborts the open ones among these, in one database transaction; finished ones are skipped, so it's safe to repeat. */

@@ -139,13 +139,45 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
     @Transactional()
     async commitBatch(
         principal:    Principal,
-        transactions: { rid: Catalog.Transaction.Rid; datasetRid: Dataset.Rid }[],
+        transactions: { rid: Catalog.Transaction.Rid; datasetRid: Dataset.Rid; incrementalState?: string | null }[],
     ): Promise<void> {
         for (const transaction of transactions) {
-            const { schema } = await this.requireOpen(transaction.datasetRid, transaction.rid);
+            const { schema, incremental } = await this.requireOpen(transaction.datasetRid, transaction.rid);
+
+            if (incremental)
+                await this.trx
+                    .updateTable('catalog.transaction')
+                    .set({ incremental: json({ ...incremental, state: transaction.incrementalState ?? null }) })
+                    .where('rid', '=', transaction.rid)
+                    .execute();
 
             await this.commit(principal, transaction.datasetRid, transaction.rid, schema);
         }
+    }
+
+    /** The dataset's newest committed mark, since its newest snapshot: a snapshot replaced what any earlier mark described. */
+    @Transactional()
+    async getIncrementalState(principal: Principal, datasetRid: Dataset.Rid, branch: Foundations.Branch): Promise<string | null> {
+        const committed = this.trx
+            .selectFrom('catalog.transaction')
+            .where('dataset_rid', '=', datasetRid)
+            .where('branch', '=', branch)
+            .where('status', '=', 'committed');
+
+        const snapshot = await committed
+            .select((eb) => eb.fn.max('sequence').as('sequence'))
+            .where('type', '=', 'snapshot')
+            .executeTakeFirst();
+
+        const newest = await committed
+            .select('incremental')
+            .where('incremental', 'is not', null)
+            .where('sequence', '>', snapshot?.sequence ?? Dataset.Sequence.parse(0))
+            .orderBy('sequence', 'desc')
+            .limit(1)
+            .executeTakeFirst();
+
+        return newest?.incremental?.state ?? null;
     }
 
     /**

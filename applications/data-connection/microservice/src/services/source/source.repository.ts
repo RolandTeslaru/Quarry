@@ -7,7 +7,7 @@ import { isLive } from '@quarry/platform-kernel/db/liveness';
 import { AuditRepository } from '@quarry/platform-kernel/services/Audit/audit.repository';
 import { EnsureResource } from '@quarry/platform-kernel/services/Library/ensure-resource';
 import { ResourceRepository } from '@quarry/platform-kernel/services/Library/resource.repository';
-import { DataConnectionDB } from '../../data-connection.db';
+import { DataConnectionDB } from '../data-connection/data-connection.db';
 
 /** data_connection.source (and its library row). */
 @Injectable()

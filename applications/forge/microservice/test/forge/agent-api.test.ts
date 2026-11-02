@@ -82,7 +82,7 @@ describe('the ForgeAgent API', () => {
         await harness.forge.claimJob(job.rid, 1);
 
         expect(await harness.jobs.heartbeatJob(job.rid, 2)).toEqual({ action: 'stop' });
-        await expect(harness.forge.finishJob(job.rid, { attempt: 2, status: 'succeeded', failure: null }))
+        await expect(harness.forge.finishJob(job.rid, { attempt: 2, status: 'succeeded', failure: null, incrementalStates: {} }))
             .rejects.toBeInstanceOf(ConflictException);
         expect(await harness.jobs.heartbeatJob(job.rid, 1)).toEqual({ action: 'continue' });
     });
@@ -97,6 +97,58 @@ describe('the ForgeAgent API', () => {
 
         expect(await harness.transactionStatus(job.outputTransactions[datasetRid])).toBe('committed');
         expect((await harness.catalog.get(user, { rid: datasetRid })).lastSequence).toBe(1);
+    });
+
+    describe('an incremental output', () => {
+
+        /** A recipe appending to one dataset, by a column. */
+        async function incrementalRecipe() {
+            const { projectRid, datasets } = await harness.createDatasets(user, ['out']);
+
+            await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: [], outputs: ['out'], outputTransaction: { type: 'append', incrementalColumn: 'updated_at' } }]);
+
+            return datasets.out;
+        }
+
+        /** Builds the dataset and claims its job. */
+        async function claimNext(datasetRid: Dataset.Rid) {
+            const { jobs } = await harness.build(user, [datasetRid]);
+            const [job] = Object.values(jobs);
+
+            return harness.forge.claimJob(job.rid, job.attempt);
+        }
+
+        it('starts with no mark, and picks up where the last run got to', async () => {
+            const out = await incrementalRecipe();
+            const first = await claimNext(out);
+
+            expect(first.incrementalStates).toEqual({ [out]: null });
+
+            await harness.forge.finishJob(first.job.rid, { attempt: 1, status: 'succeeded', failure: null, incrementalStates: { [out]: '2026-11-01' } });
+
+            expect((await claimNext(out)).incrementalStates).toEqual({ [out]: '2026-11-01' });
+        });
+
+        it("doesn't advance the mark when the run fails", async () => {
+            const out = await incrementalRecipe();
+            const first = await claimNext(out);
+
+            await harness.forge.finishJob(first.job.rid, { attempt: 1, status: 'succeeded', failure: null, incrementalStates: { [out]: 'a' } });
+
+            const second = await claimNext(out);
+
+            await harness.forge.finishJob(second.job.rid, { attempt: 1, status: 'failed', failure: { message: 'no' }, incrementalStates: { [out]: 'b' } });
+
+            expect((await claimNext(out)).incrementalStates).toEqual({ [out]: 'a' });
+        });
+
+        it('gives a snapshot output no mark', async () => {
+            const { projectRid, datasets } = await harness.createDatasets(user, ['out']);
+
+            await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: [], outputs: ['out'] }]);
+
+            expect((await claimNext(datasets.out)).incrementalStates).toEqual({});
+        });
     });
 
     it("aborts a failed job's outputs", async () => {

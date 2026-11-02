@@ -6,7 +6,7 @@ import { PostgresRuntime } from './Postgres/runtime';
 export { SourceRuntime, type RuntimeClass, type RuntimeContext, type SyncResult, type SyncRunContext } from './core/runtime';
 
 /**
- * Entry point for the Data Connection worker only — this is what pulls drivers in.
+ * Entry point for what opens sources, the Data Connection service's probes and its job runtime — this is what pulls drivers in.
  * Definition id → runtime class.
  */
 export const SOURCE_RUNTIMES: Readonly<Record<DataConnection.Source.DefinitionId, RuntimeClass>> = {

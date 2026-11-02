@@ -57,6 +57,7 @@ export class ForgeMicroserviceAPIClient {
             attempt: message.attempt,
             status:  outcome.status,
             failure: outcome.failure,
+            incrementalStates: outcome.incrementalStates,
         });
     }
 }

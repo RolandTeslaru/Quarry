@@ -1,22 +1,22 @@
+import { useState } from 'react'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
-import { Icon } from '@quarry/standard-ui/icons'
-import { Badge } from '@quarry/standard-ui/foundations/Badge'
-import type { DataConnection } from '@quarry/shared/domain'
-import { DataConnectionSDK } from '../sdk'
+import type { DataConnection, Forge } from '@quarry/shared/domain'
+import { ForgeSDK } from '@/SDKs/ForgeSDK/sdk'
+import { BuildStatus } from '@/SDKs/ForgeSDK/ui/BuildStatus'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { dateTime, number } from '@/utils/format'
+import { dateTime } from '@/utils/format'
 
 interface Props {
-    sourceRid: DataConnection.Source.Rid
-    sync:      DataConnection.Sync
+    sync: DataConnection.Sync
 }
 
-export function RunHistory({ sourceRid, sync }: Props) {
-    const [runs, [runsRequest]] = DataConnectionSDK.useWith(
-        state => state.runs[sync.rid] ?? [],
-        query => [query.runs(sourceRid, sync.rid)],
+/** A sync's runs: the builds of its dataset, newest first. */
+export function RunHistory({ sync }: Props) {
+    const [builds, [buildsRequest]] = ForgeSDK.useWith(
+        state => state.datasetBuilds[sync.outputDatasetRid] ?? [],
+        query => [query.datasetBuilds(sync.outputDatasetRid)],
     )
 
     return (
@@ -30,57 +30,40 @@ export function RunHistory({ sourceRid, sync }: Props) {
                     icon='refresh'
                     variant='minimal'
                     aria-label='Refresh runs'
-                    loading={runsRequest.isFetching}
-                    onClick={() => void runsRequest.refetch()}
+                    loading={buildsRequest.isFetching}
+                    onClick={() => void buildsRequest.refetch()}
                 />
             </div>
 
-            <ErrorNotice error={runsRequest.error} />
+            <ErrorNotice error={buildsRequest.error} />
 
-            {runsRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
+            {buildsRequest.isPending && <Spinner className='size-6' role='status' aria-label='Loading' />}
 
-            {runsRequest.isSuccess && runs.length === 0 && (
+            {buildsRequest.isSuccess && builds.length === 0 && (
                 <p className='text-slate-500 py-6'>No runs yet. Start this sync with Run now.</p>
             )}
 
-            {runs.length > 0 && (
+            {builds.length > 0 && (
                 <div className='table-panel'>
                     <Table.Root className='data-table'>
                         <Table.Header>
                             <Table.Row>
                                 <Table.Head>Status</Table.Head>
                                 <Table.Head>Started</Table.Head>
-                                <Table.Head>Trigger</Table.Head>
-                                <Table.Head>Rows</Table.Head>
                                 <Table.Head>Finished</Table.Head>
                                 <Table.Head>Details</Table.Head>
                             </Table.Row>
                         </Table.Header>
                         <Table.Body>
-                            {runs.map(run => (
-                                <Table.Row key={run.rid}>
+                            {builds.map(build => (
+                                <Table.Row key={build.rid}>
                                     <Table.Cell>
-                                        <RunStatus status={run.status} />
+                                        <BuildStatus status={build.status} />
                                     </Table.Cell>
-                                    <Table.Cell>{dateTime(run.startedAt)}</Table.Cell>
-                                    <Table.Cell>{run.trigger}</Table.Cell>
-                                    <Table.Cell>{number(run.rowCount)}</Table.Cell>
-                                    <Table.Cell>{dateTime(run.finishedAt)}</Table.Cell>
+                                    <Table.Cell>{dateTime(build.createdAt)}</Table.Cell>
+                                    <Table.Cell>{dateTime(build.finishedAt)}</Table.Cell>
                                     <Table.Cell>
-                                        <details>
-                                            <summary>View details</summary>
-                                            <dl className='run-details'>
-                                                <dt>Run</dt>
-                                                <dd>{run.rid}</dd>
-                                                <dt>Previous state</dt>
-                                                <dd>{run.stateFrom ?? '—'}</dd>
-                                                <dt>Next state</dt>
-                                                <dd>{run.stateTo ?? '—'}</dd>
-                                            </dl>
-                                            {run.error != null && (
-                                                <pre className='error-details'>{JSON.stringify(run.error, null, 2)}</pre>
-                                            )}
-                                        </details>
+                                        <RunDetails build={build} />
                                     </Table.Cell>
                                 </Table.Row>
                             ))}
@@ -92,33 +75,42 @@ export function RunHistory({ sourceRid, sync }: Props) {
     )
 }
 
-interface RunStatusProps {
-    status: DataConnection.SyncRun.Status
+interface RunDetailsProps {
+    build: Forge.Build
 }
 
-function RunStatus({ status }: RunStatusProps) {
-    if (status === 'succeeded') {
-        return (
-            <Badge variant='success'>
-                <Icon name='tick' />
-                Succeeded
-            </Badge>
-        )
-    }
-
-    if (status === 'failed') {
-        return (
-            <Badge variant='destructive'>
-                <Icon name='error' />
-                Failed
-            </Badge>
-        )
-    }
+/** The build's RID, and why it failed once opened: a job's failure comes with the build, fetched then. */
+function RunDetails({ build }: RunDetailsProps) {
+    const [open, setOpen] = useState(false)
 
     return (
-        <Badge variant='active'>
-            <Icon name='time' />
-            Running
-        </Badge>
+        <details onToggle={event => setOpen(event.currentTarget.open)}>
+            <summary>View details</summary>
+            <dl className='run-details'>
+                <dt>Build</dt>
+                <dd>{build.rid}</dd>
+            </dl>
+            {open && build.status === 'failed' && <RunFailure buildRid={build.rid} />}
+        </details>
+    )
+}
+
+interface RunFailureProps {
+    buildRid: Forge.Build.Rid
+}
+
+function RunFailure({ buildRid }: RunFailureProps) {
+    const [jobs, [buildRequest]] = ForgeSDK.useWith(
+        state => state.buildJobs[buildRid] ?? {},
+        query => [query.build(buildRid)],
+    )
+
+    return (
+        <>
+            <ErrorNotice error={buildRequest.error} />
+            {Object.values(jobs).map(job => job.failure && (
+                <pre key={job.rid} className='error-details'>{job.failure.message}</pre>
+            ))}
+        </>
     )
 }

@@ -40,7 +40,7 @@ export namespace Credential {
     export const Values = z.record(z.string(), z.unknown())
     export type  Values = z.infer<typeof Values>
 
-    /** What the Data Connection worker receives for a run or a probe: still encrypted — it decrypts with the workspace key. */
+    /** What the Data Connection service receives for a job or a probe: still encrypted — it decrypts with the workspace key. */
     export const Encrypted = z.object({
         rid:        Rid,
         templateId: Template.Id,

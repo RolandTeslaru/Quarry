@@ -1,13 +1,12 @@
 import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { Controller, Get, Module, ServiceUnavailableException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import { Catalog, CodeWorkspace, DataConnection, Foundations } from '@quarry/shared/domain';
+import { Catalog, CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { AuditRecordProcessor } from './processors/audit-record.processor';
 import { CodeWorkspaceCheckSweepProcessor } from './processors/code-workspace-check-sweep.processor';
 import { DurableQueueSweepProcessor } from './processors/durable-queue-sweep.processor';
 import { StorageGcProcessor } from './processors/storage-gc.processor';
-import { SyncReaperProcessor } from './processors/sync-reaper.processor';
 import { Schedules } from './schedules';
 
 import CI = CodeWorkspace.CI;
@@ -47,13 +46,11 @@ export class HealthController {
         BullModule.forRootAsync({ useFactory: () => ({ connection: redisConnection(), prefix: QUEUE_PREFIX }) }),
         BullModule.registerQueue(
             { name: Catalog.Queue.StorageGc.Definition.name },
-            { name: DataConnection.Queue.SyncReaper.Definition.name },
-            { name: DataConnection.Queue.Sync.Definition.name },             // produced: cron schedulers only
             { name: CI.Queue.CheckSweep.Definition.name },
             { name: Foundations.DurableQueue.Sweep.Definition.name },
         ),
     ],
     controllers: [HealthController],
-    providers:   [AuditRecordProcessor, StorageGcProcessor, SyncReaperProcessor, CodeWorkspaceCheckSweepProcessor, DurableQueueSweepProcessor, Schedules],
+    providers:   [AuditRecordProcessor, StorageGcProcessor, CodeWorkspaceCheckSweepProcessor, DurableQueueSweepProcessor, Schedules],
 })
 export class WorkerModule {}

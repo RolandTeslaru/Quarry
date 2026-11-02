@@ -5,6 +5,9 @@ import type { SyncConfigOf } from '../core/definition';
 import { SourceRuntime, type SyncResult, type SyncRunContext } from '../core/runtime';
 import type { Definition } from './source-definition';
 
+/** A firewalled host never answers: without this, a test connection would wait on the operating system's timeout. */
+const CONNECT_TIMEOUT_SECONDS = 15;
+
 /** A libpq connection-string value: single-quoted, backslash-escaped. */
 const libpq = (value: string | number | boolean) =>
     `'${String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
@@ -43,6 +46,7 @@ export class PostgresRuntime extends SourceRuntime<typeof Definition> {
             `user=${libpq(user)}`,
             password ? `password=${libpq(password)}` : '',
             `sslmode=${ssl ? 'require' : 'disable'}`,
+            `connect_timeout=${CONNECT_TIMEOUT_SECONDS}`,
         ].filter(Boolean).join(' ');
 
         this.connection = await this.ctx.duckdb.connect();

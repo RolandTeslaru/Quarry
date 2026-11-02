@@ -2,7 +2,6 @@ import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
 import type { DataConnectionSDKImpl } from '../sdk'
 import { SourceActions } from './source'
 import { SyncActions } from './sync'
-import { RunActions } from './run'
 
 /** `DataConnectionSDK.actions`: its groups, by what they act on. */
 export class DataConnectionActions extends ActionGroup<DataConnectionSDKImpl> {
@@ -12,6 +11,4 @@ export class DataConnectionActions extends ActionGroup<DataConnectionSDKImpl> {
     public readonly source = new SourceActions(this.sdk)
 
     public readonly sync = new SyncActions(this.sdk)
-
-    public readonly run = new RunActions(this.sdk)
 }

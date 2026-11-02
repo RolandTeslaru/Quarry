@@ -4,7 +4,7 @@ import { User } from "../Identity/User"
 
 /**
  * A configured, schedulable instruction: run the source's sync with this config,
- * into this dataset, on this schedule. Each execution is a SyncRun. A RID, but
+ * into this dataset, on this schedule. Each execution is a Forge build of the dataset, one job. A RID, but
  * not a library resource.
  */
 export namespace Sync {

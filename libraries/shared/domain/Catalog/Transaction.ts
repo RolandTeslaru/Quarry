@@ -28,10 +28,14 @@ export namespace Transaction {
             column: z.string().min(1),
             state:  z.string().nullable(),
         })
+
+        /** Each dataset's mark. */
+        export const States = z.record(Dataset.Rid, Schema.shape.state)
+        export type  States = z.infer<typeof States>
     }
     export type Incremental = z.infer<typeof Incremental.Schema>
 
-    /** What opening a transaction on a dataset takes: its type, and what opened it (`{ buildRid, jobRid }`, `{ syncRid, syncRunRid }`). */
+    /** What opening a transaction on a dataset takes: its type, and what opened it (`{ buildRid, jobRid }`). */
     export namespace Opening {
         const provenance = z.record(z.string(), z.unknown())
 

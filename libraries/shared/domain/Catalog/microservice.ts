@@ -139,10 +139,24 @@ export namespace Microservice {
     export namespace CommitTransactions {
         export const PATTERN = "catalog.commit-transactions"
 
-        export const Request = z.object({ transactions: z.record(Dataset.Rid, Transaction.Rid) })
+        export const Request = z.object({
+            transactions:      z.record(Dataset.Rid, Transaction.Rid),
+            incrementalStates: Transaction.Incremental.States,        // how far each incremental one got, committed with it
+        })
         export type  Request = z.infer<typeof Request>
 
         export const Response = z.object({})
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** How far each dataset's incremental writer got: its newest committed mark, since the dataset's newest snapshot. Null if there's none. */
+    export namespace GetIncrementalStates {
+        export const PATTERN = "catalog.get-incremental-states"
+
+        export const Request = z.object({ datasetRids: Dataset.Rid.array() })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = Transaction.Incremental.States
         export type  Response = z.infer<typeof Response>
     }
 
@@ -208,6 +222,7 @@ export namespace Microservice {
         openTransactions:   OpenTransactions,
         commitTransactions: CommitTransactions,
         abortTransactions:  AbortTransactions,
+        getIncrementalStates: GetIncrementalStates,
         getSignedReadUrls:  GetSignedReadUrls,
         getSignedWriteUrl:  GetSignedWriteUrl,
         registerFile:       RegisterFile,

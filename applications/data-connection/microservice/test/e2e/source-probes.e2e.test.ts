@@ -1,36 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { spawn, type ChildProcess } from 'node:child_process';
-import type { AddressInfo } from 'node:net';
-import * as path from 'node:path';
-import type { NestExpressApplication } from '@nestjs/platform-express';
-import { NestFactory } from '@nestjs/core';
-import { Queue } from 'bullmq';
-import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { DataConnection } from '@quarry/shared/domain';
-import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
-import { DataConnectionMicroserviceModule } from '@quarry/data-connection-microservice/microservice.module';
+import type { DataConnection } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
-import { destroyPool } from '@quarry/platform-kernel/db/pool';
-import { QueueJobError } from '@quarry/platform-kernel/infra/queue';
 import { DataConnectionHarness, type PostgresLogin } from '../support/data-connection-fixtures';
-import { withDatabase } from '@quarry/platform-kernel/testing/test-env';
-
-/** How long the worker gets to boot (ts-node compiles it first). */
-const WORKER_BOOT_MS = 60_000;
+import { createExternalDatabase, dropExternalDatabase } from '../support/external-database';
 
 /**
- * End to end, across processes: probing a source — test, explore, preview — is
- * request–reply over Redis to a real Data Connection worker
- * (applications/data-connection/worker), which decrypts the credential and opens
- * the source with DuckDB. The "external" system is a throwaway database on the
- * dev Postgres, made and dropped by this file.
+ * End to end: probing a source — test, explore, preview — decrypts its credential and
+ * opens it with DuckDB, here in the service. The "external" system is a throwaway
+ * database on the dev Postgres, made and dropped by this file.
  */
-describe('probing a source through a real Data Connection worker', () => {
+describe('probing a source', () => {
 
-    let server: NestExpressApplication;
-    let worker: ChildProcess;
-    let workerLog = '';
     let harness: DataConnectionHarness;
     let user: Principal.User;
 
@@ -40,32 +21,12 @@ describe('probing a source through a real Data Connection worker', () => {
     beforeAll(async () => {
         login = await createExternalDatabase(external);
 
-        // Nothing else may reach the worker: runs other test files queued would start for real.
-        const syncJobs = new Queue(DataConnection.Queue.Sync.Definition.name, { connection: redisConnection(), prefix: QUEUE_PREFIX });
-
-        await syncJobs.obliterate({ force: true });
-        await syncJobs.close();
-
-        // The harness first: it sets this process's database login (Data Connection's) before any query.
         harness = await DataConnectionHarness.start();
         user = await harness.createUser();
-
-        // Data Connection's HTTP API, which the worker waits for and reports to.
-        server = await NestFactory.create<NestExpressApplication>(DataConnectionMicroserviceModule, { logger: false });
-        server.setGlobalPrefix('api');
-        await server.listen(0, '127.0.0.1');
-
-        const { port } = server.getHttpServer().address() as AddressInfo;
-
-        worker = startWorker(`http://127.0.0.1:${port}`, (chunk) => workerLog += chunk);
-        await waitFor(() => workerLog.includes('Data Connection worker listening'), WORKER_BOOT_MS, () => `the worker didn't start:\n${workerLog}`);
-    }, WORKER_BOOT_MS + 30_000);
+    });
 
     afterAll(async () => {
-        worker?.kill('SIGTERM');
         await harness?.stop();
-        await server?.close();
-        await destroyPool();
         await dropExternalDatabase(external);
     });
 
@@ -109,10 +70,9 @@ describe('probing a source through a real Data Connection worker', () => {
             expect(reads.map((event) => event.detail.op)).toEqual(expect.arrayContaining(['test', 'explore', 'preview']));
         });
 
-        it("a table that isn't there is the worker's error, passed on: 424", async () => {
+        it("a table that isn't there is the source's error, passed on: 424", async () => {
             const preview = harness.sources.previewTable(user, source.rid, { schema: 'public', name: 'missing' }, 2);
 
-            await expect(preview).rejects.toBeInstanceOf(QueueJobError);
             await expect(preview).rejects.toMatchObject({ status: 424 });
         });
     });
@@ -152,71 +112,3 @@ describe('probing a source through a real Data Connection worker', () => {
 // ── the "external" database ─────────────────────────────────────────────
 
 /** A database with two tables in two schemas, and the login to reach it — the dev Postgres's own. */
-async function createExternalDatabase(name: string): Promise<PostgresLogin> {
-    const url = new URL(process.env.DATABASE_URL ?? '');
-    const admin = new Client({ connectionString: withDatabase(url.toString(), 'postgres') });
-
-    await admin.connect();
-    await admin.query(`CREATE DATABASE ${name}`);
-    await admin.end();
-
-    const client = new Client({ connectionString: withDatabase(url.toString(), name) });
-
-    await client.connect();
-    await client.query(`
-        CREATE TABLE public.tools (id integer PRIMARY KEY, name text NOT NULL, updated_at timestamptz NOT NULL);
-        INSERT INTO public.tools VALUES (1, 'hammer', '2026-10-01'), (2, 'saw', '2026-10-02'), (3, 'drill', '2026-10-03');
-        CREATE SCHEMA inventory;
-        CREATE TABLE inventory.parts (sku text PRIMARY KEY);`);
-    await client.end();
-
-    return {
-        host:     url.hostname,
-        port:     Number(url.port || 5432),
-        database: name,
-        user:     decodeURIComponent(url.username),
-        password: decodeURIComponent(url.password),
-    };
-}
-
-async function dropExternalDatabase(name: string): Promise<void> {
-    const admin = new Client({ connectionString: withDatabase(process.env.DATABASE_URL ?? '', 'postgres') });
-
-    await admin.connect();
-    await admin.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
-    await admin.end();
-}
-
-// ── the worker ──────────────────────────────────────────────────────────
-
-function startWorker(dataConnectionUrl: string, onOutput: (chunk: string) => void): ChildProcess {
-    const cwd = path.resolve(__dirname, '../../../worker');
-
-    const child = spawn('npx', ['ts-node', '-r', 'tsconfig-paths/register', 'src/main.ts'], {
-        cwd,
-        env: {
-            ...process.env,                     // REDIS_URL: the test Redis database (test/support/env.ts)
-            DATA_CONNECTION_URL: dataConnectionUrl,
-            WORKER_PORT:       '0',
-            NO_COLOR:          '1',
-        },
-        stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    child.stdout?.on('data', (chunk: Buffer) => onOutput(chunk.toString()));
-    child.stderr?.on('data', (chunk: Buffer) => onOutput(chunk.toString()));
-
-    return child;
-}
-
-/** Polls until the condition holds, or fails with `describe()` after `timeoutMs`. */
-async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs: number, describe: () => string): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-
-    while (!(await condition())) {
-        if (Date.now() > deadline)
-            throw new Error(describe());
-
-        await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-}

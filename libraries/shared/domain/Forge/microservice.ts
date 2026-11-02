@@ -3,6 +3,7 @@ import { Foundations } from "../Foundations"
 import { MicroserviceCall } from "../Foundations/MicroserviceCall"
 import { Resource } from "../Library/Resource"
 import { Build } from "./Build"
+import { Job } from "./Job"
 import { Recipe } from "./Recipe"
 import { API } from "./api"
 
@@ -35,8 +36,20 @@ export namespace Microservice {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** A job and its recipe, as the user sees them (RLS): Data Connection checking the job asking for a source's credential. */
+    export namespace GetJob {
+        export const PATTERN = "forge.get-job"
+
+        export const Request = z.object({ rid: Job.Rid })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({ job: Job.Schema, recipe: Recipe.Schema })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export const Calls = {
         getBuild:       GetBuild,
+        getJob:         GetJob,
         publishRecipes: PublishRecipes,
     } satisfies MicroserviceCall.Calls
 }

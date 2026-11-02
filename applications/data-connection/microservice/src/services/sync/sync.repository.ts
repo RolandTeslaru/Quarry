@@ -3,7 +3,7 @@ import { DataConnection, Dataset } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
-import { DataConnectionDB } from '../../data-connection.db';
+import { DataConnectionDB } from '../data-connection/data-connection.db';
 
 /** data_connection.sync. */
 @Injectable()

@@ -14,21 +14,19 @@ import { LibraryModule } from '@quarry/platform-kernel/services/Library/library.
 import { GatekeeperModule } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.module';
 import { RequestMemoMiddleware } from '@quarry/platform-kernel/services/Gatekeeper/request-memo';
 import { RealtimeModule } from '@quarry/platform-kernel/services/Realtime/realtime.module';
+import { DataConnectionModule } from '@quarry/data-connection-microservice/services/data-connection/data-connection.module';
+import { DataConnectionRuntimeController } from '@quarry/data-connection-microservice/services/data-connection/controllers/runtime-http.controller';
 import { SourceModule } from '@quarry/data-connection-microservice/services/source/source.module';
 import { SourceController } from '@quarry/data-connection-microservice/services/source/controllers/http.controller';
 import { SyncModule } from '@quarry/data-connection-microservice/services/sync/sync.module';
 import { SyncController } from '@quarry/data-connection-microservice/services/sync/controllers/http.controller';
-import { SyncInternalController } from '@quarry/data-connection-microservice/services/sync/controllers/internal-http.controller';
-import { SyncRunModule } from '@quarry/data-connection-microservice/services/sync-run/sync-run.module';
-import { SyncRunController } from '@quarry/data-connection-microservice/services/sync-run/controllers/http.controller';
-import { SyncRunInternalController } from '@quarry/data-connection-microservice/services/sync-run/controllers/internal-http.controller';
 
 /**
- * The Data Connection service (docs/design/architecture-split.md, phase 2): sources, syncs and their
- * runs, in a process of its own on its own database login. The platform is the kernel's modules,
- * in-process; output datasets and credentials are Catalog's and Keychain's, through microservice calls.
- * Browsers reach it through the main server's proxy (`/api/data-connection/…`); its worker and the
- * system worker call its /internal endpoints directly.
+ * The Data Connection service (docs/design/architecture-split.md, phase 2): sources and syncs, in a
+ * process of its own on its own database login. A sync runs as a Forge build: this service publishes its
+ * recipe, and a job's runtime gets its connection here. The platform is the kernel's modules, in-process;
+ * output datasets, credentials and recipes are Catalog's, Keychain's and Forge's, through microservice
+ * calls. Browsers and job runtimes reach it through the main server's proxy (`/api/data-connection/…`).
  */
 @Module({
     imports: [
@@ -42,16 +40,14 @@ import { SyncRunInternalController } from '@quarry/data-connection-microservice/
         GatekeeperModule,
         SourceModule,
         SyncModule,
-        SyncRunModule,
+        DataConnectionModule,
     ],
     controllers: [
         HealthController,
         SourceController,
+        // /api/data-connection/jobs/… for a running sync job's runtime
+        DataConnectionRuntimeController,
         SyncController,
-        SyncRunController,
-        // /api/internal/… — service token only, for the Data Connection worker and the system worker
-        SyncRunInternalController,
-        SyncInternalController,
     ],
     providers: [
         TokenVerifier,

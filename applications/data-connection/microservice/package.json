@@ -12,6 +12,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
+        "@duckdb/node-api": "1.4.5-r.1",
         "@nestjs/common": "^11.1.16",
         "@nestjs/core": "^11.1.16",
         "@nestjs/platform-express": "^11.1.16",

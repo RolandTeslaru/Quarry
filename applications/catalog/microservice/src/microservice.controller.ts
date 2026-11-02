@@ -93,11 +93,16 @@ export class CatalogMicroserviceController {
         const transactions: Parameters<TransactionService['commitBatch']>[1] = [];
 
         for (const datasetRid of Object.keys(request.transactions) as Dataset.Rid[])
-            transactions.push({ datasetRid, rid: request.transactions[datasetRid] });
+            transactions.push({ datasetRid, rid: request.transactions[datasetRid], incrementalState: request.incrementalStates[datasetRid] });
 
         await this.transaction.commitBatch(principal, transactions);
 
         return {};
+    }
+
+    @MicroserviceCall(Calls.GetIncrementalStates, { from: ['forge'] })
+    public getIncrementalStates(principal: Principal, request: Calls.GetIncrementalStates.Request) {
+        return this.transaction.getIncrementalStates(principal, request.datasetRids);
     }
 
     @MicroserviceCall(Calls.AbortTransactions, { from: ['forge'] })

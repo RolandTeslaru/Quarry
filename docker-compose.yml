@@ -145,35 +145,6 @@ services:
     ports:
       - "${API_PORT:-4000}:4000"
 
-  # applications/data-connection/worker — the only container that reaches source systems; it decrypts their credentials.
-  # No DATABASE_URL: run bookkeeping goes through the server's /internal API.
-  data-connection-worker:
-    profiles: [app]
-    image: quarry:latest
-    restart: unless-stopped
-    command: ["node", "applications/data-connection/worker/dist/applications/data-connection/worker/src/main.js"]
-    depends_on:
-      server: { condition: service_started }
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:4101/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-    environment:
-      WORKER_PORT: 4101
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      LOG_TIMESTAMPS: ${LOG_TIMESTAMPS:-true}
-      LOG_APP_NAME: ${LOG_APP_NAME:-}
-      REDIS_URL: redis://redis:6379
-      QUARRY_SERVER_URL: http://server:4000
-      QUARRY_INTERNAL_TOKEN: ${QUARRY_INTERNAL_TOKEN:-dev-internal-token-change-me}
-      S3_ENDPOINT: http://seaweedfs:8333
-      S3_REGION: us-east-1
-      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-quarry}
-      S3_SECRET_KEY: ${S3_SECRET_KEY:-quarry-secret}
-      S3_BUCKET: ${S3_BUCKET:-datasets}
-      QUARRY_ENCRYPTION_KEY: ${QUARRY_ENCRYPTION_KEY:?set QUARRY_ENCRYPTION_KEY (openssl rand -hex 32)}
-
   # platform/system-worker — housekeeping on a schedule. No DATABASE_URL either.
   system-worker:
     profiles: [app]

@@ -55,45 +55,9 @@ export namespace DataConnectionDB {
         });
     }
 
-    export namespace SyncRun {
-        export const Row = z.object({
-            rid:            DataConnection.SyncRun.Rid,
-            sync_rid:       DataConnection.Sync.Rid,
-            status:         DataConnection.SyncRun.Status,
-            transaction_rid: Catalog.Transaction.Rid.nullable(),
-            state_from:     z.string().nullable(),
-            state_to:       z.string().nullable(),
-            row_count:      z.number().int().nullable(),
-            error:          z.unknown().nullable(),
-            trigger:        DataConnection.SyncRun.Trigger,
-            triggered_by:   Identity.User.Rid.nullable(),
-            started_at:     z.date(),
-            heartbeat_at:   z.date(),
-            finished_at:    z.date().nullable(),
-        });
-        export type Row = z.infer<typeof Row>;
-
-        export const toDomain = (row: Row) => DataConnection.SyncRun.Schema.parse({
-            rid:            row.rid,
-            syncRid:        row.sync_rid,
-            status:         row.status,
-            transactionRid: row.transaction_rid,
-            stateFrom:      row.state_from,
-            stateTo:        row.state_to,
-            rowCount:       row.row_count,
-            error:          row.error,
-            trigger:        row.trigger,
-            triggeredBy:    row.triggered_by,
-            startedAt:      row.started_at,
-            heartbeatAt:    row.heartbeat_at,
-            finishedAt:     row.finished_at,
-        });
-    }
-
     export interface Tables {
         'data_connection.source':   Table<typeof Source.Row, 'type'>;
         'data_connection.sync':     Table<typeof Sync.Row, 'enabled' | 'created_at'>;
-        'data_connection.sync_run': Table<typeof SyncRun.Row, 'status' | 'transaction_rid' | 'state_to' | 'row_count' | 'error' | 'started_at' | 'heartbeat_at' | 'finished_at'>;
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();

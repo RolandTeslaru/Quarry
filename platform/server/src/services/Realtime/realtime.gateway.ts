@@ -2,7 +2,7 @@ import type { IncomingMessage } from 'node:http';
 import type { OnModuleDestroy } from '@nestjs/common';
 import { type OnGatewayConnection, type OnGatewayDisconnect, WebSocketGateway } from '@nestjs/websockets';
 import { WebSocket } from 'ws';
-import { CodeWorkspace, DataConnection, Forge, Identity, Realtime } from '@quarry/shared/domain';
+import { CodeWorkspace, Forge, Identity, Realtime } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { RequestIdentity } from '@quarry/platform-kernel/auth/request-identity';
@@ -144,11 +144,6 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
     /** Whether this user may hear what a channel carries. Each channel type names its resource or owner. */
     private async mayListen(principal: Principal.User, channel: Realtime.Channel): Promise<boolean> {
-        const sourceRid = DataConnection.Event.sourceOf(channel);
-
-        if (sourceRid)
-            return this.gatekeeper.can(principal, 'discover', sourceRid);
-
         const workspaceRid = CodeWorkspace.Event.workspaceOf(channel);
 
         if (workspaceRid)

@@ -9,7 +9,7 @@ import type { CredentialTemplate } from './credential';
  * `<System>/definition.ts`, next to that type's credential and runtime.
  *
  * API-safe: a definition imports zod and shared only — never a driver, DuckDB or
- * a runtime. The API loads definitions (definitions.ts); only the Data Connection worker
+ * a runtime. The API loads definitions (definitions.ts); only what opens a source
  * loads runtimes (runtimes.ts) — two entry points of this package.
  */
 export interface SourceDefinition<
@@ -36,9 +36,11 @@ export interface SourceDefinition<
  * mounts its fields), and the runtime's one `sync()` switches on it.
  */
 export interface SyncDefinition<C extends z.ZodType = z.ZodType> {
-    readonly Config:          C;
+    readonly Config:            C;
     /** Whether a run replaces the dataset's view or adds to it — decided by the sync's own config. */
     readonly transactionType: (config: z.output<C>) => 'snapshot' | 'append';
+    /** The column an append reads by, or null if each run copies everything. */
+    readonly incrementalColumn: (config: z.output<C>) => string | null;
 }
 
 /** The parsed config a runtime of this definition receives. */
