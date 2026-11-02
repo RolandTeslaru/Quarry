@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
 import { LineageExplorer } from '@quarry/shared/domain';
 import { CurrentPrincipal } from '@quarry/platform-kernel/auth/current-principal';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
@@ -20,6 +20,11 @@ export class ExplorationController {
         @Body(new ZodPipe(API.Exploration.Create.Request)) body: API.Exploration.Create.Request,
     ): Promise<API.Exploration.Create.Response> {
         return { exploration: await this.explorations.create(principal, body) };
+    }
+
+    @Get()
+    async list(@CurrentPrincipal() principal: Principal.User): Promise<API.Exploration.List.Response> {
+        return { explorations: await this.explorations.list(principal) };
     }
 
     /** An app opened the exploration: it, its graph read now, the open recorded (audit). */

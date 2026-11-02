@@ -19,6 +19,18 @@ export namespace Lineage {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Some resources, and the edges among them — what's on a canvas. */
+    export namespace GetGraph {
+        export const Request = z.object({
+            rids:   Resource.Rid.array(),
+            branch: Foundations.Branch.default(Foundations.MAIN_BRANCH),
+        })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({ graph: LineageD.Graph.Schema })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export async function getUpstream(api: AxiosInstance, rid: Resource.Rid, req: Get.Request): Promise<Get.Response> {
         const { data } = await api.get(`/api/resources/${rid}/lineage/upstream`, { params: req })
         return Get.Response.parse(data)
@@ -27,5 +39,10 @@ export namespace Lineage {
     export async function getDownstream(api: AxiosInstance, rid: Resource.Rid, req: Get.Request): Promise<Get.Response> {
         const { data } = await api.get(`/api/resources/${rid}/lineage/downstream`, { params: req })
         return Get.Response.parse(data)
+    }
+
+    export async function getGraph(api: AxiosInstance, req: GetGraph.Request): Promise<GetGraph.Response> {
+        const { data } = await api.post("/api/resources/lineage/graph", req)
+        return GetGraph.Response.parse(data)
     }
 }

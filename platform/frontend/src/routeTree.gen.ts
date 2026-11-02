@@ -20,6 +20,7 @@ import { Route as ForgeRouteRouteImport } from './apps/forge/routes/route'
 import { Route as KeychainRouteRouteImport } from './apps/keychain/routes/route'
 import { Route as LayoutDemoRouteRouteImport } from './apps/layout-demo/routes/route'
 import { Route as LibraryRouteRouteImport } from './apps/library/routes/route'
+import { Route as LineageExplorerRouteRouteImport } from './apps/lineage-explorer/routes/route'
 import { Route as MinimalDemoRouteRouteImport } from './apps/minimal-demo/routes/route'
 import { Route as PipelineBuilderRouteRouteImport } from './apps/pipeline-builder/routes/route'
 import { Route as playground_DotblueprintRouteImport } from './routes/playground_.blueprint'
@@ -34,6 +35,8 @@ import { Route as KeychainIndexRouteImport } from './apps/keychain/routes/index'
 import { Route as LayoutDemoIndexRouteImport } from './apps/layout-demo/routes/index'
 import { Route as LibraryIndexRouteImport } from './apps/library/routes/index'
 import { Route as LibraryRidRouteImport } from './apps/library/routes/$rid'
+import { Route as LineageExplorerIndexRouteImport } from './apps/lineage-explorer/routes/index'
+import { Route as LineageExplorerRidRouteImport } from './apps/lineage-explorer/routes/$rid'
 import { Route as MinimalDemoIndexRouteImport } from './apps/minimal-demo/routes/index'
 import { Route as PipelineBuilderIndexRouteImport } from './apps/pipeline-builder/routes/index'
 import { Route as CodeWorkspacesRidIndexRouteImport } from './apps/code-workspaces/routes/$rid/index'
@@ -95,6 +98,11 @@ const LayoutDemoRouteRoute = LayoutDemoRouteRouteImport.update({
 const LibraryRouteRoute = LibraryRouteRouteImport.update({
   id: '/library',
   path: '/library',
+  getParentRoute: () => workspaceRoute,
+} as any)
+const LineageExplorerRouteRoute = LineageExplorerRouteRouteImport.update({
+  id: '/lineage-explorer',
+  path: '/lineage-explorer',
   getParentRoute: () => workspaceRoute,
 } as any)
 const MinimalDemoRouteRoute = MinimalDemoRouteRouteImport.update({
@@ -167,6 +175,16 @@ const LibraryRidRoute = LibraryRidRouteImport.update({
   path: '/$rid',
   getParentRoute: () => LibraryRouteRoute,
 } as any)
+const LineageExplorerIndexRoute = LineageExplorerIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LineageExplorerRouteRoute,
+} as any)
+const LineageExplorerRidRoute = LineageExplorerRidRouteImport.update({
+  id: '/$rid',
+  path: '/$rid',
+  getParentRoute: () => LineageExplorerRouteRoute,
+} as any)
 const MinimalDemoIndexRoute = MinimalDemoIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -223,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/keychain': typeof KeychainRouteRouteWithChildren
   '/layout-demo': typeof LayoutDemoRouteRouteWithChildren
   '/library': typeof LibraryRouteRouteWithChildren
+  '/lineage-explorer': typeof LineageExplorerRouteRouteWithChildren
   '/minimal-demo': typeof MinimalDemoRouteRouteWithChildren
   '/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
   '/playground/blueprint': typeof playground_DotblueprintRoute
@@ -230,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/code-workspaces/$rid': typeof CodeWorkspacesRidRouteRouteWithChildren
   '/datasets/$rid': typeof DatasetsRidRoute
   '/library/$rid': typeof LibraryRidRoute
+  '/lineage-explorer/$rid': typeof LineageExplorerRidRoute
   '/code-workspaces/': typeof CodeWorkspacesIndexRoute
   '/data-connection/': typeof DataConnectionIndexRoute
   '/datasets/': typeof DatasetsIndexRoute
@@ -237,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/keychain/': typeof KeychainIndexRoute
   '/layout-demo/': typeof LayoutDemoIndexRoute
   '/library/': typeof LibraryIndexRoute
+  '/lineage-explorer/': typeof LineageExplorerIndexRoute
   '/minimal-demo/': typeof MinimalDemoIndexRoute
   '/pipeline-builder/': typeof PipelineBuilderIndexRoute
   '/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
@@ -254,6 +275,7 @@ export interface FileRoutesByTo {
   '/playground/standard': typeof playground_DotstandardRoute
   '/datasets/$rid': typeof DatasetsRidRoute
   '/library/$rid': typeof LibraryRidRoute
+  '/lineage-explorer/$rid': typeof LineageExplorerRidRoute
   '/code-workspaces': typeof CodeWorkspacesIndexRoute
   '/data-connection': typeof DataConnectionIndexRoute
   '/datasets': typeof DatasetsIndexRoute
@@ -261,6 +283,7 @@ export interface FileRoutesByTo {
   '/keychain': typeof KeychainIndexRoute
   '/layout-demo': typeof LayoutDemoIndexRoute
   '/library': typeof LibraryIndexRoute
+  '/lineage-explorer': typeof LineageExplorerIndexRoute
   '/minimal-demo': typeof MinimalDemoIndexRoute
   '/pipeline-builder': typeof PipelineBuilderIndexRoute
   '/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
@@ -283,6 +306,7 @@ export interface FileRoutesById {
   '/_workspace/keychain': typeof KeychainRouteRouteWithChildren
   '/_workspace/layout-demo': typeof LayoutDemoRouteRouteWithChildren
   '/_workspace/library': typeof LibraryRouteRouteWithChildren
+  '/_workspace/lineage-explorer': typeof LineageExplorerRouteRouteWithChildren
   '/_workspace/minimal-demo': typeof MinimalDemoRouteRouteWithChildren
   '/_workspace/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
   '/playground/blueprint': typeof playground_DotblueprintRoute
@@ -290,6 +314,7 @@ export interface FileRoutesById {
   '/_workspace/code-workspaces/$rid': typeof CodeWorkspacesRidRouteRouteWithChildren
   '/_workspace/datasets/$rid': typeof DatasetsRidRoute
   '/_workspace/library/$rid': typeof LibraryRidRoute
+  '/_workspace/lineage-explorer/$rid': typeof LineageExplorerRidRoute
   '/_workspace/code-workspaces/': typeof CodeWorkspacesIndexRoute
   '/_workspace/data-connection/': typeof DataConnectionIndexRoute
   '/_workspace/datasets/': typeof DatasetsIndexRoute
@@ -297,6 +322,7 @@ export interface FileRoutesById {
   '/_workspace/keychain/': typeof KeychainIndexRoute
   '/_workspace/layout-demo/': typeof LayoutDemoIndexRoute
   '/_workspace/library/': typeof LibraryIndexRoute
+  '/_workspace/lineage-explorer/': typeof LineageExplorerIndexRoute
   '/_workspace/minimal-demo/': typeof MinimalDemoIndexRoute
   '/_workspace/pipeline-builder/': typeof PipelineBuilderIndexRoute
   '/_workspace/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
@@ -319,6 +345,7 @@ export interface FileRouteTypes {
     | '/keychain'
     | '/layout-demo'
     | '/library'
+    | '/lineage-explorer'
     | '/minimal-demo'
     | '/pipeline-builder'
     | '/playground/blueprint'
@@ -326,6 +353,7 @@ export interface FileRouteTypes {
     | '/code-workspaces/$rid'
     | '/datasets/$rid'
     | '/library/$rid'
+    | '/lineage-explorer/$rid'
     | '/code-workspaces/'
     | '/data-connection/'
     | '/datasets/'
@@ -333,6 +361,7 @@ export interface FileRouteTypes {
     | '/keychain/'
     | '/layout-demo/'
     | '/library/'
+    | '/lineage-explorer/'
     | '/minimal-demo/'
     | '/pipeline-builder/'
     | '/code-workspaces/$rid/branches'
@@ -350,6 +379,7 @@ export interface FileRouteTypes {
     | '/playground/standard'
     | '/datasets/$rid'
     | '/library/$rid'
+    | '/lineage-explorer/$rid'
     | '/code-workspaces'
     | '/data-connection'
     | '/datasets'
@@ -357,6 +387,7 @@ export interface FileRouteTypes {
     | '/keychain'
     | '/layout-demo'
     | '/library'
+    | '/lineage-explorer'
     | '/minimal-demo'
     | '/pipeline-builder'
     | '/code-workspaces/$rid/branches'
@@ -378,6 +409,7 @@ export interface FileRouteTypes {
     | '/_workspace/keychain'
     | '/_workspace/layout-demo'
     | '/_workspace/library'
+    | '/_workspace/lineage-explorer'
     | '/_workspace/minimal-demo'
     | '/_workspace/pipeline-builder'
     | '/playground/blueprint'
@@ -385,6 +417,7 @@ export interface FileRouteTypes {
     | '/_workspace/code-workspaces/$rid'
     | '/_workspace/datasets/$rid'
     | '/_workspace/library/$rid'
+    | '/_workspace/lineage-explorer/$rid'
     | '/_workspace/code-workspaces/'
     | '/_workspace/data-connection/'
     | '/_workspace/datasets/'
@@ -392,6 +425,7 @@ export interface FileRouteTypes {
     | '/_workspace/keychain/'
     | '/_workspace/layout-demo/'
     | '/_workspace/library/'
+    | '/_workspace/lineage-explorer/'
     | '/_workspace/minimal-demo/'
     | '/_workspace/pipeline-builder/'
     | '/_workspace/code-workspaces/$rid/branches'
@@ -488,6 +522,13 @@ declare module '@tanstack/react-router' {
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteRouteImport
+      parentRoute: typeof workspaceRoute
+    }
+    '/_workspace/lineage-explorer': {
+      id: '/_workspace/lineage-explorer'
+      path: '/lineage-explorer'
+      fullPath: '/lineage-explorer'
+      preLoaderRoute: typeof LineageExplorerRouteRouteImport
       parentRoute: typeof workspaceRoute
     }
     '/_workspace/minimal-demo': {
@@ -587,6 +628,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/library/$rid'
       preLoaderRoute: typeof LibraryRidRouteImport
       parentRoute: typeof LibraryRouteRoute
+    }
+    '/_workspace/lineage-explorer/': {
+      id: '/_workspace/lineage-explorer/'
+      path: '/'
+      fullPath: '/lineage-explorer/'
+      preLoaderRoute: typeof LineageExplorerIndexRouteImport
+      parentRoute: typeof LineageExplorerRouteRoute
+    }
+    '/_workspace/lineage-explorer/$rid': {
+      id: '/_workspace/lineage-explorer/$rid'
+      path: '/$rid'
+      fullPath: '/lineage-explorer/$rid'
+      preLoaderRoute: typeof LineageExplorerRidRouteImport
+      parentRoute: typeof LineageExplorerRouteRoute
     }
     '/_workspace/minimal-demo/': {
       id: '/_workspace/minimal-demo/'
@@ -759,6 +814,19 @@ const LibraryRouteRouteWithChildren = LibraryRouteRoute._addFileChildren(
   LibraryRouteRouteChildren,
 )
 
+interface LineageExplorerRouteRouteChildren {
+  LineageExplorerRidRoute: typeof LineageExplorerRidRoute
+  LineageExplorerIndexRoute: typeof LineageExplorerIndexRoute
+}
+
+const LineageExplorerRouteRouteChildren: LineageExplorerRouteRouteChildren = {
+  LineageExplorerRidRoute: LineageExplorerRidRoute,
+  LineageExplorerIndexRoute: LineageExplorerIndexRoute,
+}
+
+const LineageExplorerRouteRouteWithChildren =
+  LineageExplorerRouteRoute._addFileChildren(LineageExplorerRouteRouteChildren)
+
 interface MinimalDemoRouteRouteChildren {
   MinimalDemoIndexRoute: typeof MinimalDemoIndexRoute
 }
@@ -789,6 +857,7 @@ interface workspaceRouteChildren {
   KeychainRouteRoute: typeof KeychainRouteRouteWithChildren
   LayoutDemoRouteRoute: typeof LayoutDemoRouteRouteWithChildren
   LibraryRouteRoute: typeof LibraryRouteRouteWithChildren
+  LineageExplorerRouteRoute: typeof LineageExplorerRouteRouteWithChildren
   MinimalDemoRouteRoute: typeof MinimalDemoRouteRouteWithChildren
   PipelineBuilderRouteRoute: typeof PipelineBuilderRouteRouteWithChildren
 }
@@ -801,6 +870,7 @@ const workspaceRouteChildren: workspaceRouteChildren = {
   KeychainRouteRoute: KeychainRouteRouteWithChildren,
   LayoutDemoRouteRoute: LayoutDemoRouteRouteWithChildren,
   LibraryRouteRoute: LibraryRouteRouteWithChildren,
+  LineageExplorerRouteRoute: LineageExplorerRouteRouteWithChildren,
   MinimalDemoRouteRoute: MinimalDemoRouteRouteWithChildren,
   PipelineBuilderRouteRoute: PipelineBuilderRouteRouteWithChildren,
 }

@@ -15,4 +15,8 @@ export class LineageActions extends ActionGroup<LibrarySDKImpl> {
     public async getDownstream(rid: Library.Resource.Rid, request: Library.API.Lineage.Get.Request): Promise<Library.API.Lineage.Get.Response> {
         return Library.API.Lineage.getDownstream(api, rid, request)
     }
+
+    public async getGraph(request: Library.API.Lineage.GetGraph.Request): Promise<Library.API.Lineage.GetGraph.Response> {
+        return Library.API.Lineage.getGraph(api, request)
+    }
 }

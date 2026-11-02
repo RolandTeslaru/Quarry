@@ -8,6 +8,7 @@ import { forgeApp } from '@/apps/forge/definition'
 import { keychainApp } from '@/apps/keychain/definition'
 import { layoutDemoApp } from '@/apps/layout-demo/definition'
 import { libraryApp } from '@/apps/library/definition'
+import { lineageExplorerApp } from '@/apps/lineage-explorer/definition'
 import { minimalDemoApp } from '@/apps/minimal-demo/definition'
 import { pipelineBuilderApp } from '@/apps/pipeline-builder/definition'
 
@@ -23,6 +24,7 @@ export const APPS: App.Definition[] = [
     pipelineBuilderApp,
     codeWorkspacesApp,
     forgeApp,
+    lineageExplorerApp,
     keychainApp,
     // Test apps for the shell and AppKit; no backend.
     layoutDemoApp,

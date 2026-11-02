@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Foundations, type Library, LineageExplorer, type Platform } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { requireAffected } from '@quarry/platform-kernel/db/errors';
+import { isLive } from '@quarry/platform-kernel/db/liveness';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
 import { AuditRepository } from '@quarry/platform-kernel/services/Audit/audit.repository';
@@ -73,6 +74,22 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
             await this.audit.recordOpen(principal, { rid, type: 'lineage-exploration', application });     // joins this transaction
 
         return exploration;
+    }
+
+    /** Every live exploration the user can read (RLS). */
+    @Transactional()
+    async list(principal: Principal): Promise<LineageExplorer.Exploration[]> {
+        const rows = await this.trx
+            .selectFrom('lineage_explorer.exploration as e')
+            .innerJoin('library.resource as r', 'r.rid', 'e.rid')
+            .selectAll('r')
+            .select(['e.rid as exploration_rid', 'e.branch', 'e.nodes'])
+            .where(isLive('r.rid'))
+            .orderBy('r.name')
+            .execute();
+
+        return rows.map(({ exploration_rid, branch, nodes, ...resource }) =>
+            LineageExplorerDB.Exploration.toDomain({ rid: exploration_rid, type: 'lineage-exploration', branch, nodes }, resource));
     }
 
     @Transactional()

@@ -38,6 +38,24 @@ describe('explorations', () => {
         await expect(harness.library.get(user, exploration.rid)).resolves.toMatchObject({ rid: exploration.rid, type: 'lineage-exploration' });
     });
 
+    it('lists what the user can read, and not what\'s trashed', async () => {
+        const reader = await harness.createUser('member');
+        const shared = await harness.createProject(user);
+        const hidden = await harness.createProject(user);
+        const listed = await create(shared);
+        const trashed = await create(shared);
+        const other = await create(hidden);
+
+        await harness.grant(user, shared, reader, 'viewer');
+        await harness.trash(user, trashed.rid);
+
+        const rids = (await harness.explorations.list(reader)).map((exploration) => exploration.rid);
+
+        expect(rids).toContain(listed.rid);
+        expect(rids).not.toContain(trashed.rid);
+        expect(rids).not.toContain(other.rid);
+    });
+
     it('opens with the edges among its nodes, read now', async () => {
         const projectRid = await harness.createProject(user);
         const { a, b, other } = await harness.createFolders(user, projectRid, ['a', 'b', 'other']);

@@ -1,0 +1,62 @@
+import { LineageExplorer, type Platform } from '@quarry/shared/domain'
+import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
+import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
+import { api, describeError, errorMessage } from '@/SDKs/api'
+import { AuditSDK } from '@/SDKs/AuditSDK/sdk'
+import type { LineageExplorerSDKImpl } from '../sdk'
+
+/** `LineageExplorerSDK.actions.exploration` */
+export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
+
+    protected readonly log = log.withContext('LineageExplorer.Actions.Exploration')
+
+    /** The exploration's page opening — its route's loader, on enter. One request: it, its graph, the open recorded (audit). */
+    public async open(rid: LineageExplorer.Exploration.Rid, application: Platform.Application.Id): Promise<LineageExplorer.API.Exploration.Open.Response> {
+        const data = await LineageExplorer.API.Exploration.open(api, rid, { application })
+
+        this.sdk.setState(state => {
+            state.explorations[rid] = data.exploration
+            state.graphs[rid] = data.graph
+        })
+
+        void AuditSDK.invalidate(AuditSDK.query.recents(application))
+
+        return data
+    }
+
+    public list(): Promise<LineageExplorer.API.Exploration.List.Response> {
+        return LineageExplorer.API.Exploration.list(api)
+    }
+
+    public async create(request: LineageExplorer.API.Exploration.Create.Request): Promise<LineageExplorer.Exploration> {
+        try {
+            const { exploration } = await LineageExplorer.API.Exploration.create(api, request)
+
+            void this.sdk.invalidate(this.sdk.query.explorations)
+
+            return exploration
+        } catch (error) {
+            this.log.error('create failed', describeError(error))
+            NotificationSDK.toast.error("Couldn't create the exploration", { description: errorMessage(error) })
+
+            throw error
+        }
+    }
+
+    public async save(rid: LineageExplorer.Exploration.Rid, nodes: LineageExplorer.Exploration['nodes']): Promise<LineageExplorer.Exploration> {
+        try {
+            const { exploration } = await LineageExplorer.API.Exploration.save(api, rid, { nodes })
+
+            this.sdk.setState(state => {
+                state.explorations[rid] = exploration
+            })
+
+            return exploration
+        } catch (error) {
+            this.log.error('save failed', describeError(error))
+            NotificationSDK.toast.error("Couldn't save the exploration", { description: errorMessage(error) })
+
+            throw error
+        }
+    }
+}

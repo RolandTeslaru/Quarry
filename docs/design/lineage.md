@@ -2,7 +2,7 @@
 
 **Lineage** is Quarry's equivalent of Foundry's Data Lineage, and **Lineage Explorer** is its app: how resources feed each other, whatever their types. A dataset, a source, an ontology object type and an App Builder app are all nodes in one graph, and lineage covers both directions from any of them.
 
-The backend is built: the table, its policies, `library.lineage` in the kernel, Forge writing edges when recipes are published, the read endpoints, and the Lineage Explorer service. The frontend app isn't.
+Built: the table, its policies, `library.lineage` in the kernel, Forge writing edges when recipes are published, the read endpoints, the Lineage Explorer service and its app.
 
 ## 1. Vocabulary
 
@@ -62,7 +62,7 @@ Passing reads declare nothing: previewing a dataset in a workspace isn't a resou
 
 A read applies `library.resource`'s policy to both ends of an edge, so a resource the reader can't discover stops the walk even if there's something visible beyond it. Without that, the declarer policy in §5 would show its editors edges to resources they can't see.
 
-Browsers read through the main server, `GET /api/resources/:rid/lineage/upstream` and `/downstream`, with `LibrarySDK.actions.lineage`. Any app can show a resource's lineage this way.
+Browsers read through the main server, with `LibrarySDK.actions.lineage`: `GET /api/resources/:rid/lineage/upstream` and `/downstream`, and `POST /api/resources/lineage/graph` for a set of resources. Any app can show a resource's lineage this way.
 
 ## 5. Permissions
 
@@ -101,9 +101,11 @@ An exploration (`LineageExplorer.Exploration`) is a library resource of type `li
 - **Nodes have no foreign keys,** so a purge doesn't touch explorations: a purged resource just stops showing.
 - **Hidden nodes stay in `nodes`.** A node the viewer can't see, or a trashed one, is missing from `graph` but still in `exploration.nodes`. A client must send those back when it saves: otherwise someone with less access would delete them for everyone. It means a viewer can see a hidden resource's RID, but nothing else about it.
 - **Saving** (`PUT explorations/:rid/nodes`) replaces `nodes`, and the last save wins. It doesn't touch `library.resource.updated_at` yet.
+- **The app** (`apps/lineage-explorer`, with `SDKs/LineageExplorerSDK`) uses React Flow (`@xyflow/react`) and Dagre. React Flow's state is the truth until Save. There's no reconcile layer, because edges are read-only: whenever the nodes change, it rereads them with `getGraph`.
+- **Layout:** Dagre, left to right, only on **Layout all nodes**, because it can't pin nodes and would undo dragging. Expand puts new neighbours in a column beside the node, and Add resource puts one below everything.
 - **Permissions:** the row needs `read` to open and `write` to save. Someone who can only `discover` it sees it in the Library but can't open it.
 
 ## 9. Later
 
 - A `kind` column (`derives`, `uses`), with the first `uses` edge. Markings should travel along `derives`.
-- The Lineage Explorer app and `LineageExplorerSDK`, then building from the graph and staleness.
+- In Lineage Explorer: the legend and colour layouts, selection layouts (vertical, hierarchical, by level), building from the graph, and staleness.

@@ -63,6 +63,15 @@ export class LibraryController {
         return { graph: await this.library.lineage.getDownstream(principal, rid, branch, walk) };
     }
 
+    @Post('resources/lineage/graph')
+    @HttpCode(200)
+    async getLineageGraph(
+        @CurrentPrincipal() principal: Principal.User,
+        @Body(new ZodPipe(API.Lineage.GetGraph.Request)) body: API.Lineage.GetGraph.Request,
+    ): Promise<API.Lineage.GetGraph.Response> {
+        return { graph: await this.library.lineage.getGraph(principal, body.rids, body.branch) };
+    }
+
     /** An app opened the resource's page: the resource, the open recorded (audit). */
     @Post('resources/:rid/open')
     @HttpCode(200)

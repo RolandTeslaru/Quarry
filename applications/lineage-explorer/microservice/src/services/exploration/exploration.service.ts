@@ -5,7 +5,7 @@ import { LibraryService } from '@quarry/platform-kernel/services/Library/library
 import { ExplorationRepository } from './exploration.repository';
 
 /**
- * Saved explorations: create, open, save. Rows are plain, so row-level security decides who may do
+ * Saved explorations: create, list, open, save. Rows are plain, so row-level security decides who may do
  * what. Lineage is the Library's: an exploration holds its nodes, and its edges are read when it's opened.
  */
 @Injectable()
@@ -25,6 +25,10 @@ export class ExplorationService {
             branch:      request.branch,
             nodes:       request.nodes,
         });
+    }
+
+    async list(principal: Principal): Promise<LineageExplorer.Exploration[]> {
+        return this.repository.list(principal);
     }
 
     /** An app opening the exploration — the open recorded with the read (audit). Only users open pages. */

@@ -22,6 +22,12 @@ export namespace Exploration {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Every live exploration the caller can read — Lineage Explorer's home. */
+    export namespace List {
+        export const Response = z.object({ explorations: ExplorationD.Schema.array() })
+        export type  Response = z.infer<typeof Response>
+    }
+
     /** An app opening the exploration: it, its graph read now, the open recorded (audit). */
     export namespace Open {
         /** Which app opened it — recorded with the open. */
@@ -47,6 +53,11 @@ export namespace Exploration {
     export async function create(api: AxiosInstance, req: Create.Request): Promise<Create.Response> {
         const { data } = await api.post("/api/lineage-explorer/explorations", req)
         return Create.Response.parse(data)
+    }
+
+    export async function list(api: AxiosInstance): Promise<List.Response> {
+        const { data } = await api.get("/api/lineage-explorer/explorations")
+        return List.Response.parse(data)
     }
 
     export async function open(api: AxiosInstance, rid: ExplorationD.Rid, req: Open.Request): Promise<Open.Response> {

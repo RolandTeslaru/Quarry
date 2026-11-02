@@ -4,6 +4,7 @@ import { LibrarySDK } from './LibrarySDK/sdk'
 import { KeychainSDK } from './KeychainSDK/sdk'
 import { DataConnectionSDK } from './DataConnectionSDK/sdk'
 import { CatalogSDK } from './CatalogSDK/sdk'
+import { LineageExplorerSDK } from './LineageExplorerSDK/sdk'
 import { RealtimeSDK } from './RealtimeSDK/sdk'
 import { cancelSessionRequests } from './api'
 
@@ -12,6 +13,7 @@ const sessionSDKs = [
     KeychainSDK,
     DataConnectionSDK,
     CatalogSDK,
+    LineageExplorerSDK,
     RealtimeSDK,
 ]
 
