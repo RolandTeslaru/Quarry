@@ -36,26 +36,30 @@ function Exploration({ graph }: ExplorationProps) {
 
     return (
         <>
-            <App.Navbar>
-                <App.Navbar.Icon glyph={lineageExplorerApp.glyph} />
-                <App.Navbar.Rows>
-                    <ResourceBreadcrumbs rid={graph.rid} />
-                </App.Navbar.Rows>
-
-                <App.Navbar.Actions>
-                    <Button icon='add' onClick={canvas.openAddResource}>Add resource</Button>
-                    <Button icon='layout-auto' disabled={canvas.nodes.length === 0} onClick={canvas.layoutAll}>
-                        Layout all nodes
-                    </Button>
-                    <Button intent='primary' icon='floppy-disk' loading={canvas.saving} disabled={!canvas.dirty} onClick={canvas.save}>
-                        Save
-                    </Button>
-                </App.Navbar.Actions>
-            </App.Navbar>
-
-            <App.Content className='relative min-h-0 flex-1 overflow-hidden'>
+            <App.Background>
                 <LineageCanvas canvas={canvas} />
-            </App.Content>
+            </App.Background>
+
+            <App.Overlay>
+                <App.Nav>
+                    <App.Nav.Start>
+                        <App.Nav.Icon glyph={lineageExplorerApp.glyph} />
+                        <App.Nav.Rows>
+                            <ResourceBreadcrumbs rid={graph.rid} />
+                        </App.Nav.Rows>
+                    </App.Nav.Start>
+
+                    <App.Nav.End>
+                        <Button icon='add' onClick={canvas.openAddResource}>Add resource</Button>
+                        <Button icon='layout-auto' disabled={canvas.nodes.length === 0} onClick={canvas.layoutAll}>
+                            Layout all nodes
+                        </Button>
+                        <Button intent='primary' icon='floppy-disk' loading={canvas.saving} disabled={!canvas.dirty} onClick={canvas.save}>
+                            Save
+                        </Button>
+                    </App.Nav.End>
+                </App.Nav>
+            </App.Overlay>
         </>
     )
 }

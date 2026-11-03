@@ -78,7 +78,9 @@ code {
     background-color: var(--placeholder-foreground) !important;
 }
 
-:root {
+/* `.light` brings the light palette back inside a `.dark` page, as `.dark` does the other way. */
+:root,
+.light {
     --background: theme(--color-gray-100);
     --foreground: #2c1810;
 
@@ -112,7 +114,8 @@ code {
     --accent-foreground: theme(--color-neutral-700);
 
     --destructive: theme(--color-red-500);
-    --border: rgba(38, 38, 38, 0.281);
+    /* Blueprint's light divider tint; 18% lands on Foundry's rendered rgb(211 212 214) over white panels. */
+    --border: rgba(17, 20, 24, 0.18);
     --separator: rgb(190 188 186);
 
     --muted: oklch(95.2% 0 0);
@@ -129,7 +132,7 @@ code {
     --error-foreground: theme(--color-red-700);
     --input: theme(--color-white);
     --input-border: var(--border);
-    --input-shadow: 0 1px 1px rgb(0 0 0 / 0.3);
+    --input-shadow: 0 1px 1px rgb(0 0 0 / 0.1);
 
     --radius: 10px;
     --canvas-dot: #8f867f;
@@ -220,7 +223,7 @@ code {
 
     --input: color-mix(in srgb, var(--dark-gray-0) 30%, transparent);
     --input-border: color-mix(in srgb, var(--light-gray-1) 20%, transparent);
-    --input-shadow: 0 -1px 1px rgb(255 255 255 / 0.3);
+    --input-shadow: 0 -1px 1px rgb(255 255 255 / 0.1);
     --ring: color-mix(in oklch, #4c90f0 55%, transparent);
     --canvas-dot: var(--dark-gray-5);
     --placeholder-foreground: var(--gray-2);

@@ -30,38 +30,40 @@ function LayoutDemoApp() {
     const current = PANELS.find(item => item.id === panel)
 
     return (
-        <>
-            <App.Navbar>
-                <App.Navbar.Icon glyph={layoutDemoApp.glyph} />
-                <App.Navbar.Rows>
-                    <App.Navbar.Breadcrumbs>
-                        <Breadcrumb.Item>Test apps</Breadcrumb.Item>
-                        <Breadcrumb.Separator />
-                        <Breadcrumb.Item>
-                            <App.Navbar.Title>Layout demo</App.Navbar.Title>
-                        </Breadcrumb.Item>
-                    </App.Navbar.Breadcrumbs>
+        <App.Overlay>
+            <App.Nav>
+                <App.Nav.Start>
+                    <App.Nav.Icon glyph={layoutDemoApp.glyph} />
+                    <App.Nav.Rows>
+                        <App.Nav.Breadcrumbs>
+                            <Breadcrumb.Item>Test apps</Breadcrumb.Item>
+                            <Breadcrumb.Separator />
+                            <Breadcrumb.Item>
+                                <App.Nav.Title>Layout demo</App.Nav.Title>
+                            </Breadcrumb.Item>
+                        </App.Nav.Breadcrumbs>
 
-                    <App.Navbar.Menubar>
-                        <Menubar.Menu>
-                            <Menubar.Trigger>File</Menubar.Trigger>
-                            <Menubar.Content>
-                                <Menubar.Item disabled>New…</Menubar.Item>
-                                <Menubar.Item disabled>Save</Menubar.Item>
-                            </Menubar.Content>
-                        </Menubar.Menu>
-                        <Menubar.Menu>
-                            <Menubar.Trigger>View</Menubar.Trigger>
-                            <Menubar.Content>
-                                <Menubar.Item onSelect={() => setRightOpen(open => !open)}>
-                                    {rightOpen ? 'Hide' : 'Show'} details panel
-                                </Menubar.Item>
-                            </Menubar.Content>
-                        </Menubar.Menu>
-                    </App.Navbar.Menubar>
-                </App.Navbar.Rows>
+                        <App.Nav.Menubar>
+                            <Menubar.Menu>
+                                <Menubar.Trigger>File</Menubar.Trigger>
+                                <Menubar.Content>
+                                    <Menubar.Item disabled>New…</Menubar.Item>
+                                    <Menubar.Item disabled>Save</Menubar.Item>
+                                </Menubar.Content>
+                            </Menubar.Menu>
+                            <Menubar.Menu>
+                                <Menubar.Trigger>View</Menubar.Trigger>
+                                <Menubar.Content>
+                                    <Menubar.Item onSelect={() => setRightOpen(open => !open)}>
+                                        {rightOpen ? 'Hide' : 'Show'} details panel
+                                    </Menubar.Item>
+                                </Menubar.Content>
+                            </Menubar.Menu>
+                        </App.Nav.Menubar>
+                    </App.Nav.Rows>
+                </App.Nav.Start>
 
-                <App.Navbar.Actions>
+                <App.Nav.End>
                     <Button icon='share' disabled>Share</Button>
                     <Button
                         variant='minimal'
@@ -70,27 +72,29 @@ function LayoutDemoApp() {
                         aria-pressed={rightOpen}
                         onClick={() => setRightOpen(open => !open)}
                     />
-                </App.Navbar.Actions>
-            </App.Navbar>
+                </App.Nav.End>
+            </App.Nav>
 
-            <App.LeftNav>
-                {PANELS.map(item => (
-                    <App.LeftNav.Item
-                        key={item.id}
-                        icon={item.icon}
-                        label={item.label}
-                        active={panel === item.id}
-                        onSelect={() => setPanel(item.id)}
-                    />
-                ))}
-            </App.LeftNav>
+            <App.LeftSidebar className='flex-row overflow-hidden'>
+                <App.LeftNav>
+                    {PANELS.map(item => (
+                        <App.LeftNav.Item
+                            key={item.id}
+                            icon={item.icon}
+                            label={item.label}
+                            active={panel === item.id}
+                            onSelect={() => setPanel(item.id)}
+                        />
+                    ))}
+                </App.LeftNav>
 
-            <App.LeftSidebar>
-                <div className='border-b border-border px-4 py-3'>
-                    <h2 className='text-sm font-semibold'>{current?.label}</h2>
-                    <p className='text-xs text-muted-foreground'>Chosen in the left nav.</p>
+                <div className='flex w-64 min-w-0 flex-col overflow-y-auto'>
+                    <div className='border-b border-border px-4 py-3'>
+                        <h2 className='text-sm font-semibold'>{current?.label}</h2>
+                        <p className='text-xs text-muted-foreground'>Chosen in the left nav.</p>
+                    </div>
+                    <p className='p-4 text-sm text-muted-foreground'>Placeholder for the {current?.label.toLowerCase()} panel.</p>
                 </div>
-                <p className='p-4 text-sm text-muted-foreground'>Placeholder for the {current?.label.toLowerCase()} panel.</p>
             </App.LeftSidebar>
 
             <App.Content>
@@ -119,7 +123,7 @@ function LayoutDemoApp() {
                 <App.RightSidebar>
                     <div className='border-b border-border px-4 py-3'>
                         <h2 className='text-sm font-semibold'>Details</h2>
-                        <p className='text-xs text-muted-foreground'>The selection, toggled from the navbar.</p>
+                        <p className='text-xs text-muted-foreground'>The selection, toggled from the nav.</p>
                     </div>
                     <dl className='grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 p-4 text-sm'>
                         <dt className='text-muted-foreground'>Selected</dt>
@@ -129,6 +133,6 @@ function LayoutDemoApp() {
                     </dl>
                 </App.RightSidebar>
             )}
-        </>
+        </App.Overlay>
     )
 }

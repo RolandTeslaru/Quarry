@@ -74,60 +74,62 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
     const sessionBusy = sessionRequest.isFetching || restart.pending
 
     return (
-        <>
-            <App.Navbar>
-                <App.Navbar.Icon glyph={codeWorkspacesApp.glyph} />
-                <App.Navbar.Rows>
-                    <ResourceBreadcrumbs rid={rid} />
-                    <App.Navbar.Menubar>
-                        <Menubar.Menu>
-                            <Menubar.Trigger>File</Menubar.Trigger>
-                            <Menubar.Content>
+        <App.Overlay>
+            <App.Nav>
+                <App.Nav.Start>
+                    <App.Nav.Icon glyph={codeWorkspacesApp.glyph} />
+                    <App.Nav.Rows>
+                        <ResourceBreadcrumbs rid={rid} />
+                        <App.Nav.Menubar>
+                            <Menubar.Menu>
+                                <Menubar.Trigger>File</Menubar.Trigger>
+                                <Menubar.Content>
                                 
-                            </Menubar.Content>
-                        </Menubar.Menu>
-                        <Menubar.Menu>
-                            <Menubar.Trigger>IDE</Menubar.Trigger>
-                            <Menubar.Content>
-                                {/* Starts the session again if it stopped, and reloads the editor with it. */}
-                                <Menubar.Item disabled={sessionBusy} onSelect={() => void sessionRequest.refetch()}>
-                                    <Icon name='refresh' />
-                                    {sessionRequest.isFetching ? 'Reconnecting…' : 'Reconnect'}
-                                </Menubar.Item>
-                                {/* A fresh container from the current runtime image; the working copy stays. */}
-                                <Menubar.Item
-                                    disabled={sessionBusy}
-                                    onSelect={withRestart(() => CodeWorkspaceSDK.actions.session.restart(rid))}
-                                >
-                                    <Icon name='power' />
-                                    {restart.pending ? 'Restarting…' : 'Restart'}
-                                </Menubar.Item>
-                            </Menubar.Content>
-                        </Menubar.Menu>
-                        <Menubar.Menu>
-                            <Menubar.Trigger>Help</Menubar.Trigger>
-                            <Menubar.Content>
+                                </Menubar.Content>
+                            </Menubar.Menu>
+                            <Menubar.Menu>
+                                <Menubar.Trigger>IDE</Menubar.Trigger>
+                                <Menubar.Content>
+                                    {/* Starts the session again if it stopped, and reloads the editor with it. */}
+                                    <Menubar.Item disabled={sessionBusy} onSelect={() => void sessionRequest.refetch()}>
+                                        <Icon name='refresh' />
+                                        {sessionRequest.isFetching ? 'Reconnecting…' : 'Reconnect'}
+                                    </Menubar.Item>
+                                    {/* A fresh container from the current runtime image; the working copy stays. */}
+                                    <Menubar.Item
+                                        disabled={sessionBusy}
+                                        onSelect={withRestart(() => CodeWorkspaceSDK.actions.session.restart(rid))}
+                                    >
+                                        <Icon name='power' />
+                                        {restart.pending ? 'Restarting…' : 'Restart'}
+                                    </Menubar.Item>
+                                </Menubar.Content>
+                            </Menubar.Menu>
+                            <Menubar.Menu>
+                                <Menubar.Trigger>Help</Menubar.Trigger>
+                                <Menubar.Content>
                                 
-                            </Menubar.Content>
-                        </Menubar.Menu>
-                    </App.Navbar.Menubar>
-                </App.Navbar.Rows>
+                                </Menubar.Content>
+                            </Menubar.Menu>
+                        </App.Nav.Menubar>
+                    </App.Nav.Rows>
 
-                <Tabs.Root value={tab} activationMode='manual' className='self-stretch'>
-                    <Tabs.List variant='underline' className='h-full! px-4 border-l border-border'>
-                        {Object.entries(WORKSPACE_TABS).map(([value, { label, to }]) => (
-                            <Tabs.Trigger key={value} value={value} asChild>
-                                <Link to={to} params={{ rid }} className='gap-1.5'>
-                                    {label}
-                                    {value === 'checks' && checkRunning && <Icon name='spinner' title='A check is running' />}
-                                </Link>
-                            </Tabs.Trigger>
-                        ))}
-                    </Tabs.List>
-                </Tabs.Root>
+                    <Tabs.Root value={tab} activationMode='manual' className='self-stretch'>
+                        <Tabs.List variant='underline' className='h-full! px-4 border-l border-border'>
+                            {Object.entries(WORKSPACE_TABS).map(([value, { label, to }]) => (
+                                <Tabs.Trigger key={value} value={value} asChild>
+                                    <Link to={to} params={{ rid }} className='gap-1.5'>
+                                        {label}
+                                        {value === 'checks' && checkRunning && <Icon name='spinner' title='A check is running' />}
+                                    </Link>
+                                </Tabs.Trigger>
+                            ))}
+                        </Tabs.List>
+                    </Tabs.Root>
+                </App.Nav.Start>
 
                 {tab === 'code' && (
-                    <App.Navbar.Actions>
+                    <App.Nav.End>
                         <Button
                             icon='play'
                             disabled={sessionBusy}
@@ -142,18 +144,19 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
                         >
                             Build
                         </Button>
-                    </App.Navbar.Actions>
+                    </App.Nav.End>
                 )}
-            </App.Navbar>
+            </App.Nav>
 
-            <App.Content className='overflow-hidden'>
+            {/* The IDE doesn't scroll: right under the nav, no gap, and ending clear of the window's bottom edge. */}
+            <App.Content className='overflow-hidden pt-[calc(var(--app-nav-height)+--spacing(2))] pb-2'>
                 <div className={cn('min-h-0 flex-1', tab !== 'code' && 'hidden')}>
                     <IDESessionFrame rid={rid} restarting={restart.pending} />
                 </div>
 
                 <Outlet />
             </App.Content>
-        </>
+        </App.Overlay>
     )
 }
 

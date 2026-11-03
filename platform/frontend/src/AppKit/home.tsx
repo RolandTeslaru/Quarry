@@ -11,7 +11,7 @@ import { ResourceIcon } from '@/components/ResourceIcon'
 import { resourceRoute } from '@/routes/shell.layout/components/apps'
 import { ago } from '@/utils/format'
 import { Glyph } from './glyph/Glyph'
-import { useApp } from './layout'
+import { SafeArea, useApp } from './layout'
 
 // An app's home screen — its route without a rid (`/<app>`, routes/index.tsx),
 // inside the app's App.Root. Like an iPad app's document browser: the app's
@@ -33,12 +33,12 @@ import { useApp } from './layout'
 //
 // Logo, Title and TitleDescription show the app's own (App.useApp) unless given children.
 
-/** The whole home screen, spanning every column of the app's grid. */
+/** The whole home screen, filling the app. */
 function Root({ className, ...props }: ComponentProps<'div'>) {
     return (
         <div
             data-slot='app-home'
-            className={cn('surface-content flex min-h-0 flex-col overflow-hidden [grid-area:1/1/-1/-1]', className)}
+            className={cn('surface-content flex h-full min-h-0 flex-col overflow-hidden', className)}
             {...props}
         />
     )
@@ -78,13 +78,16 @@ function Header({ className, children, ...props }: ComponentProps<'header'>) {
                 </div>
             )}
 
-            <div
-                className={`relative mx-auto grid h-full w-full max-w-4xl grid-cols-[auto_minmax(0,1fr)]
-                content-center items-center gap-x-6 gap-y-1 px-6 py-6
-                [grid-template-areas:'logo_pretitle'_'logo_title'_'logo_description']`}
-            >
-                {children}
-            </div>
+            {/* The dither reaches under the shell's sidebar; the app's identity stays clear of it. */}
+            <SafeArea className='relative h-full'>
+                <div
+                    className={`mx-auto grid h-full w-full max-w-4xl grid-cols-[auto_minmax(0,1fr)]
+                    content-center items-center gap-x-6 gap-y-1 px-6 py-6
+                    [grid-template-areas:'logo_pretitle'_'logo_title'_'logo_description']`}
+                >
+                    {children}
+                </div>
+            </SafeArea>
         </header>
     )
 }
@@ -162,18 +165,20 @@ function Actions({ className, ...props }: ComponentProps<'div'>) {
 /** The main content below the banner, inside a Card that scrolls on its own. */
 function Content({ className, children, ...props }: ComponentProps<'main'>) {
     return (
-        <main
-            data-slot='app-home-content'
-            className={cn(
-                'mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-6 py-6',
-                className,
-            )}
-            {...props}
-        >
-            <Card.Root className='min-h-0 gap-0 overflow-auto py-0'>
-                {children}
-            </Card.Root>
-        </main>
+        <SafeArea className='flex min-h-0 flex-1 flex-col'>
+            <main
+                data-slot='app-home-content'
+                className={cn(
+                    'mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col px-6 py-6',
+                    className,
+                )}
+                {...props}
+            >
+                <Card.Root className='min-h-0 gap-0 overflow-auto py-0'>
+                    {children}
+                </Card.Root>
+            </main>
+        </SafeArea>
     )
 }
 

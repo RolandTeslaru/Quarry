@@ -11,7 +11,7 @@ interface HeaderProps {
 /** A bar pinned above the tree, usually holding its search. */
 export function Header({ className, children }: HeaderProps) {
     return (
-        <div className={cn('sticky top-0 z-10 flex items-center gap-2 border-b border-border surface px-3 py-2', className)}>
+        <div className={cn('sticky top-0 z-10 flex items-center gap-2 surface px-3 py-2', className)}>
             {children}
         </div>
     )

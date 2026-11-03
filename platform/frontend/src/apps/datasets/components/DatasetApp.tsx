@@ -39,37 +39,39 @@ export function DatasetApp({ rid }: Props) {
     }
 
     return (
-        <>
-            <App.Navbar>
-                <App.Navbar.Icon glyph={datasetsApp.glyph} />
-                <App.Navbar.Rows>
-                    <ResourceBreadcrumbs rid={rid} />
-                    <App.Navbar.Menubar>
-                        <Menubar.Menu>
-                            <Menubar.Trigger>File</Menubar.Trigger>
-                            <Menubar.Content>
-                                <Menubar.Item onSelect={() => CatalogSDK.dialogs.openUploadToDataset({ datasetRid: rid })}>
-                                    <Icon name='upload' />
-                                    Upload file…
-                                </Menubar.Item>
-                                <Menubar.Item onSelect={refresh}>
-                                    <Icon name='refresh' />
-                                    Refresh
-                                </Menubar.Item>
-                            </Menubar.Content>
-                        </Menubar.Menu>
-                    </App.Navbar.Menubar>
-                </App.Navbar.Rows>
+        <App.Overlay>
+            <App.Nav>
+                <App.Nav.Start>
+                    <App.Nav.Icon glyph={datasetsApp.glyph} />
+                    <App.Nav.Rows>
+                        <ResourceBreadcrumbs rid={rid} />
+                        <App.Nav.Menubar>
+                            <Menubar.Menu>
+                                <Menubar.Trigger>File</Menubar.Trigger>
+                                <Menubar.Content>
+                                    <Menubar.Item onSelect={() => CatalogSDK.dialogs.openUploadToDataset({ datasetRid: rid })}>
+                                        <Icon name='upload' />
+                                        Upload file…
+                                    </Menubar.Item>
+                                    <Menubar.Item onSelect={refresh}>
+                                        <Icon name='refresh' />
+                                        Refresh
+                                    </Menubar.Item>
+                                </Menubar.Content>
+                            </Menubar.Menu>
+                        </App.Nav.Menubar>
+                    </App.Nav.Rows>
+                </App.Nav.Start>
 
-                <App.Navbar.Actions>
+                <App.Nav.End>
                     <Button icon='refresh' loading={viewRequest.isFetching} onClick={refresh}>
                         Refresh
                     </Button>
                     <Button intent='primary' icon='upload' onClick={() => CatalogSDK.dialogs.openUploadToDataset({ datasetRid: rid })}>
                         Upload file
                     </Button>
-                </App.Navbar.Actions>
-            </App.Navbar>
+                </App.Nav.End>
+            </App.Nav>
 
             <App.LeftSidebar className='w-96'>
                 <ViewTabs />
@@ -115,7 +117,7 @@ export function DatasetApp({ rid }: Props) {
                     <DatasetPreview rid={rid} />
                 </div>
             </App.Content>
-        </>
+        </App.Overlay>
     )
 }
 

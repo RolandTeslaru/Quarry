@@ -21,7 +21,7 @@ export function ResourceBreadcrumbs({ rid }: Props) {
     const ancestors = path.slice(0, -1)
 
     return (
-        <App.Navbar.Breadcrumbs>
+        <App.Nav.Breadcrumbs>
             {ancestors.map(ancestor => (
                 <Fragment key={ancestor.rid}>
                     <Breadcrumb.Item>
@@ -34,10 +34,10 @@ export function ResourceBreadcrumbs({ rid }: Props) {
             ))}
 
             <Breadcrumb.Item>
-                <App.Navbar.Title>
+                <App.Nav.Title>
                     {resource?.name ?? (pathRequest.isPending ? 'Loading…' : 'Not found')}
-                </App.Navbar.Title>
+                </App.Nav.Title>
             </Breadcrumb.Item>
-        </App.Navbar.Breadcrumbs>
+        </App.Nav.Breadcrumbs>
     )
 }

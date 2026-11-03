@@ -12,7 +12,7 @@ import { App } from '@/AppKit'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { APPS } from './apps'
 import { Launchpad } from './Launchpad'
-import { applyTheme, readSidebarExpanded, readTheme, writeSidebarExpanded, writeTheme, type Theme } from './preferences'
+import { applyTheme, readTheme, writeTheme, type Theme } from './preferences'
 
 const NAVIGATION_APPS = APPS.filter(app => app.inNavigation)
 
@@ -35,15 +35,23 @@ const NAV_LINK = cn(
     'hover:bg-muted hover:text-foreground hover:no-underline',
 )
 
+interface ShellSidebarProps {
+    expanded: boolean
+    onToggle: () => void
+}
+
 /** The shell's navigation: a narrow icon strip, expandable to labels and the project list. */
-export function ShellSidebar() {
-    const [expanded, setExpanded] = useState(readSidebarExpanded)
+export function ShellSidebar({ expanded, onToggle }: ShellSidebarProps) {
+    const [theme, setTheme] = useState(readTheme)
 
-    function toggle() {
-        const next = !expanded
+    // Before paint, so a reload never flashes the other theme.
+    useLayoutEffect(() => {
+        applyTheme(theme)
+    }, [theme])
 
-        setExpanded(next)
-        writeSidebarExpanded(next)
+    function changeTheme(next: Theme) {
+        setTheme(next)
+        writeTheme(next)
     }
 
     return (
@@ -51,15 +59,16 @@ export function ShellSidebar() {
             data-expanded={expanded}
             aria-label='Workspace'
             className={cn(
-                // Always dark: `.dark` here switches the palette for the sidebar only, whatever the theme.
-                // Opaque, so the page behind doesn't lighten it in light mode.
-                'dark surface-elevated-sidebar [--material-opacity:100%]',
-                // In dark mode the page is already dark, so the sidebar goes a step darker to stay set apart.
-                '[.dark_&]:bg-rail',
-                'group flex h-full w-58 shrink-0 flex-col overflow-hidden',
+                // The opposite of the page: `.dark` or `.light` here switches the palette for the sidebar only.
+                theme === 'light' && 'dark',
+                theme === 'dark' && 'light',
+                // Opaque, so the page behind doesn't tint it.
+                'surface-elevated-sidebar [--material-opacity:100%]',
+                // Light on a dark page: the light palette's pale grey, not pure white.
+                '[.dark_&]:bg-(--surface-content)',
+                'group flex h-full w-(--shell-sidebar-width) shrink-0 flex-col overflow-hidden',
                 'border-r border-r-separator px-2 pb-3 text-foreground',
                 'transition-[width] duration-200 ease-out motion-reduce:transition-none',
-                'data-[expanded=false]:w-14 max-sm:w-14',
             )}
         >
             <div className='mb-6 flex h-14 shrink-0 items-center gap-1.5'>
@@ -69,7 +78,7 @@ export function ShellSidebar() {
                     aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
                     aria-expanded={expanded}
                     className='size-10 shrink-0 justify-center text-muted-foreground max-sm:hidden'
-                    onClick={toggle}
+                    onClick={onToggle}
                 />
                 <Brand />
             </div>
@@ -92,7 +101,7 @@ export function ShellSidebar() {
 
             <ProjectList />
 
-            <ThemeSelect />
+            <ThemeSelect theme={theme} onChange={changeTheme} />
 
             <SidebarFooter />
         </aside>
@@ -211,23 +220,20 @@ const THEMES: { value: Theme; label: string; icon: IconName }[] = [
     { value: 'dark', label: 'Dark', icon: 'moon' },
 ]
 
+interface ThemeSelectProps {
+    theme:    Theme
+    onChange: (theme: Theme) => void
+}
+
 /** Light or dark for the whole workspace; remembered per browser, the system's until chosen. */
-function ThemeSelect() {
-    const [theme, setTheme] = useState(readTheme)
-
-    // Before paint, so a reload never flashes the other theme.
-    useLayoutEffect(() => {
-        applyTheme(theme)
-    }, [theme])
-
+function ThemeSelect({ theme, onChange }: ThemeSelectProps) {
     function changeTheme(value: string) {
         const next = THEMES.find(option => option.value === value)
 
         if (!next)
             return
 
-        setTheme(next.value)
-        writeTheme(next.value)
+        onChange(next.value)
     }
 
     return (

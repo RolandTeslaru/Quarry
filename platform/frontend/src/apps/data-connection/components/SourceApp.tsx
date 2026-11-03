@@ -63,22 +63,24 @@ export function SourceApp({ rid, table }: Props) {
     const canExplore = definition?.capabilities.explore ?? false
 
     return (
-        <>
-            <App.Navbar>
-                <App.Navbar.Icon glyph={dataConnectionApp.glyph} />
-                <App.Navbar.Rows>
-                    <ResourceBreadcrumbs rid={rid} />
-                </App.Navbar.Rows>
+        <App.Overlay>
+            <App.Nav>
+                <App.Nav.Start>
+                    <App.Nav.Icon glyph={dataConnectionApp.glyph} />
+                    <App.Nav.Rows>
+                        <ResourceBreadcrumbs rid={rid} />
+                    </App.Nav.Rows>
+                </App.Nav.Start>
 
-                <App.Navbar.Actions>
+                <App.Nav.End>
                     <Button icon='link' loading={task.pending} disabled={!source} onClick={testConnection}>
                         Test connection
                     </Button>
                     <Button intent='primary' icon='add' disabled={!definition} onClick={() => createSync()}>
                         Create sync
                     </Button>
-                </App.Navbar.Actions>
-            </App.Navbar>
+                </App.Nav.End>
+            </App.Nav>
 
             <App.LeftSidebar className='w-96'>
                 <div className='flex items-start gap-2 px-4 py-3'>
@@ -126,7 +128,7 @@ export function SourceApp({ rid, table }: Props) {
                         </>
                     )}
             </App.Content>
-        </>
+        </App.Overlay>
     )
 }
 

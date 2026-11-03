@@ -50,57 +50,64 @@ export function LibraryExplorerApp({ cwd, tab }: Props) {
 
     return (
         <LibraryExplorer.Root cwd={cwd} setCwd={openFolder} onItemClick={openItem}>
-            <>
-                <App.Navbar>
-                    <App.Navbar.Icon glyph={libraryApp.glyph} />
-                    <App.Navbar.Rows>
-                        {tab === 'files' && <LibraryExplorer.View.Breadcrumbs size='sm' />}
-                        {tab === 'cloud' && <App.Navbar.Title>Cloud</App.Navbar.Title>}
-                        {tab === 'trash' && <App.Navbar.Title>Trash</App.Navbar.Title>}
-                    </App.Navbar.Rows>
-                    <App.Navbar.Actions>
-                        {tab === 'files' && <LibraryExplorer.View.SearchInput className='w-64' />}
-                        {tab === 'files' && <LibraryExplorer.View.CreateBtn />}
-                    </App.Navbar.Actions>
-                </App.Navbar>
+            <App.Overlay>
+                <App.Nav>
+                    <App.Nav.Start>
+                        <App.Nav.Icon glyph={libraryApp.glyph} />
+                        <App.Nav.Rows>
+                            {tab === 'files' && <LibraryExplorer.View.Breadcrumbs size='sm' />}
+                            {tab === 'cloud' && <App.Nav.Title>Cloud</App.Nav.Title>}
+                            {tab === 'trash' && <App.Nav.Title>Trash</App.Nav.Title>}
+                        </App.Nav.Rows>
+                    </App.Nav.Start>
 
-                <App.LeftNav>
-                    <App.LeftNav.Item
-                        icon='folder-close'
-                        label='Files'
-                        active={tab === 'files'}
-                        onSelect={() => openTab('files')}
-                    />
-                    <App.LeftNav.Item
-                        icon='cloud'
-                        label='Cloud — coming soon'
-                        active={tab === 'cloud'}
-                        disabled
-                        onSelect={() => openTab('cloud')}
-                    />
-                    <App.LeftNav.Item
-                        icon='trash'
-                        label='Trash'
-                        active={tab === 'trash'}
-                        onSelect={() => openTab('trash')}
-                    />
-                </App.LeftNav>
+                    {tab === 'files' && (
+                        <App.Nav.End>
+                            <LibraryExplorer.View.SearchInput className='w-64' />
+                            <LibraryExplorer.View.CreateBtn />
+                        </App.Nav.End>
+                    )}
+                </App.Nav>
 
-                {tab === 'files' && (
-                    <App.LeftSidebar className='flex w-72 flex-col'>
-                        <LibraryExplorer.Tree.Header>
-                            <LibraryExplorer.Tree.SearchInput />
-                        </LibraryExplorer.Tree.Header>
-                        <LibraryExplorer.Tree className='px-2' />
-                    </App.LeftSidebar>
-                )}
+                <App.LeftSidebar className='flex-row overflow-hidden'>
+                    <App.LeftNav>
+                        <App.LeftNav.Item
+                            icon='folder-close'
+                            label='Files'
+                            active={tab === 'files'}
+                            onSelect={() => openTab('files')}
+                        />
+                        <App.LeftNav.Item
+                            icon='cloud'
+                            label='Cloud — coming soon'
+                            active={tab === 'cloud'}
+                            disabled
+                            onSelect={() => openTab('cloud')}
+                        />
+                        <App.LeftNav.Item
+                            icon='trash'
+                            label='Trash'
+                            active={tab === 'trash'}
+                            onSelect={() => openTab('trash')}
+                        />
+                    </App.LeftNav>
+
+                    {tab === 'files' && (
+                        <div className='flex w-64 min-w-0 flex-col overflow-y-auto'>
+                            <LibraryExplorer.Tree.Header>
+                                <LibraryExplorer.Tree.SearchInput />
+                            </LibraryExplorer.Tree.Header>
+                            <LibraryExplorer.Tree className='px-2' />
+                        </div>
+                    )}
+                </App.LeftSidebar>
 
                 <App.Content>
                     {tab === 'files' && <FilesTab cwd={cwd} />}
                     {tab === 'cloud' && <PlaceholderTab icon='cloud' title='Cloud is coming' />}
                     {tab === 'trash' && <PlaceholderTab icon='trash' title='Trash' />}
                 </App.Content>
-            </>
+            </App.Overlay>
         </LibraryExplorer.Root>
     )
 }
@@ -112,9 +119,9 @@ interface FilesTabProps {
 /** The projects as cards; inside a project, the open folder's items. */
 function FilesTab({ cwd }: FilesTabProps) {
     if (cwd === null)
-        return <ProjectCards className='p-6' />
+        return <ProjectCards className='px-6 pb-6' />
 
-    return <LibraryExplorer.View className='p-6' />
+    return <LibraryExplorer.View className='px-6 pb-6' />
 }
 
 interface PlaceholderTabProps {
@@ -129,7 +136,7 @@ function PlaceholderTab({ icon, title }: PlaceholderTabProps) {
         : 'Files from cloud storage will show up here.'
 
     return (
-        <div className='p-6'>
+        <div className='px-6 pb-6'>
             <Empty icon={icon} title={title} description={description} />
         </div>
     )

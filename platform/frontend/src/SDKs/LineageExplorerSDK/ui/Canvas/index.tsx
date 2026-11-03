@@ -43,7 +43,8 @@ export function LineageCanvas({ canvas }: Props) {
                 fitView
             >
                 <Background />
-                <Controls showInteractive={false} />
+                {/* Bottom right: the bottom left is under the shell's sidebar. */}
+                <Controls position='bottom-right' showInteractive={false} />
             </ReactFlow>
 
             {canvas.nodes.length === 0 && (
@@ -60,7 +61,10 @@ export function LineageCanvas({ canvas }: Props) {
             )}
 
             {canvas.error && (
-                <div className='absolute top-3 left-3 max-w-md'>
+                <div
+                    className={`absolute top-[calc(var(--app-nav-height)+--spacing(5))]
+                    left-[calc(var(--shell-sidebar-width)+--spacing(5))] max-w-md`}
+                >
                     <ErrorNotice error={canvas.error} />
                 </div>
             )}
