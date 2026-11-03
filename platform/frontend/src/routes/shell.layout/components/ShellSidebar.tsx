@@ -36,7 +36,7 @@ const NAV_LINK = cn(
 )
 
 /** The shell's navigation: a narrow icon strip, expandable to labels and the project list. */
-export function WorkspaceSidebar() {
+export function ShellSidebar() {
     const [expanded, setExpanded] = useState(readSidebarExpanded)
 
     function toggle() {
@@ -56,7 +56,7 @@ export function WorkspaceSidebar() {
                 'dark surface-elevated-sidebar [--material-opacity:100%]',
                 // In dark mode the page is already dark, so the sidebar goes a step darker to stay set apart.
                 '[.dark_&]:bg-rail',
-                'group sticky top-0 flex h-screen w-58 shrink-0 flex-col overflow-hidden',
+                'group flex h-full w-58 shrink-0 flex-col overflow-hidden',
                 'border-r border-r-separator px-2 pb-3 text-foreground',
                 'transition-[width] duration-200 ease-out motion-reduce:transition-none',
                 'data-[expanded=false]:w-14 max-sm:w-14',

@@ -7,7 +7,7 @@ import type { IconName } from '@quarry/standard-ui/icons'
 import { App } from '@/AppKit'
 import { layoutDemoApp } from '../definition'
 
-export const Route = createFileRoute('/_workspace/layout-demo/')({
+export const Route = createFileRoute('/_shell/layout-demo/')({
     component: LayoutDemoApp,
 })
 

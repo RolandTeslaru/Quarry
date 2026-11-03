@@ -1,13 +1,13 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { Library } from '@quarry/shared/domain'
 import { LibraryExplorerApp } from '@/apps/library/components/LibraryExplorerApp'
-import { APP_FOR_TYPE } from '@/shell/apps'
+import { APP_FOR_TYPE } from '@/routes/shell.layout/components/apps'
 import { App } from '@/AppKit'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
 import { orNotFound } from '@/utils/loader'
 import { libraryApp } from '../definition'
 
-export const Route = createFileRoute('/_workspace/library/$rid')({
+export const Route = createFileRoute('/_shell/library/$rid')({
     params: {
         parse: params => {
             const parsed = Library.Resource.Rid.safeParse(params.rid)

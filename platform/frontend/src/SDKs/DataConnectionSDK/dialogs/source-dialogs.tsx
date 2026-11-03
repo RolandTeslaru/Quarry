@@ -18,7 +18,7 @@ import { ResourceInput } from '@/SDKs/LibrarySDK/ui/ResourceInput'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { useSearch } from '@/hooks/useSearch'
 import { JSONFieldSchemaRenderer, defaults, type Schema } from '@/components/JSONFieldSchemaRenderer'
-import { resourceRoute } from '@/shell/apps'
+import { resourceRoute } from '@/routes/shell.layout/components/apps'
 import { ResourceIcon } from '@/components/ResourceIcon'
 import { DataConnectionSDK } from '../sdk'
 

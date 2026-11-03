@@ -15,13 +15,13 @@ const apps = readdirSync(APPS_DIRECTORY, { withFileTypes: true })
     .map(entry => entry.name)
     .sort()
 
-export const routes = rootRoute('__root.tsx', [
+export const routes = rootRoute('root.tsx', [
     index('index.tsx'),
-    route('/auth', 'auth.tsx'),
-    route('/playground', 'playground.tsx'),
-    route('/playground/blueprint', 'playground_.blueprint.tsx'),
-    route('/playground/standard', 'playground_.standard.tsx'),
+    route('/auth', 'auth/index.tsx'),
+    route('/playground', 'playground/index.tsx'),
+    route('/playground/blueprint', 'playground/blueprint/index.tsx'),
+    route('/playground/standard', 'playground/standard/index.tsx'),
 
-    // The workspace shell (sidebar) around every app.
-    layout('_workspace', '_workspace.tsx', apps.map(app => physical(`/${app}`, `../apps/${app}/routes`))),
+    // The shell (sidebar) around every app.
+    layout('shell', 'shell.layout/index.tsx', apps.map(app => physical(`/${app}`, `../apps/${app}/routes`))),
 ])

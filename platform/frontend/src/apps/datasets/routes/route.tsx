@@ -3,7 +3,7 @@ import { App } from '@/AppKit'
 import { datasetsApp } from '../definition'
 
 /** Datasets: the app itself, around every page of it — kept mounted as they change. */
-export const Route = createFileRoute('/_workspace/datasets')({
+export const Route = createFileRoute('/_shell/datasets')({
     component: () => (
         <App.Root app={datasetsApp}>
             <Outlet />

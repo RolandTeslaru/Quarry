@@ -6,7 +6,7 @@ import { CatalogSDK } from '@/SDKs/CatalogSDK/sdk'
 import { orNotFound } from '@/utils/loader'
 import { datasetsApp } from '../definition'
 
-export const Route = createFileRoute('/_workspace/datasets/$rid')({
+export const Route = createFileRoute('/_shell/datasets/$rid')({
     params: {
         parse: params => {
             const parsed = Dataset.Rid.safeParse(params.rid)

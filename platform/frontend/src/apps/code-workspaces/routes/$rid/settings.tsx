@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Empty } from '@/components/Empty'
 
-export const Route = createFileRoute('/_workspace/code-workspaces/$rid/settings')({
+export const Route = createFileRoute('/_shell/code-workspaces/$rid/settings')({
     component: SettingsTab,
 })
 

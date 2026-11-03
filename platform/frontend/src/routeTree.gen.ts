@@ -8,11 +8,11 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
+import { Route as rootRouteImport } from './routes/root'
 import { Route as indexRouteImport } from './routes/index'
-import { Route as workspaceRouteImport } from './routes/_workspace'
-import { Route as authRouteImport } from './routes/auth'
-import { Route as playgroundRouteImport } from './routes/playground'
+import { Route as shellDotlayoutIndexRouteImport } from './routes/shell.layout/index'
+import { Route as authIndexRouteImport } from './routes/auth/index'
+import { Route as playgroundIndexRouteImport } from './routes/playground/index'
 import { Route as CodeWorkspacesRouteRouteImport } from './apps/code-workspaces/routes/route'
 import { Route as DataConnectionRouteRouteImport } from './apps/data-connection/routes/route'
 import { Route as DatasetsRouteRouteImport } from './apps/datasets/routes/route'
@@ -23,8 +23,8 @@ import { Route as LibraryRouteRouteImport } from './apps/library/routes/route'
 import { Route as LineageExplorerRouteRouteImport } from './apps/lineage-explorer/routes/route'
 import { Route as MinimalDemoRouteRouteImport } from './apps/minimal-demo/routes/route'
 import { Route as PipelineBuilderRouteRouteImport } from './apps/pipeline-builder/routes/route'
-import { Route as playground_DotblueprintRouteImport } from './routes/playground_.blueprint'
-import { Route as playground_DotstandardRouteImport } from './routes/playground_.standard'
+import { Route as playgroundBlueprintIndexRouteImport } from './routes/playground/blueprint/index'
+import { Route as playgroundStandardIndexRouteImport } from './routes/playground/standard/index'
 import { Route as CodeWorkspacesIndexRouteImport } from './apps/code-workspaces/routes/index'
 import { Route as CodeWorkspacesRidRouteRouteImport } from './apps/code-workspaces/routes/$rid/route'
 import { Route as DataConnectionIndexRouteImport } from './apps/data-connection/routes/index'
@@ -51,16 +51,16 @@ const indexRoute = indexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const workspaceRoute = workspaceRouteImport.update({
-  id: '/_workspace',
+const shellDotlayoutIndexRoute = shellDotlayoutIndexRouteImport.update({
+  id: '/_shell',
   getParentRoute: () => rootRouteImport,
 } as any)
-const authRoute = authRouteImport.update({
+const authIndexRoute = authIndexRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const playgroundRoute = playgroundRouteImport.update({
+const playgroundIndexRoute = playgroundIndexRouteImport.update({
   id: '/playground',
   path: '/playground',
   getParentRoute: () => rootRouteImport,
@@ -68,59 +68,60 @@ const playgroundRoute = playgroundRouteImport.update({
 const CodeWorkspacesRouteRoute = CodeWorkspacesRouteRouteImport.update({
   id: '/code-workspaces',
   path: '/code-workspaces',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const DataConnectionRouteRoute = DataConnectionRouteRouteImport.update({
   id: '/data-connection',
   path: '/data-connection',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const DatasetsRouteRoute = DatasetsRouteRouteImport.update({
   id: '/datasets',
   path: '/datasets',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const ForgeRouteRoute = ForgeRouteRouteImport.update({
   id: '/forge',
   path: '/forge',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const KeychainRouteRoute = KeychainRouteRouteImport.update({
   id: '/keychain',
   path: '/keychain',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const LayoutDemoRouteRoute = LayoutDemoRouteRouteImport.update({
   id: '/layout-demo',
   path: '/layout-demo',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const LibraryRouteRoute = LibraryRouteRouteImport.update({
   id: '/library',
   path: '/library',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const LineageExplorerRouteRoute = LineageExplorerRouteRouteImport.update({
   id: '/lineage-explorer',
   path: '/lineage-explorer',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const MinimalDemoRouteRoute = MinimalDemoRouteRouteImport.update({
   id: '/minimal-demo',
   path: '/minimal-demo',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const PipelineBuilderRouteRoute = PipelineBuilderRouteRouteImport.update({
   id: '/pipeline-builder',
   path: '/pipeline-builder',
-  getParentRoute: () => workspaceRoute,
+  getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
-const playground_DotblueprintRoute = playground_DotblueprintRouteImport.update({
-  id: '/playground/blueprint',
-  path: '/playground/blueprint',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const playground_DotstandardRoute = playground_DotstandardRouteImport.update({
+const playgroundBlueprintIndexRoute =
+  playgroundBlueprintIndexRouteImport.update({
+    id: '/playground/blueprint',
+    path: '/playground/blueprint',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const playgroundStandardIndexRoute = playgroundStandardIndexRouteImport.update({
   id: '/playground/standard',
   path: '/playground/standard',
   getParentRoute: () => rootRouteImport,
@@ -232,8 +233,8 @@ const DataConnectionSourcesDotridRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof indexRoute
-  '/auth': typeof authRoute
-  '/playground': typeof playgroundRoute
+  '/auth': typeof authIndexRoute
+  '/playground': typeof playgroundIndexRoute
   '/code-workspaces': typeof CodeWorkspacesRouteRouteWithChildren
   '/data-connection': typeof DataConnectionRouteRouteWithChildren
   '/datasets': typeof DatasetsRouteRouteWithChildren
@@ -244,8 +245,8 @@ export interface FileRoutesByFullPath {
   '/lineage-explorer': typeof LineageExplorerRouteRouteWithChildren
   '/minimal-demo': typeof MinimalDemoRouteRouteWithChildren
   '/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
-  '/playground/blueprint': typeof playground_DotblueprintRoute
-  '/playground/standard': typeof playground_DotstandardRoute
+  '/playground/blueprint': typeof playgroundBlueprintIndexRoute
+  '/playground/standard': typeof playgroundStandardIndexRoute
   '/code-workspaces/$rid': typeof CodeWorkspacesRidRouteRouteWithChildren
   '/datasets/$rid': typeof DatasetsRidRoute
   '/library/$rid': typeof LibraryRidRoute
@@ -269,10 +270,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof indexRoute
-  '/auth': typeof authRoute
-  '/playground': typeof playgroundRoute
-  '/playground/blueprint': typeof playground_DotblueprintRoute
-  '/playground/standard': typeof playground_DotstandardRoute
+  '/auth': typeof authIndexRoute
+  '/playground': typeof playgroundIndexRoute
+  '/playground/blueprint': typeof playgroundBlueprintIndexRoute
+  '/playground/standard': typeof playgroundStandardIndexRoute
   '/datasets/$rid': typeof DatasetsRidRoute
   '/library/$rid': typeof LibraryRidRoute
   '/lineage-explorer/$rid': typeof LineageExplorerRidRoute
@@ -296,41 +297,41 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof indexRoute
-  '/_workspace': typeof workspaceRouteWithChildren
-  '/auth': typeof authRoute
-  '/playground': typeof playgroundRoute
-  '/_workspace/code-workspaces': typeof CodeWorkspacesRouteRouteWithChildren
-  '/_workspace/data-connection': typeof DataConnectionRouteRouteWithChildren
-  '/_workspace/datasets': typeof DatasetsRouteRouteWithChildren
-  '/_workspace/forge': typeof ForgeRouteRouteWithChildren
-  '/_workspace/keychain': typeof KeychainRouteRouteWithChildren
-  '/_workspace/layout-demo': typeof LayoutDemoRouteRouteWithChildren
-  '/_workspace/library': typeof LibraryRouteRouteWithChildren
-  '/_workspace/lineage-explorer': typeof LineageExplorerRouteRouteWithChildren
-  '/_workspace/minimal-demo': typeof MinimalDemoRouteRouteWithChildren
-  '/_workspace/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
-  '/playground/blueprint': typeof playground_DotblueprintRoute
-  '/playground/standard': typeof playground_DotstandardRoute
-  '/_workspace/code-workspaces/$rid': typeof CodeWorkspacesRidRouteRouteWithChildren
-  '/_workspace/datasets/$rid': typeof DatasetsRidRoute
-  '/_workspace/library/$rid': typeof LibraryRidRoute
-  '/_workspace/lineage-explorer/$rid': typeof LineageExplorerRidRoute
-  '/_workspace/code-workspaces/': typeof CodeWorkspacesIndexRoute
-  '/_workspace/data-connection/': typeof DataConnectionIndexRoute
-  '/_workspace/datasets/': typeof DatasetsIndexRoute
-  '/_workspace/forge/': typeof ForgeIndexRoute
-  '/_workspace/keychain/': typeof KeychainIndexRoute
-  '/_workspace/layout-demo/': typeof LayoutDemoIndexRoute
-  '/_workspace/library/': typeof LibraryIndexRoute
-  '/_workspace/lineage-explorer/': typeof LineageExplorerIndexRoute
-  '/_workspace/minimal-demo/': typeof MinimalDemoIndexRoute
-  '/_workspace/pipeline-builder/': typeof PipelineBuilderIndexRoute
-  '/_workspace/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
-  '/_workspace/code-workspaces/$rid/checks': typeof CodeWorkspacesRidChecksRoute
-  '/_workspace/code-workspaces/$rid/pull-requests': typeof CodeWorkspacesRidPullRequestsRoute
-  '/_workspace/code-workspaces/$rid/settings': typeof CodeWorkspacesRidSettingsRoute
-  '/_workspace/data-connection/sources/$rid': typeof DataConnectionSourcesDotridRoute
-  '/_workspace/code-workspaces/$rid/': typeof CodeWorkspacesRidIndexRoute
+  '/_shell': typeof shellDotlayoutIndexRouteWithChildren
+  '/auth': typeof authIndexRoute
+  '/playground': typeof playgroundIndexRoute
+  '/_shell/code-workspaces': typeof CodeWorkspacesRouteRouteWithChildren
+  '/_shell/data-connection': typeof DataConnectionRouteRouteWithChildren
+  '/_shell/datasets': typeof DatasetsRouteRouteWithChildren
+  '/_shell/forge': typeof ForgeRouteRouteWithChildren
+  '/_shell/keychain': typeof KeychainRouteRouteWithChildren
+  '/_shell/layout-demo': typeof LayoutDemoRouteRouteWithChildren
+  '/_shell/library': typeof LibraryRouteRouteWithChildren
+  '/_shell/lineage-explorer': typeof LineageExplorerRouteRouteWithChildren
+  '/_shell/minimal-demo': typeof MinimalDemoRouteRouteWithChildren
+  '/_shell/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
+  '/playground/blueprint': typeof playgroundBlueprintIndexRoute
+  '/playground/standard': typeof playgroundStandardIndexRoute
+  '/_shell/code-workspaces/$rid': typeof CodeWorkspacesRidRouteRouteWithChildren
+  '/_shell/datasets/$rid': typeof DatasetsRidRoute
+  '/_shell/library/$rid': typeof LibraryRidRoute
+  '/_shell/lineage-explorer/$rid': typeof LineageExplorerRidRoute
+  '/_shell/code-workspaces/': typeof CodeWorkspacesIndexRoute
+  '/_shell/data-connection/': typeof DataConnectionIndexRoute
+  '/_shell/datasets/': typeof DatasetsIndexRoute
+  '/_shell/forge/': typeof ForgeIndexRoute
+  '/_shell/keychain/': typeof KeychainIndexRoute
+  '/_shell/layout-demo/': typeof LayoutDemoIndexRoute
+  '/_shell/library/': typeof LibraryIndexRoute
+  '/_shell/lineage-explorer/': typeof LineageExplorerIndexRoute
+  '/_shell/minimal-demo/': typeof MinimalDemoIndexRoute
+  '/_shell/pipeline-builder/': typeof PipelineBuilderIndexRoute
+  '/_shell/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
+  '/_shell/code-workspaces/$rid/checks': typeof CodeWorkspacesRidChecksRoute
+  '/_shell/code-workspaces/$rid/pull-requests': typeof CodeWorkspacesRidPullRequestsRoute
+  '/_shell/code-workspaces/$rid/settings': typeof CodeWorkspacesRidSettingsRoute
+  '/_shell/data-connection/sources/$rid': typeof DataConnectionSourcesDotridRoute
+  '/_shell/code-workspaces/$rid/': typeof CodeWorkspacesRidIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -399,50 +400,50 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/_workspace'
+    | '/_shell'
     | '/auth'
     | '/playground'
-    | '/_workspace/code-workspaces'
-    | '/_workspace/data-connection'
-    | '/_workspace/datasets'
-    | '/_workspace/forge'
-    | '/_workspace/keychain'
-    | '/_workspace/layout-demo'
-    | '/_workspace/library'
-    | '/_workspace/lineage-explorer'
-    | '/_workspace/minimal-demo'
-    | '/_workspace/pipeline-builder'
+    | '/_shell/code-workspaces'
+    | '/_shell/data-connection'
+    | '/_shell/datasets'
+    | '/_shell/forge'
+    | '/_shell/keychain'
+    | '/_shell/layout-demo'
+    | '/_shell/library'
+    | '/_shell/lineage-explorer'
+    | '/_shell/minimal-demo'
+    | '/_shell/pipeline-builder'
     | '/playground/blueprint'
     | '/playground/standard'
-    | '/_workspace/code-workspaces/$rid'
-    | '/_workspace/datasets/$rid'
-    | '/_workspace/library/$rid'
-    | '/_workspace/lineage-explorer/$rid'
-    | '/_workspace/code-workspaces/'
-    | '/_workspace/data-connection/'
-    | '/_workspace/datasets/'
-    | '/_workspace/forge/'
-    | '/_workspace/keychain/'
-    | '/_workspace/layout-demo/'
-    | '/_workspace/library/'
-    | '/_workspace/lineage-explorer/'
-    | '/_workspace/minimal-demo/'
-    | '/_workspace/pipeline-builder/'
-    | '/_workspace/code-workspaces/$rid/branches'
-    | '/_workspace/code-workspaces/$rid/checks'
-    | '/_workspace/code-workspaces/$rid/pull-requests'
-    | '/_workspace/code-workspaces/$rid/settings'
-    | '/_workspace/data-connection/sources/$rid'
-    | '/_workspace/code-workspaces/$rid/'
+    | '/_shell/code-workspaces/$rid'
+    | '/_shell/datasets/$rid'
+    | '/_shell/library/$rid'
+    | '/_shell/lineage-explorer/$rid'
+    | '/_shell/code-workspaces/'
+    | '/_shell/data-connection/'
+    | '/_shell/datasets/'
+    | '/_shell/forge/'
+    | '/_shell/keychain/'
+    | '/_shell/layout-demo/'
+    | '/_shell/library/'
+    | '/_shell/lineage-explorer/'
+    | '/_shell/minimal-demo/'
+    | '/_shell/pipeline-builder/'
+    | '/_shell/code-workspaces/$rid/branches'
+    | '/_shell/code-workspaces/$rid/checks'
+    | '/_shell/code-workspaces/$rid/pull-requests'
+    | '/_shell/code-workspaces/$rid/settings'
+    | '/_shell/data-connection/sources/$rid'
+    | '/_shell/code-workspaces/$rid/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   indexRoute: typeof indexRoute
-  workspaceRoute: typeof workspaceRouteWithChildren
-  authRoute: typeof authRoute
-  playgroundRoute: typeof playgroundRoute
-  playground_DotblueprintRoute: typeof playground_DotblueprintRoute
-  playground_DotstandardRoute: typeof playground_DotstandardRoute
+  shellDotlayoutIndexRoute: typeof shellDotlayoutIndexRouteWithChildren
+  authIndexRoute: typeof authIndexRoute
+  playgroundIndexRoute: typeof playgroundIndexRoute
+  playgroundBlueprintIndexRoute: typeof playgroundBlueprintIndexRoute
+  playgroundStandardIndexRoute: typeof playgroundStandardIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -454,246 +455,246 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof indexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_workspace': {
-      id: '/_workspace'
+    '/_shell': {
+      id: '/_shell'
       path: ''
       fullPath: '/'
-      preLoaderRoute: typeof workspaceRouteImport
+      preLoaderRoute: typeof shellDotlayoutIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
       id: '/auth'
       path: '/auth'
       fullPath: '/auth'
-      preLoaderRoute: typeof authRouteImport
+      preLoaderRoute: typeof authIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/playground': {
       id: '/playground'
       path: '/playground'
       fullPath: '/playground'
-      preLoaderRoute: typeof playgroundRouteImport
+      preLoaderRoute: typeof playgroundIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_workspace/code-workspaces': {
-      id: '/_workspace/code-workspaces'
+    '/_shell/code-workspaces': {
+      id: '/_shell/code-workspaces'
       path: '/code-workspaces'
       fullPath: '/code-workspaces'
       preLoaderRoute: typeof CodeWorkspacesRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
-    '/_workspace/data-connection': {
-      id: '/_workspace/data-connection'
+    '/_shell/data-connection': {
+      id: '/_shell/data-connection'
       path: '/data-connection'
       fullPath: '/data-connection'
       preLoaderRoute: typeof DataConnectionRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
-    '/_workspace/datasets': {
-      id: '/_workspace/datasets'
+    '/_shell/datasets': {
+      id: '/_shell/datasets'
       path: '/datasets'
       fullPath: '/datasets'
       preLoaderRoute: typeof DatasetsRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
-    '/_workspace/forge': {
-      id: '/_workspace/forge'
+    '/_shell/forge': {
+      id: '/_shell/forge'
       path: '/forge'
       fullPath: '/forge'
       preLoaderRoute: typeof ForgeRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
-    '/_workspace/keychain': {
-      id: '/_workspace/keychain'
+    '/_shell/keychain': {
+      id: '/_shell/keychain'
       path: '/keychain'
       fullPath: '/keychain'
       preLoaderRoute: typeof KeychainRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
-    '/_workspace/layout-demo': {
-      id: '/_workspace/layout-demo'
+    '/_shell/layout-demo': {
+      id: '/_shell/layout-demo'
       path: '/layout-demo'
       fullPath: '/layout-demo'
       preLoaderRoute: typeof LayoutDemoRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
-    '/_workspace/library': {
-      id: '/_workspace/library'
+    '/_shell/library': {
+      id: '/_shell/library'
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
-    '/_workspace/lineage-explorer': {
-      id: '/_workspace/lineage-explorer'
+    '/_shell/lineage-explorer': {
+      id: '/_shell/lineage-explorer'
       path: '/lineage-explorer'
       fullPath: '/lineage-explorer'
       preLoaderRoute: typeof LineageExplorerRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
-    '/_workspace/minimal-demo': {
-      id: '/_workspace/minimal-demo'
+    '/_shell/minimal-demo': {
+      id: '/_shell/minimal-demo'
       path: '/minimal-demo'
       fullPath: '/minimal-demo'
       preLoaderRoute: typeof MinimalDemoRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
-    '/_workspace/pipeline-builder': {
-      id: '/_workspace/pipeline-builder'
+    '/_shell/pipeline-builder': {
+      id: '/_shell/pipeline-builder'
       path: '/pipeline-builder'
       fullPath: '/pipeline-builder'
       preLoaderRoute: typeof PipelineBuilderRouteRouteImport
-      parentRoute: typeof workspaceRoute
+      parentRoute: typeof shellDotlayoutIndexRoute
     }
     '/playground/blueprint': {
       id: '/playground/blueprint'
       path: '/playground/blueprint'
       fullPath: '/playground/blueprint'
-      preLoaderRoute: typeof playground_DotblueprintRouteImport
+      preLoaderRoute: typeof playgroundBlueprintIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/playground/standard': {
       id: '/playground/standard'
       path: '/playground/standard'
       fullPath: '/playground/standard'
-      preLoaderRoute: typeof playground_DotstandardRouteImport
+      preLoaderRoute: typeof playgroundStandardIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_workspace/code-workspaces/': {
-      id: '/_workspace/code-workspaces/'
+    '/_shell/code-workspaces/': {
+      id: '/_shell/code-workspaces/'
       path: '/'
       fullPath: '/code-workspaces/'
       preLoaderRoute: typeof CodeWorkspacesIndexRouteImport
       parentRoute: typeof CodeWorkspacesRouteRoute
     }
-    '/_workspace/code-workspaces/$rid': {
-      id: '/_workspace/code-workspaces/$rid'
+    '/_shell/code-workspaces/$rid': {
+      id: '/_shell/code-workspaces/$rid'
       path: '/$rid'
       fullPath: '/code-workspaces/$rid'
       preLoaderRoute: typeof CodeWorkspacesRidRouteRouteImport
       parentRoute: typeof CodeWorkspacesRouteRoute
     }
-    '/_workspace/data-connection/': {
-      id: '/_workspace/data-connection/'
+    '/_shell/data-connection/': {
+      id: '/_shell/data-connection/'
       path: '/'
       fullPath: '/data-connection/'
       preLoaderRoute: typeof DataConnectionIndexRouteImport
       parentRoute: typeof DataConnectionRouteRoute
     }
-    '/_workspace/datasets/': {
-      id: '/_workspace/datasets/'
+    '/_shell/datasets/': {
+      id: '/_shell/datasets/'
       path: '/'
       fullPath: '/datasets/'
       preLoaderRoute: typeof DatasetsIndexRouteImport
       parentRoute: typeof DatasetsRouteRoute
     }
-    '/_workspace/datasets/$rid': {
-      id: '/_workspace/datasets/$rid'
+    '/_shell/datasets/$rid': {
+      id: '/_shell/datasets/$rid'
       path: '/$rid'
       fullPath: '/datasets/$rid'
       preLoaderRoute: typeof DatasetsRidRouteImport
       parentRoute: typeof DatasetsRouteRoute
     }
-    '/_workspace/forge/': {
-      id: '/_workspace/forge/'
+    '/_shell/forge/': {
+      id: '/_shell/forge/'
       path: '/'
       fullPath: '/forge/'
       preLoaderRoute: typeof ForgeIndexRouteImport
       parentRoute: typeof ForgeRouteRoute
     }
-    '/_workspace/keychain/': {
-      id: '/_workspace/keychain/'
+    '/_shell/keychain/': {
+      id: '/_shell/keychain/'
       path: '/'
       fullPath: '/keychain/'
       preLoaderRoute: typeof KeychainIndexRouteImport
       parentRoute: typeof KeychainRouteRoute
     }
-    '/_workspace/layout-demo/': {
-      id: '/_workspace/layout-demo/'
+    '/_shell/layout-demo/': {
+      id: '/_shell/layout-demo/'
       path: '/'
       fullPath: '/layout-demo/'
       preLoaderRoute: typeof LayoutDemoIndexRouteImport
       parentRoute: typeof LayoutDemoRouteRoute
     }
-    '/_workspace/library/': {
-      id: '/_workspace/library/'
+    '/_shell/library/': {
+      id: '/_shell/library/'
       path: '/'
       fullPath: '/library/'
       preLoaderRoute: typeof LibraryIndexRouteImport
       parentRoute: typeof LibraryRouteRoute
     }
-    '/_workspace/library/$rid': {
-      id: '/_workspace/library/$rid'
+    '/_shell/library/$rid': {
+      id: '/_shell/library/$rid'
       path: '/$rid'
       fullPath: '/library/$rid'
       preLoaderRoute: typeof LibraryRidRouteImport
       parentRoute: typeof LibraryRouteRoute
     }
-    '/_workspace/lineage-explorer/': {
-      id: '/_workspace/lineage-explorer/'
+    '/_shell/lineage-explorer/': {
+      id: '/_shell/lineage-explorer/'
       path: '/'
       fullPath: '/lineage-explorer/'
       preLoaderRoute: typeof LineageExplorerIndexRouteImport
       parentRoute: typeof LineageExplorerRouteRoute
     }
-    '/_workspace/lineage-explorer/$rid': {
-      id: '/_workspace/lineage-explorer/$rid'
+    '/_shell/lineage-explorer/$rid': {
+      id: '/_shell/lineage-explorer/$rid'
       path: '/$rid'
       fullPath: '/lineage-explorer/$rid'
       preLoaderRoute: typeof LineageExplorerRidRouteImport
       parentRoute: typeof LineageExplorerRouteRoute
     }
-    '/_workspace/minimal-demo/': {
-      id: '/_workspace/minimal-demo/'
+    '/_shell/minimal-demo/': {
+      id: '/_shell/minimal-demo/'
       path: '/'
       fullPath: '/minimal-demo/'
       preLoaderRoute: typeof MinimalDemoIndexRouteImport
       parentRoute: typeof MinimalDemoRouteRoute
     }
-    '/_workspace/pipeline-builder/': {
-      id: '/_workspace/pipeline-builder/'
+    '/_shell/pipeline-builder/': {
+      id: '/_shell/pipeline-builder/'
       path: '/'
       fullPath: '/pipeline-builder/'
       preLoaderRoute: typeof PipelineBuilderIndexRouteImport
       parentRoute: typeof PipelineBuilderRouteRoute
     }
-    '/_workspace/code-workspaces/$rid/': {
-      id: '/_workspace/code-workspaces/$rid/'
+    '/_shell/code-workspaces/$rid/': {
+      id: '/_shell/code-workspaces/$rid/'
       path: '/'
       fullPath: '/code-workspaces/$rid/'
       preLoaderRoute: typeof CodeWorkspacesRidIndexRouteImport
       parentRoute: typeof CodeWorkspacesRidRouteRoute
     }
-    '/_workspace/code-workspaces/$rid/branches': {
-      id: '/_workspace/code-workspaces/$rid/branches'
+    '/_shell/code-workspaces/$rid/branches': {
+      id: '/_shell/code-workspaces/$rid/branches'
       path: '/branches'
       fullPath: '/code-workspaces/$rid/branches'
       preLoaderRoute: typeof CodeWorkspacesRidBranchesRouteImport
       parentRoute: typeof CodeWorkspacesRidRouteRoute
     }
-    '/_workspace/code-workspaces/$rid/checks': {
-      id: '/_workspace/code-workspaces/$rid/checks'
+    '/_shell/code-workspaces/$rid/checks': {
+      id: '/_shell/code-workspaces/$rid/checks'
       path: '/checks'
       fullPath: '/code-workspaces/$rid/checks'
       preLoaderRoute: typeof CodeWorkspacesRidChecksRouteImport
       parentRoute: typeof CodeWorkspacesRidRouteRoute
     }
-    '/_workspace/code-workspaces/$rid/pull-requests': {
-      id: '/_workspace/code-workspaces/$rid/pull-requests'
+    '/_shell/code-workspaces/$rid/pull-requests': {
+      id: '/_shell/code-workspaces/$rid/pull-requests'
       path: '/pull-requests'
       fullPath: '/code-workspaces/$rid/pull-requests'
       preLoaderRoute: typeof CodeWorkspacesRidPullRequestsRouteImport
       parentRoute: typeof CodeWorkspacesRidRouteRoute
     }
-    '/_workspace/code-workspaces/$rid/settings': {
-      id: '/_workspace/code-workspaces/$rid/settings'
+    '/_shell/code-workspaces/$rid/settings': {
+      id: '/_shell/code-workspaces/$rid/settings'
       path: '/settings'
       fullPath: '/code-workspaces/$rid/settings'
       preLoaderRoute: typeof CodeWorkspacesRidSettingsRouteImport
       parentRoute: typeof CodeWorkspacesRidRouteRoute
     }
-    '/_workspace/data-connection/sources/$rid': {
-      id: '/_workspace/data-connection/sources/$rid'
+    '/_shell/data-connection/sources/$rid': {
+      id: '/_shell/data-connection/sources/$rid'
       path: '/sources/$rid'
       fullPath: '/data-connection/sources/$rid'
       preLoaderRoute: typeof DataConnectionSourcesDotridRouteImport
@@ -849,7 +850,7 @@ const PipelineBuilderRouteRouteChildren: PipelineBuilderRouteRouteChildren = {
 const PipelineBuilderRouteRouteWithChildren =
   PipelineBuilderRouteRoute._addFileChildren(PipelineBuilderRouteRouteChildren)
 
-interface workspaceRouteChildren {
+interface shellDotlayoutIndexRouteChildren {
   CodeWorkspacesRouteRoute: typeof CodeWorkspacesRouteRouteWithChildren
   DataConnectionRouteRoute: typeof DataConnectionRouteRouteWithChildren
   DatasetsRouteRoute: typeof DatasetsRouteRouteWithChildren
@@ -862,7 +863,7 @@ interface workspaceRouteChildren {
   PipelineBuilderRouteRoute: typeof PipelineBuilderRouteRouteWithChildren
 }
 
-const workspaceRouteChildren: workspaceRouteChildren = {
+const shellDotlayoutIndexRouteChildren: shellDotlayoutIndexRouteChildren = {
   CodeWorkspacesRouteRoute: CodeWorkspacesRouteRouteWithChildren,
   DataConnectionRouteRoute: DataConnectionRouteRouteWithChildren,
   DatasetsRouteRoute: DatasetsRouteRouteWithChildren,
@@ -875,17 +876,16 @@ const workspaceRouteChildren: workspaceRouteChildren = {
   PipelineBuilderRouteRoute: PipelineBuilderRouteRouteWithChildren,
 }
 
-const workspaceRouteWithChildren = workspaceRoute._addFileChildren(
-  workspaceRouteChildren,
-)
+const shellDotlayoutIndexRouteWithChildren =
+  shellDotlayoutIndexRoute._addFileChildren(shellDotlayoutIndexRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   indexRoute: indexRoute,
-  workspaceRoute: workspaceRouteWithChildren,
-  authRoute: authRoute,
-  playgroundRoute: playgroundRoute,
-  playground_DotblueprintRoute: playground_DotblueprintRoute,
-  playground_DotstandardRoute: playground_DotstandardRoute,
+  shellDotlayoutIndexRoute: shellDotlayoutIndexRouteWithChildren,
+  authIndexRoute: authIndexRoute,
+  playgroundIndexRoute: playgroundIndexRoute,
+  playgroundBlueprintIndexRoute: playgroundBlueprintIndexRoute,
+  playgroundStandardIndexRoute: playgroundStandardIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

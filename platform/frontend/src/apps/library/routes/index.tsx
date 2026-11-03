@@ -3,7 +3,7 @@ import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import type { Library } from '@quarry/shared/domain'
 import { Home } from '@/AppKit'
 import { LibraryExplorer } from '@/SDKs/LibrarySDK/ui/LibraryExplorer'
-import { resourceRoute } from '@/shell/apps'
+import { resourceRoute } from '@/routes/shell.layout/components/apps'
 import { LibraryExplorerApp, type LibraryTab } from '../components/LibraryExplorerApp'
 import { ProjectCards } from '../components/ProjectCards'
 
@@ -16,7 +16,7 @@ interface LibrarySearch {
     view?: Exclude<HomeView, 'projects'>
 }
 
-export const Route = createFileRoute('/_workspace/library/')({
+export const Route = createFileRoute('/_shell/library/')({
     validateSearch: (search: Record<string, unknown>): LibrarySearch => {
         if (search.tab === 'cloud' || search.tab === 'trash')
             return { tab: search.tab }

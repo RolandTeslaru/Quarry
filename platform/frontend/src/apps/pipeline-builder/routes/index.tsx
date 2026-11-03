@@ -3,7 +3,7 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Home } from '@/AppKit'
 import { Empty } from '@/components/Empty'
 
-export const Route = createFileRoute('/_workspace/pipeline-builder/')({
+export const Route = createFileRoute('/_shell/pipeline-builder/')({
     component: PipelineBuilderHome,
 })
 

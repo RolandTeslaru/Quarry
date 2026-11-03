@@ -3,7 +3,7 @@ import { App } from '@/AppKit'
 import { pipelineBuilderApp } from '../definition'
 
 /** Pipeline Builder: the app itself, around every page of it — kept mounted as they change. */
-export const Route = createFileRoute('/_workspace/pipeline-builder')({
+export const Route = createFileRoute('/_shell/pipeline-builder')({
     component: () => (
         <App.Root app={pipelineBuilderApp}>
             <Outlet />

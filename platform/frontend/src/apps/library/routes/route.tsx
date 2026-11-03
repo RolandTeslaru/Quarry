@@ -3,7 +3,7 @@ import { App } from '@/AppKit'
 import { libraryApp } from '../definition'
 
 /** Library Explorer: the app itself, around every page of it — kept mounted as they change. */
-export const Route = createFileRoute('/_workspace/library')({
+export const Route = createFileRoute('/_shell/library')({
     component: () => (
         <App.Root app={libraryApp}>
             <Outlet />

@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { App } from '@/AppKit'
 import { minimalDemoApp } from '../definition'
 
-export const Route = createFileRoute('/_workspace/minimal-demo/')({
+export const Route = createFileRoute('/_shell/minimal-demo/')({
     component: MinimalDemoApp,
 })
 

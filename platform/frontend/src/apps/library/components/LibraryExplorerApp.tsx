@@ -3,7 +3,7 @@ import type { Library } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
 import { LibraryExplorer, type Cwd } from '@/SDKs/LibrarySDK/ui/LibraryExplorer'
 import { Empty } from '@/components/Empty'
-import { resourceRoute } from '@/shell/apps'
+import { resourceRoute } from '@/routes/shell.layout/components/apps'
 import { libraryApp } from '../definition'
 import { ProjectCards } from './ProjectCards'
 

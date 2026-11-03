@@ -8,7 +8,7 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceLink } from '@/components/ResourceLink'
 import { dateTime, number } from '@/utils/format'
 
-export const Route = createFileRoute('/_workspace/datasets/')({
+export const Route = createFileRoute('/_shell/datasets/')({
     component: DatasetsHome,
 })
 

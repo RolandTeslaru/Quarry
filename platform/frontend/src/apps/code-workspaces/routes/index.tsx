@@ -19,7 +19,7 @@ interface CodeWorkspacesSearch {
     view?: Exclude<HomeView, 'recent'>
 }
 
-export const Route = createFileRoute('/_workspace/code-workspaces/')({
+export const Route = createFileRoute('/_shell/code-workspaces/')({
     validateSearch: (search: Record<string, unknown>): CodeWorkspacesSearch =>
         search.view === 'all' ? { view: 'all' } : {},
     component: CodeWorkspacesHome,

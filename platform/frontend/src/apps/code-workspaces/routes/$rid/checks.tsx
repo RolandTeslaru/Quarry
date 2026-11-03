@@ -9,7 +9,7 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { useTask } from '@/hooks/useTask'
 import { CheckRunTable } from '../../components/CheckRunTable'
 
-export const Route = createFileRoute('/_workspace/code-workspaces/$rid/checks')({
+export const Route = createFileRoute('/_shell/code-workspaces/$rid/checks')({
     component: ChecksTab,
 })
 

@@ -10,7 +10,7 @@ import { Library, LineageExplorer } from '@quarry/shared/domain'
 import { errorMessage } from '@/SDKs/api'
 import { ResourceInput } from '@/SDKs/LibrarySDK/ui/ResourceInput'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { resourceRoute } from '@/shell/apps'
+import { resourceRoute } from '@/routes/shell.layout/components/apps'
 import { LineageExplorerSDK } from '../sdk'
 
 // The create request, with what the form says when something's missing.

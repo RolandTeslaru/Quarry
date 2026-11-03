@@ -4,7 +4,7 @@ import { CodeWorkspaceFrontIllustration, CodeWorkspaceIllustration, FolderFlatIl
 import { cn } from '@quarry/standard-ui/utils/cn'
 import { App } from '@/AppKit'
 import { codeWorkspaceFlatGlyph } from '@/apps/code-workspaces/definition'
-import { resourceGlyph } from '@/shell/apps'
+import { resourceGlyph } from '@/routes/shell.layout/components/apps'
 import { resourceIcon } from './ResourceLink'
 
 /** xs: inline — rows, links, the tree, pickers. sm: a little larger — dialog headers, recents. lg: cards. */

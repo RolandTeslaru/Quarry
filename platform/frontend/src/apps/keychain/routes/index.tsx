@@ -11,7 +11,7 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { dateTime, number } from '@/utils/format'
 import { CredentialTable } from '../components/CredentialTable'
 
-export const Route = createFileRoute('/_workspace/keychain/')({
+export const Route = createFileRoute('/_shell/keychain/')({
     component: KeychainApp,
 })
 

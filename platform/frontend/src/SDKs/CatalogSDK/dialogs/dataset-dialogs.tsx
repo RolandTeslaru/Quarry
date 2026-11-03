@@ -11,7 +11,7 @@ import { Select } from '@quarry/standard-ui/foundations/select'
 import { Catalog, Dataset, type Library } from '@quarry/shared/domain'
 import { errorMessage } from '@/SDKs/api'
 import { ErrorNotice } from '@/components/ErrorNotice'
-import { resourceRoute } from '@/shell/apps'
+import { resourceRoute } from '@/routes/shell.layout/components/apps'
 import { CatalogSDK } from '../sdk'
 
 // The upload's fields (its mode) and the file itself.

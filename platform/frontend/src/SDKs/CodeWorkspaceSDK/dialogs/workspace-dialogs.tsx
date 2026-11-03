@@ -15,7 +15,7 @@ import { errorMessage } from '@/SDKs/api'
 import { ResourceInput } from '@/SDKs/LibrarySDK/ui/ResourceInput'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceIcon } from '@/components/ResourceIcon'
-import { resourceRoute } from '@/shell/apps'
+import { resourceRoute } from '@/routes/shell.layout/components/apps'
 import { CodeWorkspaceSDK } from '../sdk'
 
 /** The create request, with the form's messages. */

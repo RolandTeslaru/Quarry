@@ -6,7 +6,7 @@ import { LineageExplorerSDK } from '@/SDKs/LineageExplorerSDK/sdk'
 import { orNotFound } from '@/utils/loader'
 import { lineageExplorerApp } from '../definition'
 
-export const Route = createFileRoute('/_workspace/lineage-explorer/$rid')({
+export const Route = createFileRoute('/_shell/lineage-explorer/$rid')({
     params: {
         parse: params => {
             const parsed = LineageExplorer.Exploration.Rid.safeParse(params.rid)

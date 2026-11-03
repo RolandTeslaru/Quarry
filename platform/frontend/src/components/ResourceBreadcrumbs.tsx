@@ -4,7 +4,7 @@ import { Breadcrumb } from '@quarry/standard-ui/foundations/breadcrumb'
 import type { Library } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
 import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
-import { resourceRoute } from '@/shell/apps'
+import { resourceRoute } from '@/routes/shell.layout/components/apps'
 
 interface Props {
     rid: Library.Resource.Rid

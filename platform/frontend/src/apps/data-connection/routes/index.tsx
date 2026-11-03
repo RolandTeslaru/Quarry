@@ -18,7 +18,7 @@ interface DataConnectionSearch {
     view?: Exclude<HomeView, 'recent'>
 }
 
-export const Route = createFileRoute('/_workspace/data-connection/')({
+export const Route = createFileRoute('/_shell/data-connection/')({
     validateSearch: (search: Record<string, unknown>): DataConnectionSearch =>
         search.view === 'all' ? { view: 'all' } : {},
     component: DataConnectionHome,

@@ -7,7 +7,7 @@ import { App } from '@/AppKit'
 import { AuthSDK } from '@/SDKs/AuthSDK/sdk'
 import { CatalogSDK } from '@/SDKs/CatalogSDK/sdk'
 import { LineageExplorerSDK } from '@/SDKs/LineageExplorerSDK/sdk'
-import { resourceGlyph } from '@/shell/apps'
+import { resourceGlyph } from '@/routes/shell.layout/components/apps'
 import { useLibraryExplorer } from '../root'
 
 /**

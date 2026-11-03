@@ -12,7 +12,7 @@ export interface SourceSearch {
     table?:  string
 }
 
-export const Route = createFileRoute('/_workspace/data-connection/sources/$rid')({
+export const Route = createFileRoute('/_shell/data-connection/sources/$rid')({
     // A table needs both halves; half of one is none.
     validateSearch: (search: Record<string, unknown>): SourceSearch =>
         typeof search.schema === 'string' && typeof search.table === 'string'

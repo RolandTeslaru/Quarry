@@ -3,7 +3,7 @@ import { App } from '@/AppKit'
 import { layoutDemoApp } from '../definition'
 
 /** Layout demo: the app itself, around every page of it — kept mounted as they change. */
-export const Route = createFileRoute('/_workspace/layout-demo')({
+export const Route = createFileRoute('/_shell/layout-demo')({
     component: () => (
         <App.Root app={layoutDemoApp}>
             <Outlet />

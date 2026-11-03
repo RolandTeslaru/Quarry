@@ -19,7 +19,7 @@ interface LineageExplorerSearch {
     view?: Exclude<HomeView, 'recent'>
 }
 
-export const Route = createFileRoute('/_workspace/lineage-explorer/')({
+export const Route = createFileRoute('/_shell/lineage-explorer/')({
     validateSearch: (search: Record<string, unknown>): LineageExplorerSearch =>
         search.view === 'all' ? { view: 'all' } : {},
     component: LineageExplorerHome,

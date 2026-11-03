@@ -3,7 +3,7 @@ import { App } from '@/AppKit'
 import { codeWorkspacesApp } from '../definition'
 
 /** Code Workspaces: the app itself, around every page of it — kept mounted as they change. */
-export const Route = createFileRoute('/_workspace/code-workspaces')({
+export const Route = createFileRoute('/_shell/code-workspaces')({
     component: () => (
         <App.Root app={codeWorkspacesApp}>
             <Outlet />

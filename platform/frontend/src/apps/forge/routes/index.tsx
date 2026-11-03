@@ -8,7 +8,7 @@ import { ErrorNotice } from '@/components/ErrorNotice'
 import { number } from '@/utils/format'
 import { BuildTable } from '../components/BuildTable'
 
-export const Route = createFileRoute('/_workspace/forge/')({
+export const Route = createFileRoute('/_shell/forge/')({
     component: ForgeApp,
 })
 

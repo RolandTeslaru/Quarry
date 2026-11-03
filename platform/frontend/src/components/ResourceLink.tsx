@@ -2,7 +2,7 @@ import type { IconName } from '@quarry/standard-ui/icons'
 import { Link } from '@tanstack/react-router'
 import type { Library } from '@quarry/shared/domain'
 import { ResourceIcon, type ResourceIconSize } from './ResourceIcon'
-import { resourceRoute } from '@/shell/apps'
+import { resourceRoute } from '@/routes/shell.layout/components/apps'
 
 const RESOURCE_ICONS: Record<Library.Resource.Type, IconName> = {
     project: 'projects',

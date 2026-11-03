@@ -14,7 +14,7 @@ import { orNotFound } from '@/utils/loader'
 import { WORKSPACE_TABS, type WorkspaceTab } from '../../constants'
 import { codeWorkspacesApp } from '../../definition'
 
-export const Route = createFileRoute('/_workspace/code-workspaces/$rid')({
+export const Route = createFileRoute('/_shell/code-workspaces/$rid')({
     params: {
         parse: params => {
             const parsed = CodeWorkspace.Rid.safeParse(params.rid)

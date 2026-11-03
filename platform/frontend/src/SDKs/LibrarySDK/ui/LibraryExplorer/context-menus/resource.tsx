@@ -4,7 +4,7 @@ import { Icon } from '@quarry/standard-ui/icons'
 import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { Library } from '@quarry/shared/domain'
 import { LibrarySDK } from '../../../sdk'
-import { resourceRoute } from '@/shell/apps'
+import { resourceRoute } from '@/routes/shell.layout/components/apps'
 import { useLibraryExplorer } from '../root'
 import { OpenInSubMenu } from './open-in'
 
