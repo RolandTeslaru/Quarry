@@ -10,18 +10,24 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
 
     protected readonly log = log.withContext('LineageExplorer.Actions.Exploration')
 
-    /** The exploration's page opening — its route's loader, on enter. One request: it, its graph, the open recorded (audit). */
-    public async open(rid: LineageExplorer.Exploration.Rid, application: Platform.Application.Id): Promise<LineageExplorer.API.Exploration.Open.Response> {
-        const data = await LineageExplorer.API.Exploration.open(api, rid, { application })
+    /** The exploration's page opening — its route's loader, on enter. One request: its graph, the open recorded (audit). */
+    public async open(rid: LineageExplorer.Exploration.Rid, application: Platform.Application.Id): Promise<LineageExplorer.Graph> {
+        const { graph } = await LineageExplorer.API.Exploration.open(api, rid, { application })
 
-        this.sdk.setState(state => {
-            state.explorations[rid] = data.exploration
-            state.graphs[rid] = data.graph
-        })
+        this.sdk.setState({ currentGraph: graph })
 
         void AuditSDK.invalidate(AuditSDK.query.recents(application))
 
-        return data
+        return graph
+    }
+
+    /** Its page closed (the route's onLeave) — only if it's still the current one. */
+    public close(rid: LineageExplorer.Exploration.Rid): void {
+        // Switching explorations can enter the new one before leaving the old: never close the newer.
+        if (this.sdk.state.currentGraph?.rid !== rid)
+            return
+
+        this.sdk.setState({ currentGraph: null })
     }
 
     public list(): Promise<LineageExplorer.API.Exploration.List.Response> {
@@ -32,7 +38,7 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
         try {
             const { exploration } = await LineageExplorer.API.Exploration.create(api, request)
 
-            void this.sdk.invalidate(this.sdk.query.explorations)
+            void this.sdk.invalidate(this.sdk.query.listExplorations)
 
             return exploration
         } catch (error) {
@@ -48,7 +54,8 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
             const { exploration } = await LineageExplorer.API.Exploration.save(api, rid, { nodes })
 
             this.sdk.setState(state => {
-                state.explorations[rid] = exploration
+                if (state.currentGraph?.rid === rid)
+                    state.currentGraph = { ...state.currentGraph, ...exploration }
             })
 
             return exploration

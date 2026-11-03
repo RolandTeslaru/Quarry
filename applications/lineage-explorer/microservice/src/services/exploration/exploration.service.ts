@@ -6,7 +6,7 @@ import { ExplorationRepository } from './exploration.repository';
 
 /**
  * Saved explorations: create, list, open, save. Rows are plain, so row-level security decides who may do
- * what. Lineage is the Library's: an exploration holds its nodes, and its edges are read when it's opened.
+ * what. Lineage is the Library's: an exploration holds its nodes, and opening it reads its graph.
  */
 @Injectable()
 export class ExplorationService {
@@ -27,7 +27,7 @@ export class ExplorationService {
         });
     }
 
-    async list(principal: Principal): Promise<LineageExplorer.Exploration[]> {
+    async list(principal: Principal): Promise<LineageExplorer.Exploration.Meta[]> {
         return this.repository.list(principal);
     }
 
@@ -36,7 +36,7 @@ export class ExplorationService {
         principal:   Principal,
         rid:         LineageExplorer.Exploration.Rid,
         application: Platform.Application.Id,
-    ): Promise<LineageExplorer.API.Exploration.Open.Response> {
+    ): Promise<LineageExplorer.Graph> {
         if (principal.type !== 'user')
             throw new ForbiddenException('Only users open pages');
 
@@ -46,9 +46,9 @@ export class ExplorationService {
             throw new NotFoundException('Not found');
 
         const nodeRids = Object.keys(exploration.nodes) as Library.Resource.Rid[];
-        const graph = await this.library.lineage.getGraph(principal, nodeRids, exploration.branch);
+        const { resources, edges } = await this.library.lineage.getGraph(principal, nodeRids, exploration.branch);
 
-        return { exploration, graph };
+        return { ...exploration, resources, edges };
     }
 
     async save(

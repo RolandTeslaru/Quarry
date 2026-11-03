@@ -242,12 +242,12 @@ describe('lineage from publishing recipes', () => {
         const api = await harness.getApi(user);
         const { data } = await api.get(`/api/resources/${datasets.b}/lineage/upstream`, { params: { depth: 2, includeTrashed: false } });
 
-        expect(data.graph.edges).toHaveLength(2);
-        expect(data.graph.resources[datasets.raw].name).toBe('raw');
+        expect(data.edges).toHaveLength(2);
+        expect(data.resources[datasets.raw].name).toBe('raw');
 
         const canvas = await api.post('/api/resources/lineage/graph', { rids: [datasets.a, datasets.b] });
 
-        expect(canvas.data.graph.edges).toHaveLength(1);
+        expect(canvas.data.edges).toHaveLength(1);
     });
 
     it('a republish reaches an edge to a dataset the publisher has since lost', async () => {

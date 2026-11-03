@@ -30,5 +30,11 @@ export namespace Exploration {
         /** A resource is on the canvas if it's a key here. */
         nodes:     z.record(Resource.Rid, Node.Schema),
     })
+
+    /** Listing rows: everything but the nodes. */
+    export namespace Meta {
+        export const Schema = Exploration.Schema.omit({ nodes: true })
+    }
+    export type Meta = z.infer<typeof Meta.Schema>
 }
 export type Exploration = z.infer<typeof Exploration.Schema>

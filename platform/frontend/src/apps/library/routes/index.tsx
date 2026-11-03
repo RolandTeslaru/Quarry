@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import type { Library } from '@quarry/shared/domain'
-import { App } from '@/AppKit'
+import { Home } from '@/AppKit'
 import { LibraryExplorer } from '@/SDKs/LibrarySDK/ui/LibraryExplorer'
 import { resourceRoute } from '@/shell/apps'
 import { LibraryExplorerApp, type LibraryTab } from '../components/LibraryExplorerApp'
@@ -61,37 +61,37 @@ function LibraryHome({ view }: LibraryHomeProps) {
 
     return (
         <LibraryExplorer.Root cwd={null} setCwd={openProject} onItemClick={openItem}>
-            <App.Home.Root>
-                <App.Home.Header>
-                    <App.Home.Logo />
-                    <App.Home.PreTitle />
-                    <App.Home.Title />
-                    <App.Home.TitleDescription />
-                </App.Home.Header>
+            <Home.Root>
+                <Home.Header>
+                    <Home.Logo />
+                    <Home.PreTitle />
+                    <Home.Title />
+                    <Home.TitleDescription />
+                </Home.Header>
 
-                <App.Home.Content>
+                <Home.Content>
                     <Tabs.Root value={view} onValueChange={openView} className='gap-0'>
-                        <App.Home.Toolbar>
+                        <Home.Toolbar>
                             <Tabs.List aria-label='Library home'>
                                 <Tabs.Trigger value='projects'>Projects</Tabs.Trigger>
                                 <Tabs.Trigger value='recents'>Recents</Tabs.Trigger>
                             </Tabs.List>
                             {view === 'projects' && <LibraryExplorer.View.SearchInput className='ml-auto w-56' />}
-                            <App.Home.Actions className={view === 'projects' ? 'ml-0' : undefined}>
+                            <Home.Actions className={view === 'projects' ? 'ml-0' : undefined}>
                                 <LibraryExplorer.View.CreateBtn />
-                            </App.Home.Actions>
-                        </App.Home.Toolbar>
+                            </Home.Actions>
+                        </Home.Toolbar>
 
                         <Tabs.Content value='projects'>
                             <ProjectCards className='p-6' />
                         </Tabs.Content>
 
                         <Tabs.Content value='recents'>
-                            <App.Home.Recents className='p-6' />
+                            <Home.Recents className='p-6' />
                         </Tabs.Content>
                     </Tabs.Root>
-                </App.Home.Content>
-            </App.Home.Root>
+                </Home.Content>
+            </Home.Root>
         </LibraryExplorer.Root>
     )
 }

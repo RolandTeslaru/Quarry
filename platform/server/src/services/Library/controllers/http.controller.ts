@@ -49,7 +49,7 @@ export class LibraryController {
     ): Promise<API.Lineage.Get.Response> {
         const { branch, ...walk } = query;
 
-        return { graph: await this.library.lineage.getUpstream(principal, rid, branch, walk) };
+        return this.library.lineage.getUpstream(principal, rid, branch, walk);
     }
 
     @Get('resources/:rid/lineage/downstream')
@@ -60,7 +60,7 @@ export class LibraryController {
     ): Promise<API.Lineage.Get.Response> {
         const { branch, ...walk } = query;
 
-        return { graph: await this.library.lineage.getDownstream(principal, rid, branch, walk) };
+        return this.library.lineage.getDownstream(principal, rid, branch, walk);
     }
 
     @Post('resources/lineage/graph')
@@ -69,7 +69,7 @@ export class LibraryController {
         @CurrentPrincipal() principal: Principal.User,
         @Body(new ZodPipe(API.Lineage.GetGraph.Request)) body: API.Lineage.GetGraph.Request,
     ): Promise<API.Lineage.GetGraph.Response> {
-        return { graph: await this.library.lineage.getGraph(principal, body.rids, body.branch) };
+        return this.library.lineage.getGraph(principal, body.rids, body.branch);
     }
 
     /** An app opened the resource's page: the resource, the open recorded (audit). */

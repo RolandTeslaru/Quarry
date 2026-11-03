@@ -12,26 +12,34 @@ interface Props {
     rid: LineageExplorer.Exploration.Rid
 }
 
-/** The Lineage Explorer app on one exploration. Its route's loader has opened it. */
+/** The Lineage Explorer app on one exploration: its graph, which its route's loader set as the current one. */
 export function ExplorationApp({ rid }: Props) {
+    const graph = LineageExplorerSDK.useStore(state => state.currentGraph)
+
+    // Switching explorations: until the new one is loaded, the current graph is still the old one.
+    if (graph?.rid !== rid)
+        return null
+
     return (
         <ReactFlowProvider>
-            <Exploration rid={rid} />
+            <Exploration graph={graph} />
         </ReactFlowProvider>
     )
 }
 
-function Exploration({ rid }: Props) {
-    const exploration = LineageExplorerSDK.useStore(state => state.explorations[rid])
-    const graph = LineageExplorerSDK.useStore(state => state.graphs[rid])
-    const canvas = useLineageCanvas(exploration, graph)
+interface ExplorationProps {
+    graph: LineageExplorer.Graph
+}
+
+function Exploration({ graph }: ExplorationProps) {
+    const canvas = useLineageCanvas(graph)
 
     return (
         <>
             <App.Navbar>
                 <App.Navbar.Icon glyph={lineageExplorerApp.glyph} />
                 <App.Navbar.Rows>
-                    <ResourceBreadcrumbs rid={rid} />
+                    <ResourceBreadcrumbs rid={graph.rid} />
                 </App.Navbar.Rows>
 
                 <App.Navbar.Actions>

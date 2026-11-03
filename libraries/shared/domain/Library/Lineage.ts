@@ -33,14 +33,4 @@ export namespace Lineage {
         export const MAX_DEPTH = 20
     }
     export type Walk = z.infer<typeof Walk.Schema>
-
-    /** Edges, and the resources at their ends that the reader can see. */
-    export namespace Graph {
-
-        export const Schema = z.object({
-            resources: z.record(Resource.Rid, Resource.Base),
-            edges:     Edge.Schema.array(),
-        })
-    }
-    export type Graph = z.infer<typeof Graph.Schema>
 }

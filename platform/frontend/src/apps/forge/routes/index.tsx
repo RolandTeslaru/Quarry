@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
-import { App } from '@/AppKit'
+import { Home } from '@/AppKit'
 import { ForgeSDK } from '@/SDKs/ForgeSDK/sdk'
 import { Empty } from '@/components/Empty'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -20,16 +20,16 @@ function ForgeApp() {
     )
 
     return (
-        <App.Home.Root>
-            <App.Home.Header>
-                <App.Home.Logo />
-                <App.Home.PreTitle />
-                <App.Home.Title />
-                <App.Home.TitleDescription />
-            </App.Home.Header>
+        <Home.Root>
+            <Home.Header>
+                <Home.Logo />
+                <Home.PreTitle />
+                <Home.Title />
+                <Home.TitleDescription />
+            </Home.Header>
 
-            <App.Home.Content>
-                <App.Home.Section
+            <Home.Content>
+                <Home.Section
                     title='Builds'
                     meta={<>{number(builds.length)} you can see</>}
                     actions={
@@ -55,8 +55,8 @@ function ForgeApp() {
                     )}
 
                     {builds.length > 0 && <BuildTable builds={builds} />}
-                </App.Home.Section>
-            </App.Home.Content>
-        </App.Home.Root>
+                </Home.Section>
+            </Home.Content>
+        </Home.Root>
     )
 }

@@ -83,8 +83,8 @@ export namespace LibraryDB {
             readonly edges:     LineageEdge.Row[];
         }
 
-        export const toDomain = (rows: Rows): Library.Lineage.Graph => {
-            const resources: Library.Lineage.Graph['resources'] = {};
+        export const toDomain = (rows: Rows) => {
+            const resources: Record<Library.Resource.Rid, Library.Resource.Base> = {};
 
             for (const row of rows.resources)
                 resources[row.rid] = Resource.toBase(row);

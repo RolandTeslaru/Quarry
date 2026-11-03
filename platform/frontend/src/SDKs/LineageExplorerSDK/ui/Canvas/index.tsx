@@ -50,7 +50,7 @@ export function LineageCanvas({ canvas }: Props) {
                 <div className='pointer-events-none absolute inset-0 flex items-center justify-center'>
                     <div className='pointer-events-auto'>
                         <Empty
-                            icon='graph'
+                            icon='data-lineage'
                             title='Nothing on the canvas yet'
                             description='Add a resource, then expand it to see what feeds it and what it feeds.'
                             action={<Button icon='add' onClick={canvas.openAddResource}>Add resource</Button>}

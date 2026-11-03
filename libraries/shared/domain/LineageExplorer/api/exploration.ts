@@ -1,10 +1,10 @@
 import { z } from "zod"
 import type { AxiosInstance } from "axios"
 import { Foundations } from "../../Foundations"
-import { Lineage } from "../../Library/Lineage"
 import { Resource } from "../../Library/Resource"
 import { Application } from "../../Platform/Application"
 import { Exploration as ExplorationD } from "../Exploration"
+import { Graph } from "../Graph"
 
 export namespace Exploration {
 
@@ -22,22 +22,19 @@ export namespace Exploration {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** Every live exploration the caller can read — Lineage Explorer's home. */
+    /** Every live exploration the caller can read, without its nodes — Lineage Explorer's home. */
     export namespace List {
-        export const Response = z.object({ explorations: ExplorationD.Schema.array() })
+        export const Response = z.object({ explorations: ExplorationD.Meta.Schema.array() })
         export type  Response = z.infer<typeof Response>
     }
 
-    /** An app opening the exploration: it, its graph read now, the open recorded (audit). */
+    /** An app opening the exploration: its graph read now, the open recorded (audit). */
     export namespace Open {
         /** Which app opened it — recorded with the open. */
         export const Request = z.object({ application: Application.Id })
         export type  Request = z.infer<typeof Request>
 
-        export const Response = z.object({
-            exploration: ExplorationD.Schema,
-            graph:       Lineage.Graph.Schema,
-        })
+        export const Response = z.object({ graph: Graph.Schema })
         export type  Response = z.infer<typeof Response>
     }
 

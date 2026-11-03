@@ -4,7 +4,7 @@ import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import type { CodeWorkspace } from '@quarry/shared/domain'
-import { App } from '@/AppKit'
+import { App, Home } from '@/AppKit'
 import { AuditSDK } from '@/SDKs/AuditSDK/sdk'
 import { CodeWorkspaceSDK } from '@/SDKs/CodeWorkspaceSDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -69,20 +69,20 @@ function CodeWorkspacesHome() {
     }
 
     return (
-        <App.Home.Root>
-            <App.Home.Header>
-                <App.Home.Logo>
+        <Home.Root>
+            <Home.Header>
+                <Home.Logo>
                     {/* The brick on its own — no tinted tile behind it. */}
                     <App.Glyph glyph={codeWorkspacesApp.glyph} size={88} bare />
-                </App.Home.Logo>
-                <App.Home.PreTitle />
-                <App.Home.Title />
-                <App.Home.TitleDescription />
-            </App.Home.Header>
+                </Home.Logo>
+                <Home.PreTitle />
+                <Home.Title />
+                <Home.TitleDescription />
+            </Home.Header>
 
-            <App.Home.Content>
+            <Home.Content>
                 <Tabs.Root value={view} onValueChange={openView} className='gap-0'>
-                    <App.Home.Toolbar>
+                    <Home.Toolbar>
                         <Tabs.List aria-label='Code Workspaces home'>
                             <Tabs.Trigger value='recent'>Recent</Tabs.Trigger>
                             <Tabs.Trigger value='all'>All workspaces</Tabs.Trigger>
@@ -94,12 +94,12 @@ function CodeWorkspacesHome() {
                             loading={listRequest.isFetching || workspacesRequest.isFetching}
                             onClick={refresh}
                         />
-                        <App.Home.Actions>
+                        <Home.Actions>
                             <Button intent='success' icon='add' onClick={() => CodeWorkspaceSDK.dialogs.openCreateWorkspace()}>
                                 New workspace
                             </Button>
-                        </App.Home.Actions>
-                    </App.Home.Toolbar>
+                        </Home.Actions>
+                    </Home.Toolbar>
 
                     <div className='flex flex-col gap-3 px-6 py-5'>
                         <ErrorNotice error={listRequest.error ?? workspacesRequest.error ?? templatesRequest.error} />
@@ -115,8 +115,8 @@ function CodeWorkspacesHome() {
                         {workspaces.length > 0 && <WorkspacesTable workspaces={workspaces} templates={templates} />}
                     </div>
                 </Tabs.Root>
-            </App.Home.Content>
-        </App.Home.Root>
+            </Home.Content>
+        </Home.Root>
     )
 }
 

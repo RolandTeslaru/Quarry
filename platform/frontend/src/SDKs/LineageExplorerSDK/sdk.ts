@@ -1,4 +1,4 @@
-import type { Library, LineageExplorer } from '@quarry/shared/domain'
+import type { LineageExplorer } from '@quarry/shared/domain'
 import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
@@ -12,8 +12,7 @@ export class LineageExplorerSDKImpl extends BaseSDK<LineageExplorerSDK.State> {
 
     public readonly useStore: BaseSDK.Store<LineageExplorerSDK.State> = createWithEqualityFn(
         immer<LineageExplorerSDK.State>(() => ({
-            explorations: {},
-            graphs: {},
+            currentGraph: null,
         })),
         shallow,
     )
@@ -23,9 +22,9 @@ export class LineageExplorerSDKImpl extends BaseSDK<LineageExplorerSDK.State> {
     public readonly dialogs: LineageExplorerSDK.Dialogs = _createLineageExplorerDialogs_()
 
     public override readonly query = {
-        /** Every exploration the user can see — the home's; cache only. */
-        explorations: {
-            queryKey: ['lineage-explorer', 'explorations'] as const,
+        /** Every exploration the user can see, as metas — the home's; cache only. */
+        listExplorations: {
+            queryKey: ['lineage-explorer', 'listExplorations'] as const,
             queryFn: () => this.actions.exploration.list(),
             staleTime: 0,
         },
@@ -33,8 +32,7 @@ export class LineageExplorerSDKImpl extends BaseSDK<LineageExplorerSDK.State> {
 
     public override cleanup(): void {
         this.setState({
-            explorations: {},
-            graphs: {},
+            currentGraph: null,
         })
     }
 }
@@ -44,9 +42,8 @@ export const LineageExplorerSDK = SDK.get<LineageExplorerSDKImpl>('LineageExplor
 export namespace LineageExplorerSDK {
 
     export type State = {
-        explorations: Record<LineageExplorer.Exploration.Rid, LineageExplorer.Exploration>
-        /** Each exploration's graph, as it was read when it was opened. */
-        graphs:       Record<LineageExplorer.Exploration.Rid, Library.Lineage.Graph>
+        /** The open exploration's page: loaded once by its route, the canvas's starting point. */
+        currentGraph: LineageExplorer.Graph | null
     }
 
     export type Actions = LineageExplorerActions

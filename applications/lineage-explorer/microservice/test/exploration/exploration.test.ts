@@ -49,7 +49,10 @@ describe('explorations', () => {
         await harness.grant(user, shared, reader, 'viewer');
         await harness.trash(user, trashed.rid);
 
-        const rids = (await harness.explorations.list(reader)).map((exploration) => exploration.rid);
+        const metas = await harness.explorations.list(reader);
+        const rids = metas.map((exploration) => exploration.rid);
+
+        expect(metas.every((exploration) => !('nodes' in exploration))).toBe(true);
 
         expect(rids).toContain(listed.rid);
         expect(rids).not.toContain(trashed.rid);
@@ -66,8 +69,8 @@ describe('explorations', () => {
 
         const before = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
-        expect(before.graph.edges).toEqual([]);
-        expect(Object.keys(before.graph.resources).sort()).toEqual([a, b].sort());
+        expect(before.edges).toEqual([]);
+        expect(Object.keys(before.resources).sort()).toEqual([a, b].sort());
 
         await harness.library.lineage.declare(user, projectRid, MAIN, [
             { upstreamRid: a, downstreamRid: b },
@@ -76,7 +79,7 @@ describe('explorations', () => {
 
         const after = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
-        expect(after.graph.edges).toEqual([{ upstreamRid: a, downstreamRid: b, branch: MAIN, declaredByRid: projectRid }]);
+        expect(after.edges).toEqual([{ upstreamRid: a, downstreamRid: b, branch: MAIN, declaredByRid: projectRid }]);
     });
 
     it('save replaces the nodes', async () => {
@@ -88,7 +91,7 @@ describe('explorations', () => {
 
         expect(saved.nodes).toEqual({ [b]: { x: 10, y: 20 } });
 
-        const { exploration: opened } = await harness.explorations.open(user, exploration.rid, APPLICATION);
+        const opened = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
         expect(opened.nodes).toEqual({ [b]: { x: 10, y: 20 } });
     });
@@ -100,7 +103,7 @@ describe('explorations', () => {
 
         await harness.grant(user, projectRid, viewer, 'viewer');
 
-        await expect(harness.explorations.open(viewer, exploration.rid, APPLICATION)).resolves.toMatchObject({ exploration: { rid: exploration.rid } });
+        await expect(harness.explorations.open(viewer, exploration.rid, APPLICATION)).resolves.toMatchObject({ rid: exploration.rid });
         await expect(harness.explorations.save(viewer, exploration.rid, {})).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -126,10 +129,10 @@ describe('explorations', () => {
         await harness.grant(user, shared, viewer, 'viewer');
         await harness.library.lineage.declare(user, shared, MAIN, []);
 
-        const { exploration: opened, graph } = await harness.explorations.open(viewer, exploration.rid, APPLICATION);
+        const graph = await harness.explorations.open(viewer, exploration.rid, APPLICATION);
 
         expect(Object.keys(graph.resources)).toEqual([a]);
-        expect(opened.nodes).toEqual(nodes);
+        expect(graph.nodes).toEqual(nodes);
     });
 
     it('a trashed node drops out of the graph', async () => {
@@ -140,7 +143,7 @@ describe('explorations', () => {
         await harness.library.lineage.declare(user, projectRid, MAIN, [{ upstreamRid: a, downstreamRid: b }]);
         await harness.trash(user, b);
 
-        const { graph } = await harness.explorations.open(user, exploration.rid, APPLICATION);
+        const graph = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
         expect(Object.keys(graph.resources)).toEqual([a]);
         expect(graph.edges).toEqual([]);

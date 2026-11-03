@@ -18,18 +18,18 @@ import { useApp } from './layout'
 // tinted dither fills a full-width header; its name sits over it beside its
 // logo. The sections sit inside a shared Card below.
 //
-//   <App.Home.Root>
-//       <App.Home.Header>
-//           <App.Home.Logo />
-//           <App.Home.PreTitle />
-//           <App.Home.Title />
-//           <App.Home.TitleDescription />
-//       </App.Home.Header>
-//       <App.Home.Content>
-//           <App.Home.Toolbar>…</App.Home.Toolbar>
-//           <App.Home.Section actions={…} title='All datasets'>…</App.Home.Section>
-//       </App.Home.Content>
-//   </App.Home.Root>
+//   <Home.Root>
+//       <Home.Header>
+//           <Home.Logo />
+//           <Home.PreTitle />
+//           <Home.Title />
+//           <Home.TitleDescription />
+//       </Home.Header>
+//       <Home.Content>
+//           <Home.Toolbar>…</Home.Toolbar>
+//           <Home.Section actions={…} title='All datasets'>…</Home.Section>
+//       </Home.Content>
+//   </Home.Root>
 //
 // Logo, Title and TitleDescription show the app's own (App.useApp) unless given children.
 
@@ -216,7 +216,7 @@ const RECENT_SKELETONS = [0, 1, 2]
  * What the user opened recently in this app, newest first — from their audit
  * `open` events, only what they can still see. Usually in a section:
  *
- *   <App.Home.Section title='Recently opened'><App.Home.Recents /></App.Home.Section>
+ *   <Home.Section title='Recently opened'><Home.Recents /></Home.Section>
  */
 function Recents({ className }: { className?: string }) {
     const app = useApp()

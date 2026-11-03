@@ -4,7 +4,7 @@ import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import type { Library } from '@quarry/shared/domain'
-import { App } from '@/AppKit'
+import { Home } from '@/AppKit'
 import { AuditSDK } from '@/SDKs/AuditSDK/sdk'
 import { LineageExplorerSDK } from '@/SDKs/LineageExplorerSDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -32,7 +32,7 @@ function LineageExplorerHome() {
 
     const [, [explorationsRequest]] = LineageExplorerSDK.useWith(
         () => null,
-        query => [{ ...query.explorations, enabled: view === 'all' }],
+        query => [{ ...query.listExplorations, enabled: view === 'all' }],
     )
 
     const [, [recentsRequest]] = AuditSDK.useWith(
@@ -51,17 +51,17 @@ function LineageExplorerHome() {
     }
 
     return (
-        <App.Home.Root>
-            <App.Home.Header>
-                <App.Home.Logo />
-                <App.Home.PreTitle />
-                <App.Home.Title />
-                <App.Home.TitleDescription />
-            </App.Home.Header>
+        <Home.Root>
+            <Home.Header>
+                <Home.Logo />
+                <Home.PreTitle />
+                <Home.Title />
+                <Home.TitleDescription />
+            </Home.Header>
 
-            <App.Home.Content>
+            <Home.Content>
                 <Tabs.Root value={view} onValueChange={openView} className='gap-0'>
-                    <App.Home.Toolbar>
+                    <Home.Toolbar>
                         <Tabs.List aria-label='Lineage Explorer home'>
                             <Tabs.Trigger value='recent'>Recent</Tabs.Trigger>
                             <Tabs.Trigger value='all'>All explorations</Tabs.Trigger>
@@ -73,12 +73,12 @@ function LineageExplorerHome() {
                             loading={listRequest.isFetching}
                             onClick={() => void listRequest.refetch()}
                         />
-                        <App.Home.Actions>
+                        <Home.Actions>
                             <Button intent='success' icon='add' onClick={() => LineageExplorerSDK.dialogs.openCreateExploration()}>
                                 New exploration
                             </Button>
-                        </App.Home.Actions>
-                    </App.Home.Toolbar>
+                        </Home.Actions>
+                    </Home.Toolbar>
 
                     <div className='flex flex-col gap-3 px-6 py-5'>
                         <ErrorNotice error={listRequest.error} />
@@ -94,8 +94,8 @@ function LineageExplorerHome() {
                         {explorations.length > 0 && <ExplorationsTable explorations={explorations} />}
                     </div>
                 </Tabs.Root>
-            </App.Home.Content>
-        </App.Home.Root>
+            </Home.Content>
+        </Home.Root>
     )
 }
 

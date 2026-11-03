@@ -40,10 +40,11 @@ describe('explorations over HTTP', () => {
 
         expect(saved.exploration.nodes).toEqual(nodes);
 
-        const opened = await LineageExplorer.API.Exploration.open(api, exploration.rid, { application: 'lineage-explorer' });
+        const { graph } = await LineageExplorer.API.Exploration.open(api, exploration.rid, { application: 'lineage-explorer' });
 
-        expect(opened.exploration.name).toBe('Everything');
-        expect(opened.graph.edges).toEqual([{ upstreamRid: a, downstreamRid: b, branch: MAIN, declaredByRid: projectRid }]);
-        expect(opened.graph.resources[b].name).toBe('b');
+        expect(graph.name).toBe('Everything');
+        expect(graph.nodes).toEqual(nodes);
+        expect(graph.edges).toEqual([{ upstreamRid: a, downstreamRid: b, branch: MAIN, declaredByRid: projectRid }]);
+        expect(graph.resources[b].name).toBe('b');
     });
 });

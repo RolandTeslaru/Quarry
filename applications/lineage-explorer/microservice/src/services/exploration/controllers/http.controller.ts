@@ -27,15 +27,15 @@ export class ExplorationController {
         return { explorations: await this.explorations.list(principal) };
     }
 
-    /** An app opened the exploration: it, its graph read now, the open recorded (audit). */
+    /** An app opened the exploration: its graph read now, the open recorded (audit). */
     @Post(':rid/open')
     @HttpCode(200)
-    open(
+    async open(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', ExplorationRidParam) rid: LineageExplorer.Exploration.Rid,
         @Body(new ZodPipe(API.Exploration.Open.Request)) body: API.Exploration.Open.Request,
     ): Promise<API.Exploration.Open.Response> {
-        return this.explorations.open(principal, rid, body.application);
+        return { graph: await this.explorations.open(principal, rid, body.application) };
     }
 
     @Put(':rid/nodes')

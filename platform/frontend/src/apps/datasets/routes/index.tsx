@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Table } from '@quarry/standard-ui/foundations/table'
-import { App } from '@/AppKit'
+import { Home } from '@/AppKit'
 import { CatalogSDK } from '@/SDKs/CatalogSDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceLink } from '@/components/ResourceLink'
@@ -22,20 +22,20 @@ function DatasetsHome() {
     const datasets = datasetsRequest.data?.datasets ?? []
 
     return (
-        <App.Home.Root>
-            <App.Home.Header>
-                <App.Home.Logo />
-                <App.Home.PreTitle />
-                <App.Home.Title />
-                <App.Home.TitleDescription />
-            </App.Home.Header>
+        <Home.Root>
+            <Home.Header>
+                <Home.Logo />
+                <Home.PreTitle />
+                <Home.Title />
+                <Home.TitleDescription />
+            </Home.Header>
 
-            <App.Home.Content>
-                <App.Home.Section title='Recently opened'>
-                    <App.Home.Recents />
-                </App.Home.Section>
+            <Home.Content>
+                <Home.Section title='Recently opened'>
+                    <Home.Recents />
+                </Home.Section>
 
-                <App.Home.Section
+                <Home.Section
                     title='All datasets'
                     meta={<>{number(datasets.length)} you can see</>}
                     actions={
@@ -78,8 +78,8 @@ function DatasetsHome() {
                             </Table.Body>
                         </Table.Root>
                     )}
-                </App.Home.Section>
-            </App.Home.Content>
-        </App.Home.Root>
+                </Home.Section>
+            </Home.Content>
+        </Home.Root>
     )
 }

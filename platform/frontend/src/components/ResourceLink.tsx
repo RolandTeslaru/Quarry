@@ -11,7 +11,7 @@ const RESOURCE_ICONS: Record<Library.Resource.Type, IconName> = {
     dataset: 'th',
     credential: 'key',
     workspace: 'code',
-    'lineage-exploration': 'graph',
+    'lineage-exploration': 'data-lineage',
 }
 
 export function resourceIcon(type: Library.Resource.Type): IconName {

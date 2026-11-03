@@ -53,12 +53,12 @@ Passing reads declare nothing: previewing a dataset in a workspace isn't a resou
 
 ## 4. Reading
 
-`library.lineage.getUpstream` and `getDownstream` take a resource, a branch and optionally a `Library.Lineage.Walk`, and return a `Library.Lineage.Graph`: the edges, and the resources at their ends. By default they go one hop.
+`library.lineage.getUpstream` and `getDownstream` take a resource, a branch and optionally a `Library.Lineage.Walk`, and return `{ resources, edges }`: the edges, and the resources at their ends. By default they go one hop.
 
 - **`depth`:** how many hops to walk. A depth past the end of the graph just stops there, and each edge comes back once, even in a cycle. Over HTTP it's capped at `Walk.MAX_DEPTH`.
 - **`includeTrashed`:** by default a trashed resource is left out and stops the walk there. With this on, it's returned and walked through. The starting resource must still be live: a trashed one is a 404 either way.
 
-`library.lineage.getGraph` takes a set of resources and returns a `Graph`: those that are live and visible, and the edges among them. Opening an exploration uses it. `getEdgesBetween` returns only the edges.
+`library.lineage.getGraph` takes a set of resources and returns `{ resources, edges }`: those that are live and visible, and the edges among them. Opening an exploration uses it. `getEdgesBetween` returns only the edges.
 
 A read applies `library.resource`'s policy to both ends of an edge, so a resource the reader can't discover stops the walk even if there's something visible beyond it. Without that, the declarer policy in §5 would show its editors edges to resources they can't see.
 
@@ -90,16 +90,16 @@ Purge isn't built. Library will be its entry point (`library.purge`, [jobs.md](j
 
 Lineage is the Library's. The Lineage Explorer service (`applications/lineage-explorer/microservice`) only owns saved **explorations**, on its own schema and login, reached through the main server's proxy at `/api/lineage-explorer`.
 
-An exploration (`LineageExplorer.Exploration`) is a library resource of type `lineage-exploration`, so folders, sharing and trash come from Library and Gatekeeper. It's also called a graph in Foundry, but `Library.Lineage.Graph` is what a read returns, and `Dataset.View` already takes "view".
+An exploration (`LineageExplorer.Exploration`) is a library resource of type `lineage-exploration`, so folders, sharing and trash come from Library and Gatekeeper. Foundry calls them graphs; here a `LineageExplorer.Graph` is the working copy of one, and `Dataset.View` already takes "view". Listings use `LineageExplorer.Exploration.Meta`, which leaves out `nodes`.
 
 | Field | |
 | --- | --- |
 | `branch` | The branch its edges are read from. |
 | `nodes` | `Record<Resource.Rid, { x, y }>`: a resource is on the canvas if it's a key here. |
 
-- **Edges aren't stored.** Opening one reads them with `getGraph`, so it can't go stale. `POST explorations/:rid/open` returns `{ exploration, graph }` in one response and records the audit `open`.
+- **Edges aren't stored.** Opening one reads them with `getGraph`, so it can't go stale. `POST explorations/:rid/open` returns a `LineageExplorer.Graph`: the exploration, plus the resources on its canvas that the viewer can see and the edges among them. It also records the audit `open`. `LineageExplorerSDK` keeps it as `currentGraph`, set by the page's loader and cleared on leave, and the canvas starts from it.
 - **Nodes have no foreign keys,** so a purge doesn't touch explorations: a purged resource just stops showing.
-- **Hidden nodes stay in `nodes`.** A node the viewer can't see, or a trashed one, is missing from `graph` but still in `exploration.nodes`. A client must send those back when it saves: otherwise someone with less access would delete them for everyone. It means a viewer can see a hidden resource's RID, but nothing else about it.
+- **Hidden nodes stay in `nodes`.** A node the viewer can't see, or a trashed one, is missing from the graph's `resources` but still in its `nodes`. A client must send those back when it saves: otherwise someone with less access would delete them for everyone. It means a viewer can see a hidden resource's RID, but nothing else about it.
 - **Saving** (`PUT explorations/:rid/nodes`) replaces `nodes`, and the last save wins. It doesn't touch `library.resource.updated_at` yet.
 - **The app** (`apps/lineage-explorer`, with `SDKs/LineageExplorerSDK`) uses React Flow (`@xyflow/react`) and Dagre. React Flow's state is the truth until Save. There's no reconcile layer, because edges are read-only: whenever the nodes change, it rereads them with `getGraph`.
 - **Layout:** Dagre, left to right, only on **Layout all nodes**, because it can't pin nodes and would undo dragging. Expand puts new neighbours in a column beside the node, and Add resource puts one below everything.

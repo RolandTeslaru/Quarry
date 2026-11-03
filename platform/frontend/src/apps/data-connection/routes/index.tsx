@@ -4,7 +4,7 @@ import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import type { DataConnection } from '@quarry/shared/domain'
-import { App } from '@/AppKit'
+import { Home } from '@/AppKit'
 import { AuditSDK } from '@/SDKs/AuditSDK/sdk'
 import { DataConnectionSDK } from '@/SDKs/DataConnectionSDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -68,17 +68,17 @@ function DataConnectionHome() {
     }
 
     return (
-        <App.Home.Root>
-            <App.Home.Header>
-                <App.Home.Logo />
-                <App.Home.PreTitle />
-                <App.Home.Title />
-                <App.Home.TitleDescription />
-            </App.Home.Header>
+        <Home.Root>
+            <Home.Header>
+                <Home.Logo />
+                <Home.PreTitle />
+                <Home.Title />
+                <Home.TitleDescription />
+            </Home.Header>
 
-            <App.Home.Content>
+            <Home.Content>
                 <Tabs.Root value={view} onValueChange={openView} className='gap-0'>
-                    <App.Home.Toolbar>
+                    <Home.Toolbar>
                         <Tabs.List aria-label='Data Connection home'>
                             <Tabs.Trigger value='recent'>Recent</Tabs.Trigger>
                             <Tabs.Trigger value='all'>All sources</Tabs.Trigger>
@@ -90,12 +90,12 @@ function DataConnectionHome() {
                             loading={listRequest.isFetching || sourcesRequest.isFetching}
                             onClick={refresh}
                         />
-                        <App.Home.Actions>
+                        <Home.Actions>
                             <Button intent='success' icon='add' onClick={() => DataConnectionSDK.dialogs.openCreateSource()}>
                                 New source
                             </Button>
-                        </App.Home.Actions>
-                    </App.Home.Toolbar>
+                        </Home.Actions>
+                    </Home.Toolbar>
 
                     <div className='flex flex-col gap-3 px-6 py-5'>
                         <ErrorNotice error={listRequest.error ?? sourcesRequest.error ?? definitionsRequest.error} />
@@ -111,8 +111,8 @@ function DataConnectionHome() {
                         {sources.length > 0 && <SourcesTable sources={sources} definitions={definitions} />}
                     </div>
                 </Tabs.Root>
-            </App.Home.Content>
-        </App.Home.Root>
+            </Home.Content>
+        </Home.Root>
     )
 }
 

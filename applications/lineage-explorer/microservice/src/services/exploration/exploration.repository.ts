@@ -76,20 +76,19 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
         return exploration;
     }
 
-    /** Every live exploration the user can read (RLS). */
+    /** Every live exploration the user can read (RLS), without its nodes. */
     @Transactional()
-    async list(principal: Principal): Promise<LineageExplorer.Exploration[]> {
+    async list(principal: Principal): Promise<LineageExplorer.Exploration.Meta[]> {
         const rows = await this.trx
             .selectFrom('lineage_explorer.exploration as e')
             .innerJoin('library.resource as r', 'r.rid', 'e.rid')
             .selectAll('r')
-            .select(['e.rid as exploration_rid', 'e.branch', 'e.nodes'])
+            .select('e.branch')
             .where(isLive('r.rid'))
             .orderBy('r.name')
             .execute();
 
-        return rows.map(({ exploration_rid, branch, nodes, ...resource }) =>
-            LineageExplorerDB.Exploration.toDomain({ rid: exploration_rid, type: 'lineage-exploration', branch, nodes }, resource));
+        return rows.map(({ branch, ...resource }) => LineageExplorerDB.Exploration.toMeta({ branch }, resource));
     }
 
     @Transactional()

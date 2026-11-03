@@ -19,16 +19,16 @@ import {
 const FIT_VIEW_OPTIONS = { padding: 0.2, duration: 200 }
 
 /**
- * An open exploration's canvas. React Flow's state is the truth until Save: nodes and where they are.
- * Edges are never saved, so they're read again whenever the nodes change.
+ * An open exploration's canvas, started from its graph. React Flow's state is the truth until Save: nodes
+ * and where they are. Edges are never saved, so they're read again whenever the nodes change.
  */
-export function useLineageCanvas(exploration: LineageExplorer.Exploration, graph: Library.Lineage.Graph) {
+export function useLineageCanvas(graph: LineageExplorer.Graph) {
     const reactFlow = useReactFlow<ResourceNode>()
 
     // Seeded once: the page remounts for another exploration.
-    const [initialNodes] = useState(() => toResourceNodes(exploration, graph))
+    const [initialNodes] = useState(() => toResourceNodes(graph))
     const [initialEdges] = useState(() => toFlowEdges(graph.edges))
-    const hiddenNodes = useMemo(() => getHiddenNodes(exploration, graph), [exploration, graph])
+    const hiddenNodes = useMemo(() => getHiddenNodes(graph), [graph])
 
     const [nodes, setNodes, onNodesChange] = useNodesState<ResourceNode>(initialNodes)
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
@@ -42,9 +42,9 @@ export function useLineageCanvas(exploration: LineageExplorer.Exploration, graph
         for (const node of onCanvas)
             rids.push(node.data.resource.rid)
 
-        const { graph: read } = await LibrarySDK.actions.lineage.getGraph({ rids, branch: exploration.branch })
+        const { edges: read } = await LibrarySDK.actions.lineage.getGraph({ rids, branch: graph.branch })
 
-        setEdges(toFlowEdges(read.edges))
+        setEdges(toFlowEdges(read))
     }
 
     function handleNodesChange(changes: NodeChange<ResourceNode>[]) {
@@ -57,9 +57,9 @@ export function useLineageCanvas(exploration: LineageExplorer.Exploration, graph
 
     const expand = withExpandTask(async (node: ResourceNode, direction: ExpandDirection) => {
         const rid = node.data.resource.rid
-        const request = { branch: exploration.branch, depth: 1, includeTrashed: false }
+        const request = { branch: graph.branch, depth: 1, includeTrashed: false }
 
-        const { graph: read } = direction === 'upstream'
+        const read = direction === 'upstream'
             ? await LibrarySDK.actions.lineage.getUpstream(rid, request)
             : await LibrarySDK.actions.lineage.getDownstream(rid, request)
 
@@ -75,7 +75,7 @@ export function useLineageCanvas(exploration: LineageExplorer.Exploration, graph
             if (!known.has(resource.rid))
                 neighbours.push(resource)
 
-        const next = [...onCanvas, ...placeBeside(node.position, direction, neighbours)]
+        const next = [...onCanvas, ...placeBeside(node, direction, neighbours)]
 
         setNodes(next)
 
@@ -121,7 +121,7 @@ export function useLineageCanvas(exploration: LineageExplorer.Exploration, graph
         for (const node of reactFlow.getNodes())
             saved[node.data.resource.rid] = { x: node.position.x, y: node.position.y }
 
-        await LineageExplorerSDK.actions.exploration.save(exploration.rid, saved)
+        await LineageExplorerSDK.actions.exploration.save(graph.rid, saved)
 
         setDirty(false)
     })

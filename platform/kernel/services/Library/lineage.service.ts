@@ -31,7 +31,7 @@ export class LineageService {
         rid:       Library.Resource.Rid,
         branch:    Foundations.Branch,
         walk:      Library.Lineage.Walk = Library.Lineage.Walk.ONE_HOP,
-    ): Promise<Library.Lineage.Graph> {
+    ) {
         return LibraryDB.LineageGraph.toDomain(await this.repository.getUpstream(principal, rid, branch, walk));
     }
 
@@ -41,7 +41,7 @@ export class LineageService {
         rid:       Library.Resource.Rid,
         branch:    Foundations.Branch,
         walk:      Library.Lineage.Walk = Library.Lineage.Walk.ONE_HOP,
-    ): Promise<Library.Lineage.Graph> {
+    ) {
         return LibraryDB.LineageGraph.toDomain(await this.repository.getDownstream(principal, rid, branch, walk));
     }
 
@@ -53,7 +53,7 @@ export class LineageService {
     }
 
     /** These resources, those that are live and visible, and the edges among them. */
-    public async getGraph(principal: Principal, rids: Library.Resource.Rid[], branch: Foundations.Branch): Promise<Library.Lineage.Graph> {
+    public async getGraph(principal: Principal, rids: Library.Resource.Rid[], branch: Foundations.Branch) {
         return LibraryDB.LineageGraph.toDomain(await this.repository.getGraph(principal, rids, branch));
     }
 }

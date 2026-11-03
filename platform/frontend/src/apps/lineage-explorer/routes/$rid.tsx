@@ -17,11 +17,12 @@ export const Route = createFileRoute('/_workspace/lineage-explorer/$rid')({
             return { rid: parsed.data }
         },
     },
-    // Entering opens the exploration: it, its graph read now, and the audit `open`, in one request.
+    // Entering opens the exploration: its graph, read now, becomes the current one, and the audit `open` is recorded.
     loader: async ({ params, cause }) => {
         if (cause === 'enter')
             await orNotFound(LineageExplorerSDK.actions.exploration.open(params.rid, lineageExplorerApp.id))
     },
+    onLeave: match => LineageExplorerSDK.actions.exploration.close(match.params.rid),
     preloadStaleTime: 0,
     pendingComponent: App.Pending,
     pendingMs: 0,

@@ -22,6 +22,11 @@ export namespace LineageExplorerDB {
             branch: row.branch,
             nodes:  row.nodes,
         });
+
+        export const toMeta = (row: Pick<Row, 'branch'>, resource: LibraryDB.Resource.Row) => LineageExplorer.Exploration.Meta.Schema.parse({
+            ...LibraryDB.Resource.toBase(resource),
+            branch: row.branch,
+        });
     }
 
     export interface Tables {

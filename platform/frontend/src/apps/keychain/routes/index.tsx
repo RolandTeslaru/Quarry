@@ -4,7 +4,7 @@ import { Table } from '@quarry/standard-ui/foundations/table'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Badge } from '@quarry/standard-ui/foundations/Badge'
 import type { Keychain } from '@quarry/shared/domain'
-import { App } from '@/AppKit'
+import { Home } from '@/AppKit'
 import { KeychainSDK } from '@/SDKs/KeychainSDK/sdk'
 import { Empty } from '@/components/Empty'
 import { ErrorNotice } from '@/components/ErrorNotice'
@@ -37,16 +37,16 @@ function KeychainApp() {
     }
 
     return (
-        <App.Home.Root>
-            <App.Home.Header>
-                <App.Home.Logo />
-                <App.Home.PreTitle />
-                <App.Home.Title />
-                <App.Home.TitleDescription />
-            </App.Home.Header>
+        <Home.Root>
+            <Home.Header>
+                <Home.Logo />
+                <Home.PreTitle />
+                <Home.Title />
+                <Home.TitleDescription />
+            </Home.Header>
 
-            <App.Home.Content>
-                <App.Home.Section
+            <Home.Content>
+                <Home.Section
                     title='Credentials'
                     meta={<>{number(credentials.length)} you can see</>}
                     actions={
@@ -88,8 +88,8 @@ function KeychainApp() {
                             onEdit={openEditor}
                         />
                     )}
-                </App.Home.Section>
-            </App.Home.Content>
-        </App.Home.Root>
+                </Home.Section>
+            </Home.Content>
+        </Home.Root>
     )
 }
