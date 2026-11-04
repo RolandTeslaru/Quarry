@@ -31,6 +31,7 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
         parentRid:   Library.Resource.Rid;
         branch:      Foundations.Branch;
         nodes:       LineageExplorer.Exploration['nodes'];
+        legend:      LineageExplorer.Legend;
     }): Promise<LineageExplorer.Exploration> {
         const exploration = await this.trx
             .insertInto('lineage_explorer.exploration')
@@ -38,6 +39,7 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
                 rid:    values.rid,
                 branch: values.branch,
                 nodes:  json(values.nodes),
+                legend: json(values.legend),
             })
             .returningAll()
             .executeTakeFirstOrThrow();
@@ -52,7 +54,7 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
             .selectFrom('lineage_explorer.exploration as e')
             .innerJoin('library.resource as r', 'r.rid', 'e.rid')
             .selectAll('r')
-            .select(['e.branch', 'e.nodes'])
+            .select(['e.branch', 'e.nodes', 'e.legend'])
             .where('e.rid', '=', rid)
             .where('r.trashed_at', 'is', null)
             .executeTakeFirst();
@@ -60,9 +62,9 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
         if (!row)
             return null;
 
-        const { branch, nodes, ...resource } = row;
+        const { branch, nodes, legend, ...resource } = row;
 
-        return LineageExplorerDB.Exploration.toDomain({ rid, type: 'lineage-exploration', branch, nodes }, resource);
+        return LineageExplorerDB.Exploration.toDomain({ rid, type: 'lineage-exploration', branch, nodes, legend }, resource);
     }
 
     /** An app opening the exploration: it, and the audit `open`, in one transaction. Null: not there, or not theirs to see. */
@@ -92,10 +94,13 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
     }
 
     @Transactional()
-    async save(principal: Principal, rid: LineageExplorer.Exploration.Rid, nodes: LineageExplorer.Exploration['nodes']): Promise<void> {
+    async save(principal: Principal, rid: LineageExplorer.Exploration.Rid, request: LineageExplorer.API.Exploration.Save.Request): Promise<void> {
         requireAffected(await this.trx
             .updateTable('lineage_explorer.exploration')
-            .set({ nodes: json(nodes) })
+            .set({
+                nodes:  json(request.nodes),
+                legend: json(request.legend),
+            })
             .where('rid', '=', rid)
             .executeTakeFirst());
     }

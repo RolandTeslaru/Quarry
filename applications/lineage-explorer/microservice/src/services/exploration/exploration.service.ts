@@ -24,6 +24,7 @@ export class ExplorationService {
             parentRid:   request.parentRid,
             branch:      request.branch,
             nodes:       request.nodes,
+            legend:      request.legend,
         });
     }
 
@@ -57,9 +58,9 @@ export class ExplorationService {
     async save(
         principal: Principal,
         rid:       LineageExplorer.Exploration.Rid,
-        nodes:     LineageExplorer.Exploration['nodes'],
+        request:   LineageExplorer.API.Exploration.Save.Request,
     ): Promise<LineageExplorer.Exploration> {
-        await this.repository.save(principal, rid, nodes);
+        await this.repository.save(principal, rid, request);
 
         const exploration = await this.repository.get(principal, rid);
 

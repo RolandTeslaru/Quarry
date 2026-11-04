@@ -59,7 +59,10 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
         const nodes = this.sdk.selectors.exploration.getSavedNodes(document)
 
         try {
-            const { exploration } = await LineageExplorer.API.Exploration.save(api, document.exploration.rid, { nodes })
+            const { exploration } = await LineageExplorer.API.Exploration.save(api, document.exploration.rid, {
+                nodes,
+                legend: document.legend,
+            })
 
             this.sdk.setDocument(d => {
                 d.reducers.exploration.markSaved(d, exploration)

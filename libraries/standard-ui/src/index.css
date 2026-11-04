@@ -18,7 +18,7 @@
 .react-flow__selection {
     background-color: color-mix(in srgb, var(--primary) 8%, transparent) !important;
     border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-    border-radius: 32px;
+    border-radius: var(--radius-lg);
 }
 
 .react-flow__nodesselection-rect {
@@ -37,6 +37,6 @@
     bottom: -8px;
     background-color: color-mix(in srgb, var(--primary) 8%, transparent);
     border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-    border-radius: 32px;
+    border-radius: var(--radius-lg);
     pointer-events: none;
 }

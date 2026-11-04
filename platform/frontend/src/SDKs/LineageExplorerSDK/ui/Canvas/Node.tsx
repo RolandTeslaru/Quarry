@@ -5,13 +5,20 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import { useTask } from '@/hooks/useTask'
 import { LineageExplorerSDK } from '../../sdk'
+import { LEGENDS } from '../Legend/legends'
 import type { NodeDriver } from './drivers'
 
-/** A resource's name, the node sized to it, with a button on each side to bring in its neighbours. */
+const HANDLE_CLASS = 'size-0! min-h-0! min-w-0! border-0! opacity-0'
+
+/** A resource's name on its legend colour, the node sized to it, with a button on each side to bring in its neighbours. */
 export const ResourceNode = memo(function ResourceNode({ id, selected }: NodeProps<NodeDriver>) {
     const rid = id as LineageExplorer.Graph.Node.Rid
 
-    const resource = LineageExplorerSDK.useDocument(d => d.selectors.node.get(d, rid).libraryResource)
+    const [resource, tint] = LineageExplorerSDK.useDocument(d => {
+        const resource = d.selectors.node.get(d, rid).libraryResource
+
+        return [resource, LEGENDS[d.legend.type].getTint(resource)]
+    })
 
     // The action reports its own failure; the task only drives the buttons' pending state.
     const [expandTask, withExpandTask] = useTask()
@@ -22,11 +29,14 @@ export const ResourceNode = memo(function ResourceNode({ id, selected }: NodePro
     return (
         <div
             className={cn(
-                'flex max-w-80 min-w-32 items-center gap-1 rounded-sm border bg-card text-card-foreground shadow-xs',
+                'flex max-w-80 min-w-32 items-center gap-1 rounded-sm border text-card-foreground shadow-xs',
                 selected && 'border-primary',
             )}
+            // The legend colour, softened over the card so the name stays readable in either theme.
+            style={{ backgroundColor: `color-mix(in oklab, var(${tint}) 30%, var(--card))` }}
         >
-            <Handle type='target' position={Position.Left} isConnectable={false} className='opacity-0' />
+            {/* No size: an edge ends at a handle's outer side, so a sized one leaves a gap before the border. Important beats React Flow's unlayered CSS. */}
+            <Handle type='target' position={Position.Left} isConnectable={false} className={HANDLE_CLASS} />
 
             <Button
                 variant='minimal'
@@ -50,7 +60,7 @@ export const ResourceNode = memo(function ResourceNode({ id, selected }: NodePro
                 onClick={expandDownstream}
             />
 
-            <Handle type='source' position={Position.Right} isConnectable={false} className='opacity-0' />
+            <Handle type='source' position={Position.Right} isConnectable={false} className={HANDLE_CLASS} />
         </div>
     )
 })

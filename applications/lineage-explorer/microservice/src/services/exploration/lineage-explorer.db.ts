@@ -14,6 +14,7 @@ export namespace LineageExplorerDB {
             type:   z.literal('lineage-exploration'),
             branch: Foundations.Branch,
             nodes:  LineageExplorer.Exploration.Schema.shape.nodes,
+            legend: LineageExplorer.Exploration.Schema.shape.legend,
         });
         export type Row = z.infer<typeof Row>;
 
@@ -21,6 +22,7 @@ export namespace LineageExplorerDB {
             ...LibraryDB.Resource.toBase(resource),
             branch: row.branch,
             nodes:  row.nodes,
+            legend: row.legend,
         });
 
         export const toMeta = (row: Pick<Row, 'branch'>, resource: LibraryDB.Resource.Row) => LineageExplorer.Exploration.Meta.Schema.parse({
@@ -30,7 +32,7 @@ export namespace LineageExplorerDB {
     }
 
     export interface Tables {
-        'lineage_explorer.exploration': Table<typeof Exploration.Row, 'type' | 'nodes'>;
+        'lineage_explorer.exploration': Table<typeof Exploration.Row, 'type' | 'nodes' | 'legend'>;
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();

@@ -38,12 +38,12 @@ export class ExplorationController {
         return this.explorations.open(principal, rid, body.application);
     }
 
-    @Put(':rid/nodes')
+    @Put(':rid')
     async save(
         @CurrentPrincipal() principal: Principal.User,
         @Param('rid', ExplorationRidParam) rid: LineageExplorer.Exploration.Rid,
         @Body(new ZodPipe(API.Exploration.Save.Request)) body: API.Exploration.Save.Request,
     ): Promise<API.Exploration.Save.Response> {
-        return { exploration: await this.explorations.save(principal, rid, body.nodes) };
+        return { exploration: await this.explorations.save(principal, rid, body) };
     }
 }

@@ -36,6 +36,27 @@ export const APP_FOR_TYPE: Partial<Record<Library.Resource.Type, App.Definition>
     [...APPS].reverse().flatMap(app => Object.keys(app.opens).map(type => [type, app])),
 )
 
+/** What each resource type is called, in the singular. */
+export const RESOURCE_TYPE_LABELS: Record<Library.Resource.Type, string> = {
+    'project':             'Project',
+    'folder':              'Folder',
+    'dataset':             'Dataset',
+    'source':              'Source',
+    'credential':          'Credential',
+    'workspace':           'Code workspace',
+    'lineage-exploration': 'Lineage exploration',
+}
+
+type Tint = `--color-${string}`
+
+// For a type no app opens.
+const FALLBACK_TINT: Tint = '--color-neutral-400'
+
+/** The accent of the app that opens a resource type: what colours it wherever types are told apart by colour. */
+export function resourceTint(type: Library.Resource.Type): Tint {
+    return APP_FOR_TYPE[type]?.home?.tint ?? FALLBACK_TINT
+}
+
 /** The glyph of the app that opens a resource type, if one does. */
 export function resourceGlyph(type: Library.Resource.Type): App.Glyph | undefined {
     return APP_FOR_TYPE[type]?.glyph

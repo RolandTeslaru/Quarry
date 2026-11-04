@@ -1,5 +1,6 @@
 import * as ExplorationMod from "./Exploration"
 import * as GraphMod       from "./Graph"
+import * as LegendMod      from "./Legend"
 import * as DocumentMod    from "./Document"
 import * as ApiMod         from "./api"
 
@@ -7,6 +8,7 @@ import * as ApiMod         from "./api"
 export namespace LineageExplorer {
     export import Exploration = ExplorationMod.Exploration
     export import Graph       = GraphMod.Graph
+    export import Legend      = LegendMod.Legend
     export import Document    = DocumentMod.Document
 
     export import API = ApiMod.API

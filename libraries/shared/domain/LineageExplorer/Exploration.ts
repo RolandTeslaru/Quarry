@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { Resource } from "../Library/Resource"
+import { Legend } from "./Legend"
 
 /**
  * A saved graph in Lineage Explorer — a library resource. It holds what's on the canvas and where;
@@ -29,11 +30,12 @@ export namespace Exploration {
         branch:    Foundations.Branch,
         /** A resource is on the canvas if it's a key here. */
         nodes:     z.record(Resource.Rid, Node.Schema),
+        legend:    Legend.Schema,
     })
 
-    /** Listing rows: everything but the nodes. */
+    /** Listing rows: everything but what's on the canvas. */
     export namespace Meta {
-        export const Schema = Exploration.Schema.omit({ nodes: true })
+        export const Schema = Exploration.Schema.omit({ nodes: true, legend: true })
     }
     export type Meta = z.infer<typeof Meta.Schema>
 }

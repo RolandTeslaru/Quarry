@@ -4,22 +4,13 @@ import { Skeleton } from '@quarry/standard-ui/foundations/skeleton'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import { LibrarySDK } from '../../../sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
+import { RESOURCE_TYPE_LABELS } from '@/routes/shell.layout/components/apps'
 import { matchesQuery, useLibraryExplorer } from '../root'
 import { LibraryContextMenu } from '../context-menus'
 import { ItemCard } from './items'
 
 // Sections in this order; anything else the server lists comes after.
 const TYPE_ORDER: Library.Resource.Type[] = ['project', 'folder', 'dataset', 'source', 'workspace', 'lineage-exploration']
-
-const TYPE_LABELS: Record<Library.Resource.Type, string> = {
-    'project':        'Project',
-    'folder':         'Folder',
-    'dataset':        'Dataset',
-    'source':         'Source',
-    'credential':     'Credential',
-    'workspace':      'Code workspace',
-    'lineage-exploration': 'Lineage exploration',
-}
 
 const SKELETON_CARDS = [0, 1, 2, 3, 4, 5, 6, 7]
 
@@ -126,7 +117,7 @@ function Items({ resources, pending, error, onRetry, emptyText, className }: Ite
                 {groupByType(matching).map(([type, group]) => (
                     <section key={type} className='flex flex-col gap-2'>
                         <h3 className='text-xs font-medium text-muted-foreground'>
-                            {group.length} {TYPE_LABELS[type]}{group.length === 1 ? '' : 's'}
+                            {group.length} {RESOURCE_TYPE_LABELS[type]}{group.length === 1 ? '' : 's'}
                         </h3>
 
                         <div className={GRID}>

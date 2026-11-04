@@ -17,6 +17,7 @@ CREATE TABLE lineage_explorer.exploration (
     type   text NOT NULL DEFAULT 'lineage-exploration' CHECK (type = 'lineage-exploration'),
     branch text NOT NULL,
     nodes  jsonb NOT NULL DEFAULT '{}',                  -- { <resource rid>: { x, y } }: no foreign keys, a purged resource just stops showing
+    legend jsonb NOT NULL DEFAULT '{"type": "resource-type", "isVisible": true}',     -- what the nodes are coloured by, and whether its key shows
     FOREIGN KEY (rid, type) REFERENCES library.resource (rid, type) ON DELETE RESTRICT
 );
 

@@ -27,23 +27,14 @@ export function useTestEnv(): string {
     process.env.DATABASE_URL = databaseUrl;
     process.env.QUARRY_MICROSERVICE_CALLS_NAMESPACE = TEST_DATABASE;     // never a dev server's on the same NATS (service-calls/subjects.ts)
 
+    // A role is the cluster's, not the database's: the dev URL's password, so a test run leaves dev services logged in.
     for (const login of SERVICE_LOGINS)
-        process.env[login.url] = getServiceDatabaseUrl(databaseUrl, login.role);
+        process.env[login.url] = withDatabase(requireEnv(login.url), TEST_DATABASE);
     process.env.REDIS_URL = withDatabase(requireEnv('REDIS_URL'), String(TEST_REDIS_DATABASE));
     process.env.QUARRY_GIT_ROOT = TEST_GIT_ROOT;
     process.env.CODE_WORKSPACE_WORKER_URL = 'http://127.0.0.1:9';        // never the dev worker: tests stub it, or it's unreachable
 
     return databaseUrl;
-}
-
-/** A service's login on the test database — the role is the cluster's, its password the tests'. */
-function getServiceDatabaseUrl(databaseUrl: string, role: string): string {
-    const parsed = new URL(databaseUrl);
-
-    parsed.username = role;
-    parsed.password = `${role}-test`;
-
-    return parsed.toString();
 }
 
 /** The same server, another database (Postgres) or db index (Redis). */

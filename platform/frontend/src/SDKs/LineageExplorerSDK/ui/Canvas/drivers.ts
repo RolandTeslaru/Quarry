@@ -1,4 +1,4 @@
-import type { Edge, Node } from '@xyflow/react'
+import { MarkerType, type Edge, type Node } from '@xyflow/react'
 import type { Graph, LineageExplorer } from '@quarry/shared/domain'
 
 /** What React Flow draws a node from: no data, its component reads the document by id. */
@@ -25,6 +25,12 @@ export function createEdgeDriver(id: Graph.Edge.Id, edge: LineageExplorer.Graph.
         source:     edge.sourceRid,
         target:     edge.targetRid,
         type:       edge.type,
+        // A filled triangle at the downstream end: upstream feeds downstream.
+        markerEnd:  {
+            type:   MarkerType.ArrowClosed,
+            width:  20,
+            height: 20,
+        },
         selectable: false,
         focusable:  false,
     }

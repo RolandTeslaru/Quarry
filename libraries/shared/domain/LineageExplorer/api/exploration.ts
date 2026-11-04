@@ -5,6 +5,7 @@ import { Resource } from "../../Library/Resource"
 import { Application } from "../../Platform/Application"
 import { Exploration as ExplorationD } from "../Exploration"
 import { Graph } from "../Graph"
+import { Legend } from "../Legend"
 
 export namespace Exploration {
 
@@ -15,6 +16,7 @@ export namespace Exploration {
             description: z.string().nullable().default(null),
             branch:      Foundations.Branch.default(Foundations.MAIN_BRANCH),
             nodes:       ExplorationD.Schema.shape.nodes.default({}),
+            legend:      ExplorationD.Schema.shape.legend.default(Legend.DEFAULT),
         })
         export type  Request = z.infer<typeof Request>
 
@@ -41,9 +43,12 @@ export namespace Exploration {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** Replaces what's on the canvas. Keep the nodes the graph left out: they may be someone else's to see. */
+    /** Replaces what's on the canvas, and its legend. Keep the nodes the graph left out: they may be someone else's to see. */
     export namespace Save {
-        export const Request = z.object({ nodes: ExplorationD.Schema.shape.nodes })
+        export const Request = z.object({
+            nodes:  ExplorationD.Schema.shape.nodes,
+            legend: ExplorationD.Schema.shape.legend,
+        })
         export type  Request = z.infer<typeof Request>
 
         export const Response = z.object({ exploration: ExplorationD.Schema })
@@ -66,7 +71,7 @@ export namespace Exploration {
     }
 
     export async function save(api: AxiosInstance, rid: ExplorationD.Rid, req: Save.Request): Promise<Save.Response> {
-        const { data } = await api.put(`/api/lineage-explorer/explorations/${rid}/nodes`, req)
+        const { data } = await api.put(`/api/lineage-explorer/explorations/${rid}`, req)
         return Save.Response.parse(data)
     }
 }

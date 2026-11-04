@@ -1,6 +1,7 @@
 import type { Resource } from "../../Library/Resource"
 import type { Graph as GraphDomain } from "../../Graph/Graph"
 import type { Exploration } from "../Exploration"
+import type { Legend } from "../Legend"
 import { Graph } from "../Graph"
 import { lineageExplorerReducers, type LineageExplorerReducers } from "./reducers"
 import { lineageExplorerSelectors, type LineageExplorerSelectors } from "./selectors"
@@ -11,6 +12,8 @@ export interface Document extends GraphDomain.Document<Graph.Node, Graph.Edge> {
 
     /** Saved nodes this viewer can't see: they go back with every save, or saving would delete them for everyone. */
     hiddenNodes: Exploration["nodes"]
+
+    legend: Legend
 
     reducers:  Document.Reducers
     selectors: Document.Selectors
@@ -28,7 +31,7 @@ export namespace Document {
     export type Direction = "upstream" | "downstream"
 
     export function create(exploration: Exploration, graph: Graph): Document {
-        const { nodes, ...meta } = exploration
+        const { nodes, legend, ...meta } = exploration
 
         const hiddenNodes: Exploration["nodes"] = {}
 
@@ -42,6 +45,7 @@ export namespace Document {
             isDirty:     false,
             exploration: meta,
             hiddenNodes,
+            legend,
             reducers,
             selectors,
         }
