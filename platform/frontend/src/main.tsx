@@ -8,7 +8,7 @@ import { AuthSDK } from '@/SDKs/AuthSDK/sdk'
 import { RealtimeSDK } from '@/SDKs/RealtimeSDK/sdk'
 import { AppStatus } from '@/components/AppStatus'
 import { routeTree } from './routeTree.gen'
-import { isPlaygroundPath } from '@/routing/public-paths'
+import { isPlaygroundPath } from './routes/root'
 
 export const router = createRouter({
     routeTree,

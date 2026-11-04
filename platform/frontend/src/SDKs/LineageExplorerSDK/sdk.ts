@@ -1,21 +1,32 @@
-import type { LineageExplorer } from '@quarry/shared/domain'
 import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
+import type { ReactFlowInstance } from '@xyflow/react'
+import { type Graph, LineageExplorer } from '@quarry/shared/domain'
+import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 import { BaseSDK } from '../core/BaseSDK'
 import { LineageExplorerActions } from './actions'
 import { _createLineageExplorerDialogs_, type _LineageExplorerSDKDialogs } from './dialogs'
-import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
+import type { EdgeDriver, NodeDriver } from './ui/Canvas/drivers'
 
 @SDK('LineageExplorer')
 export class LineageExplorerSDKImpl extends BaseSDK<LineageExplorerSDK.State> {
 
     public readonly useStore: BaseSDK.Store<LineageExplorerSDK.State> = createWithEqualityFn(
         immer<LineageExplorerSDK.State>(() => ({
-            currentGraph: null,
+            document: null,
         })),
         shallow,
     )
+
+    // Mutable, not reactive: what the canvas hands over, read in actions.
+    public readonly runtime = {
+        reactFlow: null as ReactFlowInstance<NodeDriver, EdgeDriver> | null,
+    }
+
+    public readonly selectors: LineageExplorerSDK.Selectors = LineageExplorer.Document.selectors
+
+    public readonly reducers: LineageExplorerSDK.Reducers = LineageExplorer.Document.reducers
 
     public readonly actions: LineageExplorerSDK.Actions = new LineageExplorerActions(this)
 
@@ -30,9 +41,58 @@ export class LineageExplorerSDKImpl extends BaseSDK<LineageExplorerSDK.State> {
         },
     }
 
+    /** The open exploration's document. Its page renders, and its actions run, only while one is open. */
+    public get document(): LineageExplorer.Document {
+        const document = this.state.document
+
+        if (!document)
+            throw new Error('No exploration is open')
+
+        return document
+    }
+
+    public setDocument(recipe: (document: LineageExplorer.Document) => void): void {
+        this.setState(state => {
+            if (!state.document)
+                throw new Error('No exploration is open')
+
+            recipe(state.document)
+        })
+    }
+
+    // `const`, so a selector returning `[a, b]` is typed as that tuple, not as an array of either.
+    public useDocument<const Selected>(selector: (document: LineageExplorer.Document) => Selected): Selected {
+        return this.useStore(state => {
+            if (!state.document)
+                throw new Error('No exploration is open')
+
+            return selector(state.document)
+        })
+    }
+
+    /** What the canvas has measured, for placing nodes; before it has, every node is at its estimated size. */
+    public getNodeSizes(): Graph.Document.Sizes {
+        const sizes: Graph.Document.Sizes = {}
+
+        if (!this.runtime.reactFlow)
+            return sizes
+
+        for (const node of this.runtime.reactFlow.getNodes()) {
+            if (!node.measured?.width || !node.measured.height)
+                continue
+
+            sizes[node.id as Graph.Node.Rid] = {
+                width:  node.measured.width,
+                height: node.measured.height,
+            }
+        }
+
+        return sizes
+    }
+
     public override cleanup(): void {
         this.setState({
-            currentGraph: null,
+            document: null,
         })
     }
 }
@@ -42,10 +102,12 @@ export const LineageExplorerSDK = SDK.get<LineageExplorerSDKImpl>('LineageExplor
 export namespace LineageExplorerSDK {
 
     export type State = {
-        /** The open exploration's page: loaded once by its route, the canvas's starting point. */
-        currentGraph: LineageExplorer.Graph | null
+        /** The open exploration's page: opened by its route, edited on the canvas until it's saved. */
+        document: LineageExplorer.Document | null
     }
 
-    export type Actions = LineageExplorerActions
-    export type Dialogs = _LineageExplorerSDKDialogs
+    export type Selectors = LineageExplorer.Document.Selectors
+    export type Reducers  = LineageExplorer.Document.Reducers
+    export type Actions   = LineageExplorerActions
+    export type Dialogs   = _LineageExplorerSDKDialogs
 }

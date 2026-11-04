@@ -69,7 +69,7 @@ export class LibraryController {
         @CurrentPrincipal() principal: Principal.User,
         @Body(new ZodPipe(API.Lineage.GetGraph.Request)) body: API.Lineage.GetGraph.Request,
     ): Promise<API.Lineage.GetGraph.Response> {
-        return this.library.lineage.getGraph(principal, body.rids, body.branch);
+        return this.library.lineage.getEdgesAndResources(principal, body.rids, body.branch);
     }
 
     /** An app opened the resource's page: the resource, the open recorded (audit). */

@@ -35,7 +35,7 @@ export class ExplorationController {
         @Param('rid', ExplorationRidParam) rid: LineageExplorer.Exploration.Rid,
         @Body(new ZodPipe(API.Exploration.Open.Request)) body: API.Exploration.Open.Request,
     ): Promise<API.Exploration.Open.Response> {
-        return { graph: await this.explorations.open(principal, rid, body.application) };
+        return this.explorations.open(principal, rid, body.application);
     }
 
     @Put(':rid/nodes')

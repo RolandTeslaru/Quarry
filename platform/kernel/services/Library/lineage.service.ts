@@ -53,7 +53,19 @@ export class LineageService {
     }
 
     /** These resources, those that are live and visible, and the edges among them. */
-    public async getGraph(principal: Principal, rids: Library.Resource.Rid[], branch: Foundations.Branch) {
-        return LibraryDB.LineageGraph.toDomain(await this.repository.getGraph(principal, rids, branch));
+    public async getEdgesAndResources(principal: Principal, rids: Library.Resource.Rid[], branch: Foundations.Branch) {
+        const rows = await this.repository.getEdgesAndResources(principal, rids, branch);
+
+        const resources: Record<Library.Resource.Rid, Library.Resource.Base> = {};
+
+        for (const row of rows.resources)
+            resources[row.rid] = LibraryDB.Resource.toBase(row);
+
+        const edges: Library.Lineage.Edge[] = [];
+
+        for (const row of rows.edges)
+            edges.push(LibraryDB.LineageEdge.toDomain(row));
+
+        return { resources, edges };
     }
 }

@@ -11,23 +11,27 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
     protected readonly log = log.withContext('LineageExplorer.Actions.Exploration')
 
     /** The exploration's page opening — its route's loader, on enter. One request: its graph, the open recorded (audit). */
-    public async open(rid: LineageExplorer.Exploration.Rid, application: Platform.Application.Id): Promise<LineageExplorer.Graph> {
-        const { graph } = await LineageExplorer.API.Exploration.open(api, rid, { application })
+    public async open(rid: LineageExplorer.Exploration.Rid, application: Platform.Application.Id): Promise<LineageExplorer.API.Exploration.Open.Response> {
+        const response = await LineageExplorer.API.Exploration.open(api, rid, { application })
 
-        this.sdk.setState({ currentGraph: graph })
+        this.sdk.setState(state => {
+            state.document = LineageExplorer.Document.create(response.exploration, response.graph)
+        })
 
         void AuditSDK.invalidate(AuditSDK.query.recents(application))
 
-        return graph
+        return response
     }
 
-    /** Its page closed (the route's onLeave) — only if it's still the current one. */
+    /** Its page closed (the route's onLeave) — only if it's still the open one. */
     public close(rid: LineageExplorer.Exploration.Rid): void {
         // Switching explorations can enter the new one before leaving the old: never close the newer.
-        if (this.sdk.state.currentGraph?.rid !== rid)
+        if (this.sdk.state.document?.exploration.rid !== rid)
             return
 
-        this.sdk.setState({ currentGraph: null })
+        this.sdk.setState(state => {
+            state.document = null
+        })
     }
 
     public list(): Promise<LineageExplorer.API.Exploration.List.Response> {
@@ -49,13 +53,16 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
         }
     }
 
-    public async save(rid: LineageExplorer.Exploration.Rid, nodes: LineageExplorer.Exploration['nodes']): Promise<LineageExplorer.Exploration> {
-        try {
-            const { exploration } = await LineageExplorer.API.Exploration.save(api, rid, { nodes })
+    /** Saves the open exploration's canvas. */
+    public async save(): Promise<LineageExplorer.Exploration> {
+        const document = this.sdk.document
+        const nodes = this.sdk.selectors.exploration.getSavedNodes(document)
 
-            this.sdk.setState(state => {
-                if (state.currentGraph?.rid === rid)
-                    state.currentGraph = { ...state.currentGraph, ...exploration }
+        try {
+            const { exploration } = await LineageExplorer.API.Exploration.save(api, document.exploration.rid, { nodes })
+
+            this.sdk.setDocument(d => {
+                d.reducers.exploration.markSaved(d, exploration)
             })
 
             return exploration

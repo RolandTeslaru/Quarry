@@ -36,7 +36,7 @@ export class ExplorationService {
         principal:   Principal,
         rid:         LineageExplorer.Exploration.Rid,
         application: Platform.Application.Id,
-    ): Promise<LineageExplorer.Graph> {
+    ): Promise<LineageExplorer.API.Exploration.Open.Response> {
         if (principal.type !== 'user')
             throw new ForbiddenException('Only users open pages');
 
@@ -46,9 +46,12 @@ export class ExplorationService {
             throw new NotFoundException('Not found');
 
         const nodeRids = Object.keys(exploration.nodes) as Library.Resource.Rid[];
-        const { resources, edges } = await this.library.lineage.getGraph(principal, nodeRids, exploration.branch);
+        const { resources, edges } = await this.library.lineage.getEdgesAndResources(principal, nodeRids, exploration.branch);
 
-        return { ...exploration, resources, edges };
+        return {
+            exploration,
+            graph: LineageExplorer.Graph.rehydrate(exploration.nodes, resources, edges),
+        };
     }
 
     async save(

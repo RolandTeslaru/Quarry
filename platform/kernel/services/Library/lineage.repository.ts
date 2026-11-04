@@ -83,7 +83,7 @@ export class LineageRepository extends Repository(LibraryDB.database) {
 
     /** These resources, those that are live and visible, and the edges among them. */
     @Transactional()
-    public async getGraph(
+    public async getEdgesAndResources(
         principal: Principal,
         rids:      Library.Resource.Rid[],
         branch:    Foundations.Branch,

@@ -28,13 +28,16 @@ export namespace Exploration {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** An app opening the exploration: its graph read now, the open recorded (audit). */
+    /** An app opening the exploration: the saved exploration, its graph read now, the open recorded (audit). */
     export namespace Open {
         /** Which app opened it — recorded with the open. */
         export const Request = z.object({ application: Application.Id })
         export type  Request = z.infer<typeof Request>
 
-        export const Response = z.object({ graph: Graph.Schema })
+        export const Response = z.object({
+            exploration: ExplorationD.Schema,
+            graph:       Graph.Schema,
+        })
         export type  Response = z.infer<typeof Response>
     }
 

@@ -1,10 +1,9 @@
-import { ReactFlowProvider } from '@xyflow/react'
 import { Button } from '@quarry/standard-ui/foundations/button'
 import type { LineageExplorer } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
+import { useTask } from '@/hooks/useTask'
 import { LineageExplorerSDK } from '@/SDKs/LineageExplorerSDK/sdk'
 import { LineageCanvas } from '@/SDKs/LineageExplorerSDK/ui/Canvas'
-import { useLineageCanvas } from '@/SDKs/LineageExplorerSDK/ui/Canvas/useLineageCanvas'
 import { ResourceBreadcrumbs } from '@/components/ResourceBreadcrumbs'
 import { lineageExplorerApp } from '../definition'
 
@@ -12,32 +11,29 @@ interface Props {
     rid: LineageExplorer.Exploration.Rid
 }
 
-/** The Lineage Explorer app on one exploration: its graph, which its route's loader set as the current one. */
+/** The Lineage Explorer app on one exploration: its document, which its route's loader opened. */
 export function ExplorationApp({ rid }: Props) {
-    const graph = LineageExplorerSDK.useStore(state => state.currentGraph)
+    const openRid = LineageExplorerSDK.useStore(state => state.document?.exploration.rid)
 
-    // Switching explorations: until the new one is loaded, the current graph is still the old one.
-    if (graph?.rid !== rid)
+    // Switching explorations: until the new one is open, the open document is still the old one.
+    if (openRid !== rid)
         return null
 
-    return (
-        <ReactFlowProvider>
-            <Exploration graph={graph} />
-        </ReactFlowProvider>
-    )
+    return <Exploration rid={rid} />
 }
 
-interface ExplorationProps {
-    graph: LineageExplorer.Graph
-}
+function Exploration({ rid }: Props) {
+    const [isDirty, isEmpty] = LineageExplorerSDK.useDocument(d => [d.isDirty, d.selectors.node.getCount(d) === 0])
 
-function Exploration({ graph }: ExplorationProps) {
-    const canvas = useLineageCanvas(graph)
+    // The action reports its own failure; the task only drives the button's pending state.
+    const [saveTask, withSaveTask] = useTask()
+
+    const save = withSaveTask(() => LineageExplorerSDK.actions.exploration.save())
 
     return (
         <>
             <App.Background>
-                <LineageCanvas canvas={canvas} />
+                <LineageCanvas />
             </App.Background>
 
             <App.Overlay>
@@ -45,16 +41,18 @@ function Exploration({ graph }: ExplorationProps) {
                     <App.Nav.Start>
                         <App.Nav.Icon glyph={lineageExplorerApp.glyph} />
                         <App.Nav.Rows>
-                            <ResourceBreadcrumbs rid={graph.rid} />
+                            <ResourceBreadcrumbs rid={rid} />
                         </App.Nav.Rows>
                     </App.Nav.Start>
 
                     <App.Nav.End>
-                        <Button icon='add' onClick={canvas.openAddResource}>Add resource</Button>
-                        <Button icon='layout-auto' disabled={canvas.nodes.length === 0} onClick={canvas.layoutAll}>
+                        <Button icon='add' onClick={() => LineageExplorerSDK.actions.graph.openAddResource()}>
+                            Add resource
+                        </Button>
+                        <Button icon='layout-auto' disabled={isEmpty} onClick={() => LineageExplorerSDK.actions.graph.arrange()}>
                             Layout all nodes
                         </Button>
-                        <Button intent='primary' icon='floppy-disk' loading={canvas.saving} disabled={!canvas.dirty} onClick={canvas.save}>
+                        <Button intent='primary' icon='floppy-disk' loading={saveTask.pending} disabled={!isDirty} onClick={save}>
                             Save
                         </Button>
                     </App.Nav.End>

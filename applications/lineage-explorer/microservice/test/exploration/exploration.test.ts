@@ -1,6 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Foundations, type Library, LineageExplorer } from '@quarry/shared/domain';
+import { Foundations, type Graph, type Library, LineageExplorer } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { LineageExplorerHarness } from '../support/lineage-explorer-fixtures';
 
@@ -69,8 +69,8 @@ describe('explorations', () => {
 
         const before = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
-        expect(before.edges).toEqual([]);
-        expect(Object.keys(before.resources).sort()).toEqual([a, b].sort());
+        expect(before.graph.edges).toEqual({});
+        expect(Object.keys(before.graph.nodes).sort()).toEqual([a, b].sort());
 
         await harness.library.lineage.declare(user, projectRid, MAIN, [
             { upstreamRid: a, downstreamRid: b },
@@ -79,7 +79,13 @@ describe('explorations', () => {
 
         const after = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
-        expect(after.edges).toEqual([{ upstreamRid: a, downstreamRid: b, branch: MAIN, declaredByRid: projectRid }]);
+        expect(Object.keys(after.graph.edges)).toEqual([`${a}:${b}`]);
+        expect(after.graph.edges[`${a}:${b}` as Graph.Edge.Id].lineageEdge).toEqual({
+            upstreamRid:   a,
+            downstreamRid: b,
+            branch:        MAIN,
+            declaredByRid: projectRid,
+        });
     });
 
     it('save replaces the nodes', async () => {
@@ -93,7 +99,8 @@ describe('explorations', () => {
 
         const opened = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
-        expect(opened.nodes).toEqual({ [b]: { x: 10, y: 20 } });
+        expect(opened.exploration.nodes).toEqual({ [b]: { x: 10, y: 20 } });
+        expect(Object.keys(opened.graph.nodes)).toEqual([b]);
     });
 
     it('a viewer may open but not save', async () => {
@@ -103,7 +110,7 @@ describe('explorations', () => {
 
         await harness.grant(user, projectRid, viewer, 'viewer');
 
-        await expect(harness.explorations.open(viewer, exploration.rid, APPLICATION)).resolves.toMatchObject({ rid: exploration.rid });
+        await expect(harness.explorations.open(viewer, exploration.rid, APPLICATION)).resolves.toMatchObject({ exploration: { rid: exploration.rid } });
         await expect(harness.explorations.save(viewer, exploration.rid, {})).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -129,10 +136,10 @@ describe('explorations', () => {
         await harness.grant(user, shared, viewer, 'viewer');
         await harness.library.lineage.declare(user, shared, MAIN, []);
 
-        const graph = await harness.explorations.open(viewer, exploration.rid, APPLICATION);
+        const opened = await harness.explorations.open(viewer, exploration.rid, APPLICATION);
 
-        expect(Object.keys(graph.resources)).toEqual([a]);
-        expect(graph.nodes).toEqual(nodes);
+        expect(Object.keys(opened.graph.nodes)).toEqual([a]);
+        expect(opened.exploration.nodes).toEqual(nodes);
     });
 
     it('a trashed node drops out of the graph', async () => {
@@ -143,10 +150,10 @@ describe('explorations', () => {
         await harness.library.lineage.declare(user, projectRid, MAIN, [{ upstreamRid: a, downstreamRid: b }]);
         await harness.trash(user, b);
 
-        const graph = await harness.explorations.open(user, exploration.rid, APPLICATION);
+        const opened = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
-        expect(Object.keys(graph.resources)).toEqual([a]);
-        expect(graph.edges).toEqual([]);
+        expect(Object.keys(opened.graph.nodes)).toEqual([a]);
+        expect(opened.graph.edges).toEqual({});
     });
 
     it('a trashed exploration is gone', async () => {

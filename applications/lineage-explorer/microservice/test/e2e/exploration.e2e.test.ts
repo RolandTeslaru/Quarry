@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Foundations, LineageExplorer } from '@quarry/shared/domain';
+import { Foundations, type Graph, LineageExplorer } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { LineageExplorerHarness } from '../support/lineage-explorer-fixtures';
 
@@ -40,11 +40,19 @@ describe('explorations over HTTP', () => {
 
         expect(saved.exploration.nodes).toEqual(nodes);
 
-        const { graph } = await LineageExplorer.API.Exploration.open(api, exploration.rid, { application: 'lineage-explorer' });
+        const opened = await LineageExplorer.API.Exploration.open(api, exploration.rid, { application: 'lineage-explorer' });
+        const nodeB = LineageExplorer.Graph.Node.getRid(b);
 
-        expect(graph.name).toBe('Everything');
-        expect(graph.nodes).toEqual(nodes);
-        expect(graph.edges).toEqual([{ upstreamRid: a, downstreamRid: b, branch: MAIN, declaredByRid: projectRid }]);
-        expect(graph.resources[b].name).toBe('b');
+        expect(opened.exploration.name).toBe('Everything');
+        expect(opened.exploration.nodes).toEqual(nodes);
+        expect(opened.graph.nodes[nodeB].position).toEqual({ x: 240, y: 0 });
+        expect(opened.graph.nodes[nodeB].libraryResource.name).toBe('b');
+        expect(Object.keys(opened.graph.edges)).toEqual([`${a}:${b}`]);
+        expect(opened.graph.edges[`${a}:${b}` as Graph.Edge.Id].lineageEdge).toEqual({
+            upstreamRid:   a,
+            downstreamRid: b,
+            branch:        MAIN,
+            declaredByRid: projectRid,
+        });
     });
 });
