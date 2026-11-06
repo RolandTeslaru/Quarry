@@ -72,7 +72,8 @@ interface ItemProps {
     children?:    ReactNode
 }
 
-function Item({ label, isLast, active, disabled, onClick, onToggle, expanded = false, loading = false, empty = false, toggleLabel, children }: ItemProps) {
+/** Anything else (`data-*` attributes, say) goes on the row, so a context menu can find it. */
+function Item({ label, isLast, active, disabled, onClick, onToggle, expanded = false, loading = false, empty = false, toggleLabel, children, ...rowAttributes }: ItemProps) {
     const { level, ancestorIsLast } = useContext(LevelContext)
     const size = useContext(SizeContext)
 
@@ -94,6 +95,7 @@ function Item({ label, isLast, active, disabled, onClick, onToggle, expanded = f
                     disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
                 )}
                 onClick={disabled ? undefined : choose}
+                {...rowAttributes}
             >
                 <IndentGuides level={level} ancestorIsLast={ancestorIsLast} isLastSibling={isLast} elbow={isBranch} />
 

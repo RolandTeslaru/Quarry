@@ -12,7 +12,7 @@ interface Props {
     rid: Library.Resource.Rid
 }
 
-/** What a card offers: opening it here or elsewhere, and copying what names it. */
+/** What a card offers: opening it here or elsewhere, moving it, and copying what names it. */
 export function ResourceMenuItems({ rid }: Props) {
     const { setCwd, onItemClick, isItemDisabled } = useLibraryExplorer()
     const router = useRouter()
@@ -51,6 +51,15 @@ export function ResourceMenuItems({ rid }: Props) {
             )}
             <OpenInSubMenu url={url} />
             <ContextMenu.Separator />
+            {/* A project is at the top of the tree: there's nowhere to move it. */}
+            {resource.parentRid && (
+                <>
+                    <ContextMenu.Item icon={<Icon name='arrow-right' />} onSelect={() => openMove(resource)}>
+                        Move to…
+                    </ContextMenu.Item>
+                    <ContextMenu.Separator />
+                </>
+            )}
             <ContextMenu.Sub>
                 <ContextMenu.SubTrigger icon={<Icon name='duplicate' />}>
                     Copy
@@ -76,6 +85,20 @@ export function ResourceMenuItems({ rid }: Props) {
             </ContextMenu.Sub>
         </>
     )
+}
+
+function openMove(resource: Library.Resource.Base) {
+    LibrarySDK.dialogs.openLibrarySelector({
+        accept:     Library.Resource.CONTAINERS,
+        initialCwd: resource.parentRid ?? undefined,
+        onSelect:   parent => {
+            if (parent.rid === resource.parentRid)
+                return
+
+            // The action reports its own failure.
+            void LibrarySDK.actions.resource.move(resource, parent.rid).catch(() => {})
+        },
+    })
 }
 
 async function copy(text: string, message: string) {

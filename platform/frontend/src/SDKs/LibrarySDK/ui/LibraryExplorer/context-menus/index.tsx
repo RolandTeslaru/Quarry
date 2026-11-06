@@ -8,8 +8,8 @@ interface Props {
 }
 
 /**
- * Right-click on a card (after PretzelGraph's LibraryContextMenu): one menu for
- * the whole area, aimed at the card under the pointer by its `data-library-rid`.
+ * Right-click on a card or a tree row (after PretzelGraph's LibraryContextMenu): one menu for
+ * the whole area, aimed at the item under the pointer by its `data-library-rid`.
  */
 export function LibraryContextMenu({ children }: Props) {
     const [rid, setRid] = useState<Library.Resource.Rid | null>(null)
@@ -17,7 +17,7 @@ export function LibraryContextMenu({ children }: Props) {
     function aim(event: MouseEvent) {
         const element = (event.target as HTMLElement).closest<HTMLElement>('[data-library-rid]')
 
-        // Nothing to act on between the cards: no menu at all, rather than an empty one.
+        // Nothing to act on between the items: no menu at all, rather than an empty one.
         if (!element) {
             event.preventDefault()
 

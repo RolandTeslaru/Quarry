@@ -7,6 +7,7 @@ import { LibrarySDK } from '../../../sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceIcon } from '@/components/ResourceIcon'
 import { Tree } from '@/components/Tree'
+import { LibraryContextMenu } from '../context-menus'
 import { matchesQuery, useLibraryExplorer } from '../root'
 
 const SKELETON_ROWS = [0, 1, 2, 3, 4]
@@ -16,7 +17,7 @@ interface Props {
 }
 
 /**
- * The project tree: every item, with branch lines. A folder never expands
+ * The project tree: every item, with branch lines, and the view's right-click menu. A folder never expands
  * before its children are there: the first time, its chevron spins while they
  * load (the Library serves one folder at a time), then it opens — so the open
  * animation always has its rows. The open folder's ancestors expand the same
@@ -38,15 +39,17 @@ export function Content({ className }: Props) {
     const openPath = new Set(path.map(resource => resource.rid))
 
     return (
-        <Tree.Root aria-label='Library' className={cn('py-1', className)}>
-            <ErrorNotice error={projectsRequest.error} />
+        <LibraryContextMenu>
+            <Tree.Root aria-label='Library' className={cn('py-1', className)}>
+                <ErrorNotice error={projectsRequest.error} />
 
-            {projectsRequest.isPending && SKELETON_ROWS.map(row => (
-                <Skeleton key={row} className='mx-2 my-1.5 h-4' />
-            ))}
+                {projectsRequest.isPending && SKELETON_ROWS.map(row => (
+                    <Skeleton key={row} className='mx-2 my-1.5 h-4' />
+                ))}
 
-            <Branches resources={projects} openPath={openPath} />
-        </Tree.Root>
+                <Branches resources={projects} openPath={openPath} />
+            </Tree.Root>
+        </LibraryContextMenu>
     )
 }
 
@@ -136,6 +139,8 @@ function FolderItem({ resource, isLast, openPath }: TreeItemProps) {
 
     return (
         <Tree.Item
+            data-library-item={resource.type}
+            data-library-rid={resource.rid}
             isLast={isLast}
             active={cwd === resource.rid}
             onClick={() => setCwd(resource.rid)}
@@ -162,6 +167,8 @@ function LeafItem({ resource, isLast }: Omit<TreeItemProps, 'openPath'>) {
 
     return (
         <Tree.Item
+            data-library-item={resource.type}
+            data-library-rid={resource.rid}
             isLast={isLast}
             disabled={isItemDisabled?.(resource) ?? false}
             onClick={() => onItemClick?.(resource)}

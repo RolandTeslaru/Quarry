@@ -1,6 +1,7 @@
 import { Library, type Platform } from '@quarry/shared/domain'
-import { api } from '@/SDKs/api'
+import { api, describeError, errorMessage } from '@/SDKs/api'
 import { ActionGroup, log } from '@quarry/standard-ui/SDKs/core'
+import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { AuditSDK } from '@/SDKs/AuditSDK/sdk'
 import type { LibrarySDKImpl } from '../sdk'
 
@@ -23,6 +24,31 @@ export class ResourceActions extends ActionGroup<LibrarySDKImpl> {
         void AuditSDK.invalidate(AuditSDK.query.recents(application))
 
         return data
+    }
+
+    /** Under another project or folder. The server refuses a cycle, or a parent the user can't write to. */
+    public async move(resource: Library.Resource.Base, parentRid: Library.Resource.Rid): Promise<void> {
+        try {
+            await Library.API.Resource.move(api, resource.rid, { parentRid })
+
+            this.sdk.setState(state => {
+                state.resources[resource.rid].parentRid = parentRid
+            })
+
+            // Both folders' contents change, and every path through the resource.
+            void this.sdk.invalidate(this.sdk.query.children(parentRid))
+            void this.sdk.invalidate({ queryKey: ['library', 'path'] })
+
+            if (resource.parentRid)
+                void this.sdk.invalidate(this.sdk.query.children(resource.parentRid))
+
+            NotificationSDK.toast.success(`Moved ${resource.name}`)
+        } catch (error) {
+            this.log.error('move failed', describeError(error))
+            NotificationSDK.toast.error(`Couldn't move ${resource.name}`, { description: errorMessage(error) })
+
+            throw error
+        }
     }
 
     public async getChildren(rid: Library.Resource.Rid): Promise<Library.API.Resource.Children.Response> {
