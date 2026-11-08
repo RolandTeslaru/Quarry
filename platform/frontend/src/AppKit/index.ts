@@ -2,6 +2,7 @@ import { Glyph, type GlyphDefinition } from './glyph/Glyph'
 import { Nav } from './nav'
 import { Background, Content, LeftNav, LeftSidebar, Overlay, RightSidebar, Root, SafeArea, useApp } from './layout'
 import { Pending } from './pending'
+import { Toolbar } from './toolbar'
 import type { Definition as DefinitionD } from './definition'
 
 export { Home } from './home'
@@ -13,6 +14,7 @@ export const App = {
     SafeArea,
     Overlay,
     Nav,
+    Toolbar,
     LeftNav,
     LeftSidebar,
     RightSidebar,

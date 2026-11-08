@@ -17,6 +17,7 @@ export namespace Exploration {
             branch:      Foundations.Branch.default(Foundations.MAIN_BRANCH),
             nodes:       ExplorationD.Schema.shape.nodes.default({}),
             legend:      ExplorationD.Schema.shape.legend.default(Legend.DEFAULT),
+            edgeType:    ExplorationD.Schema.shape.edgeType.default("bezier"),
         })
         export type  Request = z.infer<typeof Request>
 
@@ -43,11 +44,12 @@ export namespace Exploration {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** Replaces what's on the canvas, and its legend. Keep the nodes the graph left out: they may be someone else's to see. */
+    /** Replaces what's on the canvas, its legend and how its edges are drawn. Keep the nodes the graph left out: they may be someone else's to see. */
     export namespace Save {
         export const Request = z.object({
-            nodes:  ExplorationD.Schema.shape.nodes,
-            legend: ExplorationD.Schema.shape.legend,
+            nodes:    ExplorationD.Schema.shape.nodes,
+            legend:   ExplorationD.Schema.shape.legend,
+            edgeType: ExplorationD.Schema.shape.edgeType,
         })
         export type  Request = z.infer<typeof Request>
 

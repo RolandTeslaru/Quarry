@@ -145,6 +145,12 @@ export class GraphActions extends ActionGroup<LineageExplorerSDKImpl> {
         })
     }
 
+    public setEdgeType(type: LineageExplorer.Document['edgeType']): void {
+        this.sdk.setDocument(d => {
+            d.reducers.lineage.setEdgeType(d, type)
+        })
+    }
+
     /** Edges are never saved: they're read again, among the nodes on the canvas, whenever nodes are added. */
     public async refreshEdges(): Promise<void> {
         const document = this.sdk.document

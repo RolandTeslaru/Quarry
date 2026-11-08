@@ -34,10 +34,11 @@ describe('explorations over HTTP', () => {
             branch:      MAIN,
             nodes:       { [a]: { x: 0, y: 0 } },
             legend:      LineageExplorer.Legend.DEFAULT,
+            edgeType:    'bezier',
         });
 
         const nodes = { [a]: { x: 0, y: 0 }, [b]: { x: 240, y: 0 } };
-        const saved = await LineageExplorer.API.Exploration.save(api, exploration.rid, { nodes, legend: LineageExplorer.Legend.DEFAULT });
+        const saved = await LineageExplorer.API.Exploration.save(api, exploration.rid, { nodes, legend: LineageExplorer.Legend.DEFAULT, edgeType: 'bezier' });
 
         expect(saved.exploration.nodes).toEqual(nodes);
 

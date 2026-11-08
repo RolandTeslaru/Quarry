@@ -16,6 +16,9 @@ export interface LineageReducers {
 
     /** The edges among the nodes, as the Library read them. Edges are never saved, so this leaves the document clean. */
     setEdges: (document: Document, lineageEdges: Lineage.Edge[]) => void
+
+    /** How every edge is drawn, now and as edges are read again. Saved with the exploration. */
+    setEdgeType: (document: Document, type: Document["edgeType"]) => void
 }
 
 export const lineageReducers: LineageReducers = {
@@ -41,9 +44,18 @@ export const lineageReducers: LineageReducers = {
         d.edges = {}
 
         for (const lineageEdge of lineageEdges) {
-            const edge = Graph.Edge.create(lineageEdge)
+            const edge = Graph.Edge.create(lineageEdge, d.edgeType)
 
             d.edges[GraphDomain.Edge.getId(edge)] = edge
         }
+    },
+
+    setEdgeType: (d, type) => {
+        d.edgeType = type
+
+        for (const edge of Object.values(d.edges))
+            edge.type = type
+
+        d.isDirty = true
     },
 }

@@ -1,6 +1,7 @@
 import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
+import { temporal } from 'zundo'
 import type { ReactFlowInstance } from '@xyflow/react'
 import { type Graph, LineageExplorer } from '@quarry/shared/domain'
 import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
@@ -9,15 +10,36 @@ import { LineageExplorerActions } from './actions'
 import { _createLineageExplorerDialogs_, type _LineageExplorerSDKDialogs } from './dialogs'
 import type { EdgeDriver, NodeDriver } from './ui/Canvas/drivers'
 
+// Snapshots share everything unchanged (Immer), so a long history stays cheap.
+const HISTORY_LIMIT = 50
+
 @SDK('LineageExplorer')
 export class LineageExplorerSDKImpl extends BaseSDK<LineageExplorerSDK.State> {
 
-    public readonly useStore: BaseSDK.Store<LineageExplorerSDK.State> = createWithEqualityFn(
-        immer<LineageExplorerSDK.State>(() => ({
-            document: null,
-        })),
+    private readonly store = createWithEqualityFn(
+        temporal(
+            immer<LineageExplorerSDK.State>(() => ({
+                document: null,
+            })),
+            {
+                limit:      HISTORY_LIMIT,
+                partialize: state => ({ document: state.document }),
+                // A step is a change to the nodes, the legend or how edges are drawn. The edges themselves are left
+                // out: they're read again after nodes change, and undoing the nodes brings back the edges they had.
+                // Saving is left out too.
+                equality:   (past, current) =>
+                    past.document?.nodes === current.document?.nodes &&
+                    past.document?.legend === current.document?.legend &&
+                    past.document?.edgeType === current.document?.edgeType,
+            },
+        ),
         shallow,
     )
+
+    public readonly useStore: BaseSDK.Store<LineageExplorerSDK.State> = this.store
+
+    /** Undo history: whole documents. Read with zustand's `useStoreWithEqualityFn(LineageExplorerSDK.history, …)`. */
+    public readonly history = this.store.temporal
 
     // Mutable, not reactive: what the canvas hands over, read in actions.
     public readonly runtime = {
@@ -94,6 +116,8 @@ export class LineageExplorerSDKImpl extends BaseSDK<LineageExplorerSDK.State> {
         this.setState({
             document: null,
         })
+
+        this.history.getState().clear()
     }
 }
 

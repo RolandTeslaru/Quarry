@@ -34,11 +34,11 @@ export namespace Graph {
                 lineageEdge: Lineage.Edge.Schema
             })
 
-        /** Upstream feeds downstream, so the edge points from upstream to downstream. */
-        export const create = (lineageEdge: Lineage.Edge): Edge => ({
+        /** Upstream feeds downstream, so the edge points from upstream to downstream. Drawn as the exploration's edges are. */
+        export const create = (lineageEdge: Lineage.Edge, type: GraphDomain.Edge["type"]): Edge => ({
             sourceRid:   Node.getRid(lineageEdge.upstreamRid),
             targetRid:   Node.getRid(lineageEdge.downstreamRid),
-            type:        "bezier",
+            type,
             lineageEdge,
         })
     }
@@ -48,9 +48,9 @@ export namespace Graph {
 
     /** An exploration's graph: a saved node whose resource the viewer can't see stays out of it, but stays in the exploration. */
     export const rehydrate = (
-        nodes:     Exploration["nodes"],
-        resources: Record<Resource.Rid, Resource.Base>,
-        edges:     Lineage.Edge[],
+        exploration: Exploration,
+        resources:   Record<Resource.Rid, Resource.Base>,
+        edges:       Lineage.Edge[],
     ): Graph => {
         const graph: Graph = {
             nodes: {},
@@ -58,13 +58,13 @@ export namespace Graph {
         }
 
         for (const resource of Object.values(resources)) {
-            const node = Node.createFromResource(resource, nodes[resource.rid])
+            const node = Node.createFromResource(resource, exploration.nodes[resource.rid])
 
             graph.nodes[node.rid] = node
         }
 
         for (const lineageEdge of edges) {
-            const edge = Edge.create(lineageEdge)
+            const edge = Edge.create(lineageEdge, exploration.edgeType)
 
             graph.edges[GraphDomain.Edge.getId(edge)] = edge
         }

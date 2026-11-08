@@ -5,6 +5,7 @@ import { useTask } from '@/hooks/useTask'
 import { LineageExplorerSDK } from '@/SDKs/LineageExplorerSDK/sdk'
 import { LineageCanvas } from '@/SDKs/LineageExplorerSDK/ui/Canvas'
 import { LineageLegend } from '@/SDKs/LineageExplorerSDK/ui/Legend'
+import { LineageToolbar } from '@/SDKs/LineageExplorerSDK/ui/Toolbar'
 import { ResourceBreadcrumbs } from '@/components/ResourceBreadcrumbs'
 import { lineageExplorerApp } from '../definition'
 
@@ -24,11 +25,7 @@ export function ExplorationApp({ rid }: Props) {
 }
 
 function Exploration({ rid }: Props) {
-    const [isDirty, isEmpty, isLegendVisible] = LineageExplorerSDK.useDocument(d => [
-        d.isDirty,
-        d.selectors.node.getCount(d) === 0,
-        d.legend.isVisible,
-    ])
+    const [isDirty, isLegendVisible] = LineageExplorerSDK.useDocument(d => [d.isDirty, d.legend.isVisible])
 
     // The action reports its own failure; the task only drives the button's pending state.
     const [saveTask, withSaveTask] = useTask()
@@ -51,20 +48,13 @@ function Exploration({ rid }: Props) {
                     </App.Nav.Start>
 
                     <App.Nav.End>
-                        <Button icon='add' onClick={() => LineageExplorerSDK.actions.graph.openAddResource()}>
-                            Add resource
-                        </Button>
-                        <Button icon='layout-auto' disabled={isEmpty} onClick={() => LineageExplorerSDK.actions.graph.arrange()}>
-                            Layout all nodes
-                        </Button>
-                        <Button icon='eye-open' active={isLegendVisible} onClick={() => LineageExplorerSDK.actions.legend.toggle()}>
-                            Legend
-                        </Button>
                         <Button intent='primary' icon='floppy-disk' loading={saveTask.pending} disabled={!isDirty} onClick={save}>
                             Save
                         </Button>
                     </App.Nav.End>
                 </App.Nav>
+
+                <LineageToolbar />
 
                 {isLegendVisible && <LineageLegend />}
             </App.Overlay>

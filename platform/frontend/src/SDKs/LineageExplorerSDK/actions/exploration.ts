@@ -18,6 +18,9 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
             state.document = LineageExplorer.Document.create(response.exploration, response.graph)
         })
 
+        // Opening isn't a step: nothing to undo yet.
+        this.sdk.history.getState().clear()
+
         void AuditSDK.invalidate(AuditSDK.query.recents(application))
 
         return response
@@ -32,6 +35,8 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
         this.sdk.setState(state => {
             state.document = null
         })
+
+        this.sdk.history.getState().clear()
     }
 
     public list(): Promise<LineageExplorer.API.Exploration.List.Response> {
@@ -61,7 +66,8 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
         try {
             const { exploration } = await LineageExplorer.API.Exploration.save(api, document.exploration.rid, {
                 nodes,
-                legend: document.legend,
+                legend:   document.legend,
+                edgeType: document.edgeType,
             })
 
             this.sdk.setDocument(d => {

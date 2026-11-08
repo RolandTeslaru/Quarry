@@ -12,6 +12,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import type { LineageExplorer } from '@quarry/shared/domain'
 import { LineageExplorerSDK } from '../../sdk'
 import type { EdgeDriver, NodeDriver } from './drivers'
+import { FloatingEdge } from './FloatingEdge'
 import { ResourceNode } from './Node'
 
 const MIN_ZOOM = 0.2
@@ -21,13 +22,13 @@ export const canvasProps = Object.freeze({
     nodeTypes: {
         resource: ResourceNode,
     },
-    // `floating` has no component yet: React Flow draws an unknown type as its default bezier.
     edgeTypes: {
         'bezier':        BezierEdge,
         'simple-bezier': SimpleBezierEdge,
         'straight':      StraightEdge,
         'step':          StepEdge,
         'smooth-step':   SmoothStepEdge,
+        'floating':      FloatingEdge,
     },
     nodesConnectable:   false,
     edgesReconnectable: false,

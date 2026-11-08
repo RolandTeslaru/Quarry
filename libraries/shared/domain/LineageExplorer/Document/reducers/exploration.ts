@@ -8,7 +8,7 @@ export interface ExplorationReducers {
 
 export const explorationReducers: ExplorationReducers = {
     markSaved: (d, exploration) => {
-        const { nodes: _nodes, legend: _legend, ...meta } = exploration
+        const { nodes: _nodes, legend: _legend, edgeType: _edgeType, ...meta } = exploration
 
         d.exploration = meta
         d.isDirty = false

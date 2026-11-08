@@ -15,6 +15,8 @@ export interface Document extends GraphDomain.Document<Graph.Node, Graph.Edge> {
 
     legend: Legend
 
+    edgeType: Exploration["edgeType"]
+
     reducers:  Document.Reducers
     selectors: Document.Selectors
 }
@@ -31,7 +33,7 @@ export namespace Document {
     export type Direction = "upstream" | "downstream"
 
     export function create(exploration: Exploration, graph: Graph): Document {
-        const { nodes, legend, ...meta } = exploration
+        const { nodes, legend, edgeType, ...meta } = exploration
 
         const hiddenNodes: Exploration["nodes"] = {}
 
@@ -46,6 +48,7 @@ export namespace Document {
             exploration: meta,
             hiddenNodes,
             legend,
+            edgeType,
             reducers,
             selectors,
         }

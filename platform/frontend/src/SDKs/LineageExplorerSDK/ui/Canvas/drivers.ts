@@ -96,7 +96,7 @@ export function reconcileNodeDrivers(
     return next
 }
 
-/** An edge's id is its two ends, so an edge that's still there is unchanged. */
+/** An edge's id is its two ends, so an edge that's still there is unchanged unless it's drawn differently now. */
 export function reconcileEdgeDrivers(
     drivers: EdgeDriver[],
     edges:   Record<Graph.Edge.Id, LineageExplorer.Graph.Edge>,
@@ -112,7 +112,7 @@ export function reconcileEdgeDrivers(
     for (const id of Object.keys(edges) as Graph.Edge.Id[]) {
         const driver = existing[id]
 
-        if (driver) {
+        if (driver && driver.type === edges[id].type) {
             next.push(driver)
         } else {
             next.push(createEdgeDriver(id, edges[id]))

@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { Resource } from "../Library/Resource"
+import { Graph } from "../Graph/Graph"
 import { Legend } from "./Legend"
 
 /**
@@ -31,11 +32,13 @@ export namespace Exploration {
         /** A resource is on the canvas if it's a key here. */
         nodes:     z.record(Resource.Rid, Node.Schema),
         legend:    Legend.Schema,
+        /** How every edge is drawn: `bezier` from side to side, or `floating` from border to border. */
+        edgeType:  Graph.Edge.Type,
     })
 
     /** Listing rows: everything but what's on the canvas. */
     export namespace Meta {
-        export const Schema = Exploration.Schema.omit({ nodes: true, legend: true })
+        export const Schema = Exploration.Schema.omit({ nodes: true, legend: true, edgeType: true })
     }
     export type Meta = z.infer<typeof Meta.Schema>
 }

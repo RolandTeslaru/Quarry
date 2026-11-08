@@ -25,6 +25,7 @@ export class ExplorationService {
             branch:      request.branch,
             nodes:       request.nodes,
             legend:      request.legend,
+            edgeType:    request.edgeType,
         });
     }
 
@@ -51,7 +52,7 @@ export class ExplorationService {
 
         return {
             exploration,
-            graph: LineageExplorer.Graph.rehydrate(exploration.nodes, resources, edges),
+            graph: LineageExplorer.Graph.rehydrate(exploration, resources, edges),
         };
     }
 

@@ -32,14 +32,16 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
         branch:      Foundations.Branch;
         nodes:       LineageExplorer.Exploration['nodes'];
         legend:      LineageExplorer.Legend;
+        edgeType:    LineageExplorer.Exploration['edgeType'];
     }): Promise<LineageExplorer.Exploration> {
         const exploration = await this.trx
             .insertInto('lineage_explorer.exploration')
             .values({
-                rid:    values.rid,
-                branch: values.branch,
-                nodes:  json(values.nodes),
-                legend: json(values.legend),
+                rid:       values.rid,
+                branch:    values.branch,
+                nodes:     json(values.nodes),
+                legend:    json(values.legend),
+                edge_type: values.edgeType,
             })
             .returningAll()
             .executeTakeFirstOrThrow();
@@ -54,7 +56,7 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
             .selectFrom('lineage_explorer.exploration as e')
             .innerJoin('library.resource as r', 'r.rid', 'e.rid')
             .selectAll('r')
-            .select(['e.branch', 'e.nodes', 'e.legend'])
+            .select(['e.branch', 'e.nodes', 'e.legend', 'e.edge_type'])
             .where('e.rid', '=', rid)
             .where('r.trashed_at', 'is', null)
             .executeTakeFirst();
@@ -62,9 +64,9 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
         if (!row)
             return null;
 
-        const { branch, nodes, legend, ...resource } = row;
+        const { branch, nodes, legend, edge_type, ...resource } = row;
 
-        return LineageExplorerDB.Exploration.toDomain({ rid, type: 'lineage-exploration', branch, nodes, legend }, resource);
+        return LineageExplorerDB.Exploration.toDomain({ rid, type: 'lineage-exploration', branch, nodes, legend, edge_type }, resource);
     }
 
     /** An app opening the exploration: it, and the audit `open`, in one transaction. Null: not there, or not theirs to see. */
@@ -98,8 +100,9 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
         requireAffected(await this.trx
             .updateTable('lineage_explorer.exploration')
             .set({
-                nodes:  json(request.nodes),
-                legend: json(request.legend),
+                nodes:     json(request.nodes),
+                legend:    json(request.legend),
+                edge_type: request.edgeType,
             })
             .where('rid', '=', rid)
             .executeTakeFirst());

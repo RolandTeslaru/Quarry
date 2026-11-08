@@ -16,10 +16,13 @@ import {
     type NodeDriver,
 } from './drivers'
 import { canvasProps, createCanvasCallbacks } from './props'
+import { useKeyBindings } from './useKeyBindings'
 
 /** The open exploration's graph: resources you can drag, expand and remove (Delete). Edges are the Library's. */
 export function LineageCanvas() {
     const navigate = useNavigate()
+
+    useKeyBindings()
 
     const [nodes, edges] = LineageExplorerSDK.useDocument(d => [d.nodes, d.edges])
     const isEmpty = Object.keys(nodes).length === 0

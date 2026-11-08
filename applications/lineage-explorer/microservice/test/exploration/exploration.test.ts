@@ -29,6 +29,7 @@ describe('explorations', () => {
         branch:      MAIN,
         nodes,
         legend:      LineageExplorer.Legend.DEFAULT,
+        edgeType:    'bezier',
     });
 
     it('is a library resource', async () => {
@@ -89,21 +90,23 @@ describe('explorations', () => {
         });
     });
 
-    it('save replaces the nodes and the legend', async () => {
+    it('save replaces the nodes, the legend and the edge type', async () => {
         const projectRid = await harness.createProject(user);
         const { a, b } = await harness.createFolders(user, projectRid, ['a', 'b']);
         const exploration = await create(projectRid, { [a]: { x: 0, y: 0 } });
         const legend = { type: 'resource-type', isVisible: false } as const;
 
-        const saved = await harness.explorations.save(user, exploration.rid, { nodes: { [b]: { x: 10, y: 20 } }, legend });
+        const saved = await harness.explorations.save(user, exploration.rid, { nodes: { [b]: { x: 10, y: 20 } }, legend, edgeType: 'floating' });
 
         expect(saved.nodes).toEqual({ [b]: { x: 10, y: 20 } });
         expect(saved.legend).toEqual(legend);
+        expect(saved.edgeType).toBe('floating');
 
         const opened = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
         expect(opened.exploration.nodes).toEqual({ [b]: { x: 10, y: 20 } });
         expect(opened.exploration.legend).toEqual(legend);
+        expect(opened.exploration.edgeType).toBe('floating');
         expect(Object.keys(opened.graph.nodes)).toEqual([b]);
     });
 
@@ -115,7 +118,7 @@ describe('explorations', () => {
         await harness.grant(user, projectRid, viewer, 'viewer');
 
         await expect(harness.explorations.open(viewer, exploration.rid, APPLICATION)).resolves.toMatchObject({ exploration: { rid: exploration.rid } });
-        await expect(harness.explorations.save(viewer, exploration.rid, { nodes: {}, legend: LineageExplorer.Legend.DEFAULT })).rejects.toBeInstanceOf(NotFoundException);
+        await expect(harness.explorations.save(viewer, exploration.rid, { nodes: {}, legend: LineageExplorer.Legend.DEFAULT, edgeType: 'bezier' })).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('someone who can only discover it can\'t open it', async () => {

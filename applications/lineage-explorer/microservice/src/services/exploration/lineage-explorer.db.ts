@@ -10,19 +10,21 @@ export namespace LineageExplorerDB {
 
     export namespace Exploration {
         export const Row = z.object({
-            rid:    LineageExplorer.Exploration.Rid,
-            type:   z.literal('lineage-exploration'),
-            branch: Foundations.Branch,
-            nodes:  LineageExplorer.Exploration.Schema.shape.nodes,
-            legend: LineageExplorer.Exploration.Schema.shape.legend,
+            rid:       LineageExplorer.Exploration.Rid,
+            type:      z.literal('lineage-exploration'),
+            branch:    Foundations.Branch,
+            nodes:     LineageExplorer.Exploration.Schema.shape.nodes,
+            legend:    LineageExplorer.Exploration.Schema.shape.legend,
+            edge_type: LineageExplorer.Exploration.Schema.shape.edgeType,
         });
         export type Row = z.infer<typeof Row>;
 
         export const toDomain = (row: Row, resource: LibraryDB.Resource.Row) => LineageExplorer.Exploration.Schema.parse({
             ...LibraryDB.Resource.toBase(resource),
-            branch: row.branch,
-            nodes:  row.nodes,
-            legend: row.legend,
+            branch:   row.branch,
+            nodes:    row.nodes,
+            legend:   row.legend,
+            edgeType: row.edge_type,
         });
 
         export const toMeta = (row: Pick<Row, 'branch'>, resource: LibraryDB.Resource.Row) => LineageExplorer.Exploration.Meta.Schema.parse({
@@ -32,7 +34,7 @@ export namespace LineageExplorerDB {
     }
 
     export interface Tables {
-        'lineage_explorer.exploration': Table<typeof Exploration.Row, 'type' | 'nodes' | 'legend'>;
+        'lineage_explorer.exploration': Table<typeof Exploration.Row, 'type' | 'nodes' | 'legend' | 'edge_type'>;
     }
 
     export const database = defineDatabase<Tables & LibraryDB.ReadTables & IdentityDB.ReadTables>();
