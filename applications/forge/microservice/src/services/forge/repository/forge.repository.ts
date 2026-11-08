@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
-import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable';
 import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
 import { ForgeDB } from '../forge.db';
 import { BuildRepository, type NewBuild } from './build.repository';

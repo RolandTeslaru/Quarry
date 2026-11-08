@@ -1,12 +1,12 @@
 import { Body, Controller, HttpCode, NotFoundException, Param, Post } from '@nestjs/common';
-import { Foundations } from '@quarry/shared/domain';
+import { Durable, Foundations } from '@quarry/shared/domain';
 import { Internal } from '@quarry/platform-kernel/auth/current-principal';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { ZodPipe } from '@quarry/platform-kernel/http/zod.pipe';
 import { DurableQueues } from './durable-queues';
 import { OutboxRepository } from './outbox.repository';
 
-import API = Foundations.DurableQueue.API;
+import API = Durable.Queue.API;
 
 /** Workers only (`/api/internal/durable-queues/…`, service token): the sweep's minute, and acks from consumers without a take step. */
 @Internal()

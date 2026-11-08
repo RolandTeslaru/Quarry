@@ -12,7 +12,7 @@ export interface OutboxMessage {
 }
 
 /**
- * foundations.outbox. `add` and `ack` join the caller's transaction — that's the
+ * durable.outbox. `add` and `ack` join the caller's transaction — that's the
  * point: a message exists exactly when the change that calls for it does. The
  * relay's reads and marks run as the service.
  */
@@ -25,7 +25,7 @@ export class OutboxRepository extends Repository(OutboxDB.database) {
             return;
 
         await getOpenTransaction()
-            .insertInto('foundations.outbox')
+            .insertInto('durable.outbox')
             .values(messages.map((message) => ({ queue_name: queueName, job_id: message.jobId, payload: json(message.payload) })))
             .onConflict((conflict) => conflict.columns(['queue_name', 'job_id']).doNothing())
             .execute();
@@ -36,7 +36,7 @@ export class OutboxRepository extends Repository(OutboxDB.database) {
         if (jobIds.length === 0)
             return;
 
-        await sql`select foundations.ack_outbox(${queueName}, ${jobIds}::text[])`.execute(getOpenTransaction());
+        await sql`select durable.ack_outbox(${queueName}, ${jobIds}::text[])`.execute(getOpenTransaction());
     }
 
     /** The same, in a transaction of its own — for consumers acking through the internal API. */
@@ -49,7 +49,7 @@ export class OutboxRepository extends Repository(OutboxDB.database) {
     @Transactional('service')
     public async listToSend(principal: Principal.Service, queueName: Foundations.Queue.Name, staleSentMinutes: number | null): Promise<OutboxDB.Message.Row[]> {
         let query = this.trx
-            .selectFrom('foundations.outbox')
+            .selectFrom('durable.outbox')
             .selectAll()
             .where('queue_name', '=', queueName);
 
@@ -69,7 +69,7 @@ export class OutboxRepository extends Repository(OutboxDB.database) {
     @Transactional('service')
     public async markSent(principal: Principal.Service, id: number): Promise<OutboxDB.Message.Row | null> {
         const row = await this.trx
-            .updateTable('foundations.outbox')
+            .updateTable('durable.outbox')
             .set({ sent_at: new Date(), sends: sql<number>`sends + 1` })
             .where('id', '=', id)
             .returningAll()
@@ -82,7 +82,7 @@ export class OutboxRepository extends Repository(OutboxDB.database) {
     @Transactional('service')
     public async listUnknownQueues(principal: Principal.Service, known: Foundations.Queue.Name[]): Promise<{ queueName: string; messages: number }[]> {
         let query = this.trx
-            .selectFrom('foundations.outbox')
+            .selectFrom('durable.outbox')
             .select(['queue_name', (eb) => eb.fn.countAll<string>().as('messages')])
             .groupBy('queue_name');
 

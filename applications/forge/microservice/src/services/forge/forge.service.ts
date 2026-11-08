@@ -4,7 +4,7 @@ import { System } from '@quarry/shared/server/system';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { RealtimeService } from '@quarry/platform-kernel/services/Realtime/realtime.service';
-import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable';
 import { CatalogClient, IdentityClient } from '@quarry/platform-kernel/microservice/clients';
 import { ForgeRepository } from './repository/forge.repository';
 import type { PlannedJob } from '../job/job.repository';

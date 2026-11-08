@@ -8,7 +8,7 @@ import { Repository, Transactional } from '@quarry/platform-kernel/db/repository
 import { json, type Table } from '@quarry/platform-kernel/db/table';
 import { LibraryDB } from '@quarry/platform-kernel/services/Library/library.db';
 import { isLive } from '@quarry/platform-kernel/db/liveness';
-import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable';
 import { AuditRelay } from './audit-relay';
 
 /**

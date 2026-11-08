@@ -4,7 +4,7 @@ import { CodeWorkspace, type Foundations } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
-import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable';
 import { CodeWorkspaceDB } from '../code-workspace/code-workspace.db';
 
 import CI = CodeWorkspace.CI;

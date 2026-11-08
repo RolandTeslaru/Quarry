@@ -108,7 +108,7 @@ describe('the Catalog service, through the main server', () => {
         await Catalog.API.Dataset.open(api, dataset.rid, { application: 'datasets' });
 
         const { rows } = await sql<{ payload: Audit.Queue.Record.Job }>`
-            select payload from foundations.outbox
+            select payload from durable.outbox
              where queue_name = ${Audit.Queue.Record.Definition.name} and payload->>'resourceRid' = ${dataset.rid}`.execute(db());
 
         expect(rows.map((row) => row.payload)).toEqual([expect.objectContaining({ userRid, action: 'open', applicationId: 'datasets' })]);

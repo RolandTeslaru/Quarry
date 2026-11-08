@@ -35,7 +35,7 @@ CREATE TABLE code_workspace.check_run (
     failure        jsonb,                           -- { step, message }
     pushed_by      identity.user_rid REFERENCES identity.user(rid),   -- whom it acts as; null = the system
     created_at     timestamptz NOT NULL DEFAULT now(),   -- pushed
-    scheduled_at   timestamptz,                     -- its workspace was free: its message added to foundations.outbox
+    scheduled_at   timestamptz,                     -- its workspace was free: its message added to durable.outbox
     started_at     timestamptz,                     -- a worker took it
     reported_at    timestamptz,                     -- the worker's last report (start, a step); silence fails it
     finished_at    timestamptz,

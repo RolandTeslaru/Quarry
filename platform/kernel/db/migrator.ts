@@ -39,7 +39,7 @@ class SqlMigrationProvider implements MigrationProvider {
  * its own history (`<schema>.kysely_migration`), so a schema can move to its
  * own database with its migrations.
  */
-export const SCHEMAS = ['foundations', 'identity', 'library', 'gatekeeper', 'keychain', 'catalog', 'data_connection', 'code_workspace', 'forge', 'lineage_explorer', 'audit'] as const;
+export const SCHEMAS = ['foundations', 'durable', 'identity', 'library', 'gatekeeper', 'keychain', 'catalog', 'data_connection', 'code_workspace', 'forge', 'lineage_explorer', 'audit'] as const;
 
 /** Every schema from `migrationsRoot` (`<root>/<schema>/*.sql`) — the main server's `MIGRATIONS_FOLDER`: it alone migrates. */
 export async function migrateAll(db: Kysely<unknown>, migrationsRoot: string): Promise<void> {

@@ -212,7 +212,7 @@ export class DataConnectionHarness {
      */
     public async auditEvents(resourceRid: string): Promise<{ user_rid: string; action: string; application_id: string | null; detail: Record<string, unknown> }[]> {
         const { rows } = await sql<{ payload: { userRid: string; action: string; applicationId: string | null; detail: Record<string, unknown> } }>`
-            select payload from foundations.outbox
+            select payload from durable.outbox
              where queue_name = 'audit.record' and payload->>'resourceRid' = ${resourceRid} order by id`.execute(this.owner);
 
         return rows.map(({ payload }) => ({ user_rid: payload.userRid, action: payload.action, application_id: payload.applicationId, detail: payload.detail }));

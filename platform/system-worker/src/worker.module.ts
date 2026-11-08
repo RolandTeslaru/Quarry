@@ -1,7 +1,7 @@
 import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { Controller, Get, Module, ServiceUnavailableException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
-import { Catalog, CodeWorkspace, Foundations } from '@quarry/shared/domain';
+import { Catalog, CodeWorkspace, Durable } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { AuditRecordProcessor } from './processors/audit-record.processor';
 import { CodeWorkspaceCheckSweepProcessor } from './processors/code-workspace-check-sweep.processor';
@@ -47,7 +47,7 @@ export class HealthController {
         BullModule.registerQueue(
             { name: Catalog.Queue.StorageGc.Definition.name },
             { name: CI.Queue.CheckSweep.Definition.name },
-            { name: Foundations.DurableQueue.Sweep.Definition.name },
+            { name: Durable.Queue.Sweep.Definition.name },
         ),
     ],
     controllers: [HealthController],

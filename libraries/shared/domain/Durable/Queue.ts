@@ -1,10 +1,10 @@
 import { z } from "zod"
 import type { AxiosInstance } from "axios"
-import { Queue } from "./Queue"
+import { Queue } from "../Foundations/Queue"
 
 /**
  * A queue whose messages can't be lost: each is added to the platform's outbox
- * (foundations.outbox) in the same transaction as the change that calls for it,
+ * (durable.outbox) in the same transaction as the change that calls for it,
  * relayed to Redis, and kept until the work is taken — acked. The sweep sends
  * again what wasn't. Declared beside the plain queue it relays to; the runtime is
  * the server's. docs/design/durable-queues.md.

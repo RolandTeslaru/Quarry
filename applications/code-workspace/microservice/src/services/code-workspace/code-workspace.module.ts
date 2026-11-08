@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CodeWorkspace } from '@quarry/shared/domain';
-import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable';
 import { IdentityModule } from '@quarry/platform-kernel/services/Identity/identity.module';
 import { LibraryModule } from '@quarry/platform-kernel/services/Library/library.module';
 import { CatalogClient, ForgeClient, IdentityClient } from '@quarry/platform-kernel/microservice/clients';

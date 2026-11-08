@@ -3,14 +3,14 @@ import { Queue } from 'bullmq';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { Foundations } from '@quarry/shared/domain';
+import { Durable, Foundations } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { db } from '@quarry/platform-kernel/db/pool';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
-import { DurableQueueHandle, DurableQueueInternalController, DurableQueues } from '@quarry/platform-kernel/infra/durable-queue';
-import { OutboxDB } from '@quarry/platform-kernel/infra/durable-queue/outbox.db';
-import { OutboxRepository } from '@quarry/platform-kernel/infra/durable-queue/outbox.repository';
+import { DurableQueueHandle, DurableQueueInternalController, DurableQueues } from '@quarry/platform-kernel/infra/durable';
+import { OutboxDB } from '@quarry/platform-kernel/infra/durable/outbox.db';
+import { OutboxRepository } from '@quarry/platform-kernel/infra/durable/outbox.repository';
 import { QueueManager } from '@quarry/platform-kernel/infra/queue';
 import { MainServerHarness } from '../support/main-server-fixtures';
 
@@ -21,7 +21,7 @@ const TestQueue = Foundations.Queue.define({
     options: { removeOnComplete: true, removeOnFail: true },
 });
 
-const TestDurableQueue = Foundations.DurableQueue.define({ queue: TestQueue, staleSentMinutes: 2 });
+const TestDurableQueue = Durable.Queue.define({ queue: TestQueue, staleSentMinutes: 2 });
 
 const SERVICE = Principal.SELF('test');
 
@@ -75,7 +75,7 @@ describe('durable queues', () => {
     beforeEach(async () => {
         vi.restoreAllMocks();
         await redis.obliterate({ force: true });
-        await sql`delete from foundations.outbox where queue_name like 'test.%'`.execute(db());
+        await sql`delete from durable.outbox where queue_name like 'test.%'`.execute(db());
     });
 
     afterAll(async () => {
@@ -85,7 +85,7 @@ describe('durable queues', () => {
 
     async function getOutbox(): Promise<{ job_id: string; sent_at: Date | null; sends: number }[]> {
         const { rows } = await sql<{ job_id: string; sent_at: Date | null; sends: number }>`
-            select job_id, sent_at, sends from foundations.outbox where queue_name = ${TestQueue.name} order by id`.execute(db());
+            select job_id, sent_at, sends from durable.outbox where queue_name = ${TestQueue.name} order by id`.execute(db());
 
         return rows;
     }
@@ -95,7 +95,7 @@ describe('durable queues', () => {
     }
 
     async function backdateSent(jobId: string, minutes: number): Promise<void> {
-        await sql`update foundations.outbox set sent_at = now() - make_interval(mins => ${minutes}) where queue_name = ${TestQueue.name} and job_id = ${jobId}`.execute(db());
+        await sql`update durable.outbox set sent_at = now() - make_interval(mins => ${minutes}) where queue_name = ${TestQueue.name} and job_id = ${jobId}`.execute(db());
     }
 
     describe('add', () => {
@@ -168,7 +168,7 @@ describe('durable queues', () => {
         it('doesn\'t duplicate a message already in Redis (crashed between sending and marking)', async () => {
             await domain.schedule(SERVICE, [{ n: 1, jobId: 'a' }]);
             await handle.relay();
-            await sql`update foundations.outbox set sent_at = null where job_id = 'a' and queue_name = ${TestQueue.name}`.execute(db());
+            await sql`update durable.outbox set sent_at = null where job_id = 'a' and queue_name = ${TestQueue.name}`.execute(db());
 
             await handle.relay();
 
@@ -219,11 +219,11 @@ describe('durable queues', () => {
         });
 
         it('leaves messages of a queue nobody registered in place', async () => {
-            await sql`insert into foundations.outbox (queue_name, job_id, payload) values ('test.unregistered', 'x', '{}')`.execute(db());
+            await sql`insert into durable.outbox (queue_name, job_id, payload) values ('test.unregistered', 'x', '{}')`.execute(db());
 
             await durableQueues.sweep();
 
-            const { rows } = await sql<{ n: number }>`select count(*)::int as n from foundations.outbox where queue_name = 'test.unregistered'`.execute(db());
+            const { rows } = await sql<{ n: number }>`select count(*)::int as n from durable.outbox where queue_name = 'test.unregistered'`.execute(db());
 
             expect(rows[0].n).toBe(1);
         });

@@ -4,7 +4,7 @@ import { AuthGuard } from '@quarry/platform-kernel/auth/auth.guard';
 import { TokenVerifier } from '@quarry/platform-kernel/auth/token-verifier';
 import { HealthController } from '@quarry/platform-kernel/http/health.controller';
 import { InfraModule } from '@quarry/platform-kernel/infra/infra.module';
-import { DurableQueueInternalController, DurableQueueModule } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueueInternalController, DurableQueueModule } from '@quarry/platform-kernel/infra/durable';
 import { IdentityModule } from '@quarry/platform-kernel/services/Identity/identity.module';
 import { IdentityController } from '@/services/Identity/controllers/http.controller';
 import { LibraryModule } from '@quarry/platform-kernel/services/Library/library.module';

@@ -6,7 +6,7 @@ import { CodeWorkspace, Foundations } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { db } from '@quarry/platform-kernel/db/pool';
-import { DurableQueues } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueues } from '@quarry/platform-kernel/infra/durable';
 import { QueueManager } from '@quarry/platform-kernel/infra/queue';
 import { CIService } from '@quarry/code-workspace-microservice/services/ci/ci.service';
 import { CheckRunRepository } from '@quarry/code-workspace-microservice/services/ci/check-run.repository';
@@ -54,7 +54,7 @@ describe('check runs, running', () => {
     /** The run-check messages in the outbox — scheduled runs no worker has taken yet. */
     async function getOutbox(): Promise<{ jobId: string; sentAt: Date | null }[]> {
         const { rows } = await sql<{ job_id: string; sent_at: Date | null }>`
-            select job_id, sent_at from foundations.outbox where queue_name = ${CI.Queue.RunCheck.Definition.name} order by id`.execute(db());
+            select job_id, sent_at from durable.outbox where queue_name = ${CI.Queue.RunCheck.Definition.name} order by id`.execute(db());
 
         return rows.map((row) => ({ jobId: row.job_id, sentAt: row.sent_at }));
     }

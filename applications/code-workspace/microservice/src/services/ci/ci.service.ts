@@ -5,7 +5,7 @@ import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { RealtimeService } from '@quarry/platform-kernel/services/Realtime/realtime.service';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { SecurityGate } from '@quarry/platform-kernel/services/Gatekeeper/security-gate';
-import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable';
 import { IdentityClient } from '@quarry/platform-kernel/microservice/clients';
 import { CheckRunRepository, type NewCheckRun, type QueuedCheckRuns } from './check-run.repository';
 import { GitRepos } from '../git/git-repos';

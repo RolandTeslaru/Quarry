@@ -1,5 +1,5 @@
 import { Inject, Module, type DynamicModule } from '@nestjs/common';
-import type { Foundations } from '@quarry/shared/domain';
+import type { Durable, Foundations } from '@quarry/shared/domain';
 import { DurableQueueHandle } from './durable-queue.handle';
 import { DurableQueues } from './durable-queues';
 import { OutboxRepository } from './outbox.repository';
@@ -7,7 +7,7 @@ import { OutboxRepository } from './outbox.repository';
 export const getDurableQueueToken = (name: string): string => `quarry:durable-queue:${name}`;
 
 /** Injects a registered durable queue's handle — as `@InjectQueue(name)` does a BullMQ queue. */
-export const InjectDurableQueue = (definition: Foundations.DurableQueue.Definition): ParameterDecorator =>
+export const InjectDurableQueue = (definition: Durable.Queue.Definition): ParameterDecorator =>
     Inject(getDurableQueueToken(definition.name));
 
 /**
@@ -27,7 +27,7 @@ export class DurableQueueModule {
         };
     }
 
-    public static registerQueue(...definitions: Foundations.DurableQueue.Definition[]): DynamicModule {
+    public static registerQueue(...definitions: Durable.Queue.Definition[]): DynamicModule {
         const providers = definitions.map((definition) => ({
             provide:    getDurableQueueToken(definition.name),
             inject:     [OutboxRepository, DurableQueues],

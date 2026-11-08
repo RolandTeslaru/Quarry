@@ -1,4 +1,5 @@
 export { Foundations }    from "./Foundations"
+export { Durable }        from "./Durable"
 export { Platform }       from "./Platform"
 export { Storage }        from "./Storage"
 export { Identity }       from "./Identity"

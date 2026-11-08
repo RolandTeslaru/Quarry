@@ -39,7 +39,7 @@ describe('audit records', () => {
 
     const queued = async (resourceRid: string) => {
         const { rows } = await sql<{ job_id: string; payload: Audit.Queue.Record.Job }>`
-            select job_id, payload from foundations.outbox
+            select job_id, payload from durable.outbox
              where queue_name = ${Audit.Queue.Record.Definition.name} and payload->>'resourceRid' = ${resourceRid}`.execute(db());
 
         return rows;

@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { Audit } from '@quarry/shared/domain';
-import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable';
 import { AuditRelayMiddleware } from './audit-relay';
 import { AuditRepository } from './audit.repository';
 import { AuditService } from './audit.service';

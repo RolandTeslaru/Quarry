@@ -3,7 +3,7 @@ import { Foundations } from '@quarry/shared/domain';
 import { defineDatabase } from '@quarry/platform-kernel/db/pool';
 import type { Table } from '@quarry/platform-kernel/db/table';
 
-/** foundations.outbox: durable queues' messages, from added until acked. */
+/** durable.outbox: durable queues' messages, from added until acked. */
 export namespace OutboxDB {
 
     export namespace Message {
@@ -20,7 +20,7 @@ export namespace OutboxDB {
     }
 
     export interface Tables {
-        'foundations.outbox': Table<typeof Message.Row, 'id' | 'created_at' | 'sent_at' | 'sends'>;
+        'durable.outbox': Table<typeof Message.Row, 'id' | 'created_at' | 'sent_at' | 'sends'>;
     }
 
     export const database = defineDatabase<Tables>();

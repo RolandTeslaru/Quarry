@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { Foundations } from '@quarry/shared/domain';
+import { Durable, Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { QueueManager } from '../queue';
 import { OutboxRepository } from './outbox.repository';
 import type { OutboxDB } from './outbox.db';
 
-type Definition = Foundations.DurableQueue.Definition;
+type Definition = Durable.Queue.Definition;
 
 const RELAY = Principal.SELF('durable-queue.relay');
 
@@ -82,7 +82,7 @@ export class DurableQueues {
 
         const marked = await this.outbox.markSent(RELAY, message.id);
 
-        if (marked && marked.sends >= Foundations.DurableQueue.SUSPICIOUS_SENDS && marked.sends % Foundations.DurableQueue.SUSPICIOUS_SENDS === 0)
+        if (marked && marked.sends >= Durable.Queue.SUSPICIOUS_SENDS && marked.sends % Durable.Queue.SUSPICIOUS_SENDS === 0)
             this.log.warning(`${definition.name} ${message.job_id} has been sent ${marked.sends} times — is its ack missing?`);
     }
 }

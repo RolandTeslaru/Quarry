@@ -11,7 +11,7 @@ import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { destroyPool, useDatabaseLogin } from '@quarry/platform-kernel/db/pool';
 import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
-import { DurableQueues } from '@quarry/platform-kernel/infra/durable-queue';
+import { DurableQueues } from '@quarry/platform-kernel/infra/durable';
 import { LibraryService } from '@quarry/platform-kernel/services/Library/library.service';
 import { ForgeService } from '@quarry/forge-microservice/services/forge/forge.service';
 import { JobService } from '@quarry/forge-microservice/services/job/job.service';
@@ -266,7 +266,7 @@ export class ForgeHarness {
     /** A job attempt's run-job message in the outbox (null: acked, or never added) — what the sweep sends again until acked. */
     public async getOutboxMessage(job: Pick<Forge.Job, 'rid' | 'attempt'>): Promise<{ sentAt: Date | null; sends: number } | null> {
         const { rows } = await sql<{ sent_at: Date | null; sends: number }>`
-            select sent_at, sends from foundations.outbox
+            select sent_at, sends from durable.outbox
              where queue_name = ${Forge.Queue.RunJob.Definition.name} and job_id = ${Forge.Queue.RunJob.getQueueJobId(Forge.Job.getQueueMessage(job))}`.execute(this.owner);
 
         return rows[0] ? { sentAt: rows[0].sent_at, sends: rows[0].sends } : null;
@@ -275,7 +275,7 @@ export class ForgeHarness {
     /** Simulates a job's message sent `minutes` ago and never acked. */
     public async backdateSent(job: Pick<Forge.Job, 'rid' | 'attempt'>, minutes: number): Promise<void> {
         await sql`
-            update foundations.outbox set sent_at = now() - make_interval(mins => ${minutes})
+            update durable.outbox set sent_at = now() - make_interval(mins => ${minutes})
              where queue_name = ${Forge.Queue.RunJob.Definition.name} and job_id = ${Forge.Queue.RunJob.getQueueJobId(Forge.Job.getQueueMessage(job))}`.execute(this.owner);
     }
 

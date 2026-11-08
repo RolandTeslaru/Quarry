@@ -34,38 +34,6 @@ GRANT quarry_user TO main_user;             -- the policies apply to it
 GRANT main_user TO CURRENT_USER;            -- so the main server's connection may SET ROLE to it
 GRANT USAGE ON SCHEMA foundations TO main_user;
 
--- ── durable queues' outbox (docs/design/durable-queues.md) ───────────────
---
--- One for the whole platform. A message is added in the same transaction as the change
--- that calls for it, relayed to Redis (sent_at), and deleted when the work is taken or
--- canceled (the ack). The sweep sends again what's unsent, or sent and not acked in time.
-
-CREATE TABLE foundations.outbox (
-    id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    queue_name  text NOT NULL,                  -- the durable queue's name: 'forge.run-job'
-    job_id      text NOT NULL,                  -- BullMQ's job id: a second send of it is ignored
-    payload     jsonb NOT NULL,                 -- the message, checked against the queue's job schema
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    sent_at     timestamptz,                    -- last relayed; null = never
-    sends       integer NOT NULL DEFAULT 0,     -- how often — one sent many times is missing its ack
-    UNIQUE (queue_name, job_id)
-);
-
-CREATE INDEX outbox_unsent ON foundations.outbox (queue_name, created_at) WHERE sent_at IS NULL;
-CREATE INDEX outbox_sent   ON foundations.outbox (queue_name, sent_at)    WHERE sent_at IS NOT NULL;
-
--- The ack — callable from user transactions too (a user cancels a build), which may only append otherwise.
-CREATE FUNCTION foundations.ack_outbox(p_queue_name text, p_job_ids text[]) RETURNS void
-LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
-    DELETE FROM foundations.outbox WHERE queue_name = p_queue_name AND job_id = ANY (p_job_ids)
-$$;
-
--- Users only append (add runs in their transactions) and ack; the relay reads and marks as the system.
-GRANT INSERT ON foundations.outbox TO main_user;
-GRANT SELECT (queue_name, job_id) ON foundations.outbox TO main_user;   -- ON CONFLICT's check; never the payloads
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA foundations TO main_user;
-GRANT EXECUTE ON FUNCTION foundations.ack_outbox(text, text[]) TO main_user;
-
 -- ── a service's roles (docs/design/architecture-split.md §5) ────────────────
 --
 -- Called once by each service's own schema's migration, after its tables — `SELECT
@@ -100,9 +68,9 @@ BEGIN
 
     -- Both: their schema's tables, the platform's tables read.
     FOREACH role_name IN ARRAY ARRAY[service_role, user_role] LOOP
-        EXECUTE format('GRANT USAGE ON SCHEMA foundations, identity, library, gatekeeper, %I TO %I', p_schema, role_name);
+        EXECUTE format('GRANT USAGE ON SCHEMA foundations, durable, identity, library, gatekeeper, %I TO %I', p_schema, role_name);
         EXECUTE format('GRANT USAGE ON ALL SEQUENCES IN SCHEMA %I TO %I', p_schema, role_name);
-        EXECUTE format('GRANT USAGE ON ALL SEQUENCES IN SCHEMA foundations TO %I', role_name);
+        EXECUTE format('GRANT USAGE ON ALL SEQUENCES IN SCHEMA durable TO %I', role_name);
         EXECUTE format('GRANT SELECT ON identity.user, identity.group, identity.group_member TO %I', role_name);
         EXECUTE format('GRANT SELECT ON library.resource_type, library.resource_ancestor TO %I', role_name);
     END LOOP;
@@ -127,13 +95,13 @@ BEGIN
                    p_schema || '_changes', user_role, p_resource_types, p_resource_types);
     EXECUTE format('GRANT SELECT, INSERT, DELETE ON library.lineage_edge TO %I', user_role);
     EXECUTE format('GRANT SELECT ON gatekeeper.role TO %I', user_role);
-    EXECUTE format('GRANT INSERT ON foundations.outbox TO %I', user_role);
-    EXECUTE format('GRANT SELECT (queue_name, job_id) ON foundations.outbox TO %I', user_role);
+    EXECUTE format('GRANT INSERT ON durable.outbox TO %I', user_role);
+    EXECUTE format('GRANT SELECT (queue_name, job_id) ON durable.outbox TO %I', user_role);
 
     -- The service: the Library read whole, the outbox relayed and acked.
     EXECUTE format('GRANT SELECT ON library.resource TO %I', service_role);
     EXECUTE format('CREATE POLICY %I ON library.resource FOR SELECT TO %I USING (true)', service_role, service_role);
     EXECUTE format('CREATE POLICY %I ON library.resource_ancestor FOR SELECT TO %I USING (true)', service_role, service_role);
-    EXECUTE format('GRANT SELECT, INSERT, UPDATE ON foundations.outbox TO %I', service_role);
-    EXECUTE format('GRANT EXECUTE ON FUNCTION foundations.ack_outbox(text, text[]) TO %I', service_role);
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE ON durable.outbox TO %I', service_role);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION durable.ack_outbox(text, text[]) TO %I', service_role);
 END $$;

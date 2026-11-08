@@ -1,4 +1,4 @@
-import type { Foundations } from '@quarry/shared/domain';
+import type { Durable, Foundations } from '@quarry/shared/domain';
 import type { DurableQueues } from './durable-queues';
 import type { OutboxRepository } from './outbox.repository';
 
@@ -10,7 +10,7 @@ import type { OutboxRepository } from './outbox.repository';
 export class DurableQueueHandle<Q extends Foundations.Queue.Definition> {
 
     constructor(
-        public readonly definition: Foundations.DurableQueue.Definition<Q>,
+        public readonly definition: Durable.Queue.Definition<Q>,
         private readonly outbox:    OutboxRepository,
         private readonly durableQueues: DurableQueues,
     ) {}

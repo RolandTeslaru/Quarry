@@ -88,7 +88,7 @@ CREATE TABLE forge.job (
     failure       jsonb,                          -- { message }
     inputs        jsonb,                          -- { <dataset rid>: <sequence> }: the versions it reads, pinned when it's claimed
     output_transactions jsonb NOT NULL,           -- { <dataset rid>: <transaction rid> }: opened when the build is created
-    scheduled_at  timestamptz,                    -- may run from here: a root at initialization, a child when its last parent finished — its message added to foundations.outbox
+    scheduled_at  timestamptz,                    -- may run from here: a root at initialization, a child when its last parent finished — its message added to durable.outbox
     started_at    timestamptz,                    -- a ForgeAgent took it
     heartbeat_at  timestamptz,                    -- not indexed, so heartbeats stay HOT updates
     finished_at   timestamptz,

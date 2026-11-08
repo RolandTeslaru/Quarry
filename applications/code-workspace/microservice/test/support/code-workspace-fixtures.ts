@@ -162,7 +162,7 @@ export class CodeWorkspaceHarness {
 
     /** Empties a queue's outbox — the service only relays and acks its messages; the owner deletes them here. */
     public async clearOutbox(queueName: string): Promise<void> {
-        await sql`delete from foundations.outbox where queue_name = ${queueName}`.execute(this.owner);
+        await sql`delete from durable.outbox where queue_name = ${queueName}`.execute(this.owner);
     }
 
     /** The status of a Catalog transaction (this service can't read them; the test can). */
