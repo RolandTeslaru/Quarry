@@ -21,7 +21,7 @@ export class GraphActions extends ActionGroup<LineageExplorerSDKImpl> {
         const document = this.sdk.document
         const resourceRid = this.sdk.selectors.node.get(document, rid).libraryResource.rid
         const request = {
-            branch:         document.exploration.branch,
+            branch:         document.branch,
             depth:          1,
             includeTrashed: false,
         }
@@ -151,13 +151,34 @@ export class GraphActions extends ActionGroup<LineageExplorerSDKImpl> {
         })
     }
 
+    /** Reads the edges among the nodes on the other branch first, so the canvas switches in one step, or not at all. */
+    public async setBranch(branch: LineageExplorer.Document['branch']): Promise<void> {
+        const document = this.sdk.document
+
+        try {
+            const { edges } = await LibrarySDK.actions.lineage.getGraph({
+                rids: this.sdk.selectors.exploration.getResourceRids(document),
+                branch,
+            })
+
+            this.sdk.setDocument(d => {
+                d.reducers.lineage.setBranch(d, branch, edges)
+            })
+        } catch (error) {
+            this.log.error('set branch failed', describeError(error))
+            NotificationSDK.toast.error("Couldn't switch the branch", { description: errorMessage(error) })
+
+            throw error
+        }
+    }
+
     /** Edges are never saved: they're read again, among the nodes on the canvas, whenever nodes are added. */
     public async refreshEdges(): Promise<void> {
         const document = this.sdk.document
 
         const { edges } = await LibrarySDK.actions.lineage.getGraph({
             rids:   this.sdk.selectors.exploration.getResourceRids(document),
-            branch: document.exploration.branch,
+            branch: document.branch,
         })
 
         this.sdk.setDocument(d => {

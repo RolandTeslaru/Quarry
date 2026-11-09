@@ -103,6 +103,7 @@ export class ExplorationRepository extends Repository(LineageExplorerDB.database
                 nodes:     json(request.nodes),
                 legend:    json(request.legend),
                 edge_type: request.edgeType,
+                branch:    request.branch,
             })
             .where('rid', '=', rid)
             .executeTakeFirst());

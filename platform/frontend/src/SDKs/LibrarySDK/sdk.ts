@@ -52,6 +52,11 @@ export class LibrarySDKImpl extends BaseSDK<LibrarySDK.State> {
             queryKey: ['library', 'lineage', 'downstream', rid, request] as const,
             queryFn: () => this.actions.lineage.getDownstream(rid, request),
         }),
+
+        lineageBranches: {
+            queryKey: ['library', 'lineage', 'branches'] as const,
+            queryFn: () => this.actions.lineage.getBranches(),
+        },
     }
 
     public override cleanup(): void {

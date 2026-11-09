@@ -3,6 +3,7 @@ import type { LineageExplorer } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
 import { useTask } from '@/hooks/useTask'
 import { LineageExplorerSDK } from '@/SDKs/LineageExplorerSDK/sdk'
+import { LineageBranchSelect } from '@/SDKs/LineageExplorerSDK/ui/BranchSelect'
 import { LineageCanvas } from '@/SDKs/LineageExplorerSDK/ui/Canvas'
 import { LineageLegend } from '@/SDKs/LineageExplorerSDK/ui/Legend'
 import { LineageToolbar } from '@/SDKs/LineageExplorerSDK/ui/Toolbar'
@@ -48,6 +49,8 @@ function Exploration({ rid }: Props) {
                     </App.Nav.Start>
 
                     <App.Nav.End>
+                        <LineageBranchSelect />
+
                         <Button intent='primary' icon='floppy-disk' loading={saveTask.pending} disabled={!isDirty} onClick={save}>
                             Save
                         </Button>

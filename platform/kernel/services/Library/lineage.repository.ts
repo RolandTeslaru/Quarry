@@ -103,6 +103,28 @@ export class LineageRepository extends Repository(LibraryDB.database) {
         return { resources, edges };
     }
 
+    /** Every branch with an edge whose ends are both live and visible. */
+    @Transactional()
+    public async getBranches(principal: Principal): Promise<Foundations.Branch[]> {
+        const rows = await this.trx
+            .selectFrom('library.lineage_edge as edge')
+            .innerJoin('library.resource as upstream', 'upstream.rid', 'edge.upstream_rid')
+            .innerJoin('library.resource as downstream', 'downstream.rid', 'edge.downstream_rid')
+            .select('edge.branch')
+            .distinct()
+            .where(isLive('edge.upstream_rid'))
+            .where(isLive('edge.downstream_rid'))
+            .orderBy('edge.branch')
+            .execute();
+
+        const branches: Foundations.Branch[] = [];
+
+        for (const row of rows)
+            branches.push(row.branch);
+
+        return branches;
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────
 
     /**

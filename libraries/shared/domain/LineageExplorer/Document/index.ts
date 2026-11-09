@@ -8,7 +8,8 @@ import { lineageExplorerSelectors, type LineageExplorerSelectors } from "./selec
 
 /** An open exploration being edited: its graph, plus what saving it needs. */
 export interface Document extends GraphDomain.Document<Graph.Node, Graph.Edge> {
-    exploration: Exploration.Meta
+    /** The exploration as last saved. Its branch is the document's, below: switching branches is an edit. */
+    exploration: Omit<Exploration.Meta, "branch">
 
     /** Saved nodes this viewer can't see: they go back with every save, or saving would delete them for everyone. */
     hiddenNodes: Exploration["nodes"]
@@ -16,6 +17,9 @@ export interface Document extends GraphDomain.Document<Graph.Node, Graph.Edge> {
     legend: Legend
 
     edgeType: Exploration["edgeType"]
+
+    /** The branch the edges are read on. */
+    branch: Exploration["branch"]
 
     reducers:  Document.Reducers
     selectors: Document.Selectors
@@ -33,7 +37,7 @@ export namespace Document {
     export type Direction = "upstream" | "downstream"
 
     export function create(exploration: Exploration, graph: Graph): Document {
-        const { nodes, legend, edgeType, ...meta } = exploration
+        const { nodes, legend, edgeType, branch, ...meta } = exploration
 
         const hiddenNodes: Exploration["nodes"] = {}
 
@@ -49,6 +53,7 @@ export namespace Document {
             hiddenNodes,
             legend,
             edgeType,
+            branch,
             reducers,
             selectors,
         }

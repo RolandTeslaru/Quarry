@@ -19,4 +19,8 @@ export class LineageActions extends ActionGroup<LibrarySDKImpl> {
     public async getGraph(request: Library.API.Lineage.GetGraph.Request): Promise<Library.API.Lineage.GetGraph.Response> {
         return Library.API.Lineage.getGraph(api, request)
     }
+
+    public async getBranches(): Promise<Library.API.Lineage.GetBranches.Response> {
+        return Library.API.Lineage.getBranches(api)
+    }
 }

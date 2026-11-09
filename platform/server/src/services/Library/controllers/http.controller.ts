@@ -72,6 +72,11 @@ export class LibraryController {
         return this.library.lineage.getEdgesAndResources(principal, body.rids, body.branch);
     }
 
+    @Get('resources/lineage/branches')
+    async getLineageBranches(@CurrentPrincipal() principal: Principal.User): Promise<API.Lineage.GetBranches.Response> {
+        return { branches: await this.library.lineage.getBranches(principal) };
+    }
+
     /** An app opened the resource's page: the resource, the open recorded (audit). */
     @Post('resources/:rid/open')
     @HttpCode(200)

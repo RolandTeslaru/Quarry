@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type Foundations, Library } from '@quarry/shared/domain';
+import { Foundations, Library } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { LibraryDB } from './library.db';
 import { LineageRepository } from './lineage.repository';
@@ -67,5 +67,16 @@ export class LineageService {
             edges.push(LibraryDB.LineageEdge.toDomain(row));
 
         return { resources, edges };
+    }
+
+    /** Main first, as every dataset has it, then every other branch with lineage the caller can see. */
+    public async getBranches(principal: Principal): Promise<Foundations.Branch[]> {
+        const branches: Foundations.Branch[] = [Foundations.MAIN_BRANCH];
+
+        for (const branch of await this.repository.getBranches(principal))
+            if (branch !== Foundations.MAIN_BRANCH)
+                branches.push(branch);
+
+        return branches;
     }
 }

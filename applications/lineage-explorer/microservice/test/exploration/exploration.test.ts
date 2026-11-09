@@ -5,6 +5,7 @@ import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { LineageExplorerHarness } from '../support/lineage-explorer-fixtures';
 
 const MAIN = Foundations.MAIN_BRANCH;
+const FEATURE = Foundations.Branch.parse('feature');
 const APPLICATION = 'lineage-explorer';
 
 /** A saved exploration: its nodes are stored, its edges read when it's opened. */
@@ -90,23 +91,25 @@ describe('explorations', () => {
         });
     });
 
-    it('save replaces the nodes, the legend and the edge type', async () => {
+    it('save replaces the nodes, the legend, the edge type and the branch', async () => {
         const projectRid = await harness.createProject(user);
         const { a, b } = await harness.createFolders(user, projectRid, ['a', 'b']);
         const exploration = await create(projectRid, { [a]: { x: 0, y: 0 } });
         const legend = { type: 'resource-type', isVisible: false } as const;
 
-        const saved = await harness.explorations.save(user, exploration.rid, { nodes: { [b]: { x: 10, y: 20 } }, legend, edgeType: 'floating' });
+        const saved = await harness.explorations.save(user, exploration.rid, { nodes: { [b]: { x: 10, y: 20 } }, legend, edgeType: 'floating', branch: FEATURE });
 
         expect(saved.nodes).toEqual({ [b]: { x: 10, y: 20 } });
         expect(saved.legend).toEqual(legend);
         expect(saved.edgeType).toBe('floating');
+        expect(saved.branch).toBe(FEATURE);
 
         const opened = await harness.explorations.open(user, exploration.rid, APPLICATION);
 
         expect(opened.exploration.nodes).toEqual({ [b]: { x: 10, y: 20 } });
         expect(opened.exploration.legend).toEqual(legend);
         expect(opened.exploration.edgeType).toBe('floating');
+        expect(opened.exploration.branch).toBe(FEATURE);
         expect(Object.keys(opened.graph.nodes)).toEqual([b]);
     });
 
@@ -118,7 +121,7 @@ describe('explorations', () => {
         await harness.grant(user, projectRid, viewer, 'viewer');
 
         await expect(harness.explorations.open(viewer, exploration.rid, APPLICATION)).resolves.toMatchObject({ exploration: { rid: exploration.rid } });
-        await expect(harness.explorations.save(viewer, exploration.rid, { nodes: {}, legend: LineageExplorer.Legend.DEFAULT, edgeType: 'bezier' })).rejects.toBeInstanceOf(NotFoundException);
+        await expect(harness.explorations.save(viewer, exploration.rid, { nodes: {}, legend: LineageExplorer.Legend.DEFAULT, edgeType: 'bezier', branch: MAIN })).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('someone who can only discover it can\'t open it', async () => {

@@ -19,6 +19,9 @@ export interface LineageReducers {
 
     /** How every edge is drawn, now and as edges are read again. Saved with the exploration. */
     setEdgeType: (document: Document, type: Document["edgeType"]) => void
+
+    /** Another branch, with the edges among the nodes on it. Saved with the exploration. */
+    setBranch: (document: Document, branch: Document["branch"], lineageEdges: Lineage.Edge[]) => void
 }
 
 export const lineageReducers: LineageReducers = {
@@ -56,6 +59,12 @@ export const lineageReducers: LineageReducers = {
         for (const edge of Object.values(d.edges))
             edge.type = type
 
+        d.isDirty = true
+    },
+
+    setBranch: (d, branch, lineageEdges) => {
+        d.branch = branch
+        d.reducers.lineage.setEdges(d, lineageEdges)
         d.isDirty = true
     },
 }

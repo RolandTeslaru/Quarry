@@ -68,6 +68,7 @@ export class ExplorationActions extends ActionGroup<LineageExplorerSDKImpl> {
                 nodes,
                 legend:   document.legend,
                 edgeType: document.edgeType,
+                branch:   document.branch,
             })
 
             this.sdk.setDocument(d => {

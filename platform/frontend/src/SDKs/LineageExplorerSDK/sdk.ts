@@ -24,13 +24,14 @@ export class LineageExplorerSDKImpl extends BaseSDK<LineageExplorerSDK.State> {
             {
                 limit:      HISTORY_LIMIT,
                 partialize: state => ({ document: state.document }),
-                // A step is a change to the nodes, the legend or how edges are drawn. The edges themselves are left
-                // out: they're read again after nodes change, and undoing the nodes brings back the edges they had.
+                // A step is a change to the nodes, the legend, how edges are drawn or the branch. The edges themselves
+                // are left out: they're read again after nodes change, and undoing brings back the edges they had.
                 // Saving is left out too.
                 equality:   (past, current) =>
                     past.document?.nodes === current.document?.nodes &&
                     past.document?.legend === current.document?.legend &&
-                    past.document?.edgeType === current.document?.edgeType,
+                    past.document?.edgeType === current.document?.edgeType &&
+                    past.document?.branch === current.document?.branch,
             },
         ),
         shallow,

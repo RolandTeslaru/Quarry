@@ -34,6 +34,12 @@ export namespace Lineage {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** The branches lineage can be read on: main, and every branch with an edge the caller can see. */
+    export namespace GetBranches {
+        export const Response = z.object({ branches: Foundations.Branch.array() })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export async function getUpstream(api: AxiosInstance, rid: Resource.Rid, req: Get.Request): Promise<Get.Response> {
         const { data } = await api.get(`/api/resources/${rid}/lineage/upstream`, { params: req })
         return Get.Response.parse(data)
@@ -47,5 +53,10 @@ export namespace Lineage {
     export async function getGraph(api: AxiosInstance, req: GetGraph.Request): Promise<GetGraph.Response> {
         const { data } = await api.post("/api/resources/lineage/graph", req)
         return GetGraph.Response.parse(data)
+    }
+
+    export async function getBranches(api: AxiosInstance): Promise<GetBranches.Response> {
+        const { data } = await api.get("/api/resources/lineage/branches")
+        return GetBranches.Response.parse(data)
     }
 }

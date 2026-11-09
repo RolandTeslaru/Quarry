@@ -231,6 +231,24 @@ describe('lineage from publishing recipes', () => {
         await expect(harness.library.lineage.getEdgesAndResources(user, [], MAIN)).resolves.toEqual({ resources: {}, edges: [] });
     });
 
+    it('lists main, then the branches with an edge the reader can see', async () => {
+        const release = Foundations.Branch.parse(`release-${Date.now()}`);
+        const hotfix = Foundations.Branch.parse(`hotfix-${Date.now()}`);
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'gone']);
+
+        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
+        await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }], release);
+        await harness.publish(user, projectRid, datasets, [{ name: 'G', inputs: ['raw'], outputs: ['gone'] }], hotfix);
+        await harness.trash(user, datasets.gone);
+
+        const branches = await harness.library.lineage.getBranches(user);
+
+        expect(branches[0]).toBe(MAIN);
+        expect(branches.lastIndexOf(MAIN)).toBe(0);
+        expect(branches).toContain(release);
+        expect(branches).not.toContain(hotfix);
+    });
+
     it('reads over HTTP from the main server', async () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b']);
 
@@ -248,6 +266,10 @@ describe('lineage from publishing recipes', () => {
         const canvas = await api.post('/api/resources/lineage/graph', { rids: [datasets.a, datasets.b] });
 
         expect(canvas.data.edges).toHaveLength(1);
+
+        const branches = await api.get('/api/resources/lineage/branches');
+
+        expect(branches.data.branches[0]).toBe(MAIN);
     });
 
     it('a republish reaches an edge to a dataset the publisher has since lost', async () => {

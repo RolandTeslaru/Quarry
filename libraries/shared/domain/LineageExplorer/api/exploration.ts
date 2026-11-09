@@ -44,12 +44,13 @@ export namespace Exploration {
         export type  Response = z.infer<typeof Response>
     }
 
-    /** Replaces what's on the canvas, its legend and how its edges are drawn. Keep the nodes the graph left out: they may be someone else's to see. */
+    /** Replaces what's on the canvas, its legend, how its edges are drawn and the branch they're read on. Keep the nodes the graph left out: they may be someone else's to see. */
     export namespace Save {
         export const Request = z.object({
             nodes:    ExplorationD.Schema.shape.nodes,
             legend:   ExplorationD.Schema.shape.legend,
             edgeType: ExplorationD.Schema.shape.edgeType,
+            branch:   ExplorationD.Schema.shape.branch,
         })
         export type  Request = z.infer<typeof Request>
 
