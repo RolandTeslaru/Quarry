@@ -26,13 +26,15 @@ export class ForgeService {
     private readonly log = System.log.withContext('Forge');
 
     constructor(
-        public readonly gatekeeper:  GatekeeperService,
-        public readonly recipes:     RecipeService,
+        public  readonly gatekeeper: GatekeeperService,
+        public  readonly recipes:    RecipeService,
+
         private readonly jobs:       JobService,
         private readonly catalog:    CatalogClient,
         private readonly identity:   IdentityClient,
         private readonly repository: ForgeRepository,
         private readonly realtime:   RealtimeService,
+        
         @InjectDurableQueue(Forge.DurableQueue.RunJob)
         private readonly runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
         @InjectDurableEvent(Forge.DurableEvent.JobSucceeded)

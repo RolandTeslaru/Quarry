@@ -1,10 +1,10 @@
 import { Inject, Module, type DynamicModule } from '@nestjs/common';
 import type { Durable } from '@quarry/shared/domain';
-import { DurableEventHandle } from '../event/durable-event.handle';
-import { DurableQueueHandle } from './durable-queue.handle';
-import { DurableQueues } from './durable-queues';
-import { EventListenerRepository } from '../event-listener/event-listener.repository';
-import { OutboxRepository } from '../outbox/outbox.repository';
+import { DurableEventHandle } from './event/durable-event.handle';
+import { DurableQueueHandle } from './queue/durable-queue.handle';
+import { DurableQueues } from './queue/durable-queues';
+import { EventListenerRepository } from './event-listener/event-listener.repository';
+import { OutboxRepository } from './outbox/outbox.repository';
 
 export const getDurableQueueToken = (name: string): string => `quarry:durable-queue:${name}`;
 
@@ -19,18 +19,18 @@ export const InjectDurableEvent = (definition: Durable.Event.Definition): Parame
     Inject(getDurableEventToken(definition.topic));
 
 /**
- * Durable queues (docs/design/durable-queues.md), as `@nestjs/bullmq`'s BullModule:
+ * Durable queues and events (docs/design/durable-queues.md), as `@nestjs/bullmq`'s BullModule:
  * `forRoot()` once (the outbox, the relay), `registerQueue(definition)` in each module
  * that uses one, then `@InjectDurableQueue(definition)`. A durable event's publisher registers it
  * with `registerEvent(definition)` and injects `@InjectDurableEvent(definition)`; a listener registers
  * its `Durable.EventListener` with `registerQueue`, as any durable queue it consumes.
  */
 @Module({})
-export class DurableQueueModule {
+export class DurableModule {
 
     public static forRoot(): DynamicModule {
         return {
-            module:    DurableQueueModule,
+            module:    DurableModule,
             global:    true,
             providers: [OutboxRepository, EventListenerRepository, DurableQueues],
             exports:   [OutboxRepository, EventListenerRepository, DurableQueues],
@@ -48,7 +48,7 @@ export class DurableQueueModule {
             },
         }));
 
-        return { module: DurableQueueModule, providers, exports: providers.map((provider) => provider.provide) };
+        return { module: DurableModule, providers, exports: providers.map((provider) => provider.provide) };
     }
 
     public static registerEvent(...definitions: Durable.Event.Definition[]): DynamicModule {
@@ -58,6 +58,6 @@ export class DurableQueueModule {
             useFactory: (outbox: OutboxRepository, durableQueues: DurableQueues) => new DurableEventHandle(definition, outbox, durableQueues),
         }));
 
-        return { module: DurableQueueModule, providers, exports: providers.map((provider) => provider.provide) };
+        return { module: DurableModule, providers, exports: providers.map((provider) => provider.provide) };
     }
 }

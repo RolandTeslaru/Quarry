@@ -4,7 +4,7 @@ import { AuthGuard } from '@quarry/platform-kernel/auth/auth.guard';
 import { TokenVerifier } from '@quarry/platform-kernel/auth/token-verifier';
 import { HealthController } from '@quarry/platform-kernel/http/health.controller';
 import { InfraModule } from '@quarry/platform-kernel/infra/infra.module';
-import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable';
+import { DurableModule } from '@quarry/platform-kernel/infra/durable';
 import { AuditModule } from '@quarry/platform-kernel/services/Audit/audit.module';
 import { AuditRelayMiddleware } from '@quarry/platform-kernel/services/Audit/audit-relay';
 import { IdentityModule } from '@quarry/platform-kernel/services/Identity/identity.module';
@@ -28,7 +28,7 @@ import { MicroserviceCallsModule } from '@quarry/platform-kernel/microservice/mi
 @Module({
     imports: [
         InfraModule,
-        DurableQueueModule.forRoot(),
+        DurableModule.forRoot(),
         MicroserviceCallsModule.forRoot({ service: 'catalog' }),
         AuditModule,
         IdentityModule,

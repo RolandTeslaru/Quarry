@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
-import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable';
+import { DurableModule } from '@quarry/platform-kernel/infra/durable';
 import { CatalogClient, IdentityClient } from '@quarry/platform-kernel/microservice/clients';
 import { LibraryModule } from '@quarry/platform-kernel/services/Library/library.module';
 import { ForgeService } from './forge.service';
@@ -20,8 +20,8 @@ import { JobService } from '../job/job.service';
 @Module({
     imports:   [
         LibraryModule,
-        DurableQueueModule.registerQueue(Forge.DurableQueue.RunJob),
-        DurableQueueModule.registerEvent(Forge.DurableEvent.RecipeChanged, Forge.DurableEvent.JobSucceeded, Forge.DurableEvent.JobFailed),
+        DurableModule.registerQueue(Forge.DurableQueue.RunJob),
+        DurableModule.registerEvent(Forge.DurableEvent.RecipeChanged, Forge.DurableEvent.JobSucceeded, Forge.DurableEvent.JobFailed),
     ],
     providers: [ForgeService, JobService, RecipeService, ForgeRepository, BuildRepository, JobRepository, RecipeRepository, CatalogClient, IdentityClient],
     exports:   [ForgeService, JobService, RecipeService],

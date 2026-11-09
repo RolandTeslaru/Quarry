@@ -1,6 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { Audit } from '@quarry/shared/domain';
-import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable';
+import { DurableModule } from '@quarry/platform-kernel/infra/durable';
 import { AuditRelayMiddleware } from './audit-relay';
 import { AuditRepository } from './audit.repository';
 import { AuditService } from './audit.service';
@@ -13,7 +13,7 @@ import { AuditService } from './audit.service';
  * controller is registered by main-server.module.
  */
 // Exported with the module: the app's own scope builds AuditRelayMiddleware, and it needs the queue's handle.
-const recordQueue = DurableQueueModule.registerQueue(Audit.DurableQueue.Record);
+const recordQueue = DurableModule.registerQueue(Audit.DurableQueue.Record);
 
 @Global()
 @Module({

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CodeWorkspace } from '@quarry/shared/domain';
-import { DurableQueueModule } from '@quarry/platform-kernel/infra/durable';
+import { DurableModule } from '@quarry/platform-kernel/infra/durable';
 import { IdentityModule } from '@quarry/platform-kernel/services/Identity/identity.module';
 import { LibraryModule } from '@quarry/platform-kernel/services/Library/library.module';
 import { CatalogClient, ForgeClient, IdentityClient } from '@quarry/platform-kernel/microservice/clients';
@@ -24,7 +24,7 @@ import CI = CodeWorkspace.CI;
  * Providers only; the controllers are registered by microservice.module.
  */
 @Module({
-    imports:   [IdentityModule, LibraryModule, DurableQueueModule.registerQueue(CI.DurableQueue.RunCheck)],
+    imports:   [IdentityModule, LibraryModule, DurableModule.registerQueue(CI.DurableQueue.RunCheck)],
     providers: [CodeWorkspaceService, CodeWorkspaceRepository, CheckRunRepository, CIService, PublisherService, GitService, GitRepos, CodeWorkspaceWorkerClient, CatalogClient, ForgeClient, IdentityClient],
     exports:   [CodeWorkspaceService, GitService],
 })
