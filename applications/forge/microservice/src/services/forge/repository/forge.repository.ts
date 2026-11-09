@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Forge } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
-import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable';
+import { DurableEventHandle, DurableQueueHandle, InjectDurableEvent, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable';
 import { CatalogClient } from '@quarry/platform-kernel/microservice/clients';
 import { ForgeDB } from '../forge.db';
 import { BuildRepository, type NewBuild } from './build.repository';
@@ -30,6 +30,10 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
         private readonly _catalog: CatalogClient,
         @InjectDurableQueue(Forge.DurableQueue.RunJob)
         private readonly _runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
+        @InjectDurableEvent(Forge.DurableEvent.JobSucceeded)
+        private readonly _durableJobSucceededEvent: DurableEventHandle<typeof Forge.DurableEvent.JobSucceeded>,
+        @InjectDurableEvent(Forge.DurableEvent.JobFailed)
+        private readonly _durableJobFailedEvent: DurableEventHandle<typeof Forge.DurableEvent.JobFailed>,
     ) {
         super();
 
@@ -130,7 +134,8 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
      * its outputs are committed (Catalog's commitTransactions call, before this transaction commits) and
      * each child whose parents have all succeeded goes `waiting → scheduled`;
      * nothing left unfinished → the build is done. Null if this attempt wasn't
-     * running. The scheduled jobs' messages are added; returns them.
+     * running. The scheduled jobs' messages are added, and `forge:job:succeeded` or
+     * `forge:job:failed` published; returns them.
      */
     @Transactional()
     public async finishJob(
@@ -152,7 +157,11 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
             await this._catalog.commitTransactions(principal, { transactions: job.outputTransactions, incrementalStates: outcome.incrementalStates });
 
             scheduled = await this.scheduleReadyChildren(principal, build, job);
+
+            await this._durableJobSucceededEvent.publish([{ payload: { job }, eventId: job.rid }]);
         }
+        else
+            await this._durableJobFailedEvent.publish([{ payload: { job }, eventId: job.rid }]);
 
         await this.enqueueJobs(scheduled);
         await this.endBuildIfDone(principal, job.buildRid);

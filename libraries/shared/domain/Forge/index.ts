@@ -5,6 +5,7 @@ import * as JobMod     from "./Job"
 import * as EventMod   from "./Event"
 import * as QueueMod   from "./queue"
 import * as DurableQueueMod from "./durable-queue"
+import * as DurableEventMod from "./durable-event"
 import * as ApiMod     from "./api"
 import * as MicroserviceMod from "./microservice"
 
@@ -18,6 +19,7 @@ export namespace Forge {
     export import API   = ApiMod.API
     export import Queue = QueueMod.Queue
     export import DurableQueue = DurableQueueMod.DurableQueue
+    export import DurableEvent = DurableEventMod.DurableEvent
     export import Event = EventMod.Event
     export import Microservice = MicroserviceMod.Microservice
 }

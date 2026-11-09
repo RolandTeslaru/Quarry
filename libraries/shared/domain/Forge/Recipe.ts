@@ -65,5 +65,15 @@ export namespace Recipe {
         publishedBy:       User.Rid.nullable(),          // null = the system
         publishedAt:       z.coerce.date(),
     })
+
+    /**
+     * What the recipe computes the dataset from: two recipes with equal ones compute it the same way.
+     * Compute resources aside — more memory isn't new logic. Inputs are a set, so sorted.
+     */
+    export const getComputation = (recipe: Pick<Recipe, "runtimeConfig" | "inputDatasetRids" | "outputTransactions">, datasetRid: Dataset.Rid) => ({
+        runtimeConfig:     recipe.runtimeConfig,
+        inputDatasetRids:  [...recipe.inputDatasetRids].sort(),
+        outputTransaction: recipe.outputTransactions[datasetRid],
+    })
 }
 export type Recipe = z.infer<typeof Recipe.Schema>

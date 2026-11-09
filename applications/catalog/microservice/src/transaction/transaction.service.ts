@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Catalog, Dataset, Foundations } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
+import { DurableEventHandle, InjectDurableEvent } from '@quarry/platform-kernel/infra/durable';
 import { CatalogDB } from '../catalog/catalog.db';
 import { TransactionRepository } from './transaction.repository';
 
@@ -20,7 +21,11 @@ import { TransactionRepository } from './transaction.repository';
 @Injectable()
 export class TransactionService {
 
-    constructor(private readonly repository: TransactionRepository) {}
+    constructor(
+        private readonly repository: TransactionRepository,
+        @InjectDurableEvent(Catalog.DurableEvent.DatasetUpdated)
+        private readonly durableDatasetUpdatedEvent: DurableEventHandle<typeof Catalog.DurableEvent.DatasetUpdated>,
+    ) {}
 
     async open(
         principal:  Principal,
@@ -95,12 +100,17 @@ export class TransactionService {
         transactionRid: Catalog.Transaction.Rid,
         schema:         Catalog.ColumnSchema | null,
     ): Promise<Dataset.Sequence> {
-        return this.repository.commit(principal, datasetRid, transactionRid, schema);
+        const sequence = await this.repository.commit(principal, datasetRid, transactionRid, schema);
+
+        await this.durableDatasetUpdatedEvent.relay();
+
+        return sequence;
     }
 
     /** Commits these open transactions in one database transaction (or the caller's), each with the schema staged on it and, if incremental, how far it got. */
     async commitBatch(principal: Principal, transactions: (Pick<Catalog.Transaction, 'rid' | 'datasetRid'> & { incrementalState?: string | null })[]): Promise<void> {
         await this.repository.commitBatch(principal, transactions);
+        await this.durableDatasetUpdatedEvent.relay();
     }
 
     /** How far each dataset's incremental writer got. */

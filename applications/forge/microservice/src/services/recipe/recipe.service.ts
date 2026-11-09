@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Dataset, Forge, Foundations, Library } from '@quarry/shared/domain';
+import { Forge, type Dataset, type Foundations, type Library } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
+import { DurableEventHandle, InjectDurableEvent } from '@quarry/platform-kernel/infra/durable';
 import { RecipeRepository, type PublishedRecipe } from './recipe.repository';
 
 export type { PublishedRecipe };
@@ -13,7 +14,11 @@ export type { PublishedRecipe };
 @Injectable()
 export class RecipeService {
 
-    constructor(private readonly repository: RecipeRepository) {}
+    constructor(
+        private readonly repository: RecipeRepository,
+        @InjectDurableEvent(Forge.DurableEvent.RecipeChanged)
+        private readonly durableRecipeChangedEvent: DurableEventHandle<typeof Forge.DurableEvent.RecipeChanged>,
+    ) {}
 
     /** Write on the producer, read on every input, write on every output — RLS's call on the inserts. */
     public async publish(
@@ -22,7 +27,11 @@ export class RecipeService {
         branch:      Foundations.Branch,
         recipes:       PublishedRecipe[],
     ): Promise<Forge.Recipe[]> {
-        return this.repository.publish(principal, producerRid, branch, recipes);
+        const published = await this.repository.publish(principal, producerRid, branch, recipes);
+
+        await this.durableRecipeChangedEvent.relay();
+
+        return published;
     }
 
     /** What computes the dataset: the first of `branches` with a recipe for it wins. */

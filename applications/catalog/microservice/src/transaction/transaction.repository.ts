@@ -5,11 +5,19 @@ import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { AllowTrashed, Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { liveResources } from '@quarry/platform-kernel/db/liveness';
 import { json } from '@quarry/platform-kernel/db/table';
+import { DurableEventHandle, InjectDurableEvent } from '@quarry/platform-kernel/infra/durable';
 import { CatalogDB } from '../catalog/catalog.db';
 
 /** The dataset write protocol (open → register → commit / abort) and view resolution. */
 @Injectable()
 export class TransactionRepository extends Repository(CatalogDB.database) {
+
+    constructor(
+        @InjectDurableEvent(Catalog.DurableEvent.DatasetUpdated)
+        private readonly durableDatasetUpdatedEvent: DurableEventHandle<typeof Catalog.DurableEvent.DatasetUpdated>,
+    ) {
+        super();
+    }
 
     @Transactional()
     async open(principal: Principal, datasetRid: Dataset.Rid, values: {
@@ -182,7 +190,7 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
 
     /**
      * Commits: next sequence on the branch (row lock serialises commits),
-     * status committed, outbox event — all in one transaction.
+     * status committed, `catalog:dataset:updated` published — all in one transaction.
      */
     @Transactional()
     async commit(
@@ -210,14 +218,17 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
             .where('name', '=', transaction.branch)
             .execute();
 
-        await this.trx
+        const committed = await this.trx
             .updateTable('catalog.transaction')
             .set({ status: 'committed', sequence, schema: schema ? json(schema) : null, finished_at: new Date() })
             .where('rid', '=', rid)
             .where('status', '=', 'open')
-            .returning('rid')
+            .returningAll()
             .executeTakeFirstOrThrow();
 
+        const transactionD = CatalogDB.Transaction.toDomain(committed)
+
+        await this.durableDatasetUpdatedEvent.publish([{ payload: { transaction: transactionD }, eventId: rid }]);
 
         return sequence;
     }

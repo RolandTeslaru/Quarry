@@ -1,8 +1,10 @@
+import { isDeepStrictEqual } from 'node:util';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { Dataset, Forge, Foundations, Library } from '@quarry/shared/domain';
+import { Dataset, Durable, Forge, Foundations, Library } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
+import { DurableEventHandle, InjectDurableEvent } from '@quarry/platform-kernel/infra/durable';
 import { LibraryService } from '@quarry/platform-kernel/services/Library/library.service';
 import { ForgeDB } from '../forge/forge.db';
 
@@ -18,7 +20,11 @@ export interface PublishedRecipe {
 @Injectable()
 export class RecipeRepository extends Repository(ForgeDB.database) {
 
-    constructor(private readonly library: LibraryService) {
+    constructor(
+        private readonly library: LibraryService,
+        @InjectDurableEvent(Forge.DurableEvent.RecipeChanged)
+        private readonly durableRecipeChangedEvent: DurableEventHandle<typeof Forge.DurableEvent.RecipeChanged>,
+    ) {
         super();
     }
 
@@ -27,7 +33,8 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
      * recipes, drops the producer's old pointers, points each output at its new
      * recipe, and declares the producer's lineage: each input → each output, or
      * the producer → each output for a recipe with no inputs. An output another
-     * producer owns is a conflict.
+     * producer owns is a conflict. `forge:recipe:changed` for each dataset now computed
+     * differently, or no longer computed.
      */
     @Transactional()
     public async publish(
@@ -41,10 +48,25 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         for (const recipe of recipes)
             outputs.push(...Object.keys(recipe.outputTransactions) as Dataset.Rid[]);
 
-        if (new Set(outputs).size !== outputs.length)
+        const outputRids = new Set(outputs);
+
+        if (outputRids.size !== outputs.length)
             throw new BadRequestException('Two recipes write the same dataset');
 
         await this.requireUnowned(producerRid, branch, outputs);
+
+        const pointers = await this.trx
+            .selectFrom('forge.current_recipe as pointer')
+            .innerJoin('forge.recipe as recipe', 'recipe.rid', 'pointer.recipe_rid')
+            .select(['pointer.dataset_rid', 'pointer.recipe_rid'])
+            .where('pointer.branch', '=', branch)
+            .where('recipe.producer_rid', '=', producerRid)
+            .execute();
+
+        const previous: Record<Dataset.Rid, Forge.Recipe> = {};
+
+        for (const pointer of pointers)
+            previous[pointer.dataset_rid] = (await this.get(principal, pointer.recipe_rid))!;
 
         await this.trx
             .deleteFrom('forge.current_recipe')
@@ -71,6 +93,22 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         }
 
         await this.library.lineage.declare(principal, producerRid, branch, edges);       // joins this transaction
+
+        const changes: Durable.Event.InputOf<typeof Forge.DurableEvent.RecipeChanged>[] = [];
+
+        for (const recipe of published)
+            for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[]) {
+                const before = previous[datasetRid];
+
+                if (!before || !isDeepStrictEqual(Forge.Recipe.getComputation(before, datasetRid), Forge.Recipe.getComputation(recipe, datasetRid)))
+                    changes.push({ datasetRid, branch, producerRid, recipeRid: recipe.rid });
+            }
+
+        for (const datasetRid of Object.keys(previous) as Dataset.Rid[])
+            if (!outputRids.has(datasetRid))
+                changes.push({ datasetRid, branch, producerRid, recipeRid: null });
+
+        await this.durableRecipeChangedEvent.publish(changes.map((payload) => ({ payload, eventId: Foundations.uuidv7() })));
 
         return published;
     }

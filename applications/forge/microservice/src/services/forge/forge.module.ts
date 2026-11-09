@@ -18,7 +18,11 @@ import { JobService } from '../job/job.service';
  * (publishing recipes: forge.recipes). Datasets are Catalog's (CatalogClient), tokens the main server's (IdentityClient).
  */
 @Module({
-    imports:   [LibraryModule, DurableQueueModule.registerQueue(Forge.DurableQueue.RunJob)],
+    imports:   [
+        LibraryModule,
+        DurableQueueModule.registerQueue(Forge.DurableQueue.RunJob),
+        DurableQueueModule.registerEvent(Forge.DurableEvent.RecipeChanged, Forge.DurableEvent.JobSucceeded, Forge.DurableEvent.JobFailed),
+    ],
     providers: [ForgeService, JobService, RecipeService, ForgeRepository, BuildRepository, JobRepository, RecipeRepository, CatalogClient, IdentityClient],
     exports:   [ForgeService, JobService, RecipeService],
 })

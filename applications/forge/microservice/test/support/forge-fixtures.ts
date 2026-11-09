@@ -6,7 +6,7 @@ import { Queue } from 'bullmq';
 import { SignJWT } from 'jose';
 import { Kysely, PostgresDialect, sql } from 'kysely';
 import { Pool } from 'pg';
-import { Catalog, CodeWorkspace, Dataset, Forge, Foundations, type Gatekeeper, Identity, Library } from '@quarry/shared/domain';
+import { Catalog, CodeWorkspace, Dataset, type Durable, Forge, Foundations, type Gatekeeper, Identity, Library } from '@quarry/shared/domain';
 import { QUEUE_PREFIX, redisConnection } from '@quarry/shared/server/redis';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { destroyPool, useDatabaseLogin } from '@quarry/platform-kernel/db/pool';
@@ -277,6 +277,25 @@ export class ForgeHarness {
         await sql`
             update durable.outbox set sent_at = now() - make_interval(mins => ${minutes})
              where queue_name = ${Forge.Queue.RunJob.Definition.name} and job_id = ${Forge.Queue.RunJob.getQueueJobId(Forge.Job.getQueueMessage(job))}`.execute(this.owner);
+    }
+
+    /** Listens to a durable event on a test queue, as a listener's migration would declare it; the owner writes it here. */
+    public async listen(topic: Durable.Event.Topic, queueName: string): Promise<void> {
+        await sql`insert into durable.event_listener (topic, queue_name) values (${topic}, ${queueName})`.execute(this.owner);
+    }
+
+    /** Stops the test queue listening, and drops what it was sent. */
+    public async unlisten(queueName: string): Promise<void> {
+        await sql`delete from durable.event_listener where queue_name = ${queueName}`.execute(this.owner);
+        await sql`delete from durable.outbox where queue_name = ${queueName}`.execute(this.owner);
+    }
+
+    /** What the test queue was sent and hasn't acked, oldest first: each message's id and payload. */
+    public async getEvents<P>(queueName: string): Promise<{ eventId: string; payload: P }[]> {
+        const { rows } = await sql<{ job_id: string; payload: P }>`
+            select job_id, payload from durable.outbox where queue_name = ${queueName} order by id`.execute(this.owner);
+
+        return rows.map((row) => ({ eventId: row.job_id, payload: row.payload }));
     }
 
     /** How many transactions are open on a dataset — the lock a build or upload holds. */

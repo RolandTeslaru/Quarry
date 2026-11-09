@@ -4,7 +4,7 @@ import { System } from '@quarry/shared/server/system';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { GatekeeperService } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.service';
 import { RealtimeService } from '@quarry/platform-kernel/services/Realtime/realtime.service';
-import { DurableQueueHandle, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable';
+import { DurableEventHandle, DurableQueueHandle, InjectDurableEvent, InjectDurableQueue } from '@quarry/platform-kernel/infra/durable';
 import { CatalogClient, IdentityClient } from '@quarry/platform-kernel/microservice/clients';
 import { ForgeRepository } from './repository/forge.repository';
 import type { PlannedJob } from '../job/job.repository';
@@ -35,6 +35,10 @@ export class ForgeService {
         private readonly realtime:   RealtimeService,
         @InjectDurableQueue(Forge.DurableQueue.RunJob)
         private readonly runJobQueue: DurableQueueHandle<typeof Forge.Queue.RunJob.Definition>,
+        @InjectDurableEvent(Forge.DurableEvent.JobSucceeded)
+        private readonly durableJobSucceededEvent: DurableEventHandle<typeof Forge.DurableEvent.JobSucceeded>,
+        @InjectDurableEvent(Forge.DurableEvent.JobFailed)
+        private readonly durableJobFailedEvent: DurableEventHandle<typeof Forge.DurableEvent.JobFailed>,
     ) {}
 
     /** Needs write on every output and read on every input. */
@@ -229,6 +233,11 @@ export class ForgeService {
         this.log.info(`Finished ${rid}: ${outcome.status}, ${finished.scheduled.length} job(s) scheduled`);
 
         await this.runJobQueue.relay();
+
+        if (outcome.status === 'succeeded')
+            await this.durableJobSucceededEvent.relay();
+        else
+            await this.durableJobFailedEvent.relay();
 
         return { job: finished.job };
     }
