@@ -33,9 +33,9 @@ describe('publishing recipes', () => {
         expect(recipes.A.publishedBy).toBe(user.userRid);
 
         for (const output of ['a', 'b'])
-            expect((await harness.forge.recipes.getCurrent(user, datasets[output], [MAIN]))?.rid).toBe(recipes.A.rid);
+            expect((await harness.forge.recipes.forDataset.get(user, datasets[output], [MAIN]))?.rid).toBe(recipes.A.rid);
 
-        expect(await harness.forge.recipes.getCurrent(user, datasets.raw, [MAIN])).toBeNull();     // read, not produced
+        expect(await harness.forge.recipes.forDataset.get(user, datasets.raw, [MAIN])).toBeNull();     // read, not produced
     });
 
     it('moves the pointers to the new recipe on republish', async () => {
@@ -44,7 +44,7 @@ describe('publishing recipes', () => {
         const second = await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
 
         expect(second.A.rid).not.toBe(first.A.rid);
-        expect((await harness.forge.recipes.getCurrent(user, datasets.a, [MAIN]))?.rid).toBe(second.A.rid);
+        expect((await harness.forge.recipes.forDataset.get(user, datasets.a, [MAIN]))?.rid).toBe(second.A.rid);
     });
 
     it('drops the pointer of an output the producer no longer declares — the dataset stays', async () => {
@@ -56,8 +56,8 @@ describe('publishing recipes', () => {
         ]);
         await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
 
-        expect(await harness.forge.recipes.getCurrent(user, datasets.b, [MAIN])).toBeNull();
-        expect(await harness.forge.recipes.getCurrent(user, datasets.a, [MAIN])).not.toBeNull();
+        expect(await harness.forge.recipes.forDataset.get(user, datasets.b, [MAIN])).toBeNull();
+        expect(await harness.forge.recipes.forDataset.get(user, datasets.a, [MAIN])).not.toBeNull();
         await expect(harness.catalog.get(user, { rid: datasets.b })).resolves.toMatchObject({ rid: datasets.b });
     });
 
@@ -67,7 +67,7 @@ describe('publishing recipes', () => {
         await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
         await harness.publish(user, projectRid, datasets, []);
 
-        expect(await harness.forge.recipes.getCurrent(user, datasets.a, [MAIN])).toBeNull();
+        expect(await harness.forge.recipes.forDataset.get(user, datasets.a, [MAIN])).toBeNull();
     });
 
     it('refuses two recipes writing the same dataset in one publish: 400', async () => {
@@ -88,7 +88,7 @@ describe('publishing recipes', () => {
 
         await expect(attempt).rejects.toBeInstanceOf(ConflictException);
         await expect(attempt).rejects.toThrow(projectRid);
-        expect((await harness.forge.recipes.getCurrent(user, datasets.a, [MAIN]))?.rid).toBe(owner.A.rid);
+        expect((await harness.forge.recipes.forDataset.get(user, datasets.a, [MAIN]))?.rid).toBe(owner.A.rid);
     });
 
     it('keeps branches apart: a recipe on testing is current there only', async () => {
@@ -97,8 +97,8 @@ describe('publishing recipes', () => {
         const onMain = await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }]);
         const onTesting = await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }], testing);
 
-        expect((await harness.forge.recipes.getCurrent(user, datasets.a, [MAIN]))?.rid).toBe(onMain.A.rid);
-        expect((await harness.forge.recipes.getCurrent(user, datasets.a, [testing]))?.rid).toBe(onTesting.A.rid);
+        expect((await harness.forge.recipes.forDataset.get(user, datasets.a, [MAIN]))?.rid).toBe(onMain.A.rid);
+        expect((await harness.forge.recipes.forDataset.get(user, datasets.a, [testing]))?.rid).toBe(onTesting.A.rid);
     });
 
     it('finds the recipe on the first branch that has one', async () => {
@@ -107,7 +107,7 @@ describe('publishing recipes', () => {
         const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a']);
         const onTesting = await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }], testing);
 
-        expect((await harness.forge.recipes.getCurrent(user, datasets.a, [feature, testing, MAIN]))?.rid).toBe(onTesting.A.rid);
-        expect(await harness.forge.recipes.getCurrent(user, datasets.a, [feature])).toBeNull();
+        expect((await harness.forge.recipes.forDataset.get(user, datasets.a, [feature, testing, MAIN]))?.rid).toBe(onTesting.A.rid);
+        expect(await harness.forge.recipes.forDataset.get(user, datasets.a, [feature])).toBeNull();
     });
 });

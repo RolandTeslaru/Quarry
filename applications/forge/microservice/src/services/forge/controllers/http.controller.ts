@@ -52,6 +52,6 @@ export class ForgeController {
         @CurrentPrincipal() principal: Principal.User,
         @Query(new ZodPipe(API.GetCurrentRecipe.Query)) query: API.GetCurrentRecipe.Query,
     ): Promise<API.GetCurrentRecipe.Response> {
-        return { recipe: await this.forge.recipes.getCurrent(principal, query.datasetRid, [query.branch]) };
+        return { recipe: await this.forge.recipes.forDataset.get(principal, query.datasetRid, [query.branch]) };
     }
 }

@@ -34,37 +34,58 @@ export class RecipeService {
         return published;
     }
 
-    /** What computes the dataset: the first of `branches` with a recipe for it wins. */
-    public async getCurrent(
-        principal:  Principal,
-        datasetRid: Dataset.Rid,
-        branches:   Foundations.Branch[],
-    ): Promise<Forge.Recipe | null> {
-        return this.repository.getCurrent(principal, datasetRid, branches);
-    }
+    /** The recipe computing a dataset now: the first of `branches` with one for it wins. */
+    public readonly forDataset = {
+        get: (principal: Principal, datasetRid: Dataset.Rid, branches: Foundations.Branch[]): Promise<Forge.Recipe | null> =>
+            this.repository.forDatasetGet(principal, datasetRid, branches),
+    };
 
-    /**
-     * Each dataset's current recipe — the first of `branches` with one wins — by RID: a recipe writing
-     * several of the datasets is one. A dataset nothing builds is a conflict.
-     */
-    public async getCurrentForEach(
-        principal:   Principal,
-        datasetRids: Dataset.Rid[],
-        branches:    Foundations.Branch[],
-    ): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> {
-        const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
+    /** The recipes computing several datasets now, by RID: a recipe writing several of them is one. A dataset nothing builds is a conflict. */
+    public readonly forDatasets = {
+        get: async (principal: Principal, datasetRids: Dataset.Rid[], branches: Foundations.Branch[]): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> => {
+            const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
 
-        for (const datasetRid of datasetRids) {
-            const recipe = await this.repository.getCurrent(principal, datasetRid, branches);
+            for (const datasetRid of datasetRids) {
+                const recipe = await this.repository.forDatasetGet(principal, datasetRid, branches);
 
-            if (!recipe)
-                throw new ConflictException(`Nothing builds ${datasetRid} on ${branches.join(' or ')}`);
+                if (!recipe)
+                    throw new ConflictException(`Nothing builds ${datasetRid} on ${branches.join(' or ')}`);
 
-            recipes[recipe.rid] = recipe;
-        }
+                recipes[recipe.rid] = recipe;
+            }
 
-        return recipes;
-    }
+            return recipes;
+        },
+
+        /** And every recipe upstream of them, walking each recipe's inputs. The walk stops at a dataset nothing builds: it's read as it is. */
+        getUpstream: async (principal: Principal, datasetRids: Dataset.Rid[], branches: Foundations.Branch[]): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> => {
+            const recipes = await this.forDatasets.get(principal, datasetRids, branches);
+            const seen = new Set<Dataset.Rid>(datasetRids);
+            const next: Dataset.Rid[] = [];
+
+            for (const recipe of Object.values(recipes))
+                next.push(...recipe.inputDatasetRids);
+
+            while (next.length > 0) {
+                const datasetRid = next.pop()!;
+
+                if (seen.has(datasetRid))
+                    continue;
+
+                seen.add(datasetRid);
+
+                const recipe = await this.repository.forDatasetGet(principal, datasetRid, branches);
+
+                if (!recipe || recipes[recipe.rid])
+                    continue;
+
+                recipes[recipe.rid] = recipe;
+                next.push(...recipe.inputDatasetRids);
+            }
+
+            return recipes;
+        },
+    };
 
     public async get(principal: Principal, rid: Forge.Recipe.Rid): Promise<Forge.Recipe> {
         const recipe = await this.repository.get(principal, rid);

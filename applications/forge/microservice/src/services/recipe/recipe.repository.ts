@@ -115,7 +115,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
 
     /** The recipe computing the dataset on the first of `branches` that has one; null if none does. */
     @Transactional()
-    public async getCurrent(
+    public async forDatasetGet(
         principal:  Principal,
         datasetRid: Dataset.Rid,
         branches:   Foundations.Branch[],

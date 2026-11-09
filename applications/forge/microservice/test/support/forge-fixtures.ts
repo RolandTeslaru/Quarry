@@ -178,10 +178,19 @@ export class ForgeHarness {
         datasetRids:  Dataset.Rid[],
         onJobFailure: Forge.Build.OnJobFailure = 'cancel-descendants',
     ): Promise<Forge.API.CreateBuild.Response> {
+        return this.buildTarget(principal, { type: 'manual', datasetRids }, onJobFailure);
+    }
+
+    /** A build of this target on main. */
+    public async buildTarget(
+        principal:    Principal.User,
+        target:       Forge.Build.Target,
+        onJobFailure: Forge.Build.OnJobFailure = 'cancel-descendants',
+    ): Promise<Forge.API.CreateBuild.Response> {
         return this.forge.initializeBuild(principal, {
             branch:           MAIN,
             fallbackBranches: [],
-            target:           { type: 'manual', datasetRids },
+            target,
             forceBuild:       false,
             onJobFailure,
             retryCount:       0,

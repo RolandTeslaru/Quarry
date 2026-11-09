@@ -149,8 +149,8 @@ describe('build and recipe permissions', () => {
     describe('recipes', () => {
 
         it('the current recipe is visible to whoever can discover the dataset and its producer', async () => {
-            await expect(harness.forge.recipes.getCurrent(discoverer, datasets.out, [MAIN])).resolves.toMatchObject({ rid: recipe.rid });
-            await expect(harness.forge.recipes.getCurrent(outsider, datasets.out, [MAIN])).resolves.toBeNull();
+            await expect(harness.forge.recipes.forDataset.get(discoverer, datasets.out, [MAIN])).resolves.toMatchObject({ rid: recipe.rid });
+            await expect(harness.forge.recipes.forDataset.get(outsider, datasets.out, [MAIN])).resolves.toBeNull();
         });
 
         it('publishing needs write on the producer and the outputs: an editor may', async () => {

@@ -60,15 +60,6 @@ describe('initializing a build', () => {
         expect(await harness.openTransactions(datasets.a)).toBe(0);
     });
 
-    it('refuses upstream and connecting targets for now: 400', async () => {
-        const { datasets } = await harness.createDatasets(user, ['a']);
-
-        await expect(harness.forge.initializeBuild(user, {
-            branch: MAIN, fallbackBranches: [], target: { type: 'upstream', datasetRids: [datasets.a] },
-            forceBuild: false, onJobFailure: 'cancel-descendants', retryCount: 0,
-        })).rejects.toBeInstanceOf(BadRequestException);
-    });
-
     it('refuses branches other than main for now: 400', async () => {
         const { datasets } = await harness.createDatasets(user, ['a']);
 

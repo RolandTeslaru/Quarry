@@ -24,6 +24,8 @@ export namespace Build {
     ])
     export type Target = z.infer<typeof Target>
 
+    export import getConnectingRecipes = HelpersMod.getConnectingRecipes
+
     /**
      * What a build runs, as an adjacency list: every recipe it resolved to
      * (one job each) mapped to its children — the recipes that read its outputs

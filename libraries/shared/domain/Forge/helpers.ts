@@ -88,3 +88,47 @@ export function createPlan(recipes: Record<Recipe.Rid, Recipe>): Build.Plan {
 
     return plan
 }
+
+/**
+ * The recipes on a path from the inputs: each reading one of them, or an output of one that does. A recipe
+ * writing an input is never one — inputs are read as they are. Reached as `Build.getConnectingRecipes`.
+ */
+export function getConnectingRecipes(recipes: Record<Recipe.Rid, Recipe>, inputRids: Dataset.Rid[]): Record<Recipe.Rid, Recipe> {
+    const inputs = new Set<Dataset.Rid>(inputRids)
+    const reached = new Set<Dataset.Rid>(inputRids)
+    const connecting: Record<Recipe.Rid, Recipe> = {}
+    let grew = true
+
+    // Until a pass adds nothing: a recipe reading a reached dataset connects, and its outputs are reached.
+    while (grew) {
+        grew = false
+
+        for (const recipe of Object.values(recipes)) {
+            if (connecting[recipe.rid])
+                continue
+
+            const outputs = Object.keys(recipe.outputTransactions) as Dataset.Rid[]
+            let writesInput = false
+            let readsReached = false
+
+            for (const datasetRid of outputs)
+                if (inputs.has(datasetRid))
+                    writesInput = true
+
+            for (const datasetRid of recipe.inputDatasetRids)
+                if (reached.has(datasetRid))
+                    readsReached = true
+
+            if (writesInput || !readsReached)
+                continue
+
+            connecting[recipe.rid] = recipe
+            grew = true
+
+            for (const datasetRid of outputs)
+                reached.add(datasetRid)
+        }
+    }
+
+    return connecting
+}

@@ -13,7 +13,7 @@ import { AGENT, JobService } from '../job/job.service';
 
 /**
  * Forge's one entry point for other services: builds here, recipes under
- * `recipes` (publish, getCurrent).
+ * `recipes` (publish, forDataset, forDatasets).
  *
  * Initializing a build: its plan from the targets' recipes, validated, its outputs locked (a
  * snapshot transaction on each, so no other writer gets in), persisted with
@@ -48,16 +48,28 @@ export class ForgeService {
         if (request.branch !== Foundations.MAIN_BRANCH)
             throw new BadRequestException('Builds run on main until datasets have other branches');
 
-        if (request.target.type !== 'manual')
-            throw new BadRequestException('Only manual builds for now');
-
         // A target the principal can't see is a 404 — read first, as RLS would hide its recipe and it'd read as nothing builds it.
         for (const datasetRid of request.target.datasetRids)
             await this.catalog.get(principal, { rid: datasetRid });
 
-        // 1. The targets' own recipes, as an adjacency list — no walking upstream.
+        // 1. The recipes the target asks for — the targets' own (manual), with every recipe upstream of them (upstream),
+        // or only those between the inputs and the targets (connecting) — as an adjacency list.
         const branches = [request.branch, ...request.fallbackBranches];
-        const recipes = await this.recipes.getCurrentForEach(principal, request.target.datasetRids, branches);
+        let recipes: Record<Forge.Recipe.Rid, Forge.Recipe>;
+
+        if (request.target.type === 'manual')
+            recipes = await this.recipes.forDatasets.get(principal, request.target.datasetRids, branches);
+        else if (request.target.type === 'upstream')
+            recipes = await this.recipes.forDatasets.getUpstream(principal, request.target.datasetRids, branches);
+        else {
+            const upstream = await this.recipes.forDatasets.getUpstream(principal, request.target.datasetRids, branches);
+
+            recipes = Forge.Build.getConnectingRecipes(upstream, request.target.inputRids);
+
+            if (Object.keys(recipes).length === 0)
+                throw new ConflictException('Nothing connects the inputs to the targets');
+        }
+
         let plan: Forge.Build.Plan;
 
         try {
@@ -70,7 +82,7 @@ export class ForgeService {
             throw error;
         }
 
-        await this.validatePlan(principal, recipes);
+        await this.assertPermissionsOnPlan(principal, recipes);
 
         const buildRid = Forge.Build.createRid();
         const plannedJobs = await this.openTransactionsForOutputs(principal, buildRid, recipes);
@@ -264,7 +276,7 @@ export class ForgeService {
      * 2. Write on every output, read on every input; an input not built in
      * this build must have data already.
      */
-    private async validatePlan(principal: Principal, recipes: Record<Forge.Recipe.Rid, Forge.Recipe>): Promise<void> {
+    private async assertPermissionsOnPlan(principal: Principal, recipes: Record<Forge.Recipe.Rid, Forge.Recipe>): Promise<void> {
         const outputs = new Set<Dataset.Rid>();
         const inputs = new Set<Dataset.Rid>();
 
