@@ -1,6 +1,6 @@
 import type { Durable, Foundations } from '@quarry/shared/domain';
 import type { DurableQueues } from './durable-queues';
-import type { OutboxRepository } from './outbox.repository';
+import type { OutboxRepository } from '../outbox/outbox.repository';
 
 /**
  * One durable queue, as a domain uses it — what `@InjectDurableQueue(definition)` injects.

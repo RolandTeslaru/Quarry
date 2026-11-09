@@ -9,8 +9,8 @@ import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { db } from '@quarry/platform-kernel/db/pool';
 import { Repository, Transactional } from '@quarry/platform-kernel/db/repository';
 import { DurableQueueHandle, DurableQueueInternalController, DurableQueues } from '@quarry/platform-kernel/infra/durable';
-import { OutboxDB } from '@quarry/platform-kernel/infra/durable/outbox.db';
-import { OutboxRepository } from '@quarry/platform-kernel/infra/durable/outbox.repository';
+import { OutboxDB } from '@quarry/platform-kernel/infra/durable/outbox/outbox.db';
+import { OutboxRepository } from '@quarry/platform-kernel/infra/durable/outbox/outbox.repository';
 import { QueueManager } from '@quarry/platform-kernel/infra/queue';
 import { MainServerHarness } from '../support/main-server-fixtures';
 

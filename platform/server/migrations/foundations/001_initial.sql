@@ -41,11 +41,12 @@ GRANT USAGE ON SCHEMA foundations TO main_user;
 --
 --   <schema>_service   the service's login (its password set at boot from <SERVICE>_DATABASE_URL —
 --                      db/service-logins.ts) and its own work (Principal.SELF): its schema's tables
---                      whole, the platform's tables read, the outbox it relays.
+--                      whole, the platform's tables read, the outbox it relays, durable events' listeners.
 --   <schema>_user      a user's or delegate's transaction in the service: a member of quarry_user, so
 --                      every policy applies; its schema's tables (RLS decides what it may do with them —
 --                      a command with no policy is refused), the platform's tables read, Library rows
---                      of its own resource types (and new folders), lineage edges, the outbox to append.
+--                      of its own resource types (and new folders), lineage edges, the outbox to append,
+--                      durable events to publish.
 --
 -- Neither can touch another product's schema; that goes through the other service's calls. Kysely's
 -- migration history, kept in each schema, isn't the service's: only the main server migrates.
@@ -97,6 +98,7 @@ BEGIN
     EXECUTE format('GRANT SELECT ON gatekeeper.role TO %I', user_role);
     EXECUTE format('GRANT INSERT ON durable.outbox TO %I', user_role);
     EXECUTE format('GRANT SELECT (queue_name, job_id) ON durable.outbox TO %I', user_role);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION durable.publish_event(text, text, jsonb) TO %I', user_role);
 
     -- The service: the Library read whole, the outbox relayed and acked.
     EXECUTE format('GRANT SELECT ON library.resource TO %I', service_role);
@@ -104,4 +106,6 @@ BEGIN
     EXECUTE format('CREATE POLICY %I ON library.resource_ancestor FOR SELECT TO %I USING (true)', service_role, service_role);
     EXECUTE format('GRANT SELECT, INSERT, UPDATE ON durable.outbox TO %I', service_role);
     EXECUTE format('GRANT EXECUTE ON FUNCTION durable.ack_outbox(text, text[]) TO %I', service_role);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION durable.publish_event(text, text, jsonb) TO %I', service_role);
+    EXECUTE format('GRANT SELECT ON durable.event_listener TO %I', service_role);
 END $$;

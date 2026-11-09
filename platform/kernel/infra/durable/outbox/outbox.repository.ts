@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { sql, type Transaction } from 'kysely';
-import type { Foundations } from '@quarry/shared/domain';
+import type { Durable, Foundations } from '@quarry/shared/domain';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { Repository, Transactional, currentTransaction } from '@quarry/platform-kernel/db/repository';
 import { json } from '@quarry/platform-kernel/db/table';
@@ -29,6 +29,15 @@ export class OutboxRepository extends Repository(OutboxDB.database) {
             .values(messages.map((message) => ({ queue_name: queueName, job_id: message.jobId, payload: json(message.payload) })))
             .onConflict((conflict) => conflict.columns(['queue_name', 'job_id']).doNothing())
             .execute();
+    }
+
+    /**
+     * Inside a @Transactional method only: one message per listener of the topic (durable.event_listener),
+     * the event id as each one's job id. One a listener hasn't acked yet is ignored.
+     */
+    public async publish(topic: Durable.Event.Topic, events: OutboxMessage[]): Promise<void> {
+        for (const event of events)
+            await sql`select durable.publish_event(${topic}, ${event.jobId}, ${json(event.payload)})`.execute(getOpenTransaction());
     }
 
     /** Inside a @Transactional method only: the work was taken or canceled — stop sending it. */

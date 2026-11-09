@@ -2,9 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Durable, Foundations } from '@quarry/shared/domain';
 import { System } from '@quarry/shared/server/system';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
-import { QueueManager } from '../queue';
-import { OutboxRepository } from './outbox.repository';
-import type { OutboxDB } from './outbox.db';
+import { QueueManager } from '../../queue';
+import { EventListenerRepository } from '../event-listener/event-listener.repository';
+import { OutboxRepository } from '../outbox/outbox.repository';
+import type { OutboxDB } from '../outbox/outbox.db';
 
 type Definition = Durable.Queue.Definition;
 
@@ -23,8 +24,9 @@ export class DurableQueues {
     private readonly definitions = new Map<Foundations.Queue.Name, Definition>();
 
     constructor(
-        private readonly outbox: OutboxRepository,
-        private readonly queues: QueueManager,
+        private readonly outbox:         OutboxRepository,
+        private readonly eventListeners: EventListenerRepository,
+        private readonly queues:         QueueManager,
     ) {}
 
     public register(definition: Definition): void {
@@ -60,6 +62,19 @@ export class DurableQueues {
 
             sent++;
         }
+
+        return sent;
+    }
+
+    /**
+     * An event's unsent messages, every listener's — the publisher's, after its commit. Each listener's queue
+     * follows from the event and its name, so the publisher needn't register them; their sweep is the listener's.
+     */
+    public async relayEvent(event: Durable.Event.Definition): Promise<number> {
+        let sent = 0;
+
+        for (const listener of await this.eventListeners.listByTopic(RELAY, event.topic))
+            sent += await this.relay(Durable.EventListener.define({ event, queue: listener.queue_name }));
 
         return sent;
     }

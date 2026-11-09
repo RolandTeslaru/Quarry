@@ -4,7 +4,7 @@ import { Internal } from '@quarry/platform-kernel/auth/current-principal';
 import { Principal } from '@quarry/platform-kernel/auth/principal';
 import { ZodPipe } from '@quarry/platform-kernel/http/zod.pipe';
 import { DurableQueues } from './durable-queues';
-import { OutboxRepository } from './outbox.repository';
+import { OutboxRepository } from '../outbox/outbox.repository';
 
 import API = Durable.Queue.API;
 

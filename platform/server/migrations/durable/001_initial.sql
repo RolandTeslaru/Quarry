@@ -1,8 +1,8 @@
 -- 001_initial — the `durable` schema.
 --
--- Durable queues' outbox (docs/design/durable-queues.md). Migrated right after foundations:
--- foundations.create_service_roles grants every service's roles the outbox, so it must exist
--- before the first service's schema calls it.
+-- Durable queues' outbox, and durable events' listeners (docs/design/durable-queues.md). Migrated
+-- right after foundations: foundations.create_service_roles grants every service's roles both, so
+-- they must exist before the first service's schema calls it.
 --
 -- Living document until launch: schema changes are edits to this file, not new
 -- numbered migrations. Source of truth for the design: docs/design/durable-queues.md.
@@ -42,3 +42,27 @@ GRANT INSERT ON durable.outbox TO main_user;
 GRANT SELECT (queue_name, job_id) ON durable.outbox TO main_user;   -- ON CONFLICT's check; never the payloads
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA durable TO main_user;
 GRANT EXECUTE ON FUNCTION durable.ack_outbox(text, text[]) TO main_user;
+
+-- ── durable events' listeners ────────────────────────────────────────────
+--
+-- Who listens to what: each row is declared by the listener's own migration. Publishing an event
+-- adds one outbox message per row of its topic, in the publisher's transaction; each listener's
+-- durable queue takes its own and acks it. An event published before a listener's row existed
+-- never reaches it.
+
+CREATE TABLE durable.event_listener (
+    topic       text NOT NULL,                  -- the event's: 'forge:job:succeeded'
+    queue_name  text NOT NULL,                  -- the listener's durable queue: '<listener service>.<name>'
+    PRIMARY KEY (topic, queue_name)
+);
+
+-- The publish — from user transactions too, which may only append to the outbox and never read who listens.
+-- Again with the same event id: nothing, for a listener that hasn't acked it yet.
+CREATE FUNCTION durable.publish_event(p_topic text, p_event_id text, p_payload jsonb) RETURNS void
+LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
+    INSERT INTO durable.outbox (queue_name, job_id, payload)
+    SELECT queue_name, p_event_id, p_payload FROM durable.event_listener WHERE topic = p_topic
+    ON CONFLICT (queue_name, job_id) DO NOTHING
+$$;
+
+GRANT EXECUTE ON FUNCTION durable.publish_event(text, text, jsonb) TO main_user;
