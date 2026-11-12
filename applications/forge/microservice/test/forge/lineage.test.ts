@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Foundations, type Library } from '@quarry/shared/domain';
+import { Foundations, Library } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { ForgeHarness, MAIN } from '../support/forge-fixtures';
 
@@ -139,6 +139,24 @@ describe('lineage from publishing recipes', () => {
 
         expect(await walk(2)).toEqual([datasets.a, datasets.b].sort());
         expect(await walk(100)).toEqual([datasets.a, datasets.b, datasets.c].sort());
+    });
+
+    it('walks all the way up from several resources at once, reaching each once, with its parents worked out', async () => {
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b', 'c', 'd']);
+
+        await harness.publish(user, projectRid, datasets, [
+            { name: 'A', inputs: ['raw'], outputs: ['a'] },
+            { name: 'B', inputs: ['a'],   outputs: ['b'] },
+            { name: 'C', inputs: ['b'],   outputs: ['c'] },
+            { name: 'D', inputs: ['a'],   outputs: ['d'] },
+        ]);
+
+        const graph = await harness.library.lineage.getUpstreamOfMany(user, [datasets.c, datasets.d], MAIN, Library.Lineage.Walk.ALL_THE_WAY);
+
+        expect(Object.keys(graph.resources).sort()).toEqual(Object.values(datasets).sort());
+        expect(graph.edges).toHaveLength(4);
+        expect(graph.parentsOf[datasets.a]).toEqual([datasets.raw]);
+        expect([...graph.childrenOf[datasets.a]].sort()).toEqual([datasets.b, datasets.d].sort());
     });
 
     it('a resource the reader can\'t discover stops the walk', async () => {

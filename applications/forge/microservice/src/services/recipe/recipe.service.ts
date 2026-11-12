@@ -38,16 +38,21 @@ export class RecipeService {
     public readonly forDataset = {
         get: (principal: Principal, datasetRid: Dataset.Rid, branches: Foundations.Branch[]): Promise<Forge.Recipe | null> =>
             this.repository.forDatasetGet(principal, datasetRid, branches),
+
+        /** Each dataset's, by dataset, in one read; one nothing builds is left out. */
+        getMany: (principal: Principal, datasetRids: Dataset.Rid[], branches: Foundations.Branch[]): Promise<Record<Dataset.Rid, Forge.Recipe>> =>
+            this.repository.forDatasetGetMany(principal, datasetRids, branches),
     };
 
     /** The recipes computing several datasets now, by RID: a recipe writing several of them is one. */
     public readonly forDatasets = {
         /** A dataset nothing builds is a conflict. */
         get: async (principal: Principal, datasetRids: Dataset.Rid[], branches: Foundations.Branch[]): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> => {
+            const byDataset = await this.repository.forDatasetGetMany(principal, datasetRids, branches);
             const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
 
             for (const datasetRid of datasetRids) {
-                const recipe = await this.repository.forDatasetGet(principal, datasetRid, branches);
+                const recipe = byDataset[datasetRid];
 
                 if (!recipe)
                     throw new ConflictException(`Nothing builds ${datasetRid} on ${branches.join(' or ')}`);
@@ -58,32 +63,42 @@ export class RecipeService {
             return recipes;
         },
 
-        /** And every recipe upstream of them, walking each recipe's inputs. A dataset nothing builds — given or reached — ends the walk: it's read as it is. */
+        /**
+         * And every recipe upstream of them, walking each recipe's inputs one hop at a time — one read per hop.
+         * A dataset nothing builds — given or reached — ends the walk: it's read as it is.
+         */
         getUpstream: async (principal: Principal, datasetRids: Dataset.Rid[], branches: Foundations.Branch[]): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> => {
             const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
-            const seen = new Set<Dataset.Rid>();
-            const next = [...datasetRids];
+            const seen = new Set<Dataset.Rid>(datasetRids);
+            let frontier = [...seen];
 
-            while (next.length > 0) {
-                const datasetRid = next.pop()!;
+            while (frontier.length > 0) {
+                const byDataset = await this.repository.forDatasetGetMany(principal, frontier, branches);
 
-                if (seen.has(datasetRid))
-                    continue;
+                frontier = [];
 
-                seen.add(datasetRid);
+                for (const recipe of Object.values(byDataset)) {
+                    if (recipes[recipe.rid])
+                        continue;
 
-                const recipe = await this.repository.forDatasetGet(principal, datasetRid, branches);
+                    recipes[recipe.rid] = recipe;
 
-                if (!recipe || recipes[recipe.rid])
-                    continue;
-
-                recipes[recipe.rid] = recipe;
-                next.push(...recipe.inputDatasetRids);
+                    for (const inputRid of recipe.inputDatasetRids)
+                        if (!seen.has(inputRid)) {
+                            seen.add(inputRid);
+                            frontier.push(inputRid);
+                        }
+                }
             }
 
             return recipes;
         },
     };
+
+    /** These recipes, by RID, in one read; one that isn't there is left out. */
+    public async getMany(principal: Principal, rids: Forge.Recipe.Rid[]): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> {
+        return this.repository.getMany(principal, rids);
+    }
 
     public async get(principal: Principal, rid: Forge.Recipe.Rid): Promise<Forge.Recipe> {
         const recipe = await this.repository.get(principal, rid);

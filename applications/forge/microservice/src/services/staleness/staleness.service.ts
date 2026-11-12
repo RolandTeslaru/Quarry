@@ -27,9 +27,8 @@ export class StalenessService {
      * `branches`, each one's recipe on the first of `branches` with one — as a build finds them.
      */
     public async get(principal: Principal, datasetRids: Dataset.Rid[], branches: Foundations.Branch[]): Promise<Record<Dataset.Rid, Library.Lineage.Staleness>> {
-        // 1. The datasets and everything feeding them: their lineage, as far up as a walk goes.
-        const walk = { depth: Library.Lineage.Walk.MAX_DEPTH, includeTrashed: false };
-        const graph = await this.library.lineage.getUpstreamOfMany(principal, datasetRids, branches[0], walk);
+        // 1. The datasets and everything feeding them: their lineage, all the way up.
+        const graph = await this.library.lineage.getUpstreamOfMany(principal, datasetRids, branches[0], Library.Lineage.Walk.ALL_THE_WAY);
         const datasets: Dataset.Rid[] = [];
 
         for (const resource of Object.values(graph.resources))
@@ -37,15 +36,7 @@ export class StalenessService {
                 datasets.push(resource.rid as Dataset.Rid);
 
         // 2. Each one's current recipe and newest version, and — for one a recipe builds — the job that wrote it, with that job's recipe.
-        const recipes: Record<Dataset.Rid, Forge.Recipe> = {};
-
-        for (const datasetRid of datasets) {
-            const recipe = await this.recipes.forDataset.get(principal, datasetRid, branches);
-
-            if (recipe)
-                recipes[datasetRid] = recipe;
-        }
-
+        const recipes = await this.recipes.forDataset.getMany(principal, datasets, branches);
         const latest = await this.catalog.getLatestTransactions(principal, { datasetRids: datasets });
         const writtenBy: Record<Dataset.Rid, Forge.Job.Rid> = {};
         const writers: Record<Dataset.Rid, { job: Forge.Job; recipe: Forge.Recipe }> = {};
@@ -58,12 +49,18 @@ export class StalenessService {
         }
 
         const jobs = await this.jobs.getJobs(principal, Object.values(writtenBy));
+        const writerRecipeRids: Forge.Recipe.Rid[] = [];
+
+        for (const job of Object.values(jobs))
+            writerRecipeRids.push(job.recipeRid);
+
+        const writerRecipes = await this.recipes.getMany(principal, writerRecipeRids);
 
         for (const datasetRid of Object.keys(writtenBy) as Dataset.Rid[]) {
             const job = jobs[writtenBy[datasetRid]];
 
             if (job)
-                writers[datasetRid] = { job, recipe: await this.recipes.get(principal, job.recipeRid) };
+                writers[datasetRid] = { job, recipe: writerRecipes[job.recipeRid] };
         }
 
         // 3. Each one's own reasons, against its recipe and its inputs' newest versions. What no recipe builds has none.

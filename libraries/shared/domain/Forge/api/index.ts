@@ -2,6 +2,7 @@ import { z } from "zod"
 import type { AxiosInstance } from "axios"
 import { Branch, MAIN_BRANCH } from "../../Foundations/Branch"
 import { Dataset as DatasetD } from "../../Dataset/Dataset"
+import { Lineage as LineageD } from "../../Library/Lineage"
 import { Build as BuildD } from "../Build"
 import { Job as JobD } from "../Job"
 import { Recipe as RecipeD } from "../Recipe"
@@ -73,6 +74,18 @@ export namespace API {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Whether these datasets are what their recipes would compute now, and how far up each one's nearest stale dataset is. */
+    export namespace GetStaleness {
+        export const Request = z.object({
+            datasetRids: DatasetD.Rid.array().min(1),
+            branch:      Branch.default(MAIN_BRANCH),
+        })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.object({ staleness: z.record(DatasetD.Rid, LineageD.Staleness.Schema) })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export async function createBuild(api: AxiosInstance, req: z.input<typeof CreateBuild.Request>): Promise<CreateBuild.Response> {
         const { data } = await api.post("/api/forge/builds", req)
         return CreateBuild.Response.parse(data)
@@ -101,6 +114,11 @@ export namespace API {
     export async function getCurrentRecipe(api: AxiosInstance, query: z.input<typeof GetCurrentRecipe.Query>): Promise<GetCurrentRecipe.Response> {
         const { data } = await api.get("/api/forge/recipes/current", { params: query })
         return GetCurrentRecipe.Response.parse(data)
+    }
+
+    export async function getStaleness(api: AxiosInstance, req: z.input<typeof GetStaleness.Request>): Promise<GetStaleness.Response> {
+        const { data } = await api.post("/api/forge/staleness", req)
+        return GetStaleness.Response.parse(data)
     }
 
     /** ForgeAgents' own endpoints (`/api/forge-agent/…`). */

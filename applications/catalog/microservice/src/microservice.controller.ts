@@ -107,7 +107,7 @@ export class CatalogMicroserviceController {
 
     @MicroserviceCall(Calls.GetLatestTransactions, { from: ['forge'] })
     public getLatestTransactions(principal: Principal, request: Calls.GetLatestTransactions.Request) {
-        return this.transaction.getLatestBatch(principal, request.datasetRids);
+        return this.transaction.getLatestMany(principal, request.datasetRids);
     }
 
     @MicroserviceCall(Calls.AbortTransactions, { from: ['forge'] })

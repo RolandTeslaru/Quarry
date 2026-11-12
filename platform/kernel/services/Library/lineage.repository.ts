@@ -153,7 +153,7 @@ export class LineageRepository extends Repository(LibraryDB.database) {
         const visited = new Set<Library.Resource.Rid>(rids);
         let frontier = new Set<Library.Resource.Rid>(rids);
 
-        for (let hop = 0; hop < walk.depth && frontier.size > 0; hop += 1) {
+        for (let hop = 0; (walk.depth === null || hop < walk.depth) && frontier.size > 0; hop += 1) {
             const rows = await this.trx
                 .selectFrom('library.lineage_edge as edge')
                 .innerJoin('library.resource as upstream', 'upstream.rid', 'edge.upstream_rid')

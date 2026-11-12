@@ -163,45 +163,78 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         }
     }
 
-    /** The dataset's newest committed mark, since its newest snapshot: a snapshot replaced what any earlier mark described. */
+    /**
+     * Each dataset's newest committed mark, since its newest snapshot — a snapshot replaced what any earlier mark
+     * described — in one query; null if it has none. Datasets are a list here, so their liveness is checked here.
+     */
     @Transactional()
-    async getIncrementalState(principal: Principal, datasetRid: Dataset.Rid, branch: Foundations.Branch): Promise<string | null> {
-        const committed = this.trx
-            .selectFrom('catalog.transaction')
-            .where('dataset_rid', '=', datasetRid)
-            .where('branch', '=', branch)
-            .where('status', '=', 'committed');
+    async getIncrementalStates(principal: Principal, datasetRids: Dataset.Rid[], branch: Foundations.Branch): Promise<Catalog.Transaction.Incremental.States> {
+        const states: Catalog.Transaction.Incremental.States = {};
 
-        const snapshot = await committed
-            .select((eb) => eb.fn.max('sequence').as('sequence'))
-            .where('type', '=', 'snapshot')
-            .executeTakeFirst();
+        if (datasetRids.length === 0)
+            return states;
 
-        const newest = await committed
-            .select('incremental')
-            .where('incremental', 'is not', null)
-            .where('sequence', '>', snapshot?.sequence ?? Dataset.Sequence.parse(0))
-            .orderBy('sequence', 'desc')
-            .limit(1)
-            .executeTakeFirst();
+        const live = await liveResources(this.trx, datasetRids);
 
-        return newest?.incremental?.state ?? null;
+        if (datasetRids.some((rid) => !live.has(rid)))
+            throw new NotFoundException('Not found');
+
+        const rows = await this.trx
+            .selectFrom('catalog.transaction as t')
+            .distinctOn('t.dataset_rid')
+            .select(['t.dataset_rid', 't.incremental'])
+            .where('t.dataset_rid', 'in', datasetRids)
+            .where('t.branch', '=', branch)
+            .where('t.status', '=', 'committed')
+            .where('t.incremental', 'is not', null)
+            .where(sql<boolean>`t.sequence > coalesce((
+                select max(s.sequence) from catalog.transaction s
+                 where s.dataset_rid = t.dataset_rid and s.branch = t.branch and s.status = 'committed' and s.type = 'snapshot'
+            ), 0)`)
+            .orderBy('t.dataset_rid')
+            .orderBy('t.sequence', 'desc')
+            .execute();
+
+        for (const datasetRid of datasetRids)
+            states[datasetRid] = null;
+
+        for (const row of rows)
+            states[row.dataset_rid] = row.incremental?.state ?? null;
+
+        return states;
     }
 
-    /** The dataset's newest committed transaction on the branch; null if it has none. */
+    /** Each dataset's newest committed transaction on the branch, in one query; null if it has none. Liveness checked here, as above. */
     @Transactional()
-    async getLatest(principal: Principal, datasetRid: Dataset.Rid, branch: Foundations.Branch): Promise<Catalog.Transaction | null> {
-        const row = await this.trx
+    async getLatestMany(principal: Principal, datasetRids: Dataset.Rid[], branch: Foundations.Branch): Promise<Record<Dataset.Rid, Catalog.Transaction | null>> {
+        const latest: Record<Dataset.Rid, Catalog.Transaction | null> = {};
+
+        if (datasetRids.length === 0)
+            return latest;
+
+        const live = await liveResources(this.trx, datasetRids);
+
+        if (datasetRids.some((rid) => !live.has(rid)))
+            throw new NotFoundException('Not found');
+
+        const rows = await this.trx
             .selectFrom('catalog.transaction')
+            .distinctOn('dataset_rid')
             .selectAll()
-            .where('dataset_rid', '=', datasetRid)
+            .where('dataset_rid', 'in', datasetRids)
             .where('branch', '=', branch)
             .where('status', '=', 'committed')
+            .orderBy('dataset_rid')
             .orderBy('sequence', 'desc')
-            .limit(1)
-            .executeTakeFirst();
+            .execute();
 
-        return row ? CatalogDB.Transaction.toDomain(row) : null;
+        for (const datasetRid of datasetRids)
+            latest[datasetRid] = null;
+
+        for (const row of rows)
+            latest[row.dataset_rid] = CatalogDB.Transaction.toDomain(row);
+
+        return latest;
     }
 
     /**

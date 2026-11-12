@@ -10,7 +10,7 @@ export namespace Lineage {
     export namespace Get {
         export const Request = z.object({
             branch:         Foundations.Branch.default(Foundations.MAIN_BRANCH),
-            depth:          z.coerce.number().int().min(1).max(LineageD.Walk.MAX_DEPTH).default(LineageD.Walk.ONE_HOP.depth),
+            depth:          z.coerce.number().int().min(1).max(LineageD.Walk.MAX_DEPTH).default(1),
             includeTrashed: z.stringbool().default(LineageD.Walk.ONE_HOP.includeTrashed),
         })
         export type  Request = z.infer<typeof Request>

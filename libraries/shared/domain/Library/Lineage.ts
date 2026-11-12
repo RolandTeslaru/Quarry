@@ -20,16 +20,19 @@ export namespace Lineage {
     }
     export type Edge = z.infer<typeof Edge.Schema>
 
-    /** How far a read goes from a resource: `depth` hops, through trashed resources only if asked. */
+    /** How far a read goes from a resource: `depth` hops, or all the way, through trashed resources only if asked. */
     export namespace Walk {
 
         export const Schema = z.object({
-            depth:          z.number().int().positive(),
+            depth:          z.number().int().positive().nullable(),   // null: until nothing is left — a resource is visited once, so a cycle ends too
             includeTrashed: z.boolean(),
         })
 
-        export const ONE_HOP = { depth: 1, includeTrashed: false }
+        export const ONE_HOP: Walk = { depth: 1, includeTrashed: false }
 
+        export const ALL_THE_WAY: Walk = { depth: null, includeTrashed: false }
+
+        /** The most an HTTP read may ask for: a click shouldn't walk the whole workspace. */
         export const MAX_DEPTH = 20
     }
     export type Walk = z.infer<typeof Walk.Schema>

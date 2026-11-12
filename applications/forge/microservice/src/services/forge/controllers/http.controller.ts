@@ -47,6 +47,16 @@ export class ForgeController {
         return this.forge.cancelBuild(principal, rid);
     }
 
+    /** A POST: a canvas's datasets can be more than a query string holds. */
+    @Post('staleness')
+    @HttpCode(200)
+    public async getStaleness(
+        @CurrentPrincipal() principal: Principal.User,
+        @Body(new ZodPipe(API.GetStaleness.Request)) body: API.GetStaleness.Request,
+    ): Promise<API.GetStaleness.Response> {
+        return { staleness: await this.forge.staleness.get(principal, body.datasetRids, [body.branch]) };
+    }
+
     @Get('recipes/current')
     public async getCurrentRecipe(
         @CurrentPrincipal() principal: Principal.User,

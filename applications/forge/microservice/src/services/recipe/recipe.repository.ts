@@ -63,10 +63,16 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
             .where('recipe.producer_rid', '=', producerRid)
             .execute();
 
+        const previousRids: Forge.Recipe.Rid[] = [];
         const previous: Record<Dataset.Rid, Forge.Recipe> = {};
 
         for (const pointer of pointers)
-            previous[pointer.dataset_rid] = (await this.get(principal, pointer.recipe_rid))!;
+            previousRids.push(pointer.recipe_rid);
+
+        const previousRecipes = await this.getMany(principal, previousRids);
+
+        for (const pointer of pointers)
+            previous[pointer.dataset_rid] = previousRecipes[pointer.recipe_rid];
 
         await this.trx
             .deleteFrom('forge.current_recipe')
@@ -120,52 +126,97 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         datasetRid: Dataset.Rid,
         branches:   Foundations.Branch[],
     ): Promise<Forge.Recipe | null> {
+        const recipes = await this.forDatasetGetMany(principal, [datasetRid], branches);
+
+        return recipes[datasetRid] ?? null;
+    }
+
+    /** Each dataset's recipe on the first of `branches` that has one, by dataset; one none has is left out. */
+    @Transactional()
+    public async forDatasetGetMany(
+        principal:   Principal,
+        datasetRids: Dataset.Rid[],
+        branches:    Foundations.Branch[],
+    ): Promise<Record<Dataset.Rid, Forge.Recipe>> {
+        const byDataset: Record<Dataset.Rid, Forge.Recipe> = {};
+
+        if (datasetRids.length === 0)
+            return byDataset;
+
         const pointers = await this.trx
             .selectFrom('forge.current_recipe')
             .selectAll()
-            .where('dataset_rid', '=', datasetRid)
+            .where('dataset_rid', 'in', datasetRids)
             .where('branch', 'in', branches)
             .execute();
 
-        const pointer = branches
-            .map((branch) => pointers.find((candidate) => candidate.branch === branch))
-            .find((candidate) => candidate !== undefined);
+        // Each dataset's pointer on the earliest of `branches` that has one.
+        const chosen: Record<Dataset.Rid, Forge.Recipe.Rid> = {};
 
-        if (!pointer)
-            return null;
+        for (const branch of [...branches].reverse())
+            for (const pointer of pointers)
+                if (pointer.branch === branch)
+                    chosen[pointer.dataset_rid] = pointer.recipe_rid;
 
-        return this.get(principal, pointer.recipe_rid);
+        const recipes = await this.getMany(principal, Object.values(chosen));
+
+        for (const datasetRid of Object.keys(chosen) as Dataset.Rid[])
+            byDataset[datasetRid] = recipes[chosen[datasetRid]];
+
+        return byDataset;
     }
 
     @Transactional()
     public async get(principal: Principal, rid: Forge.Recipe.Rid): Promise<Forge.Recipe | null> {
-        const row = await this.trx
+        const recipes = await this.getMany(principal, [rid]);
+
+        return recipes[rid] ?? null;
+    }
+
+    /** These recipes, with their datasets, by RID; one that isn't there is left out. */
+    @Transactional()
+    public async getMany(principal: Principal, rids: Forge.Recipe.Rid[]): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> {
+        const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
+
+        if (rids.length === 0)
+            return recipes;
+
+        const rows = await this.trx
             .selectFrom('forge.recipe')
             .selectAll()
-            .where('rid', '=', rid)
-            .executeTakeFirst();
-
-        if (!row)
-            return null;
+            .where('rid', 'in', rids)
+            .execute();
 
         const inputs = await this.trx
             .selectFrom('forge.recipe_input_dataset')
-            .select('dataset_rid')
-            .where('recipe_rid', '=', rid)
+            .select(['recipe_rid', 'dataset_rid'])
+            .where('recipe_rid', 'in', rids)
             .execute();
 
         const outputs = await this.trx
             .selectFrom('forge.recipe_output_dataset')
-            .select(['dataset_rid', 'transaction'])
-            .where('recipe_rid', '=', rid)
+            .select(['recipe_rid', 'dataset_rid', 'transaction'])
+            .where('recipe_rid', 'in', rids)
             .execute();
 
-        const outputTransactions: Forge.Recipe['outputTransactions'] = {};
+        const inputsOf: Record<Forge.Recipe.Rid, Dataset.Rid[]> = {};
+        const outputsOf: Record<Forge.Recipe.Rid, Forge.Recipe['outputTransactions']> = {};
+
+        for (const row of rows) {
+            inputsOf[row.rid] = [];
+            outputsOf[row.rid] = {};
+        }
+
+        for (const input of inputs)
+            inputsOf[input.recipe_rid].push(input.dataset_rid);
 
         for (const output of outputs)
-            outputTransactions[output.dataset_rid] = output.transaction;
+            outputsOf[output.recipe_rid][output.dataset_rid] = output.transaction;
 
-        return ForgeDB.Recipe.toDomain(row, inputs.map((input) => input.dataset_rid), outputTransactions);
+        for (const row of rows)
+            recipes[row.rid] = ForgeDB.Recipe.toDomain(row, inputsOf[row.rid], outputsOf[row.rid]);
+
+        return recipes;
     }
 
     // ── helpers ─────────────────────────────────────────────────────────

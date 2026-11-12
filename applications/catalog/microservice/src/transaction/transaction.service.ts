@@ -115,22 +115,12 @@ export class TransactionService {
 
     /** How far each dataset's incremental writer got. */
     async getIncrementalStates(principal: Principal, datasetRids: Dataset.Rid[], branch = Foundations.MAIN_BRANCH): Promise<Catalog.Transaction.Incremental.States> {
-        const states: Catalog.Transaction.Incremental.States = {};
-
-        for (const datasetRid of datasetRids)
-            states[datasetRid] = await this.repository.getIncrementalState(principal, datasetRid, branch);
-
-        return states;
+        return this.repository.getIncrementalStates(principal, datasetRids, branch);
     }
 
     /** Each dataset's newest committed transaction: its current version, and what wrote it. Null if it has none. */
-    async getLatestBatch(principal: Principal, datasetRids: Dataset.Rid[], branch = Foundations.MAIN_BRANCH): Promise<Record<Dataset.Rid, Catalog.Transaction | null>> {
-        const latest: Record<Dataset.Rid, Catalog.Transaction | null> = {};
-
-        for (const datasetRid of datasetRids)
-            latest[datasetRid] = await this.repository.getLatest(principal, datasetRid, branch);
-
-        return latest;
+    async getLatestMany(principal: Principal, datasetRids: Dataset.Rid[], branch = Foundations.MAIN_BRANCH): Promise<Record<Dataset.Rid, Catalog.Transaction | null>> {
+        return this.repository.getLatestMany(principal, datasetRids, branch);
     }
 
     /** Aborts the open ones among these, in one database transaction; finished ones are skipped, so it's safe to repeat. */

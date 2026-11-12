@@ -110,4 +110,20 @@ describe('publishing recipes', () => {
         expect((await harness.forge.recipes.forDataset.get(user, datasets.a, [feature, testing, MAIN]))?.rid).toBe(onTesting.A.rid);
         expect(await harness.forge.recipes.forDataset.get(user, datasets.a, [feature])).toBeNull();
     });
+
+    it('reads many datasets\' recipes at once, each on the first branch with one — one nothing builds left out', async () => {
+        const testing = Foundations.Branch.parse('testing');
+        const { projectRid, datasets } = await harness.createDatasets(user, ['raw', 'a', 'b']);
+        const onMain = await harness.publish(user, projectRid, datasets, [
+            { name: 'A', inputs: ['raw'], outputs: ['a'] },
+            { name: 'B', inputs: ['a'],   outputs: ['b'] },
+        ]);
+        const onTesting = await harness.publish(user, projectRid, datasets, [{ name: 'A', inputs: ['raw'], outputs: ['a'] }], testing);
+
+        const recipes = await harness.forge.recipes.forDataset.getMany(user, [datasets.raw, datasets.a, datasets.b], [testing, MAIN]);
+
+        expect(Object.keys(recipes).sort()).toEqual([datasets.a, datasets.b].sort());
+        expect(recipes[datasets.a]).toEqual(onTesting.A);
+        expect(recipes[datasets.b]).toEqual(onMain.B);
+    });
 });
