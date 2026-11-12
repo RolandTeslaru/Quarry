@@ -61,7 +61,7 @@ const Trigger: MenubarComponents.Trigger = ({ className, ...props }) => (
     <MenubarPrimitive.Trigger
         data-slot='menubar-trigger'
         className={cn(
-            `flex h-7 cursor-pointer select-none items-center rounded-md border border-transparent
+            `flex h-5.5 cursor-pointer select-none items-center rounded-md border border-transparent
             px-2 text-sm font-medium text-foreground outline-hidden
             hover:bg-secondary hover:text-secondary-foreground
             focus:bg-secondary focus:text-secondary-foreground

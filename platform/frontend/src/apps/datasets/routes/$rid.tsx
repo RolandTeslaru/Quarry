@@ -28,8 +28,6 @@ export const Route = createFileRoute('/_shell/datasets/$rid')({
     },
     // A preload is only a read: a click after a hover must still run the loader, to open.
     preloadStaleTime: 0,
-    pendingComponent: App.Pending,
-    pendingMs: 0,
     component: DatasetRoute,
 })
 

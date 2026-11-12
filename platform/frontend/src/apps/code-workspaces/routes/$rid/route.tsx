@@ -36,8 +36,6 @@ export const Route = createFileRoute('/_shell/code-workspaces/$rid')({
     onLeave: match => CodeWorkspaceSDK.actions.workspace.close(match.params.rid),
     // A preload is only a read: a click after a hover must still run the loader, to open.
     preloadStaleTime: 0,
-    pendingComponent: App.Pending,
-    pendingMs: 0,
     component: WorkspaceRoute,
 })
 
@@ -150,7 +148,7 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
 
             {/* The IDE doesn't scroll: right under the nav, no gap, and ending clear of the window's bottom edge. */}
             <App.Content className='overflow-hidden pt-[calc(var(--app-nav-height)+var(--surface-gap))] pb-surface-gap'>
-                <div className={cn('min-h-0 flex-1', tab !== 'code' && 'hidden')}>
+                <div className={cn('min-h-0 border-x border-b flex-1', tab !== 'code' && 'hidden')}>
                     <IDESessionFrame rid={rid} restarting={restart.pending} />
                 </div>
 

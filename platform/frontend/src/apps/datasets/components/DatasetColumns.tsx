@@ -26,7 +26,7 @@ export function DatasetColumns({ rid, view }: Props) {
     )
 
     if (!view.schema)
-        return <p className='py-4 text-sm text-muted-foreground'>No schema yet. Upload a file to start.</p>
+        return <p className='px-3 py-4 text-sm text-muted-foreground'>No schema yet. Upload a file to start.</p>
 
     const stats = statsRequest.data
     const outdated = stats !== undefined && stats.sequence !== view.sequence
@@ -51,10 +51,10 @@ export function DatasetColumns({ rid, view }: Props) {
     }
 
     return (
-        <div className='flex flex-col gap-2 py-3'>
-            <SearchInput placeholder='Filter by name or type' onSearch={setFilter} delay={100} />
+        <div className='flex flex-col gap-2 pt-2'>
+            <SearchInput size='sm' placeholder='Filter by name or type' onSearch={setFilter} delay={100} wrapperClassName='px-3' />
 
-            <div className='flex items-center justify-between gap-2 text-xs text-muted-foreground'>
+            <div className='flex items-center justify-between gap-2 px-3 text-xs text-muted-foreground'>
                 <span>
                     {columns.length === view.schema.columns.length
                         ? `${number(columns.length)} columns`
@@ -74,9 +74,9 @@ export function DatasetColumns({ rid, view }: Props) {
                 </Button>
             </div>
 
-            {outdated && <p className='text-xs text-(--warning-foreground)'>Stats are from version {number(stats.sequence)}: recompute for the latest.</p>}
+            {outdated && <p className='px-3 text-xs text-(--warning-foreground)'>Stats are from version {number(stats.sequence)}: recompute for the latest.</p>}
 
-            <ul className='flex flex-col'>
+            <ul className='flex flex-col border-t border-border'>
                 {columns.map(column => {
                     const columnStats = stats && !outdated ? stats.columns[column.name] : undefined
                     const isOpen = expanded.has(column.name)
@@ -87,7 +87,7 @@ export function DatasetColumns({ rid, view }: Props) {
                                 type='button'
                                 aria-expanded={isOpen}
                                 onClick={() => toggle(column.name)}
-                                className='flex w-full items-center gap-2 py-2 text-left hover:bg-muted/50'
+                                className='flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/50'
                             >
                                 <Icon name={isOpen ? 'chevron-down' : 'chevron-right'} size={12} className='shrink-0 text-muted-foreground' />
 
@@ -106,7 +106,7 @@ export function DatasetColumns({ rid, view }: Props) {
                             </button>
 
                             {isOpen && (
-                                <Details className='pb-3 pl-5 text-xs'>
+                                <Details className='px-3 pb-3 pl-8 text-xs'>
                                     <Detail label='Type'>{column.type}</Detail>
                                     <Detail label='Nullable'>{column.nullable ? 'Yes' : 'No'}</Detail>
                                     <Detail label='Nulls'>
@@ -122,7 +122,7 @@ export function DatasetColumns({ rid, view }: Props) {
                 })}
             </ul>
 
-            {columns.length === 0 && <p className='py-2 text-sm text-muted-foreground'>No column matches “{filter}”.</p>}
+            {columns.length === 0 && <p className='px-3 py-2 text-sm text-muted-foreground'>No column matches “{filter}”.</p>}
         </div>
     )
 }

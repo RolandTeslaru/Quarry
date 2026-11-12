@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { Fragment, type ReactNode } from 'react'
+import { Accordion } from '@quarry/standard-ui/foundations/accordion'
 import { Button } from '@quarry/standard-ui/foundations/button'
+import { Skeleton } from '@quarry/standard-ui/foundations/skeleton'
 import { Icon } from '@quarry/standard-ui/icons'
 import { NotificationSDK } from '@quarry/standard-ui/SDKs/NotificationSDK'
 import { cn } from '@quarry/standard-ui/utils/cn'
@@ -18,9 +20,15 @@ interface Props {
     view:    Dataset.View | undefined
 }
 
-/** The About tab: what the dataset is, where it lives, when and how it last changed, and whether it's up to date. */
+/** Rows the skeleton draws: as many as the Details section usually has. */
+const SKELETON_ROWS = [0, 1, 2, 3, 4, 5, 6, 7]
+
+/**
+ * The About tab: what the dataset is, where it lives, when and how it last changed, and whether it's up to date.
+ * It shows once everything it reads has answered — a skeleton until then, never rows popping in one by one.
+ */
 export function DatasetAbout({ dataset, view }: Props) {
-    const [path] = LibrarySDK.useWith(
+    const [path, [pathRequest]] = LibrarySDK.useWith(
         state => LibrarySDK.selectors.path(state, dataset.rid),
         query => [query.path(dataset.rid)],
     )
@@ -38,9 +46,28 @@ export function DatasetAbout({ dataset, view }: Props) {
         query => [query.currentRecipe(dataset.rid), query.staleness([dataset.rid], Foundations.MAIN_BRANCH)],
     )
 
+    // The producer is read once the recipe names it: a derived dataset's page waits for both.
+    const producerRid = recipeRequest.data?.recipe?.producerRid ?? null
+
+    const [producerPath, [producerRequest]] = LibrarySDK.useWith(
+        state => producerRid ? LibrarySDK.selectors.path(state, producerRid) : [],
+        query => producerRid ? [query.path(producerRid)] : [],
+    )
+
+    const loading = pathRequest.isPending
+        || usersRequest.isPending
+        || latestRequest.isPending
+        || recipeRequest.isPending
+        || stalenessRequest.isPending
+        || (producerRequest?.isPending ?? false)
+
+    if (loading)
+        return <AboutSkeleton />
+
     const users = usersRequest.data ?? {}
     const latest = latestRequest.data?.transaction ?? null
     const recipe = recipeRequest.data?.recipe ?? null
+    const producer = producerPath.at(-1)
     const staleness = stalenessRequest.data?.staleness[dataset.rid]
     const rowCount = view?.rowCount ?? statsRequest.data?.rowCount ?? null
 
@@ -52,102 +79,140 @@ export function DatasetAbout({ dataset, view }: Props) {
     }
 
     return (
-        <div className='flex flex-col gap-4 py-4'>
-            <p className='text-sm text-muted-foreground'>{dataset.description || 'No description.'}</p>
+        <div className='flex flex-col'>
+            <p className='px-3 py-3 text-sm text-muted-foreground'>{dataset.description || 'No description.'}</p>
 
-            <Details>
-                <Detail label='Updated'>
-                    {latest?.finishedAt
-                        ? <span title={dateTime(latest.finishedAt)}>{ago(latest.finishedAt)} by {userName(latest.startedBy)}</span>
-                        : <span className='text-muted-foreground'>No data yet</span>}
-                </Detail>
+            <Accordion.Root type='multiple' defaultValue={['details', 'transaction']} className='border-t border-border'>
+                <Accordion.Item value='details'>
+                    <Accordion.Trigger className='px-3'>Details</Accordion.Trigger>
+                    <Accordion.Content className='px-3 pb-3'>
+                        <Details>
+                            <Detail label='Updated'>
+                                {latest?.finishedAt
+                                    ? <span title={dateTime(latest.finishedAt)}>{ago(latest.finishedAt)} by {userName(latest.startedBy)}</span>
+                                    : <span className='text-muted-foreground'>No data yet</span>}
+                            </Detail>
 
-                <Detail label='Created'>
-                    <span title={dateTime(dataset.createdAt)}>{ago(dataset.createdAt)} by {userName(dataset.createdBy)}</span>
-                </Detail>
+                            <Detail label='Created'>
+                                <span title={dateTime(dataset.createdAt)}>{ago(dataset.createdAt)} by {userName(dataset.createdBy)}</span>
+                            </Detail>
 
-                <Detail label='Location'>
-                    <span className='flex min-w-0 flex-wrap items-center gap-x-1'>
-                        {path.slice(0, -1).map(ancestor => (
-                            <Fragment key={ancestor.rid}>
-                                <span className='text-muted-foreground'>/</span>
-                                <Link {...resourceRoute(ancestor.type, ancestor.rid)} className='truncate hover:underline'>
-                                    {ancestor.name}
-                                </Link>
-                            </Fragment>
-                        ))}
-                    </span>
-                </Detail>
+                            <Detail label='Location'>
+                                <span className='flex min-w-0 flex-wrap items-center gap-x-1'>
+                                    {path.slice(0, -1).map(ancestor => (
+                                        <Fragment key={ancestor.rid}>
+                                            <span className='text-muted-foreground'>/</span>
+                                            <Link {...resourceRoute(ancestor.type, ancestor.rid)} className='truncate hover:underline'>
+                                                {ancestor.name}
+                                            </Link>
+                                        </Fragment>
+                                    ))}
+                                </span>
+                            </Detail>
 
-                <Detail label='Type'>{recipe ? 'Derived dataset' : 'Raw dataset'}</Detail>
+                            <Detail label='Type'>{recipe ? 'Derived dataset' : 'Raw dataset'}</Detail>
 
-                {recipe && (
-                    <Detail label='Computed by'>
-                        <ProducerLink rid={recipe.producerRid} />
-                    </Detail>
-                )}
-
-                <Detail label='Freshness'>
-                    {recipeRequest.isPending || stalenessRequest.isPending
-                        ? <span className='text-muted-foreground'>Checking…</span>
-                        : <Freshness staleness={staleness} recipe={recipe} />}
-                </Detail>
-
-                <Detail label='Size'>
-                    <span className='flex flex-col'>
-                        <span>{view ? sizeSummary(view) : '—'}</span>
-                        {rowCount !== null
-                            ? <span>{number(rowCount)} rows</span>
-                            : (
-                                <button
-                                    type='button'
-                                    className='w-fit text-left text-primary hover:underline disabled:opacity-60'
-                                    disabled={statsRequest.isFetching || !view?.files.length}
-                                    onClick={() => void CatalogSDK.fetch(CatalogSDK.query.columnStats(dataset.rid))}
-                                >
-                                    {statsRequest.isFetching ? 'Counting rows…' : 'Calculate row count'}
-                                </button>
+                            {recipe && (
+                                <Detail label='Computed by'>
+                                    <ProducerLink producer={producer} />
+                                </Detail>
                             )}
-                    </span>
-                </Detail>
 
-                <Detail label='Updated via'>
-                    <UpdatedVia transaction={latest} />
-                </Detail>
+                            <Detail label='Freshness'>
+                                <Freshness staleness={staleness} recipe={recipe} />
+                            </Detail>
 
-                <Detail label='Version'>
-                    {view ? `${number(view.sequence)} on ${view.branch}` : '—'}
-                </Detail>
+                            <Detail label='Size'>
+                                <span className='flex flex-col'>
+                                    <span>{view ? sizeSummary(view) : '—'}</span>
+                                    {rowCount !== null
+                                        ? <span>{number(rowCount)} rows</span>
+                                        : (
+                                            <button
+                                                type='button'
+                                                className='w-fit text-left text-primary hover:underline disabled:opacity-60'
+                                                disabled={statsRequest.isFetching || !view?.files.length}
+                                                onClick={() => void CatalogSDK.fetch(CatalogSDK.query.columnStats(dataset.rid))}
+                                            >
+                                                {statsRequest.isFetching ? 'Counting rows…' : 'Calculate row count'}
+                                            </button>
+                                        )}
+                                </span>
+                            </Detail>
 
-                <Detail label='RID'>
-                    <span className='flex min-w-0 items-center gap-1'>
-                        <span className='truncate font-mono text-xs' title={dataset.rid}>{dataset.rid}</span>
-                        <Button
-                            minimal
-                            size='icon-xxs'
-                            icon='duplicate'
-                            aria-label='Copy RID'
-                            onClick={() => {
-                                void navigator.clipboard.writeText(dataset.rid)
-                                NotificationSDK.toast.success('RID copied')
-                            }}
-                        />
-                    </span>
-                </Detail>
-            </Details>
+                            <Detail label='Format'>{view?.schema ? formatSummary(view.schema) : '—'}</Detail>
+
+                            <Detail label='RID'>
+                                <Copyable value={dataset.rid} what='RID' />
+                            </Detail>
+                        </Details>
+                    </Accordion.Content>
+                </Accordion.Item>
+
+                <Accordion.Item value='transaction'>
+                    <Accordion.Trigger className='px-3'>Last transaction</Accordion.Trigger>
+                    <Accordion.Content className='px-3 pb-3'>
+                        {latest
+                            ? <LastTransaction transaction={latest} userName={userName} />
+                            : <p className='text-sm text-muted-foreground'>Nothing committed yet.</p>}
+                    </Accordion.Content>
+                </Accordion.Item>
+            </Accordion.Root>
         </div>
     )
 }
 
-/** The resource that publishes the dataset's recipe — a workspace or a source — linked to its app. */
-function ProducerLink({ rid }: { rid: Library.Resource.Rid }) {
-    const [path] = LibrarySDK.useWith(
-        state => LibrarySDK.selectors.path(state, rid),
-        query => [query.path(rid)],
+interface LastTransactionProps {
+    transaction: Catalog.Transaction
+    userName:    (rid: Identity.User.Rid | null) => string
+}
+
+/** The transaction that made the latest version: its kind, who started it, when and for how long, and what wrote it. */
+function LastTransaction({ transaction, userName }: LastTransactionProps) {
+    const buildRid = transaction.provenance.buildRid
+    const jobRid = transaction.provenance.jobRid
+
+    return (
+        <Details>
+            <Detail label='Version'>{transaction.sequence !== null ? `${number(transaction.sequence)} on ${transaction.branch}` : '—'}</Detail>
+            <Detail label='Kind'><span className='capitalize'>{transaction.type}</span></Detail>
+            <Detail label='Written by'><UpdatedVia transaction={transaction} /></Detail>
+            <Detail label='Started'>
+                <span title={dateTime(transaction.startedAt)}>{ago(transaction.startedAt)} by {userName(transaction.startedBy)}</span>
+            </Detail>
+            <Detail label='Committed'>
+                {transaction.finishedAt
+                    ? <span title={dateTime(transaction.finishedAt)}>{ago(transaction.finishedAt)} · took {duration(transaction.startedAt, transaction.finishedAt)}</span>
+                    : '—'}
+            </Detail>
+            {typeof buildRid === 'string' && <Detail label='Build'><Copyable value={buildRid} what='Build RID' /></Detail>}
+            {typeof jobRid === 'string' && <Detail label='Job'><Copyable value={jobRid} what='Job RID' /></Detail>}
+            <Detail label='RID'><Copyable value={transaction.rid} what='Transaction RID' /></Detail>
+        </Details>
     )
+}
 
-    const producer = path.at(-1)
+/** A RID, truncated, with a button copying it whole. */
+function Copyable({ value, what }: { value: string; what: string }) {
+    return (
+        <span className='flex min-w-0 items-center gap-1'>
+            <span className='truncate font-mono text-xs' title={value}>{value}</span>
+            <Button
+                minimal
+                size='icon-xxs'
+                icon='duplicate'
+                aria-label={`Copy ${what}`}
+                onClick={() => {
+                    void navigator.clipboard.writeText(value)
+                    NotificationSDK.toast.success(`${what} copied`)
+                }}
+            />
+        </span>
+    )
+}
 
+/** The resource that publishes the dataset's recipe — a workspace or a source — linked to its app. */
+function ProducerLink({ producer }: { producer: Library.Resource.Base | undefined }) {
     if (!producer)
         return <span className='text-muted-foreground'>—</span>
 
@@ -156,6 +221,30 @@ function ProducerLink({ rid }: { rid: Library.Resource.Rid }) {
             <Icon name={producer.type === 'workspace' ? 'code' : 'data-connection'} size={12} className='shrink-0 text-muted-foreground' />
             <span className='truncate'>{producer.name}</span>
         </Link>
+    )
+}
+
+/** The tab's shape while it loads: a description line, then the Details section's label / value rows. */
+function AboutSkeleton() {
+    return (
+        <div className='flex flex-col' role='status' aria-label='Loading details'>
+            <div className='px-3 py-3'>
+                <Skeleton className='h-4 w-40' />
+            </div>
+
+            <div className='border-t border-border px-3 py-2'>
+                <Skeleton className='h-4 w-16' />
+            </div>
+
+            <Details className='px-3 pb-3'>
+                {SKELETON_ROWS.map(row => (
+                    <Fragment key={row}>
+                        <Skeleton className='h-4 w-16' />
+                        <Skeleton className='h-4 w-40' />
+                    </Fragment>
+                ))}
+            </Details>
+        </div>
     )
 }
 
@@ -231,6 +320,40 @@ function UpdatedVia({ transaction }: { transaction: Catalog.Transaction | null }
         return <Link to='/forge' className='hover:underline'>Build</Link>
 
     return <span>Upload</span>
+}
+
+/** "CSV · comma-separated, quoted with \"" or "Parquet" */
+function formatSummary(schema: Catalog.ColumnSchema): string {
+    if (schema.reader.format === 'parquet')
+        return 'Parquet'
+
+    let delimiter = `"${schema.reader.delimiter}"`
+
+    if (schema.reader.delimiter === ',')
+        delimiter = 'comma'
+
+    if (schema.reader.delimiter === '\t')
+        delimiter = 'tab'
+
+    if (!schema.reader.quote)
+        return `CSV · ${delimiter}-separated, not quoted`
+
+    return `CSV · ${delimiter}-separated, quoted with ${schema.reader.quote}`
+}
+
+/** "850 ms", "12 s", "3 min 20 s" */
+function duration(from: Date, to: Date): string {
+    const ms = to.getTime() - from.getTime()
+
+    if (ms < 1000)
+        return `${ms} ms`
+
+    const seconds = Math.round(ms / 1000)
+
+    if (seconds < 60)
+        return `${seconds} s`
+
+    return `${Math.floor(seconds / 60)} min ${seconds % 60} s`
 }
 
 /** "5 columns • 1 file • 229 KB" */

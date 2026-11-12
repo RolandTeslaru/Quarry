@@ -80,13 +80,13 @@ export function DatasetApp({ rid }: Props) {
             <App.LeftSidebar className='w-96'>
                 <ViewTabs />
 
-                <div className='flex items-start gap-2 px-4 py-3'>
+                <div className='flex items-start gap-2 px-3 py-2.5'>
                     <App.Glyph glyph={datasetsApp.glyph} size={16} bare className='mt-0.5' />
                     <h2 className='text-sm font-semibold break-all'>{dataset?.name ?? ''}</h2>
                 </div>
 
-                <Tabs.Root defaultValue='about' className='px-4'>
-                    <Tabs.List className='w-full' aria-label='Dataset details'>
+                <Tabs.Root defaultValue='about' className='gap-0'>
+                    <Tabs.List size='sm' className='mx-3 mb-1 w-auto' variant="accent" aria-label='Dataset details'>
                         <Tabs.Trigger value='about' className='flex-1'>About</Tabs.Trigger>
                         <Tabs.Trigger value='columns' className='flex-1'>Columns</Tabs.Trigger>
                     </Tabs.List>
@@ -101,7 +101,7 @@ export function DatasetApp({ rid }: Props) {
                 </Tabs.Root>
             </App.LeftSidebar>
 
-            <App.Content>
+            <App.Content >
                 <App.Content.Toolbar>
                     <span className='text-sm font-medium'>{dataset?.name ?? 'Preview'}</span>
                     <span className='text-xs text-muted-foreground'>
@@ -128,7 +128,7 @@ export function DatasetApp({ rid }: Props) {
 /** The app's views, Foundry-style. Only Preview exists so far. */
 function ViewTabs() {
     return (
-        <div role='tablist' aria-label='Dataset views' className='flex border-b border-border px-4'>
+        <div role='tablist' aria-label='Dataset views' className='flex border-b border-border px-3'>
             <span
                 role='tab'
                 aria-selected

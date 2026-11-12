@@ -141,6 +141,7 @@ export const SplitTemplate: DialogSDK.SplitTemplate = Object.assign(
             >
                 <Dialog.Content
                     unstyled
+                    layout='split'
                     style={{
                         ...delayStyle,
                         transform: `translate(-50%, -50%) translateY(${verticalOffset}px) scale(${finalScale})`,
@@ -152,7 +153,7 @@ export const SplitTemplate: DialogSDK.SplitTemplate = Object.assign(
                 >
                     <div
                         className={cn(
-                            'surface-elevated-sidebar rounded-l-2xl border border-r-separator min-w-[200px] pb-4 px-6 pt-5 flex flex-col gap-2 ',
+                            'surface-elevated-sidebar rounded-l-xl border border-r-separator min-w-[200px] pb-4 px-6 pt-5 flex flex-col gap-2 ',
                             sidebarClassName,
                         )}
                         style={{ ...surfaceStyle, ...delayStyle }}
@@ -161,7 +162,8 @@ export const SplitTemplate: DialogSDK.SplitTemplate = Object.assign(
                     </div>
                     <div
                         className={cn(
-                            'relative surface-elevated rounded-r-2xl border-y border-r flex flex-col h-full gap-4 p-3 flex-1  min-h-[150px] ',
+                            // Unpadded: Dialog.Header, Body and Footer pad themselves in the split layout.
+                            'relative surface-elevated rounded-r-xl border-y border-r flex flex-col h-full flex-1 min-h-[150px]',
                             contentClassName,
                         )}
                         style={{ ...surfaceStyle, ...delayStyle }}
@@ -223,7 +225,7 @@ export const TripleSplitTemplate: DialogSDK.TripleSplitTemplate = ({
             >
                 <div
                     className={cn(
-                        'surface-elevated-sidebar rounded-l-2xl border border-r-separator min-w-[200px] p-4 pt-5 flex flex-col gap-2 ',
+                        'surface-elevated-sidebar rounded-l-xl border border-r-separator min-w-[200px] p-4 pt-5 flex flex-col gap-2 ',
                         leftSidebarClassName,
                     )}
                     style={{ ...surfaceStyle, ...delayStyle }}
@@ -241,7 +243,7 @@ export const TripleSplitTemplate: DialogSDK.TripleSplitTemplate = ({
                 </div>
                 <div
                     className={cn(
-                        'surface-elevated-sidebar rounded-r-2xl border border-l-separator min-w-[200px] p-4 pt-5 flex flex-col gap-2 ',
+                        'surface-elevated-sidebar rounded-r-xl border border-l-separator min-w-[200px] p-4 pt-5 flex flex-col gap-2 ',
                         rightSidebarClassName,
                     )}
                     style={{ ...surfaceStyle, ...delayStyle }}

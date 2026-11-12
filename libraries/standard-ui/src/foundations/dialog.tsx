@@ -20,6 +20,9 @@ namespace DialogComponents {
             blockTransparency?: boolean
             // Skip the default surface (background / blur) entirely so the caller draws its own.
             unstyled?: boolean
+            // How Header and Footer pad themselves: `standard` on the default surface, nothing when `custom`
+            // (unstyled), and `split` in a split template's content column. By default, from `unstyled`.
+            layout?: 'standard' | 'split' | 'custom'
             theme?: 'dark' | 'light'
         }
     >
@@ -72,6 +75,7 @@ const Content: DialogComponents.Content = ({
     blockTransparency = false,
     darkenBackground = true,
     unstyled = false,
+    layout = unstyled ? 'custom' : 'standard',
     theme,
     ...rest
 }) => (
@@ -80,7 +84,7 @@ const Content: DialogComponents.Content = ({
         <Overlay className={darkenBackground ? undefined : 'bg-transparent dark:bg-transparent'} />
         <DialogPrimitive.Content
             data-slot='dialog-content'
-            data-layout={unstyled ? 'custom' : 'standard'}
+            data-layout={layout}
             // Nothing inside is auto-focused on open, so no control opens wearing a focus ring.
             onOpenAutoFocus={(e) => e.preventDefault()}
             className={classNames(
@@ -104,7 +108,7 @@ const Content: DialogComponents.Content = ({
                data-[state=open]:slide-in-from-left-1/2
                data-[state=open]:slide-in-from-top-[48%]
                `,
-                          'surface-elevated rounded-2xl border shadow-2xl shadow-neutral-500/60 dark:shadow-black/60 flex max-h-[calc(100dvh-32px)] flex-col',
+                          'surface-elevated rounded-xl border shadow-2xl shadow-neutral-500/60 dark:shadow-black/60 flex max-h-[calc(100dvh-32px)] flex-col',
                           blockTransparency && '[--material-opacity:100%] backdrop-blur-none!',
                       ),
                 className,
@@ -124,7 +128,9 @@ const Header: DialogComponents.Header = ({ className, ...props }) => (
     <div
         data-slot='dialog-header'
         className={cn(
-            'flex shrink-0 flex-col gap-2 text-left group-data-[layout=standard]/dialog-content:px-4 group-data-[layout=standard]/dialog-content:pt-4',
+            'flex shrink-0 flex-col gap-2 text-left',
+            'group-data-[layout=standard]/dialog-content:px-4 group-data-[layout=standard]/dialog-content:pt-4',
+            'group-data-[layout=split]/dialog-content:px-4 group-data-[layout=split]/dialog-content:pt-4',
             className,
         )}
         {...props}
@@ -143,7 +149,10 @@ const Footer: DialogComponents.Footer = ({ className, ...rest }) => (
     <div
         data-slot='dialog-footer'
         className={cn(
-            'flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end group-data-[layout=standard]/dialog-content:px-4 group-data-[layout=standard]/dialog-content:pb-4',
+            'flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end',
+            'group-data-[layout=standard]/dialog-content:px-4 group-data-[layout=standard]/dialog-content:pb-4',
+            // A bar: a split column's body scrolls edge to edge, up to it.
+            'group-data-[layout=split]/dialog-content:border-t group-data-[layout=split]/dialog-content:px-4 group-data-[layout=split]/dialog-content:py-3',
             className,
         )}
         {...rest}

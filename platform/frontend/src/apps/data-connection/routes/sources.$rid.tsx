@@ -40,8 +40,6 @@ export const Route = createFileRoute('/_shell/data-connection/sources/$rid')({
     onLeave: match => DataConnectionSDK.actions.source.close(match.params.rid),
     // A preload is only a read: a click after a hover must still run the loader, to open.
     preloadStaleTime: 0,
-    pendingComponent: App.Pending,
-    pendingMs: 0,
     component: SourceRoute,
 })
 

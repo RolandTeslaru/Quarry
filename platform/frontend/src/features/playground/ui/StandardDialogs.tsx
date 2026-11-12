@@ -97,8 +97,10 @@ function openSplitDialog() {
                 <Dialog.Title>Dataset settings</Dialog.Title>
                 <Dialog.Description>Separate sidebar and content surfaces from DialogSDK.</Dialog.Description>
             </Dialog.Header>
-            <Label htmlFor='split-dataset-name'>Name</Label>
-            <Input id='split-dataset-name' defaultValue='Customers' />
+            <Dialog.Body className='flex flex-col gap-2'>
+                <Label htmlFor='split-dataset-name'>Name</Label>
+                <Input id='split-dataset-name' defaultValue='Customers' />
+            </Dialog.Body>
             <Dialog.Footer>
                 <Button onClick={() => closeDialog(dialogId)}>Close</Button>
             </Dialog.Footer>

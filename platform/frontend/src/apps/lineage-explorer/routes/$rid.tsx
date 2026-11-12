@@ -24,8 +24,6 @@ export const Route = createFileRoute('/_shell/lineage-explorer/$rid')({
     },
     onLeave: match => LineageExplorerSDK.actions.exploration.close(match.params.rid),
     preloadStaleTime: 0,
-    pendingComponent: App.Pending,
-    pendingMs: 0,
     component: ExplorationRoute,
 })
 

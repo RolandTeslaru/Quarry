@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Input } from '@quarry/standard-ui/foundations/input'
 import { cn } from '@quarry/standard-ui/utils/cn'
 import { useLibraryExplorer } from '../root'
+import { SearchInput as SearchInputComponent} from '@quarry/standard-ui/foundations/searchInput'
 
 interface HeaderProps {
     className?: string
@@ -26,14 +27,13 @@ export function SearchInput({ className }: SearchInputProps) {
     const { treeSearchQuery, setTreeSearchQuery } = useLibraryExplorer()
 
     return (
-        <Input
+        <SearchInputComponent
             type='text'
             size='sm'
-            value={treeSearchQuery}
             placeholder='Filter…'
             aria-label='Filter the tree'
-            className={cn('flex-1', className)}
-            onChange={event => setTreeSearchQuery(event.target.value)}
+            className={cn('flex-1 rounded-md! ', className)}
+            onSearch={value => setTreeSearchQuery(value)}
         />
     )
 }

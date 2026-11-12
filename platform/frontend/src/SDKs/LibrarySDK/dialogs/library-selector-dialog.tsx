@@ -96,23 +96,23 @@ function LibrarySelectorDialog({ dialog, accept, initialCwd, onSelect }: Props) 
         <LibraryExplorer.Root cwd={cwd} setCwd={setCwd} onItemClick={select} isItemDisabled={isItemDisabled}>
             <DialogSDK.SplitTemplate
                 {...dialog}
-                // Columns unpadded: each scrolls edge to edge, its padding inside — so scrollbars sit at the edge.
+                // The sidebar unpadded: its tree scrolls edge to edge, its padding inside — so the scrollbar sits at the edge.
                 className='h-[min(600px,calc(100vh-64px))]'
                 sidebarClassName='flex w-64 shrink-0 flex-col gap-0 p-0'
-                contentClassName='flex w-[520px] shrink-0 flex-col gap-0 p-0'
+                contentClassName='w-[520px] shrink-0'
                 sidebarRenderer={() => (
                     <>
                         {/* Just the input: Tree.Header is the app sidebar's opaque band, not this translucent one. */}
-                        <div className='shrink-0 px-3 pt-4 pb-2'>
+                        <div className='shrink-0 px-2 pt-2 pb-1'>
                             <LibraryExplorer.Tree.SearchInput />
                         </div>
                         <div className='min-h-0 flex-1 overflow-y-auto'>
-                            <LibraryExplorer.Tree className='px-2 pb-3' />
+                            <LibraryExplorer.Tree className='px-0.5 pb-1' />
                         </div>
                     </>
                 )}
             >
-                <div className='flex shrink-0 flex-col gap-2 px-4 pt-4 pb-3'>
+                <Dialog.Header>
                     <div className='flex items-center gap-2'>
                         <Dialog.Title className='text-sm'>{titleOf(accept)}</Dialog.Title>
                         <LibraryExplorer.View.SearchInput className='ml-auto w-48' />
@@ -122,13 +122,13 @@ function LibrarySelectorDialog({ dialog, accept, initialCwd, onSelect }: Props) 
                         Open projects and folders to find what you need, then choose it.
                     </Dialog.Description>
                     <LibraryExplorer.View.Breadcrumbs size='sm' />
-                </div>
+                </Dialog.Header>
 
-                <div className='min-h-0 flex-1 overflow-y-auto'>
-                    <LibraryExplorer.View className='px-4 pb-4' />
-                </div>
+                <Dialog.Body className='flex-1'>
+                    <LibraryExplorer.View />
+                </Dialog.Body>
 
-                <Dialog.Footer className='border-t px-4 py-3'>
+                <Dialog.Footer>
                     <Dialog.Cancel>Cancel</Dialog.Cancel>
                     {current && accepts(current.type) && (
                         <Dialog.Action intent='primary' icon='folder-open' onClick={() => select(current)}>
