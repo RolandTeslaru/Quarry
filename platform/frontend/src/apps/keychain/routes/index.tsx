@@ -60,7 +60,7 @@ function KeychainApp() {
                             />
                             <Button
                                 intent='primary'
-                                icon='add'
+                                icon='plus'
                                 disabled={Object.keys(templates).length === 0}
                                 onClick={() => KeychainSDK.dialogs.openCreateCredential({ templates })}
                             >

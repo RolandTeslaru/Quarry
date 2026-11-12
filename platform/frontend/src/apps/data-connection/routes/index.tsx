@@ -91,7 +91,7 @@ function DataConnectionHome() {
                             onClick={refresh}
                         />
                         <Home.Actions>
-                            <Button intent='success' icon='add' onClick={() => DataConnectionSDK.dialogs.openCreateSource()}>
+                            <Button intent='success' icon='plus' onClick={() => DataConnectionSDK.dialogs.openCreateSource()}>
                                 New source
                             </Button>
                         </Home.Actions>

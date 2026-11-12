@@ -74,7 +74,7 @@ function LineageExplorerHome() {
                             onClick={() => void listRequest.refetch()}
                         />
                         <Home.Actions>
-                            <Button intent='success' icon='add' onClick={() => LineageExplorerSDK.dialogs.openCreateExploration()}>
+                            <Button intent='success' icon='plus' onClick={() => LineageExplorerSDK.dialogs.openCreateExploration()}>
                                 New exploration
                             </Button>
                         </Home.Actions>

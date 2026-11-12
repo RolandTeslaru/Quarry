@@ -23,7 +23,7 @@ export function CreateBtn() {
         return (
             <Button
                 intent='success'
-                icon='add'
+                icon='plus'
                 disabled={!isAdmin}
                 onClick={() => LibrarySDK.dialogs.openCreateProject()}
             >
@@ -35,7 +35,7 @@ export function CreateBtn() {
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-                <Button intent='success' icon='add' endIcon='caret-down'>New</Button>
+                <Button intent='success' icon='plus' endIcon='caret-down'>New</Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content align='end'>
                 <DropdownMenu.Item onSelect={() => LibrarySDK.dialogs.openCreateFolder({ parentRid: cwd })}>

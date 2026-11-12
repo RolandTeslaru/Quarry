@@ -18,7 +18,7 @@ export function LineageToolbar() {
 
     return (
         <App.Toolbar.Root aria-label='Canvas tools'>
-            <App.Toolbar.Item icon='add' label='Add' onClick={() => LineageExplorerSDK.actions.graph.openAddResource()} />
+            <App.Toolbar.Item icon='plus' label='Add' onClick={() => LineageExplorerSDK.actions.graph.openAddResource()} />
             <App.Toolbar.Item icon='layout-auto' label='Layout' disabled={isEmpty} onClick={() => LineageExplorerSDK.actions.graph.arrange()} />
             <App.Toolbar.Group label='Undo/redo'>
                 <App.Toolbar.Button icon='undo' label='Undo' disabled={!canUndo} onClick={() => LineageExplorerSDK.actions.history.undo()} />

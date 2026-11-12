@@ -91,7 +91,7 @@ function EmptyCanvas() {
                     title='Nothing on the canvas yet'
                     description='Add a resource, then expand it to see what feeds it and what it feeds.'
                     action={(
-                        <Button icon='add' onClick={() => LineageExplorerSDK.actions.graph.openAddResource()}>
+                        <Button icon='plus' onClick={() => LineageExplorerSDK.actions.graph.openAddResource()}>
                             Add resource
                         </Button>
                     )}

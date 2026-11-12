@@ -76,7 +76,7 @@ export function SourceApp({ rid, table }: Props) {
                     <Button icon='link' loading={task.pending} disabled={!source} onClick={testConnection}>
                         Test connection
                     </Button>
-                    <Button intent='primary' icon='add' disabled={!definition} onClick={() => createSync()}>
+                    <Button intent='primary' icon='plus' disabled={!definition} onClick={() => createSync()}>
                         Create sync
                     </Button>
                 </App.Nav.End>
@@ -170,7 +170,7 @@ function TableContent({ rid, table, canCreateSync, onCreateSync }: TableContentP
                         loading={previewRequest.isFetching}
                         onClick={() => void previewRequest.refetch()}
                     />
-                    <Button size='sm' icon='add' disabled={!canCreateSync} onClick={onCreateSync}>
+                    <Button size='sm' icon='plus' disabled={!canCreateSync} onClick={onCreateSync}>
                         Create sync
                     </Button>
                     <Button

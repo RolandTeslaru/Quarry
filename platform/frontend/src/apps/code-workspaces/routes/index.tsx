@@ -95,7 +95,7 @@ function CodeWorkspacesHome() {
                             onClick={refresh}
                         />
                         <Home.Actions>
-                            <Button intent='success' icon='add' onClick={() => CodeWorkspaceSDK.dialogs.openCreateWorkspace()}>
+                            <Button intent='success' icon='plus' onClick={() => CodeWorkspaceSDK.dialogs.openCreateWorkspace()}>
                                 New workspace
                             </Button>
                         </Home.Actions>

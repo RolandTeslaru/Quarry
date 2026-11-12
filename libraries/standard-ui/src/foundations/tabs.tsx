@@ -100,7 +100,7 @@ const TabsVariantContext = React.createContext<TabsVariant>('primary')
 const List = ({
     className,
     children,
-    variant = 'accent',
+    variant = 'underline',
     size = 'default',
     ...props
 }: React.ComponentProps<typeof TabsPrimitive.List> & {

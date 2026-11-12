@@ -22,7 +22,7 @@ function PipelineBuilderHome() {
                 <Home.Section
                     title='Pipelines'
                     actions={
-                        <Button intent='success' icon='add' disabled>
+                        <Button intent='success' icon='plus' disabled>
                             New pipeline
                         </Button>
                     }
