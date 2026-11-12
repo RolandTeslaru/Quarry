@@ -79,7 +79,7 @@ describe('a build\'s target', () => {
             const { jobs: byName } = await harness.jobsByRecipe(user, build.rid, recipes);
 
             expect(Object.keys(jobs)).toHaveLength(2);
-            expect(Object.keys(byName.A.outputTransactions).sort()).toEqual([datasets.a1, datasets.a2].sort());
+            expect(Object.keys(byName.A.outputs).sort()).toEqual([datasets.a1, datasets.a2].sort());
         });
 
         it('refuses a target nothing builds', async () => {

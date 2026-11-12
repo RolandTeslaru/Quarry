@@ -40,7 +40,7 @@ describe('syncs', () => {
                 producerRid:        source.rid,
                 runtimeConfig:      { type: 'data-connection', sourceRid: source.rid, syncRid: sync.rid, syncConfig: sync.config },
                 inputDatasetRids:   [],
-                outputTransactions: { [sync.outputDatasetRid]: { type: 'append', incrementalColumn: 'updated_at' } },
+                outputs: { [sync.outputDatasetRid]: { kind: 'dataset', transaction: { type: 'append', incrementalColumn: 'updated_at' } } },
             });
         });
 
@@ -48,7 +48,7 @@ describe('syncs', () => {
             const { source } = await harness.createSource(user);
             const sync = await harness.createSync(user, source, { snapshot: true });
 
-            expect((await harness.getCurrentRecipe(user, sync.outputDatasetRid))?.outputTransactions).toEqual({ [sync.outputDatasetRid]: { type: 'snapshot' } });
+            expect((await harness.getCurrentRecipe(user, sync.outputDatasetRid))?.outputs).toEqual({ [sync.outputDatasetRid]: { kind: 'dataset', transaction: { type: 'snapshot' } } });
         });
 
         it("keeps the source's other syncs published when another is created", async () => {

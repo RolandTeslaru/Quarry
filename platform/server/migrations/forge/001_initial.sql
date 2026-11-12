@@ -1,6 +1,6 @@
 -- 001_initial — the `forge` schema.
 --
--- Forge: recipes (how to compute datasets, published by producers), builds and
+-- Forge: recipes (how to compute resources, published by producers), builds and
 -- their jobs (docs/design/forge.md). None of them is a library resource.
 --
 -- Living document until launch: schema changes are edits to this file, not new
@@ -8,8 +8,8 @@
 
 CREATE SCHEMA IF NOT EXISTS forge;
 
--- RID types, built on foundations.rid. Datasets and producers are other services' resources,
--- referenced through library.resource (rule 3); transactions are Catalog's, with no FK.
+-- RID types, built on foundations.rid. Outputs, input datasets and producers are other services' resources,
+-- referenced through library.resource (rule 3); what's opened on an output (a Catalog transaction) has no FK.
 CREATE DOMAIN forge.recipe_rid AS foundations.rid CHECK (VALUE LIKE 'ri.forge.main.recipe.%');
 CREATE DOMAIN forge.build_rid    AS foundations.rid CHECK (VALUE LIKE 'ri.forge.main.build.%');
 CREATE DOMAIN forge.job_rid      AS foundations.rid CHECK (VALUE LIKE 'ri.forge.main.job.%');
@@ -38,21 +38,20 @@ CREATE TABLE forge.recipe_input_dataset (
 
 CREATE INDEX recipe_input_dataset_reader ON forge.recipe_input_dataset (dataset_rid);   -- what reads this dataset
 
-CREATE TABLE forge.recipe_output_dataset (
+-- Each resource the recipe writes — datasets, so far.
+CREATE TABLE forge.recipe_output (
     recipe_rid    forge.recipe_rid NOT NULL REFERENCES forge.recipe(rid) ON DELETE CASCADE,
-    dataset_rid   foundations.rid NOT NULL REFERENCES library.resource (rid) ON DELETE RESTRICT
-                  CHECK (dataset_rid LIKE 'ri.catalog.main.dataset.%'),
-    transaction   jsonb NOT NULL,                 -- Forge.Recipe.OutputTransaction: how a job writes it
-    PRIMARY KEY (recipe_rid, dataset_rid)
+    resource_rid  foundations.rid NOT NULL REFERENCES library.resource (rid) ON DELETE RESTRICT,
+    output        jsonb NOT NULL,                 -- Forge.Recipe.Output: its kind, and how a job writes it
+    PRIMARY KEY (recipe_rid, resource_rid)
 );
 
--- The pointer: which recipe computes this dataset on this branch. The key is "one producer per dataset per branch".
+-- The pointer: which recipe computes this resource on this branch. The key is "one producer per resource per branch".
 CREATE TABLE forge.current_recipe (
-    dataset_rid   foundations.rid NOT NULL REFERENCES library.resource (rid) ON DELETE CASCADE
-                  CHECK (dataset_rid LIKE 'ri.catalog.main.dataset.%'),
+    resource_rid  foundations.rid NOT NULL REFERENCES library.resource (rid) ON DELETE CASCADE,
     branch        text NOT NULL,
     recipe_rid    forge.recipe_rid NOT NULL REFERENCES forge.recipe(rid) ON DELETE RESTRICT,
-    PRIMARY KEY (dataset_rid, branch)
+    PRIMARY KEY (resource_rid, branch)
 );
 
 CREATE INDEX current_recipe_by_recipe ON forge.current_recipe (recipe_rid);
@@ -87,7 +86,7 @@ CREATE TABLE forge.job (
     attempt       integer NOT NULL DEFAULT 1 CHECK (attempt >= 1),
     failure       jsonb,                          -- { message }
     inputs        jsonb,                          -- { <dataset rid>: <sequence> }: the versions it reads, pinned when it's claimed
-    output_transactions jsonb NOT NULL,           -- { <dataset rid>: <transaction rid> }: opened when the build is created
+    outputs       jsonb NOT NULL,                 -- { <resource rid>: Forge.Job.Output }: each output's version, opened when the build is created
     scheduled_at  timestamptz,                    -- may run from here: a root at initialization, a child when its last parent finished — its message added to durable.outbox
     started_at    timestamptz,                    -- a ForgeAgent took it
     heartbeat_at  timestamptz,                    -- not indexed, so heartbeats stay HOT updates
@@ -136,16 +135,16 @@ CREATE POLICY discover ON forge.recipe_input_dataset FOR SELECT TO quarry_user
 CREATE POLICY publish  ON forge.recipe_input_dataset FOR INSERT TO quarry_user
     WITH CHECK (gatekeeper.can(forge.producer_of(recipe_rid), 'write') AND gatekeeper.can(dataset_rid, 'read'));
 
-ALTER TABLE forge.recipe_output_dataset ENABLE ROW LEVEL SECURITY;
-CREATE POLICY discover ON forge.recipe_output_dataset FOR SELECT TO quarry_user
+ALTER TABLE forge.recipe_output ENABLE ROW LEVEL SECURITY;
+CREATE POLICY discover ON forge.recipe_output FOR SELECT TO quarry_user
     USING (gatekeeper.can(forge.producer_of(recipe_rid), 'discover'));
-CREATE POLICY publish  ON forge.recipe_output_dataset FOR INSERT TO quarry_user
-    WITH CHECK (gatekeeper.can(forge.producer_of(recipe_rid), 'write') AND gatekeeper.can(dataset_rid, 'write'));
+CREATE POLICY publish  ON forge.recipe_output FOR INSERT TO quarry_user
+    WITH CHECK (gatekeeper.can(forge.producer_of(recipe_rid), 'write') AND gatekeeper.can(resource_rid, 'write'));
 
 ALTER TABLE forge.current_recipe ENABLE ROW LEVEL SECURITY;
-CREATE POLICY discover ON forge.current_recipe FOR SELECT TO quarry_user USING (gatekeeper.can(dataset_rid, 'discover'));
-CREATE POLICY point    ON forge.current_recipe FOR INSERT TO quarry_user WITH CHECK (gatekeeper.can(dataset_rid, 'write'));
-CREATE POLICY unpoint  ON forge.current_recipe FOR DELETE TO quarry_user USING (gatekeeper.can(dataset_rid, 'write'));
+CREATE POLICY discover ON forge.current_recipe FOR SELECT TO quarry_user USING (gatekeeper.can(resource_rid, 'discover'));
+CREATE POLICY point    ON forge.current_recipe FOR INSERT TO quarry_user WITH CHECK (gatekeeper.can(resource_rid, 'write'));
+CREATE POLICY unpoint  ON forge.current_recipe FOR DELETE TO quarry_user USING (gatekeeper.can(resource_rid, 'write'));
 
 ALTER TABLE forge.build ENABLE ROW LEVEL SECURITY;
 CREATE POLICY discover ON forge.build FOR SELECT TO quarry_user
@@ -163,7 +162,7 @@ CREATE POLICY change   ON forge.job FOR UPDATE TO quarry_user
     USING (forge.writes(forge.targets_of(build_rid))) WITH CHECK (forge.writes(forge.targets_of(build_rid)));
 
 GRANT USAGE ON SCHEMA forge TO main_user;
-GRANT SELECT, INSERT ON forge.recipe, forge.recipe_input_dataset, forge.recipe_output_dataset TO main_user;
+GRANT SELECT, INSERT ON forge.recipe, forge.recipe_input_dataset, forge.recipe_output TO main_user;
 GRANT SELECT, INSERT, DELETE ON forge.current_recipe TO main_user;
 GRANT SELECT, INSERT, UPDATE ON forge.build, forge.job TO main_user;
 

@@ -5,8 +5,8 @@ import { Repository, Transactional } from '@quarry/platform-kernel/db/repository
 import { json } from '@quarry/platform-kernel/db/table';
 import { ForgeDB } from '../forge/forge.db';
 
-/** A job of the build's plan, one per node, before it's a row: its RID minted, its outputs' transactions already open. */
-export type PlannedJob = Pick<Forge.Job, 'rid' | 'recipeRid' | 'outputTransactions'>;
+/** A job of the build's plan, one per node, before it's a row: its RID minted, its outputs' versions already open. */
+export type PlannedJob = Pick<Forge.Job, 'rid' | 'recipeRid' | 'outputs'>;
 
 /**
  * forge.job. Writes that also touch the build, or a job's message (the durable
@@ -34,7 +34,7 @@ export class JobRepository extends Repository(ForgeDB.database) {
                     rid:          plannedJob.rid,
                     build_rid:    build.rid,
                     recipe_rid:   plannedJob.recipeRid,
-                    output_transactions: json(plannedJob.outputTransactions),
+                    outputs:      json(plannedJob.outputs),
                     status:       isRoot ? 'scheduled' as const : 'waiting' as const,
                     scheduled_at: isRoot ? scheduledAt : null,
                 };

@@ -33,7 +33,7 @@ export class PublisherService {
             recipes.push({
                 runtimeConfig:      { type: 'data-connection', sourceRid: source.rid, syncRid: sync.rid, syncConfig: sync.config },
                 inputDatasetRids:   [],
-                outputTransactions: { [sync.output_dataset_rid]: outputTransaction },
+                outputs:            { [sync.output_dataset_rid]: { kind: 'dataset', transaction: outputTransaction } },
                 compute:            SYNC_COMPUTE,
             });
         }

@@ -29,7 +29,7 @@ describe('publishing recipes', () => {
         ]);
 
         expect(recipes.A.inputDatasetRids).toEqual([datasets.raw]);
-        expect(Object.keys(recipes.A.outputTransactions).sort()).toEqual([datasets.a, datasets.b].sort());
+        expect(Object.keys(recipes.A.outputs).sort()).toEqual([datasets.a, datasets.b].sort());
         expect(recipes.A.publishedBy).toBe(user.userRid);
 
         for (const output of ['a', 'b'])

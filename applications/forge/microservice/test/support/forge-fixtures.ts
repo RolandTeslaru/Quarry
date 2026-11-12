@@ -165,7 +165,7 @@ export class ForgeHarness {
                 outputs:      Object.fromEntries(shape.outputs.map((name) => [name, datasets[name]])),
             }),
             inputDatasetRids:  shape.inputs.map((name) => datasets[name]),
-            outputTransactions: Object.fromEntries(shape.outputs.map((name) => [datasets[name], shape.outputTransaction ?? { type: 'snapshot' }])),
+            outputs: Object.fromEntries(shape.outputs.map((name) => [datasets[name], { kind: 'dataset' as const, transaction: shape.outputTransaction ?? { type: 'snapshot' as const } }])),
             compute:           { cpuCores: 1, memoryGb: 4 },
         })));
 

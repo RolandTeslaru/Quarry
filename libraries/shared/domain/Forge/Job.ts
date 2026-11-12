@@ -2,10 +2,11 @@ import { z } from "zod"
 import { Foundations } from "../Foundations"
 import { Dataset } from "../Dataset/Dataset"
 import { Transaction } from "../Catalog/Transaction"
+import { Resource } from "../Library/Resource"
 import { Build } from "./Build"
 import { Recipe } from "./Recipe"
 
-/** One run of one recipe within a build: a pinned version of each input in, one transaction per output. */
+/** One run of one recipe within a build: a pinned version of each input in, one version opened per output. */
 export namespace Job {
 
     /** A RID, but not a library resource. */
@@ -21,6 +22,12 @@ export namespace Job {
     export const Status = z.enum(["waiting", "scheduled", "running", "succeeded", "failed", "canceled"])
     export type  Status = z.infer<typeof Status>
 
+    /** What was opened for one of its outputs when the build was created, by the output's kind. */
+    export const Output = z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("dataset"), transactionRid: Transaction.Rid }),
+    ])
+    export type  Output = z.infer<typeof Output>
+
     export const Schema = z.object({
         rid:                   Rid,
         buildRid:              Build.Rid,
@@ -28,7 +35,7 @@ export namespace Job {
         status:                Status,
         attempt:               z.number().int().positive(),         // 1, then each retry
         inputs:                z.record(Dataset.Rid, Dataset.Sequence).nullable(),  // each input's version, pinned when it's claimed
-        outputTransactions:    z.record(Dataset.Rid, Transaction.Rid),              // each output's transaction, opened when the build is created
+        outputs:               z.record(Resource.Rid, Output),                       // each output's version, opened when the build is created
         failure:               z.object({ message: z.string() }).nullable(),
         scheduledAt:           z.coerce.date().nullable(),
         startedAt:             z.coerce.date().nullable(),
@@ -39,13 +46,17 @@ export namespace Job {
     /** Its run-job message: this attempt's. */
     export const getQueueMessage = (job: Pick<Job, "rid" | "attempt">) => ({ jobRid: job.rid, attempt: job.attempt })
 
-    /** These jobs' output transactions, by dataset — how Catalog addresses them. A dataset is one job's output in a build. */
-    export function getOutputTransactions(jobs: Pick<Job, "outputTransactions">[]): Record<Dataset.Rid, Transaction.Rid> {
+    /** These jobs' dataset outputs' transactions, by dataset — how Catalog addresses them. A dataset is one job's output in a build. */
+    export function getOutputTransactions(jobs: Pick<Job, "outputs">[]): Record<Dataset.Rid, Transaction.Rid> {
         const transactions: Record<Dataset.Rid, Transaction.Rid> = {}
 
         for (const job of jobs)
-            for (const datasetRid of Object.keys(job.outputTransactions) as Dataset.Rid[])
-                transactions[datasetRid] = job.outputTransactions[datasetRid]
+            for (const rid of Object.keys(job.outputs) as Resource.Rid[]) {
+                const output = job.outputs[rid]
+
+                if (output.kind === "dataset")
+                    transactions[rid as Dataset.Rid] = output.transactionRid
+            }
 
         return transactions
     }

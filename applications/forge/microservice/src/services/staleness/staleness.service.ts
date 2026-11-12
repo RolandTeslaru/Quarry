@@ -89,7 +89,7 @@ export class StalenessService {
 
             // Its own output read back isn't an input that moved; an input it didn't read then is new logic, caught above.
             for (const inputRid of recipe.inputDatasetRids) {
-                if (recipe.outputTransactions[inputRid])
+                if (recipe.outputs[inputRid])
                     continue;
 
                 const read = writer.job.inputs?.[inputRid];

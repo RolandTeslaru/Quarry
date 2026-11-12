@@ -12,11 +12,11 @@ import { ForgeDB } from '../forge/forge.db';
 export interface PublishedRecipe {
     readonly runtimeConfig:     Forge.Recipe.RuntimeConfig;
     readonly inputDatasetRids:  Dataset.Rid[];
-    readonly outputTransactions: Forge.Recipe['outputTransactions'];
+    readonly outputs:           Forge.Recipe['outputs'];
     readonly compute:           Forge.Recipe.Compute;
 }
 
-/** forge.recipe, its input/output datasets, and forge.current_recipe — one aggregate. */
+/** forge.recipe, its input datasets and outputs, and forge.current_recipe — one aggregate. */
 @Injectable()
 export class RecipeRepository extends Repository(ForgeDB.database) {
 
@@ -33,7 +33,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
      * recipes, drops the producer's old pointers, points each output at its new
      * recipe, and declares the producer's lineage: each input → each output, or
      * the producer → each output for a recipe with no inputs. An output another
-     * producer owns is a conflict. `forge:recipe:changed` for each dataset now computed
+     * producer owns is a conflict. `forge:recipe:changed` for each output dataset now computed
      * differently, or no longer computed.
      */
     @Transactional()
@@ -43,7 +43,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         branch:      Foundations.Branch,
         recipes:     PublishedRecipe[],
     ): Promise<Forge.Recipe[]> {
-        const outputs: Dataset.Rid[] = [];
+        const outputs: Library.Resource.Rid[] = [];
 
         for (const recipe of recipes)
             outputs.push(...Forge.Recipe.getOutputs(recipe));
@@ -58,13 +58,13 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         const pointers = await this.trx
             .selectFrom('forge.current_recipe as pointer')
             .innerJoin('forge.recipe as recipe', 'recipe.rid', 'pointer.recipe_rid')
-            .select(['pointer.dataset_rid', 'pointer.recipe_rid'])
+            .select(['pointer.resource_rid', 'pointer.recipe_rid'])
             .where('pointer.branch', '=', branch)
             .where('recipe.producer_rid', '=', producerRid)
             .execute();
 
         const previousRids: Forge.Recipe.Rid[] = [];
-        const previous: Record<Dataset.Rid, Forge.Recipe> = {};
+        const previous: Record<Library.Resource.Rid, Forge.Recipe> = {};
 
         for (const pointer of pointers)
             previousRids.push(pointer.recipe_rid);
@@ -72,7 +72,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         const previousRecipes = await this.getMany(principal, previousRids);
 
         for (const pointer of pointers)
-            previous[pointer.dataset_rid] = previousRecipes[pointer.recipe_rid];
+            previous[pointer.resource_rid] = previousRecipes[pointer.recipe_rid];
 
         await this.trx
             .deleteFrom('forge.current_recipe')
@@ -103,16 +103,19 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         const changes: Durable.Event.InputOf<typeof Forge.DurableEvent.RecipeChanged>[] = [];
 
         for (const recipe of published)
-            for (const datasetRid of Forge.Recipe.getOutputs(recipe)) {
+            for (const datasetRid of Object.keys(Forge.Recipe.getDatasetOutputs(recipe)) as Dataset.Rid[]) {
                 const before = previous[datasetRid];
 
                 if (!before || !isDeepStrictEqual(Forge.Recipe.getComputation(before, datasetRid), Forge.Recipe.getComputation(recipe, datasetRid)))
                     changes.push({ datasetRid, branch, producerRid, recipeRid: recipe.rid });
             }
 
-        for (const datasetRid of Object.keys(previous) as Dataset.Rid[])
-            if (!outputRids.has(datasetRid))
-                changes.push({ datasetRid, branch, producerRid, recipeRid: null });
+        for (const outputRid of Object.keys(previous) as Library.Resource.Rid[]) {
+            const before = previous[outputRid].outputs[outputRid];
+
+            if (before.kind === 'dataset' && !outputRids.has(outputRid))
+                changes.push({ datasetRid: outputRid as Dataset.Rid, branch, producerRid, recipeRid: null });
+        }
 
         await this.durableRecipeChangedEvent.publish(changes.map((payload) => ({ payload, eventId: Foundations.uuidv7() })));
 
@@ -146,22 +149,23 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         const pointers = await this.trx
             .selectFrom('forge.current_recipe')
             .selectAll()
-            .where('dataset_rid', 'in', datasetRids)
+            .where('resource_rid', 'in', datasetRids)
             .where('branch', 'in', branches)
             .execute();
 
         // Each dataset's pointer on the earliest of `branches` that has one.
-        const chosen: Record<Dataset.Rid, Forge.Recipe.Rid> = {};
+        const chosen: Record<Library.Resource.Rid, Forge.Recipe.Rid> = {};
 
         for (const branch of [...branches].reverse())
             for (const pointer of pointers)
                 if (pointer.branch === branch)
-                    chosen[pointer.dataset_rid] = pointer.recipe_rid;
+                    chosen[pointer.resource_rid] = pointer.recipe_rid;
 
         const recipes = await this.getMany(principal, Object.values(chosen));
 
-        for (const datasetRid of Object.keys(chosen) as Dataset.Rid[])
-            byDataset[datasetRid] = recipes[chosen[datasetRid]];
+        for (const datasetRid of datasetRids)
+            if (chosen[datasetRid])
+                byDataset[datasetRid] = recipes[chosen[datasetRid]];
 
         return byDataset;
     }
@@ -173,7 +177,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         return recipes[rid] ?? null;
     }
 
-    /** These recipes, with their datasets, by RID; one that isn't there is left out. */
+    /** These recipes, with their inputs and outputs, by RID; one that isn't there is left out. */
     @Transactional()
     public async getMany(principal: Principal, rids: Forge.Recipe.Rid[]): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> {
         const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
@@ -194,13 +198,13 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
             .execute();
 
         const outputs = await this.trx
-            .selectFrom('forge.recipe_output_dataset')
-            .select(['recipe_rid', 'dataset_rid', 'transaction'])
+            .selectFrom('forge.recipe_output')
+            .select(['recipe_rid', 'resource_rid', 'output'])
             .where('recipe_rid', 'in', rids)
             .execute();
 
         const inputsOf: Record<Forge.Recipe.Rid, Dataset.Rid[]> = {};
-        const outputsOf: Record<Forge.Recipe.Rid, Forge.Recipe['outputTransactions']> = {};
+        const outputsOf: Record<Forge.Recipe.Rid, Forge.Recipe['outputs']> = {};
 
         for (const row of rows) {
             inputsOf[row.rid] = [];
@@ -211,7 +215,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
             inputsOf[input.recipe_rid].push(input.dataset_rid);
 
         for (const output of outputs)
-            outputsOf[output.recipe_rid][output.dataset_rid] = output.transaction;
+            outputsOf[output.recipe_rid][output.resource_rid] = output.output;
 
         for (const row of rows)
             recipes[row.rid] = ForgeDB.Recipe.toDomain(row, inputsOf[row.rid], outputsOf[row.rid]);
@@ -221,7 +225,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
 
     // ── helpers ─────────────────────────────────────────────────────────
 
-    /** The recipe, its datasets, and a pointer from each output. */
+    /** The recipe, its inputs and outputs, and a pointer from each output. */
     private async insert(
         principal:   Principal,
         producerRid: Library.Resource.Rid,
@@ -252,36 +256,36 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         const outputs = Forge.Recipe.getOutputs(recipe);
 
         await this.trx
-            .insertInto('forge.recipe_output_dataset')
-            .values(outputs.map((datasetRid) => ({ recipe_rid: rid, dataset_rid: datasetRid, transaction: json(recipe.outputTransactions[datasetRid]) })))
+            .insertInto('forge.recipe_output')
+            .values(outputs.map((outputRid) => ({ recipe_rid: rid, resource_rid: outputRid, output: json(recipe.outputs[outputRid]) })))
             .execute();
 
         await this.trx
             .insertInto('forge.current_recipe')
-            .values(outputs.map((datasetRid) => ({ dataset_rid: datasetRid, branch, recipe_rid: rid })))
+            .values(outputs.map((outputRid) => ({ resource_rid: outputRid, branch, recipe_rid: rid })))
             .execute();
 
-        return ForgeDB.Recipe.toDomain(row, recipe.inputDatasetRids, recipe.outputTransactions);
+        return ForgeDB.Recipe.toDomain(row, recipe.inputDatasetRids, recipe.outputs);
     }
 
     /**
-     * One producer per dataset per branch. The pointer's primary key enforces it;
+     * One producer per output per branch. The pointer's primary key enforces it;
      * this names the producer when the caller can see it.
      */
-    private async requireUnowned(producerRid: Library.Resource.Rid, branch: Foundations.Branch, outputs: Dataset.Rid[]): Promise<void> {
+    private async requireUnowned(producerRid: Library.Resource.Rid, branch: Foundations.Branch, outputs: Library.Resource.Rid[]): Promise<void> {
         if (outputs.length === 0)
             return;
 
         const owned = await this.trx
             .selectFrom('forge.current_recipe as pointer')
             .innerJoin('forge.recipe as recipe', 'recipe.rid', 'pointer.recipe_rid')
-            .select(['pointer.dataset_rid', 'recipe.producer_rid'])
+            .select(['pointer.resource_rid', 'recipe.producer_rid'])
             .where('pointer.branch', '=', branch)
-            .where('pointer.dataset_rid', 'in', outputs)
+            .where('pointer.resource_rid', 'in', outputs)
             .where('recipe.producer_rid', '!=', producerRid)
             .executeTakeFirst();
 
         if (owned)
-            throw new ConflictException(`${owned.dataset_rid} is already produced by ${owned.producer_rid} on ${branch}`);
+            throw new ConflictException(`${owned.resource_rid} is already produced by ${owned.producer_rid} on ${branch}`);
     }
 }

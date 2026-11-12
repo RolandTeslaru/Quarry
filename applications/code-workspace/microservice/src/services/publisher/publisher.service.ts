@@ -23,7 +23,7 @@ export class PublisherService {
             const inputs: Record<string, Dataset.Rid> = {};
             const outputs: Record<string, Dataset.Rid> = {};
             const inputDatasetRids: Dataset.Rid[] = [];
-            const outputTransactions: Forge.Recipe['outputTransactions'] = {};
+            const recipeOutputs: Forge.Recipe['outputs'] = {};
 
             for (const [parameter, reference] of Object.entries(transform.inputs)) {
                 const dataset = await this.catalog.getByReference(principal, { reference });
@@ -38,7 +38,7 @@ export class PublisherService {
                 const dataset = await this.catalog.getOrCreateByReference(principal, { reference });
 
                 outputs[parameter] = dataset.rid;
-                outputTransactions[dataset.rid] = { type: 'snapshot' };
+                recipeOutputs[dataset.rid] = { kind: 'dataset', transaction: { type: 'snapshot' } };
             }
 
             recipes.push({
@@ -51,7 +51,7 @@ export class PublisherService {
                     outputs,
                 },
                 inputDatasetRids,
-                outputTransactions,
+                outputs: recipeOutputs,
                 compute: transform.resources,
             });
         }

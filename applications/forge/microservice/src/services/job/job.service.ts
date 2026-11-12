@@ -76,7 +76,7 @@ export class JobService {
         if (job.status !== 'running')
             throw new ConflictException(`Job ${rid} isn't running`);
 
-        const transactionRid = job.outputTransactions[datasetRid];
+        const transactionRid = Forge.Job.getOutputTransactions([job])[datasetRid];
 
         if (!transactionRid)
             throw new NotFoundException(`${datasetRid} isn't an output of job ${rid}`);
@@ -96,7 +96,7 @@ export class JobService {
         if (job.status !== 'running')
             throw new ConflictException(`Job ${rid} isn't running`);
 
-        const transactionRid = job.outputTransactions[datasetRid];
+        const transactionRid = Forge.Job.getOutputTransactions([job])[datasetRid];
 
         if (!transactionRid)
             throw new NotFoundException(`${datasetRid} isn't an output of job ${rid}`);

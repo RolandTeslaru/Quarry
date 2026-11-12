@@ -157,7 +157,7 @@ describe('build and recipe permissions', () => {
             const published = await harness.forge.recipes.publish(editor, projectRid, MAIN, [{
                 runtimeConfig:     recipe.runtimeConfig,
                 inputDatasetRids:  [datasets.raw],
-                outputTransactions: { [datasets.out2]: { type: 'snapshot' } },
+                outputs: { [datasets.out2]: { kind: 'dataset', transaction: { type: 'snapshot' } } },
                 compute:           recipe.compute,
             }]);
 
@@ -168,7 +168,7 @@ describe('build and recipe permissions', () => {
             await expect(harness.forge.recipes.publish(viewer, projectRid, MAIN, [{
                 runtimeConfig:     recipe.runtimeConfig,
                 inputDatasetRids:  [datasets.raw],
-                outputTransactions: { [datasets.out]: { type: 'snapshot' } },
+                outputs: { [datasets.out]: { kind: 'dataset', transaction: { type: 'snapshot' } } },
                 compute:           recipe.compute,
             }])).rejects.toBeInstanceOf(ForbiddenException);
         });

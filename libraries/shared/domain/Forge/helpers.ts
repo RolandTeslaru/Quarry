@@ -1,4 +1,5 @@
 import type { Dataset } from "../Dataset/Dataset"
+import type { Resource } from "../Library/Resource"
 import type { Build } from "./Build"
 import { Recipe } from "./Recipe"
 
@@ -17,7 +18,7 @@ export class PlanCycleError extends Error {
  * recipes with no parent are the roots. Throws a PlanCycleError if some recipe could never run. Reached as `Build.Plan.create`.
  */
 export function createPlan(recipes: Record<Recipe.Rid, Recipe>): Build.Plan {
-    const { producerOf } = Recipe.getDatasets(recipes)
+    const { producerOf } = Recipe.getResources(recipes)
     const children: Record<Recipe.Rid, Set<Recipe.Rid>> = {}
     const hasParent = new Set<Recipe.Rid>()
 
@@ -90,8 +91,8 @@ export function createPlan(recipes: Record<Recipe.Rid, Recipe>): Build.Plan {
  * writing an input is never one — inputs are read as they are. Reached as `Build.getConnectingRecipes`.
  */
 export function getConnectingRecipes(recipes: Record<Recipe.Rid, Recipe>, inputRids: Dataset.Rid[]): Record<Recipe.Rid, Recipe> {
-    const inputs = new Set<Dataset.Rid>(inputRids)
-    const reached = new Set<Dataset.Rid>(inputRids)
+    const inputs = new Set<Resource.Rid>(inputRids)
+    const reached = new Set<Resource.Rid>(inputRids)
     const connecting: Record<Recipe.Rid, Recipe> = {}
     let grew = true
 
@@ -107,8 +108,8 @@ export function getConnectingRecipes(recipes: Record<Recipe.Rid, Recipe>, inputR
             let writesInput = false
             let readsReached = false
 
-            for (const datasetRid of outputs)
-                if (inputs.has(datasetRid))
+            for (const outputRid of outputs)
+                if (inputs.has(outputRid))
                     writesInput = true
 
             for (const datasetRid of recipe.inputDatasetRids)
@@ -121,8 +122,8 @@ export function getConnectingRecipes(recipes: Record<Recipe.Rid, Recipe>, inputR
             connecting[recipe.rid] = recipe
             grew = true
 
-            for (const datasetRid of outputs)
-                reached.add(datasetRid)
+            for (const outputRid of outputs)
+                reached.add(outputRid)
         }
     }
 

@@ -57,7 +57,7 @@ export class RunJobProcessor extends JobProcessor<typeof Forge.Queue.RunJob.Defi
             build:     job.buildRid,
             recipe:    recipe.rid,
             runtime:   recipe.runtimeConfig.type,
-            outputs:   Object.keys(job.outputTransactions).length,
+            outputs:   Object.keys(job.outputs).length,
         });
 
         const onLog = (log: Stdio.Event.Log) => this.log.info(log.line, {

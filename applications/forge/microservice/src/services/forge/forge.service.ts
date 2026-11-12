@@ -90,12 +90,16 @@ export class ForgeService {
         // Unless forced, only what's stale is built: a recipe with a stale output, and everything below it in the
         // plan — its inputs are about to change. Fresh recipes' outputs are read as they are; none left, nothing to do.
         if (!request.forceBuild) {
-            const { outputs } = Forge.Recipe.getDatasets(recipes);
-            const staleness = await this.staleness.get(principal, [...outputs], branches);
+            const outputs: Dataset.Rid[] = [];
+
+            for (const recipe of Object.values(recipes))
+                outputs.push(...Object.keys(Forge.Recipe.getDatasetOutputs(recipe)) as Dataset.Rid[]);
+
+            const staleness = await this.staleness.get(principal, outputs, branches);
             const stale: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
 
             for (const recipe of Object.values(recipes))
-                for (const datasetRid of Forge.Recipe.getOutputs(recipe))
+                for (const datasetRid of Object.keys(Forge.Recipe.getDatasetOutputs(recipe)) as Dataset.Rid[])
                     if (staleness[datasetRid].reasons.length > 0) {
                         stale[recipe.rid] = recipe;
 
@@ -226,11 +230,12 @@ export class ForgeService {
         this.log.info(`Claimed ${rid} (attempt ${attempt})`);
 
         const incrementalOutputs: Dataset.Rid[] = [];
+        const datasetOutputs = Forge.Recipe.getDatasetOutputs(recipe);
 
-        for (const datasetRid of Forge.Recipe.getOutputs(recipe)) {
-            const output = recipe.outputTransactions[datasetRid];
+        for (const datasetRid of Object.keys(datasetOutputs) as Dataset.Rid[]) {
+            const transaction = datasetOutputs[datasetRid];
 
-            if (output.type === 'append' && output.incrementalColumn)
+            if (transaction.type === 'append' && transaction.incrementalColumn)
                 incrementalOutputs.push(datasetRid);
         }
 
@@ -263,7 +268,7 @@ export class ForgeService {
 
         // A succeeded job's outputs were committed with it; a failed one's are released.
         if (outcome.status === 'failed') {
-            await this.catalog.abortTransactions(AGENT, { transactions: finished.job.outputTransactions });
+            await this.catalog.abortTransactions(AGENT, { transactions: Forge.Job.getOutputTransactions([finished.job]) });
             await this.cancelForFailure(finished.job);
         }
 
@@ -300,7 +305,7 @@ export class ForgeService {
      * this build must have data already.
      */
     private async assertPermissionsOnPlan(principal: Principal, recipes: Record<Forge.Recipe.Rid, Forge.Recipe>): Promise<void> {
-        const { outputs, inputs } = Forge.Recipe.getDatasets(recipes);
+        const { outputs, inputs } = Forge.Recipe.getResources(recipes);
 
         await this.gatekeeper.assertAll(principal, 'write', outputs);
         await this.gatekeeper.assertAll(principal, 'read', inputs);
@@ -316,27 +321,28 @@ export class ForgeService {
     }
 
     /**
-     * 3. One job per node, with a transaction open on each of its recipe's outputs, of the
-     * kind the recipe says — all opened in one database transaction, or none.
+     * 3. One job per node, with a transaction open on each of its recipe's output datasets, of the
+     * type the recipe says — all opened in one database transaction, or none.
      */
     private async openTransactionsForOutputs(principal: Principal, buildRid: Forge.Build.Rid, recipes: Record<Forge.Recipe.Rid, Forge.Recipe>): Promise<Record<Forge.Job.Rid, PlannedJob>> {
         const jobs: Record<Forge.Job.Rid, PlannedJob> = {};
         const openings: Record<Dataset.Rid, Catalog.Transaction.Opening> = {};
 
         for (const recipe of Object.values(recipes)) {
-            const job: PlannedJob = { rid: Forge.Job.createRid(), recipeRid: recipe.rid, outputTransactions: {} };
+            const job: PlannedJob = { rid: Forge.Job.createRid(), recipeRid: recipe.rid, outputs: {} };
+            const datasetOutputs = Forge.Recipe.getDatasetOutputs(recipe);
 
             jobs[job.rid] = job;
 
-            for (const datasetRid of Forge.Recipe.getOutputs(recipe))
-                openings[datasetRid] = { ...recipe.outputTransactions[datasetRid], provenance: { buildRid, jobRid: job.rid } };
+            for (const datasetRid of Object.keys(datasetOutputs) as Dataset.Rid[])
+                openings[datasetRid] = { ...datasetOutputs[datasetRid], provenance: { buildRid, jobRid: job.rid } };
         }
 
         const transactions = await this.catalog.openTransactions(principal, { openings, branch: Foundations.MAIN_BRANCH });
 
         for (const job of Object.values(jobs))
-            for (const datasetRid of Forge.Recipe.getOutputs(recipes[job.recipeRid]))
-                job.outputTransactions[datasetRid] = transactions[datasetRid].rid;
+            for (const datasetRid of Object.keys(Forge.Recipe.getDatasetOutputs(recipes[job.recipeRid])) as Dataset.Rid[])
+                job.outputs[datasetRid] = { kind: 'dataset', transactionRid: transactions[datasetRid].rid };
 
         return jobs;
     }

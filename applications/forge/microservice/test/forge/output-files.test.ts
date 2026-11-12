@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { Dataset, type Forge } from '@quarry/shared/domain';
+import { Dataset, Forge } from '@quarry/shared/domain';
 import { literal } from '@quarry/integrations/core/duckdb';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { FileStorage } from '@quarry/platform-kernel/infra/file-storage';
@@ -43,7 +43,7 @@ describe('output files', () => {
 
     /** Puts a real Parquet file where the job's runtime would: under the output's transaction. */
     async function writeParquet(job: Forge.Job, datasetRid: Dataset.Rid, filename: string, select: string): Promise<void> {
-        const key = Dataset.getStorageKey(datasetRid, job.outputTransactions[datasetRid], filename);
+        const key = Dataset.getStorageKey(datasetRid, Forge.Job.getOutputTransactions([job])[datasetRid], filename);
         const url = harness.get(FileStorage).url(key);
 
         await duckdb.with((connection) => connection.run(`COPY (${select}) TO ${literal(url)} (FORMAT parquet)`));
@@ -54,7 +54,7 @@ describe('output files', () => {
 
         const { url } = await harness.jobs.getSignedOutputUrl(admin, job.rid, datasets.out, { filename: 'part-0.parquet' });
 
-        expect(url).toContain(`/${datasets.out}/${job.outputTransactions[datasets.out]}/part-0.parquet?`);
+        expect(url).toContain(`/${datasets.out}/${Forge.Job.getOutputTransactions([job])[datasets.out]}/part-0.parquet?`);
         expect(url).toContain('X-Amz-Signature=');
     });
 
@@ -87,7 +87,7 @@ describe('output files', () => {
         const view = await harness.view(admin, datasets.out);
 
         expect(view.sequence).toBe(1);
-        expect(view.files.map((file) => file.logicalPath).sort()).toEqual([`${job.outputTransactions[datasets.out]}/part-0.parquet`, `${job.outputTransactions[datasets.out]}/part-1.parquet`]);
+        expect(view.files.map((file) => file.logicalPath).sort()).toEqual([`${Forge.Job.getOutputTransactions([job])[datasets.out]}/part-0.parquet`, `${Forge.Job.getOutputTransactions([job])[datasets.out]}/part-1.parquet`]);
         expect(view.files.map((file) => file.rowCount)).toEqual([1, 1]);
         expect(view.schema).toEqual({
             columns: [

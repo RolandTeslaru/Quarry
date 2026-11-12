@@ -29,7 +29,7 @@ export class RuntimeController {
         const { job, recipe, token, incrementalStates } = request;
         // The agent starts this image for this runtime type only.
         const { syncConfig } = recipe.runtimeConfig as Extract<Forge.Recipe.RuntimeConfig, { type: 'data-connection' }>;
-        const [datasetRid] = Object.keys(recipe.outputTransactions) as Dataset.Rid[];
+        const [datasetRid] = Object.keys(Forge.Recipe.getDatasetOutputs(recipe)) as Dataset.Rid[];
 
         this.log.info(`Running ${job.rid} (attempt ${job.attempt})`);
 

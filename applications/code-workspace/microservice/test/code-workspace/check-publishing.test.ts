@@ -84,7 +84,7 @@ describe('publishing recipes', () => {
                 outputs:      { out: datasets.clean },
             },
             inputDatasetRids:  [datasets.raw],
-            outputTransactions: { [datasets.clean]: { type: 'snapshot' } },
+            outputs: { [datasets.clean]: { kind: 'dataset', transaction: { type: 'snapshot' } } },
             compute:           { cpuCores: 1, memoryGb: 4 },
             publishedBy:       admin.userRid,
         });

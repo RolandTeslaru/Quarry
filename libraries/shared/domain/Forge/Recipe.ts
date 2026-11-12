@@ -10,8 +10,8 @@ import { Git } from "../CodeWorkspace/Git"
 import { ModuleFunctionPath } from "../CodeWorkspace/ModuleFunctionPath"
 
 /**
- * How to compute some datasets: the runtime that runs it, its inputs and
- * outputs. Published by producers (a workspace's checks, per commit);
+ * How to compute some resources — datasets, so far: the runtime that runs it,
+ * its input datasets and its outputs. Published by producers (a workspace's checks, per commit);
  * builds only read them. Immutable — a new version is a new recipe.
  */
 export namespace Recipe {
@@ -47,6 +47,12 @@ export namespace Recipe {
     ])
     export type OutputTransaction = z.infer<typeof OutputTransaction>
 
+    /** One resource the recipe writes, by its kind: what Forge opens, commits and aborts for it. Datasets only, so far. */
+    export const Output = z.discriminatedUnion("kind", [
+        z.object({ kind: z.literal("dataset"), transaction: OutputTransaction }),
+    ])
+    export type Output = z.infer<typeof Output>
+
     export const Compute = z.object({
         cpuCores: z.number().positive(),
         memoryGb: z.number().positive(),
@@ -59,47 +65,61 @@ export namespace Recipe {
         branch:            Foundations.Branch,
         runtimeConfig:     RuntimeConfig,
         inputDatasetRids:  Dataset.Rid.array(),          // a set; the runtime matches them to the code's parameters
-        outputTransactions: z.record(Dataset.Rid, OutputTransaction)                     // each output dataset, and how a job writes it
-            .refine((outputs) => Object.keys(outputs).length > 0, "A recipe writes at least one dataset"),
+        outputs:           z.record(Resource.Rid, Output)                   // each resource it writes, and how a job writes it
+            .refine((outputs) => Object.keys(outputs).length > 0, "A recipe writes at least one resource"),
         compute:           Compute,
         publishedBy:       User.Rid.nullable(),          // null = the system
         publishedAt:       z.coerce.date(),
     })
 
     /**
-     * What the recipe computes the dataset from: two recipes with equal ones compute it the same way.
+     * What the recipe computes the output from: two recipes with equal ones compute it the same way.
      * Compute resources aside — more memory isn't new logic. Inputs are a set, so sorted.
      */
-    export const getComputation = (recipe: Pick<Recipe, "runtimeConfig" | "inputDatasetRids" | "outputTransactions">, datasetRid: Dataset.Rid) => ({
-        runtimeConfig:     recipe.runtimeConfig,
-        inputDatasetRids:  [...recipe.inputDatasetRids].sort(),
-        outputTransaction: recipe.outputTransactions[datasetRid],
+    export const getComputation = (recipe: Pick<Recipe, "runtimeConfig" | "inputDatasetRids" | "outputs">, outputRid: Resource.Rid) => ({
+        runtimeConfig:    recipe.runtimeConfig,
+        inputDatasetRids: [...recipe.inputDatasetRids].sort(),
+        output:           recipe.outputs[outputRid],
     })
 
-    /** The datasets the recipe writes. */
-    export const getOutputs = (recipe: Pick<Recipe, "outputTransactions">) => Object.keys(recipe.outputTransactions) as Dataset.Rid[]
+    /** The resources the recipe writes, whatever their kind. */
+    export const getOutputs = (recipe: Pick<Recipe, "outputs">) => Object.keys(recipe.outputs) as Resource.Rid[]
 
-    /** The datasets some recipes write and read. */
-    export interface Datasets {
-        producerOf: Record<Dataset.Rid, Recipe>          // which of them writes each dataset
-        outputs:    Set<Dataset.Rid>
-        inputs:     Set<Dataset.Rid>
-    }
+    /** The datasets the recipe writes, and how a job writes each. */
+    export function getDatasetOutputs(recipe: Pick<Recipe, "outputs">): Record<Dataset.Rid, OutputTransaction> {
+        const datasets: Record<Dataset.Rid, OutputTransaction> = {}
 
-    export function getDatasets(recipes: Record<Rid, Recipe>): Datasets {
-        const datasets: Datasets = { producerOf: {}, outputs: new Set(), inputs: new Set() }
+        for (const rid of getOutputs(recipe)) {
+            const output = recipe.outputs[rid]
 
-        for (const recipe of Object.values(recipes)) {
-            for (const datasetRid of getOutputs(recipe)) {
-                datasets.producerOf[datasetRid] = recipe
-                datasets.outputs.add(datasetRid)
-            }
-
-            for (const datasetRid of recipe.inputDatasetRids)
-                datasets.inputs.add(datasetRid)
+            if (output.kind === "dataset")
+                datasets[rid as Dataset.Rid] = output.transaction
         }
 
         return datasets
+    }
+
+    /** The resources some recipes write and the datasets they read. */
+    export interface Resources {
+        producerOf: Record<Resource.Rid, Recipe>         // which of them writes each output
+        outputs:    Set<Resource.Rid>
+        inputs:     Set<Dataset.Rid>
+    }
+
+    export function getResources(recipes: Record<Rid, Recipe>): Resources {
+        const resources: Resources = { producerOf: {}, outputs: new Set(), inputs: new Set() }
+
+        for (const recipe of Object.values(recipes)) {
+            for (const outputRid of getOutputs(recipe)) {
+                resources.producerOf[outputRid] = recipe
+                resources.outputs.add(outputRid)
+            }
+
+            for (const datasetRid of recipe.inputDatasetRids)
+                resources.inputs.add(datasetRid)
+        }
+
+        return resources
     }
 }
 export type Recipe = z.infer<typeof Recipe.Schema>

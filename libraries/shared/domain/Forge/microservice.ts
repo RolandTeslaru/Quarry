@@ -28,7 +28,7 @@ export namespace Microservice {
         export const Request = z.object({
             producerRid: Resource.Rid,
             branch:      Foundations.Branch,
-            recipes:     Recipe.Schema.pick({ runtimeConfig: true, inputDatasetRids: true, outputTransactions: true, compute: true }).array(),
+            recipes:     Recipe.Schema.pick({ runtimeConfig: true, inputDatasetRids: true, outputs: true, compute: true }).array(),
         })
         export type  Request = z.infer<typeof Request>
 

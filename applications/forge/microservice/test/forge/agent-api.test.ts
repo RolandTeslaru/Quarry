@@ -1,6 +1,6 @@
 import { ConflictException } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Dataset } from '@quarry/shared/domain';
+import { type Dataset, Forge } from '@quarry/shared/domain';
 import type { Principal } from '@quarry/platform-kernel/auth/principal';
 import { TokenVerifier } from '@quarry/platform-kernel/auth/token-verifier';
 import { ForgeHarness } from '../support/forge-fixtures';
@@ -89,13 +89,13 @@ describe('the ForgeAgent API', () => {
 
     it("commits a succeeded job's outputs: each becomes the dataset's next version", async () => {
         const job = await scheduledJob();
-        const [datasetRid] = Object.keys(job.outputTransactions) as Dataset.Rid[];
+        const [datasetRid] = Object.keys(job.outputs) as Dataset.Rid[];
 
-        expect(await harness.transactionStatus(job.outputTransactions[datasetRid])).toBe('open');
+        expect(await harness.transactionStatus(Forge.Job.getOutputTransactions([job])[datasetRid])).toBe('open');
 
         await harness.run(job);
 
-        expect(await harness.transactionStatus(job.outputTransactions[datasetRid])).toBe('committed');
+        expect(await harness.transactionStatus(Forge.Job.getOutputTransactions([job])[datasetRid])).toBe('committed');
         expect((await harness.catalog.get(user, { rid: datasetRid })).lastSequence).toBe(1);
     });
 
@@ -153,7 +153,7 @@ describe('the ForgeAgent API', () => {
 
     it("aborts a failed job's outputs", async () => {
         const job = await scheduledJob();
-        const [transactionRid] = Object.values(job.outputTransactions);
+        const [transactionRid] = Object.values(Forge.Job.getOutputTransactions([job]));
 
         await harness.run(job, 'failed');
 

@@ -82,7 +82,7 @@ describe('Forge\'s durable events', () => {
             expect(succeeded[0].eventId).toBe(job.rid);
             expect(succeeded[0].payload.job).toMatchObject({ rid: job.rid, status: 'succeeded' });
             expect(await getJobEvents(LISTENERS.jobFailed, job)).toEqual([]);
-            expect(await getDatasetUpdates(out)).toMatchObject([{ payload: { transaction: { rid: job.outputTransactions[out], status: 'committed' } } }]);
+            expect(await getDatasetUpdates(out)).toMatchObject([{ payload: { transaction: { rid: Forge.Job.getOutputTransactions([job])[out], status: 'committed' } } }]);
         });
 
         it('failed: forge:job:failed once, with its failure — and no new version', async () => {
@@ -150,7 +150,7 @@ describe('Forge\'s durable events', () => {
             await harness.forge.recipes.publish(user, projectRid, A.branch, [{
                 runtimeConfig:      A.runtimeConfig,
                 inputDatasetRids:   A.inputDatasetRids,
-                outputTransactions: A.outputTransactions,
+                outputs: A.outputs,
                 compute:            { cpuCores: 8, memoryGb: 64 },
             }]);
 
