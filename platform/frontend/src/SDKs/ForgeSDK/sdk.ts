@@ -1,4 +1,5 @@
-import type { Dataset, Forge } from '@quarry/shared/domain'
+import type { Dataset, Forge, Foundations } from '@quarry/shared/domain'
+import { keepPreviousData } from '@tanstack/react-query'
 import { createWithEqualityFn } from 'zustand/traditional'
 import { immer } from 'zustand/middleware/immer'
 import { shallow } from 'zustand/shallow'
@@ -38,6 +39,14 @@ export class ForgeSDKImpl extends BaseSDK<ForgeSDK.State> {
         build: (rid: Forge.Build.Rid) => ({
             queryKey: ['forge', 'build', rid] as const,
             queryFn: () => this.actions.build.get(rid),
+        }),
+
+        /** Forge needs at least one dataset. Until a changed set is answered, the last answer stands. */
+        staleness: (datasetRids: Dataset.Rid[], branch: Foundations.Branch) => ({
+            queryKey: ['forge', 'staleness', branch, datasetRids] as const,
+            queryFn: () => this.actions.staleness.get(datasetRids, branch),
+            enabled: datasetRids.length > 0,
+            placeholderData: keepPreviousData,
         }),
     }
 

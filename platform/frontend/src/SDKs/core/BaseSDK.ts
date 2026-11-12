@@ -1,4 +1,4 @@
-import { useQueries, type UseQueryResult } from '@tanstack/react-query'
+import { useQueries, type keepPreviousData, type UseQueryResult } from '@tanstack/react-query'
 import type { StoreApi, UseBoundStore } from 'zustand'
 import type { Mutate } from 'zustand/vanilla'
 import { QuerySDK } from '../QuerySDK/sdk'
@@ -54,6 +54,7 @@ export namespace BaseSDK {
         staleTime?:       number
         enabled?:         boolean
         refetchInterval?: number | false
+        placeholderData?: typeof keepPreviousData
     }
 
     export type QueryResults<Queries extends readonly Query[]> = {

@@ -6,6 +6,7 @@ import { cn } from '@quarry/standard-ui/utils/cn'
 import { useTask } from '@/hooks/useTask'
 import { LineageExplorerSDK } from '../../sdk'
 import { LEGENDS } from '../Legend/legends'
+import { useStaleness } from '../Legend/useStaleness'
 import type { NodeDriver } from './drivers'
 
 const HANDLE_CLASS = 'size-0! min-h-0! min-w-0! border-0! opacity-0'
@@ -14,10 +15,12 @@ const HANDLE_CLASS = 'size-0! min-h-0! min-w-0! border-0! opacity-0'
 export const ResourceNode = memo(function ResourceNode({ id, selected }: NodeProps<NodeDriver>) {
     const rid = id as LineageExplorer.Graph.Node.Rid
 
+    const stalenessRequest = useStaleness()
+
     const [resource, tint] = LineageExplorerSDK.useDocument(d => {
         const resource = d.selectors.node.get(d, rid).libraryResource
 
-        return [resource, LEGENDS[d.legend.type].getTint(resource)]
+        return [resource, LEGENDS[d.legend.type].getTint(resource, stalenessRequest.data?.staleness)]
     })
 
     // The action reports its own failure; the task only drives the buttons' pending state.

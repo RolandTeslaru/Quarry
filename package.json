@@ -9,7 +9,7 @@
     ],
     "scripts": {
         "dev:all": "npm run infra && npm run dev",
-        "dev": "concurrently -n server,catalog,dc,forge,cw,lineage,cw-worker,system,web -c cyan,magenta,blue,white,gray,cyanBright,blueBright,yellow,green \"npm:dev:server\" \"npm:dev:catalog\" \"npm:dev:data-connection-service\" \"npm:dev:forge-service\" \"npm:dev:code-workspace-service\" \"npm:dev:lineage-explorer-service\" \"npm:dev:code-workspace\" \"npm:dev:system\" \"npm:dev:frontend\"",
+        "dev": "concurrently -n server,catalog,dc,forge,forge-agent,cw,lineage,cw-worker,system,web -c cyan,magenta,blue,white,magentaBright,gray,cyanBright,blueBright,yellow,green \"npm:dev:server\" \"npm:dev:catalog\" \"npm:dev:data-connection-service\" \"npm:dev:forge-service\" \"npm:dev:forge-agent\" \"npm:dev:code-workspace-service\" \"npm:dev:lineage-explorer-service\" \"npm:dev:code-workspace\" \"npm:dev:system\" \"npm:dev:frontend\"",
         "dev:server": "npm run dev:api --workspace=platform/server",
         "dev:catalog": "npm run dev --workspace=applications/catalog/microservice",
         "dev:system": "npm run dev --workspace=platform/system-worker",

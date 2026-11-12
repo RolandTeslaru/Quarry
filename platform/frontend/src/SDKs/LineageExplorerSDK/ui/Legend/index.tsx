@@ -1,16 +1,19 @@
 import type { LineageExplorer } from '@quarry/shared/domain'
 import { Select } from '@quarry/standard-ui/foundations/select'
 import { App } from '@/AppKit'
+import { ErrorNotice } from '@/components/ErrorNotice'
 import { LineageExplorerSDK } from '../../sdk'
 import { LEGENDS } from './legends'
+import { useStaleness } from './useStaleness'
 
 const LEGEND_TYPES = Object.keys(LEGENDS) as LineageExplorer.Legend.Type[]
 
 /** The key to the nodes' colours, and what they're coloured by: a panel at the right, toggled from the nav. */
 export function LineageLegend() {
     const type = LineageExplorerSDK.useDocument(d => d.legend.type)
+    const stalenessRequest = useStaleness()
     // Its own subscription: a record of numbers compares shallowly, but not inside an array.
-    const counts = LineageExplorerSDK.useDocument(d => LEGENDS[d.legend.type].getCounts(d))
+    const counts = LineageExplorerSDK.useDocument(d => LEGENDS[d.legend.type].getCounts(d, stalenessRequest.data?.staleness))
 
     const legend = LEGENDS[type]
 
@@ -31,6 +34,8 @@ export function LineageLegend() {
                     ))}
                 </Select.Content>
             </Select.Root>
+
+            {type === 'staleness' && <ErrorNotice error={stalenessRequest.error} />}
 
             {keys.length === 0 && (
                 <p className='text-xs text-muted-foreground'>Nothing on the canvas yet.</p>
