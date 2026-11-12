@@ -45,6 +45,8 @@ export const RESOURCE_TYPE_LABELS: Record<Library.Resource.Type, string> = {
     'credential':          'Credential',
     'workspace':           'Code workspace',
     'lineage-exploration': 'Lineage exploration',
+    'object-type':         'Object type',
+    'link-type':           'Link type',
 }
 
 type Tint = `--color-${string}`

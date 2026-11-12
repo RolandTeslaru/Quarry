@@ -171,6 +171,17 @@ export namespace Microservice {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Each dataset's current schema on main, as its view reads it — null before the first commit, for raw files, or for a dataset the caller can't read. */
+    export namespace GetSchemas {
+        export const PATTERN = "catalog.get-schemas"
+
+        export const Request = z.object({ datasetRids: Dataset.Rid.array() })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.record(Dataset.Rid, ColumnSchema.Schema.nullable())
+        export type  Response = z.infer<typeof Response>
+    }
+
     /** Aborts the open ones among these — one per dataset; finished ones are skipped, so it's safe to repeat. */
     export namespace AbortTransactions {
         export const PATTERN = "catalog.abort-transactions"
@@ -235,6 +246,7 @@ export namespace Microservice {
         abortTransactions:  AbortTransactions,
         getIncrementalStates: GetIncrementalStates,
         getLatestTransactions: GetLatestTransactions,
+        getSchemas:         GetSchemas,
         getSignedReadUrls:  GetSignedReadUrls,
         getSignedWriteUrl:  GetSignedWriteUrl,
         registerFile:       RegisterFile,

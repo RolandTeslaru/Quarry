@@ -45,6 +45,7 @@
         "@quarry/data-connection-microservice": "*",
         "@quarry/forge-microservice": "*",
         "@quarry/lineage-explorer-microservice": "*",
+        "@quarry/ontology-microservice": "*",
         "@swc/core": "1.16.18",
         "@types/busboy": "^1.5.4",
         "@types/express": "^5.0.6",

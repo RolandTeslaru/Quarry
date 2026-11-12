@@ -123,6 +123,11 @@ export class TransactionService {
         return this.repository.getLatestMany(principal, datasetRids, branch);
     }
 
+    /** Each dataset's current schema, as its view reads it. Null with nothing committed, for raw files, for a trashed dataset, or one the caller can't read. */
+    async getSchemas(principal: Principal, datasetRids: Dataset.Rid[], branch = Foundations.MAIN_BRANCH): Promise<Record<Dataset.Rid, Catalog.ColumnSchema | null>> {
+        return this.repository.getSchemas(principal, datasetRids, branch);
+    }
+
     /** Aborts the open ones among these, in one database transaction; finished ones are skipped, so it's safe to repeat. */
     public async abortBatch(principal: Principal, transactions: Pick<Catalog.Transaction, 'rid' | 'datasetRid'>[]): Promise<void> {
         await this.repository.abortBatch(principal, transactions);

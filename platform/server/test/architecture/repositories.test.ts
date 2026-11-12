@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const ROOT = path.resolve(__dirname, '../../../..');
 
 /** Every package with services' code: the main server's, and each service's. */
-const SOURCES = ['platform/server', 'applications/catalog/microservice', 'applications/data-connection/microservice', 'applications/forge/microservice', 'applications/code-workspace/microservice', 'applications/lineage-explorer/microservice'].map((pkg) => path.join(ROOT, pkg, 'src'));
+const SOURCES = ['platform/server', 'applications/catalog/microservice', 'applications/data-connection/microservice', 'applications/forge/microservice', 'applications/code-workspace/microservice', 'applications/lineage-explorer/microservice', 'applications/ontology/microservice'].map((pkg) => path.join(ROOT, pkg, 'src'));
 
 /** A service's facade repository: `…/repository/<name>.repository.ts` whose class composes the rest. */
 const FACADES = [
@@ -94,7 +94,7 @@ function resolveImport(from: string, specifier: string): string | null {
     if (specifier.startsWith('@/'))
         return `${path.join(SOURCES.find((source) => from.startsWith(source))!, specifier.slice(2))}.ts`;
 
-    const service = /^@quarry\/(catalog|data-connection|forge|code-workspace|lineage-explorer)-microservice\/(.*)$/.exec(specifier);
+    const service = /^@quarry\/(catalog|data-connection|forge|code-workspace|lineage-explorer|ontology)-microservice\/(.*)$/.exec(specifier);
 
     if (service)
         return `${path.join(ROOT, 'applications', service[1], 'microservice/src', service[2])}.ts`;

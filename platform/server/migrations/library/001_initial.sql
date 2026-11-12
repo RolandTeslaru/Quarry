@@ -21,7 +21,9 @@ INSERT INTO library.resource_type VALUES
     ('source',     false, true),
     ('credential', false, false),
     ('workspace',  false, true),                         -- a Code Workspace
-    ('lineage-exploration', false, true);                -- a saved graph in Lineage Explorer
+    ('lineage-exploration', false, true),                -- a saved graph in Lineage Explorer
+    ('object-type', false, true),                        -- the Ontology's: a kind of thing, backed by a dataset
+    ('link-type',   false, true);                        -- the Ontology's: a relationship between two object types
 
 CREATE TABLE library.resource (
     rid         foundations.rid PRIMARY KEY,

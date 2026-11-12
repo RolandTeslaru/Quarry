@@ -1,23 +1,24 @@
 import { Module, type MiddlewareConsumer, type NestModule } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { AuthGuard } from '@quarry/platform-kernel/auth/auth.guard';
-import { RequestIdentityMiddleware } from '@quarry/platform-kernel/auth/request-identity';
-import { TokenVerifier } from '@quarry/platform-kernel/auth/token-verifier';
-import { HealthController } from '@quarry/platform-kernel/http/health.controller';
-import { InfraModule } from '@quarry/platform-kernel/infra/infra.module';
+
+import { AuthGuard }                                     from '@quarry/platform-kernel/auth/auth.guard';
+import { RequestIdentityMiddleware }                     from '@quarry/platform-kernel/auth/request-identity';
+import { TokenVerifier }                                 from '@quarry/platform-kernel/auth/token-verifier';
+import { HealthController }                              from '@quarry/platform-kernel/http/health.controller';
+import { InfraModule }                                   from '@quarry/platform-kernel/infra/infra.module';
 import { DurableQueueInternalController, DurableModule } from '@quarry/platform-kernel/infra/durable';
-import { MicroserviceCallsModule } from '@quarry/platform-kernel/microservice/microservice-calls.module';
-import { AuditModule } from '@quarry/platform-kernel/services/Audit/audit.module';
-import { AuditRelayMiddleware } from '@quarry/platform-kernel/services/Audit/audit-relay';
-import { IdentityModule } from '@quarry/platform-kernel/services/Identity/identity.module';
-import { LibraryModule } from '@quarry/platform-kernel/services/Library/library.module';
-import { GatekeeperModule } from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.module';
-import { RequestMemoMiddleware } from '@quarry/platform-kernel/services/Gatekeeper/request-memo';
-import { RealtimeModule } from '@quarry/platform-kernel/services/Realtime/realtime.module';
-import { CodeWorkspaceModule } from '@quarry/code-workspace-microservice/services/code-workspace/code-workspace.module';
-import { CodeWorkspaceController } from '@quarry/code-workspace-microservice/services/code-workspace/controllers/http.controller';
-import { CodeWorkspaceInternalController } from '@quarry/code-workspace-microservice/services/code-workspace/controllers/internal-http.controller';
-import { GitController } from '@quarry/code-workspace-microservice/services/git/git.controller';
+import { MicroserviceCallsModule }                       from '@quarry/platform-kernel/microservice/microservice-calls.module';
+import { AuditModule }                                   from '@quarry/platform-kernel/services/Audit/audit.module';
+import { AuditRelayMiddleware }                          from '@quarry/platform-kernel/services/Audit/audit-relay';
+import { IdentityModule }                                from '@quarry/platform-kernel/services/Identity/identity.module';
+import { LibraryModule }                                 from '@quarry/platform-kernel/services/Library/library.module';
+import { GatekeeperModule }                              from '@quarry/platform-kernel/services/Gatekeeper/gatekeeper.module';
+import { RequestMemoMiddleware }                         from '@quarry/platform-kernel/services/Gatekeeper/request-memo';
+import { RealtimeModule }                                from '@quarry/platform-kernel/services/Realtime/realtime.module';
+import { CodeWorkspaceModule }                           from '@quarry/code-workspace-microservice/services/code-workspace/code-workspace.module';
+import { CodeWorkspaceController }                       from '@quarry/code-workspace-microservice/services/code-workspace/controllers/http.controller';
+import { CodeWorkspaceInternalController }               from '@quarry/code-workspace-microservice/services/code-workspace/controllers/internal-http.controller';
+import { GitController }                                 from '@quarry/code-workspace-microservice/services/git/git.controller';
 
 /**
  * The Code Workspaces service (docs/design/architecture-split.md, phase 4): workspaces, their Git

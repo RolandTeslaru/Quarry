@@ -238,6 +238,59 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
     }
 
     /**
+     * Each dataset's schema on the branch, as resolveView reads it — the newest one since the latest snapshot,
+     * since a snapshot resets it — in two queries. Null with nothing committed, for raw files, for a trashed
+     * dataset, or where RLS hides the transactions: what reads it treats them all as no columns.
+     */
+    @Transactional()
+    async getSchemas(principal: Principal, datasetRids: Dataset.Rid[], branch: Foundations.Branch): Promise<Record<Dataset.Rid, Catalog.ColumnSchema | null>> {
+        const schemas: Record<Dataset.Rid, Catalog.ColumnSchema | null> = {};
+
+        for (const datasetRid of datasetRids)
+            schemas[datasetRid] = null;
+
+        const live = [...await liveResources(this.trx, datasetRids)] as Dataset.Rid[];
+
+        if (live.length === 0)
+            return schemas;
+
+        const committed = this.trx
+            .selectFrom('catalog.transaction')
+            .where('dataset_rid', 'in', live)
+            .where('branch', '=', branch)
+            .where('status', '=', 'committed');
+
+        const snapshots = await committed
+            .select(['dataset_rid', (eb) => eb.fn.max('sequence').as('sequence')])
+            .where('type', '=', 'snapshot')
+            .groupBy('dataset_rid')
+            .execute();
+
+        const newest = await committed
+            .distinctOn('dataset_rid')
+            .select(['dataset_rid', 'sequence', 'schema'])
+            .where('schema', 'is not', null)
+            .orderBy('dataset_rid')
+            .orderBy('sequence', 'desc')
+            .execute();
+
+        const latestSnapshot: Record<Dataset.Rid, Dataset.Sequence | null> = {};
+
+        for (const snapshot of snapshots)
+            latestSnapshot[snapshot.dataset_rid] = snapshot.sequence;
+
+        // The newest schema counts only if no snapshot came after it. Committed rows always have a sequence.
+        for (const row of newest) {
+            const since = latestSnapshot[row.dataset_rid] ?? 0;
+
+            if (row.sequence! >= since)
+                schemas[row.dataset_rid] = row.schema;
+        }
+
+        return schemas;
+    }
+
+    /**
      * Commits: next sequence on the branch (row lock serialises commits),
      * status committed, `catalog:dataset:updated` published — all in one transaction.
      */

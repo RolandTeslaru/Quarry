@@ -31,6 +31,8 @@ const NOUNS: Record<Library.Resource.Type, string> = {
     'credential':     'a credential',
     'workspace':      'a code workspace',
     'lineage-exploration': 'a lineage exploration',
+    'object-type':    'an object type',
+    'link-type':      'a link type',
 }
 
 const titleOf = (accept: readonly LibrarySelector.Accept[]) =>

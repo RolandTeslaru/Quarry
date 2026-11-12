@@ -30,6 +30,9 @@
             ],
             "@quarry/lineage-explorer-microservice/*": [
                 "../../applications/lineage-explorer/microservice/src/*"
+            ],
+            "@quarry/ontology-microservice/*": [
+                "../../applications/ontology/microservice/src/*"
             ]
         },
         "rootDir": "../..",

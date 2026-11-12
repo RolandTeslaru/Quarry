@@ -110,6 +110,11 @@ export class CatalogMicroserviceController {
         return this.transaction.getLatestMany(principal, request.datasetRids);
     }
 
+    @MicroserviceCall(Calls.GetSchemas, { from: ['ontology'] })
+    public getSchemas(principal: Principal, request: Calls.GetSchemas.Request) {
+        return this.transaction.getSchemas(principal, request.datasetRids);
+    }
+
     @MicroserviceCall(Calls.AbortTransactions, { from: ['forge'] })
     public async abortTransactions(principal: Principal, request: Calls.AbortTransactions.Request) {
         const transactions: Parameters<TransactionService['abortBatch']>[1] = [];
