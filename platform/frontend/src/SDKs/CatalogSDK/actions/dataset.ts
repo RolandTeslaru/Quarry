@@ -52,6 +52,14 @@ export class DatasetActions extends ActionGroup<CatalogSDKImpl> {
         return Catalog.API.Dataset.preview(api, rid)
     }
 
+    public getLatestTransaction(rid: Dataset.Rid): Promise<Catalog.API.Dataset.GetLatestTransaction.Response> {
+        return Catalog.API.Dataset.getLatestTransaction(api, rid)
+    }
+
+    public getColumnStats(rid: Dataset.Rid): Promise<Catalog.API.Dataset.GetColumnStats.Response> {
+        return Catalog.API.Dataset.getColumnStats(api, rid)
+    }
+
     public async createFromFile(parentRid: Library.Resource.Rid, file: File): Promise<Catalog.API.Dataset.Upload.Response> {
         const data = await Catalog.API.Dataset.createFromFile(api, { parentRid }, file, file.name)
 

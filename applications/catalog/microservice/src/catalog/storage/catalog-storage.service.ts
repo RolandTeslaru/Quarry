@@ -316,6 +316,52 @@ export class CatalogStorage {
     }
 
     /**
+     * Each column's nulls and (approximate) distinct values over the whole latest view, read with its
+     * schema — one pass over every file. Nothing committed yet: no rows, no columns.
+     */
+    @Audit('read', () => ({ op: 'column-stats' }))
+    @SecurityGate('read')
+    async getColumnStats(principal: Principal, datasetRid: Dataset.Rid): Promise<Catalog.API.Dataset.GetColumnStats.Response> {
+        const view = await this.transactions.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH);
+
+        if (!view.schema || view.files.length === 0)
+            return { sequence: view.sequence, rowCount: 0, columns: {} };
+
+        const urls = view.files.map((file) => this.storage.url(file.key));
+        const measures = ['count(*)'];
+
+        for (const column of view.schema.columns) {
+            measures.push(`count(${identifier(column.name)})`);
+            measures.push(`approx_count_distinct(${identifier(column.name)})`);
+        }
+
+        const query = `SELECT ${measures.join(', ')} FROM ${this.scan(view.schema, urls)}`;
+
+        const values = await this.duckdb.with(async (connection) => {
+            const result = await connection.runAndReadAll(query);
+
+            return result.getRowsJS()[0]!;
+        });
+
+        const rowCount = Number(values[0]);
+        const columns: Catalog.API.Dataset.GetColumnStats.Response['columns'] = {};
+
+        // After the row count, each column's two measures in schema order.
+        let position = 1;
+
+        for (const column of view.schema.columns) {
+            columns[column.name] = {
+                nullCount:     rowCount - Number(values[position]),
+                distinctCount: Number(values[position + 1]),
+            };
+
+            position += 2;
+        }
+
+        return { sequence: view.sequence, rowCount, columns };
+    }
+
+    /**
      * Replaces the schema: a transaction with no file changes. The reader's
      * format must stay the files' format; whether the new types parse is checked
      * by reading the first rows before committing.

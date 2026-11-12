@@ -105,6 +105,22 @@ export class CatalogController {
         return this.catalog.open(principal, rid, body.application);
     }
 
+    @Get(':rid/transactions/latest')
+    async getLatestTransaction(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', DatasetRidParam) rid: Dataset.Rid,
+    ): Promise<API.Dataset.GetLatestTransaction.Response> {
+        return { transaction: await this.catalog.getLatestTransaction(principal, rid) };
+    }
+
+    @Get(':rid/column-stats')
+    getColumnStats(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', DatasetRidParam) rid: Dataset.Rid,
+    ): Promise<API.Dataset.GetColumnStats.Response> {
+        return this.catalog.storage.getColumnStats(principal, rid);
+    }
+
     @Get(':rid/view')
     async view(
         @CurrentPrincipal() principal: Principal.User,

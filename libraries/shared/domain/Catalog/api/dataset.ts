@@ -3,6 +3,7 @@ import type { AxiosInstance } from "axios"
 import { Resource as ResourceD } from "../../Library/Resource"
 import { Application } from "../../Platform/Application"
 import { ColumnSchema } from "../ColumnSchema"
+import { Transaction } from "../Transaction"
 import { Dataset as DatasetD } from "../../Dataset/Dataset"
 
 export namespace Dataset {
@@ -108,6 +109,28 @@ export namespace Dataset {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** The latest version's transaction: when, by whom and how it was written (`provenance`). Null before the first commit. Needs read. */
+    export namespace GetLatestTransaction {
+        export const Response = z.object({ transaction: Transaction.Schema.nullable() })
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /** Each column's nulls and distinct values over the whole latest view — a full read, so asked for on demand. Needs read. */
+    export namespace GetColumnStats {
+        export const Column = z.object({
+            nullCount:     z.number().int().nonnegative(),
+            distinctCount: z.number().int().nonnegative(),            // approximate: HyperLogLog
+        })
+        export type  Column = z.infer<typeof Column>
+
+        export const Response = z.object({
+            sequence: DatasetD.Sequence,
+            rowCount: z.number().int().nonnegative(),
+            columns:  z.record(z.string(), Column),                    // by column name
+        })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export async function list(api: AxiosInstance): Promise<List.Response> {
         const { data } = await api.get("/api/catalog/datasets")
         return List.Response.parse(data)
@@ -154,6 +177,16 @@ export namespace Dataset {
     export async function setSchema(api: AxiosInstance, rid: DatasetD.Rid, req: SetSchema.Request): Promise<SetSchema.Response> {
         const { data } = await api.put(`/api/catalog/datasets/${rid}/schema`, req)
         return SetSchema.Response.parse(data)
+    }
+
+    export async function getLatestTransaction(api: AxiosInstance, rid: DatasetD.Rid): Promise<GetLatestTransaction.Response> {
+        const { data } = await api.get(`/api/catalog/datasets/${rid}/transactions/latest`)
+        return GetLatestTransaction.Response.parse(data)
+    }
+
+    export async function getColumnStats(api: AxiosInstance, rid: DatasetD.Rid): Promise<GetColumnStats.Response> {
+        const { data } = await api.get(`/api/catalog/datasets/${rid}/column-stats`)
+        return GetColumnStats.Response.parse(data)
     }
 
     /** Fields first, then the file — the server reads them in that order. */

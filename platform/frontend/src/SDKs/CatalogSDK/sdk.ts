@@ -56,6 +56,20 @@ export class CatalogSDKImpl extends BaseSDK<CatalogSDK.State> {
             queryFn: () => this.actions.dataset.preview(rid),
             staleTime: 0,
         }),
+
+        /** When, by whom and how the latest version was written. */
+        latestTransaction: (rid: Dataset.Rid) => ({
+            queryKey: ['catalog', 'transaction', 'latest', rid] as const,
+            queryFn: () => this.actions.dataset.getLatestTransaction(rid),
+            staleTime: 0,
+        }),
+
+        /** Each column's nulls and distinct values — a read of every file, so a page asks for it (`enabled`) on demand. */
+        columnStats: (rid: Dataset.Rid) => ({
+            queryKey: ['catalog', 'column-stats', rid] as const,
+            queryFn: () => this.actions.dataset.getColumnStats(rid),
+            staleTime: Infinity,
+        }),
     }
 
     public override cleanup(): void {

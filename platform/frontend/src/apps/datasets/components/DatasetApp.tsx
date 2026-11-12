@@ -2,16 +2,17 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Menubar } from '@quarry/standard-ui/foundations/menubar'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
 import { Icon } from '@quarry/standard-ui/icons'
-import type { Dataset } from '@quarry/shared/domain'
+import { Foundations, type Dataset } from '@quarry/shared/domain'
 import { App } from '@/AppKit'
 import { CatalogSDK } from '@/SDKs/CatalogSDK/sdk'
 import { DatasetPreview } from '@/SDKs/CatalogSDK/ui/DatasetPreview'
-import { LibrarySDK } from '@/SDKs/LibrarySDK/sdk'
-import { Detail, Details } from '@/components/Details'
+import { ForgeSDK } from '@/SDKs/ForgeSDK/sdk'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ResourceBreadcrumbs } from '@/components/ResourceBreadcrumbs'
-import { dateTime, fileSize, number } from '@/utils/format'
+import { number } from '@/utils/format'
 import { datasetsApp } from '../definition'
+import { DatasetAbout } from './DatasetAbout'
+import { DatasetColumns } from './DatasetColumns'
 
 interface Props {
     rid: Dataset.Rid
@@ -36,6 +37,9 @@ export function DatasetApp({ rid }: Props) {
         void datasetRequest.refetch()
         void viewRequest.refetch()
         void previewRequest.refetch()
+        void CatalogSDK.invalidate(CatalogSDK.query.latestTransaction(rid))
+        void ForgeSDK.invalidate(ForgeSDK.query.currentRecipe(rid))
+        void ForgeSDK.invalidate(ForgeSDK.query.staleness([rid], Foundations.MAIN_BRANCH))
     }
 
     return (
@@ -88,11 +92,11 @@ export function DatasetApp({ rid }: Props) {
                     </Tabs.List>
 
                     <Tabs.Content value='about'>
-                        {dataset && <AboutPanel dataset={dataset} view={view} />}
+                        {dataset && <DatasetAbout dataset={dataset} view={view} />}
                     </Tabs.Content>
 
                     <Tabs.Content value='columns'>
-                        {view && <ColumnsPanel view={view} />}
+                        {view && <DatasetColumns rid={rid} view={view} />}
                     </Tabs.Content>
                 </Tabs.Root>
             </App.LeftSidebar>
@@ -134,67 +138,4 @@ function ViewTabs() {
             </span>
         </div>
     )
-}
-
-interface AboutPanelProps {
-    dataset: Dataset
-    view:    Dataset.View | undefined
-}
-
-function AboutPanel({ dataset, view }: AboutPanelProps) {
-    const [path] = LibrarySDK.useWith(
-        state => LibrarySDK.selectors.path(state, dataset.rid),
-        query => [query.path(dataset.rid)],
-    )
-
-    const location = path.slice(0, -1).map(ancestor => ancestor.name).join(' / ')
-
-    return (
-        <div className='flex flex-col gap-4 py-4'>
-            <p className='text-sm text-muted-foreground'>{dataset.description || 'No description.'}</p>
-
-            <Details>
-                <Detail label='Updated'>{dateTime(dataset.updatedAt)}</Detail>
-                <Detail label='Created'>{dateTime(dataset.createdAt)}</Detail>
-                <Detail label='Location'>
-                    <span className='block truncate' title={location}>/{location}</span>
-                </Detail>
-                <Detail label='Type'>Dataset</Detail>
-                <Detail label='Size'>{view ? sizeSummary(view) : '—'}</Detail>
-                <Detail label='Format'>{view?.schema?.reader.format ?? '—'}</Detail>
-                <Detail label='RID'>
-                    <span className='block truncate font-mono text-xs' title={dataset.rid}>{dataset.rid}</span>
-                </Detail>
-            </Details>
-        </div>
-    )
-}
-
-interface ColumnsPanelProps {
-    view: Dataset.View
-}
-
-function ColumnsPanel({ view }: ColumnsPanelProps) {
-    if (!view.schema)
-        return <p className='py-4 text-sm text-muted-foreground'>No schema yet. Upload a file to start.</p>
-
-    return (
-        <ul className='flex flex-col py-2'>
-            {view.schema.columns.map(column => (
-                <li key={column.name} className='flex items-center justify-between gap-3 border-b border-border py-2 text-sm'>
-                    <span className='truncate font-mono'>{column.name}</span>
-                    <span className='shrink-0 text-xs text-muted-foreground'>{column.type}</span>
-                </li>
-            ))}
-        </ul>
-    )
-}
-
-/** "5 columns • 1 file • 229 KB" */
-function sizeSummary(view: Dataset.View): string {
-    const columns = view.schema?.columns.length ?? 0
-    const files = view.files.length
-    const bytes = view.files.reduce((total, file) => total + file.bytes, 0)
-
-    return `${columns} columns • ${files} ${files === 1 ? 'file' : 'files'} • ${fileSize(bytes)}`
 }

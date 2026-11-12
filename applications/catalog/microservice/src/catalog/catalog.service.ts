@@ -134,6 +134,14 @@ export class CatalogService {
         return this.transaction.resolveView(principal, rid, Foundations.MAIN_BRANCH, sequence);
     }
 
+    /** The latest version's transaction — when, by whom and how — or null before the first commit. */
+    @SecurityGate('read')
+    async getLatestTransaction(principal: Principal, rid: Dataset.Rid): Promise<Catalog.Transaction | null> {
+        const latest = await this.transaction.getLatestMany(principal, [rid]);
+
+        return latest[rid];
+    }
+
     /**
      * An app opening the dataset's page: the dataset and its latest view, with
      * the audit `open` recorded in the same transaction. Gated like view (it

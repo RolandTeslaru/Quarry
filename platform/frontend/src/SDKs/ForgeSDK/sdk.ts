@@ -41,6 +41,13 @@ export class ForgeSDKImpl extends BaseSDK<ForgeSDK.State> {
             queryFn: () => this.actions.build.get(rid),
         }),
 
+        /** What computes the dataset on main; null for a raw dataset. */
+        currentRecipe: (datasetRid: Dataset.Rid) => ({
+            queryKey: ['forge', 'recipe', 'current', datasetRid] as const,
+            queryFn: () => this.actions.recipe.getCurrent(datasetRid),
+            staleTime: 0,
+        }),
+
         /** Forge needs at least one dataset. Until a changed set is answered, the last answer stands. */
         staleness: (datasetRids: Dataset.Rid[], branch: Foundations.Branch) => ({
             queryKey: ['forge', 'staleness', branch, datasetRids] as const,
