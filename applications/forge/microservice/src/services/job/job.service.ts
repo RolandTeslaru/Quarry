@@ -29,6 +29,11 @@ export class JobService {
         return job;
     }
 
+    /** These jobs, by RID — those the principal can see. */
+    public async getJobs(principal: Principal, rids: Forge.Job.Rid[]): Promise<Record<Forge.Job.Rid, Forge.Job>> {
+        return this.repository.getMany(principal, rids);
+    }
+
     public async listByBuild(principal: Principal, buildRid: Forge.Build.Rid): Promise<Forge.Job[]> {
         return this.repository.listByBuild(principal, buildRid);
     }

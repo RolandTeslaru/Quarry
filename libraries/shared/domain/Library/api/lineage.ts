@@ -15,10 +15,7 @@ export namespace Lineage {
         })
         export type  Request = z.infer<typeof Request>
 
-        export const Response = z.object({
-            resources: z.record(Resource.Rid, Resource.Base),
-            edges:     LineageD.Edge.Schema.array(),
-        })
+        export const Response = LineageD.Graph.Schema
         export type  Response = z.infer<typeof Response>
     }
 

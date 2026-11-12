@@ -45,7 +45,18 @@ export class LineageRepository extends Repository(LibraryDB.database) {
         branch:    Foundations.Branch,
         walk:      Library.Lineage.Walk,
     ): Promise<LibraryDB.LineageGraph.Rows> {
-        return this.walk(rid, branch, walk, 'downstream_rid', 'upstream_rid');
+        return this.walk([rid], branch, walk, 'downstream_rid', 'upstream_rid');
+    }
+
+    /** What feeds any of these resources, in one walk from all of them. */
+    @Transactional()
+    public async getUpstreamOfMany(
+        principal: Principal,
+        rids:      Library.Resource.Rid[],
+        branch:    Foundations.Branch,
+        walk:      Library.Lineage.Walk,
+    ): Promise<LibraryDB.LineageGraph.Rows> {
+        return this.walk(rids, branch, walk, 'downstream_rid', 'upstream_rid');
     }
 
     @Transactional()
@@ -55,7 +66,7 @@ export class LineageRepository extends Repository(LibraryDB.database) {
         branch:    Foundations.Branch,
         walk:      Library.Lineage.Walk,
     ): Promise<LibraryDB.LineageGraph.Rows> {
-        return this.walk(rid, branch, walk, 'upstream_rid', 'downstream_rid');
+        return this.walk([rid], branch, walk, 'upstream_rid', 'downstream_rid');
     }
 
     /** Edges with both ends among these, both live and visible. */
@@ -83,7 +94,7 @@ export class LineageRepository extends Repository(LibraryDB.database) {
 
     /** These resources, those that are live and visible, and the edges among them. */
     @Transactional()
-    public async getEdgesAndResources(
+    public async getGraph(
         principal: Principal,
         rids:      Library.Resource.Rid[],
         branch:    Foundations.Branch,
@@ -128,19 +139,19 @@ export class LineageRepository extends Repository(LibraryDB.database) {
     // ── helpers ─────────────────────────────────────────────────────────
 
     /**
-     * Hop by hop from the resource, so a hidden or trashed resource stops the walk there. Joining both
+     * Hop by hop from the resources, so a hidden or trashed resource stops the walk there. Joining both
      * ends applies library.resource's policy to each: the edge's own policies let a declarer's editors see more.
      */
     private async walk(
-        rid:    Library.Resource.Rid,
+        rids:   Library.Resource.Rid[],
         branch: Foundations.Branch,
         walk:   Library.Lineage.Walk,
         from:   'upstream_rid' | 'downstream_rid',
         to:     'upstream_rid' | 'downstream_rid',
     ): Promise<LibraryDB.LineageGraph.Rows> {
         const edges: LibraryDB.LineageEdge.Row[] = [];
-        const visited = new Set<Library.Resource.Rid>([rid]);
-        let frontier = new Set<Library.Resource.Rid>([rid]);
+        const visited = new Set<Library.Resource.Rid>(rids);
+        let frontier = new Set<Library.Resource.Rid>(rids);
 
         for (let hop = 0; hop < walk.depth && frontier.size > 0; hop += 1) {
             const rows = await this.trx

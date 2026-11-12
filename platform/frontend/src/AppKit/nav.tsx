@@ -10,7 +10,7 @@ function NavRoot({ className, ...props }: ComponentProps<'div'>) {
     return (
         <Overlay.Panel
             data-slot='app-nav'
-            className={cn('z-10 mt-2 flex h-(--app-nav-height) items-center justify-between gap-3 [grid-area:nav]', className)}
+            className={cn('z-10 mt-surface-gap flex h-(--app-nav-height) items-center justify-between gap-3 [grid-area:nav]', className)}
             {...props}
         />
     )

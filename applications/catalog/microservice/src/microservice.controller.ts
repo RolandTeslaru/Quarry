@@ -105,6 +105,11 @@ export class CatalogMicroserviceController {
         return this.transaction.getIncrementalStates(principal, request.datasetRids);
     }
 
+    @MicroserviceCall(Calls.GetLatestTransactions, { from: ['forge'] })
+    public getLatestTransactions(principal: Principal, request: Calls.GetLatestTransactions.Request) {
+        return this.transaction.getLatestBatch(principal, request.datasetRids);
+    }
+
     @MicroserviceCall(Calls.AbortTransactions, { from: ['forge'] })
     public async abortTransactions(principal: Principal, request: Calls.AbortTransactions.Request) {
         const transactions: Parameters<TransactionService['abortBatch']>[1] = [];

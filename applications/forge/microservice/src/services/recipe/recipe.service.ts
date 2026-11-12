@@ -40,8 +40,9 @@ export class RecipeService {
             this.repository.forDatasetGet(principal, datasetRid, branches),
     };
 
-    /** The recipes computing several datasets now, by RID: a recipe writing several of them is one. A dataset nothing builds is a conflict. */
+    /** The recipes computing several datasets now, by RID: a recipe writing several of them is one. */
     public readonly forDatasets = {
+        /** A dataset nothing builds is a conflict. */
         get: async (principal: Principal, datasetRids: Dataset.Rid[], branches: Foundations.Branch[]): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> => {
             const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
 
@@ -57,14 +58,11 @@ export class RecipeService {
             return recipes;
         },
 
-        /** And every recipe upstream of them, walking each recipe's inputs. The walk stops at a dataset nothing builds: it's read as it is. */
+        /** And every recipe upstream of them, walking each recipe's inputs. A dataset nothing builds — given or reached — ends the walk: it's read as it is. */
         getUpstream: async (principal: Principal, datasetRids: Dataset.Rid[], branches: Foundations.Branch[]): Promise<Record<Forge.Recipe.Rid, Forge.Recipe>> => {
-            const recipes = await this.forDatasets.get(principal, datasetRids, branches);
-            const seen = new Set<Dataset.Rid>(datasetRids);
-            const next: Dataset.Rid[] = [];
-
-            for (const recipe of Object.values(recipes))
-                next.push(...recipe.inputDatasetRids);
+            const recipes: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
+            const seen = new Set<Dataset.Rid>();
+            const next = [...datasetRids];
 
             while (next.length > 0) {
                 const datasetRid = next.pop()!;

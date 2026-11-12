@@ -123,6 +123,16 @@ export class TransactionService {
         return states;
     }
 
+    /** Each dataset's newest committed transaction: its current version, and what wrote it. Null if it has none. */
+    async getLatestBatch(principal: Principal, datasetRids: Dataset.Rid[], branch = Foundations.MAIN_BRANCH): Promise<Record<Dataset.Rid, Catalog.Transaction | null>> {
+        const latest: Record<Dataset.Rid, Catalog.Transaction | null> = {};
+
+        for (const datasetRid of datasetRids)
+            latest[datasetRid] = await this.repository.getLatest(principal, datasetRid, branch);
+
+        return latest;
+    }
+
     /** Aborts the open ones among these, in one database transaction; finished ones are skipped, so it's safe to repeat. */
     public async abortBatch(principal: Principal, transactions: Pick<Catalog.Transaction, 'rid' | 'datasetRid'>[]): Promise<void> {
         await this.repository.abortBatch(principal, transactions);

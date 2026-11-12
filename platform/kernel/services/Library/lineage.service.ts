@@ -35,6 +35,18 @@ export class LineageService {
         return LibraryDB.LineageGraph.toDomain(await this.repository.getUpstream(principal, rid, branch, walk));
     }
 
+    /** What feeds any of these resources, in one walk from all of them. */
+    public async getUpstreamOfMany(
+        principal: Principal,
+        rids:      Library.Resource.Rid[],
+        branch:    Foundations.Branch,
+        walk:      Library.Lineage.Walk,
+    ): Promise<Library.Lineage.Graph> {
+        const rows = await this.repository.getUpstreamOfMany(principal, rids, branch, walk);
+
+        return LibraryDB.LineageGraph.toDomain(rows);
+    }
+
     /** What the resource feeds. */
     public async getDownstream(
         principal: Principal,
@@ -53,20 +65,10 @@ export class LineageService {
     }
 
     /** These resources, those that are live and visible, and the edges among them. */
-    public async getEdgesAndResources(principal: Principal, rids: Library.Resource.Rid[], branch: Foundations.Branch) {
-        const rows = await this.repository.getEdgesAndResources(principal, rids, branch);
+    public async getGraph(principal: Principal, rids: Library.Resource.Rid[], branch: Foundations.Branch): Promise<Library.Lineage.Graph> {
+        const rows = await this.repository.getGraph(principal, rids, branch);
 
-        const resources: Record<Library.Resource.Rid, Library.Resource.Base> = {};
-
-        for (const row of rows.resources)
-            resources[row.rid] = LibraryDB.Resource.toBase(row);
-
-        const edges: Library.Lineage.Edge[] = [];
-
-        for (const row of rows.edges)
-            edges.push(LibraryDB.LineageEdge.toDomain(row));
-
-        return { resources, edges };
+        return LibraryDB.LineageGraph.toDomain(rows);
     }
 
     /** Main first, as every dataset has it, then every other branch with lineage the caller can see. */

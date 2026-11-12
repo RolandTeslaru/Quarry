@@ -9,13 +9,14 @@ import { CatalogClient, IdentityClient } from '@quarry/platform-kernel/microserv
 import { ForgeRepository } from './repository/forge.repository';
 import type { PlannedJob } from '../job/job.repository';
 import { RecipeService } from '../recipe/recipe.service';
+import { StalenessService } from '../staleness/staleness.service';
 import { AGENT, JobService } from '../job/job.service';
 
 /**
  * Forge's one entry point for other services: builds here, recipes under
- * `recipes` (publish, forDataset, forDatasets).
+ * `recipes` (publish, forDataset, forDatasets), staleness under `staleness`.
  *
- * Initializing a build: its plan from the targets' recipes, validated, its outputs locked (a
+ * Initializing a build: its plan from the targets' recipes, validated, cut to what's stale, its outputs locked (a
  * snapshot transaction on each, so no other writer gets in), persisted with
  * its roots scheduled (their messages in the outbox), relayed. Running the jobs is the
  * ForgeAgents' side: they claim here (claimJob), heartbeat through JobService, and finish here (finishJob), which advances the build.
@@ -28,6 +29,7 @@ export class ForgeService {
     constructor(
         public  readonly gatekeeper: GatekeeperService,
         public  readonly recipes:    RecipeService,
+        public  readonly staleness:  StalenessService,
 
         private readonly jobs:       JobService,
         private readonly catalog:    CatalogClient,
@@ -53,12 +55,13 @@ export class ForgeService {
             await this.catalog.get(principal, { rid: datasetRid });
 
         // 1. The recipes the target asks for — the targets' own (manual), with every recipe upstream of them (upstream),
-        // or only those between the inputs and the targets (connecting) — as an adjacency list.
+        // or only those between the inputs and the targets (connecting) — as an adjacency list. Nothing building a target is a conflict.
         const branches = [request.branch, ...request.fallbackBranches];
+        const targets = await this.recipes.forDatasets.get(principal, request.target.datasetRids, branches);
         let recipes: Record<Forge.Recipe.Rid, Forge.Recipe>;
 
         if (request.target.type === 'manual')
-            recipes = await this.recipes.forDatasets.get(principal, request.target.datasetRids, branches);
+            recipes = targets;
         else if (request.target.type === 'upstream')
             recipes = await this.recipes.forDatasets.getUpstream(principal, request.target.datasetRids, branches);
         else {
@@ -83,6 +86,26 @@ export class ForgeService {
         }
 
         await this.assertPermissionsOnPlan(principal, recipes);
+
+        // Unless forced, only what's stale is built: a recipe with a stale output, and everything below it in the
+        // plan — its inputs are about to change. Fresh recipes' outputs are read as they are; none left, nothing to do.
+        if (!request.forceBuild) {
+            const { outputs } = Forge.Recipe.getDatasets(recipes);
+            const staleness = await this.staleness.get(principal, [...outputs], branches);
+            const stale: Record<Forge.Recipe.Rid, Forge.Recipe> = {};
+
+            for (const recipe of Object.values(recipes))
+                for (const datasetRid of Forge.Recipe.getOutputs(recipe))
+                    if (staleness[datasetRid].reasons.length > 0) {
+                        stale[recipe.rid] = recipe;
+
+                        for (const descendant of Forge.Build.Plan.getDescendants(plan, recipe.rid))
+                            stale[descendant] = recipes[descendant];
+                    }
+
+            recipes = stale;
+            plan = Forge.Build.Plan.create(recipes);
+        }
 
         const buildRid = Forge.Build.createRid();
         const plannedJobs = await this.openTransactionsForOutputs(principal, buildRid, recipes);
@@ -204,7 +227,7 @@ export class ForgeService {
 
         const incrementalOutputs: Dataset.Rid[] = [];
 
-        for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[]) {
+        for (const datasetRid of Forge.Recipe.getOutputs(recipe)) {
             const output = recipe.outputTransactions[datasetRid];
 
             if (output.type === 'append' && output.incrementalColumn)
@@ -277,16 +300,7 @@ export class ForgeService {
      * this build must have data already.
      */
     private async assertPermissionsOnPlan(principal: Principal, recipes: Record<Forge.Recipe.Rid, Forge.Recipe>): Promise<void> {
-        const outputs = new Set<Dataset.Rid>();
-        const inputs = new Set<Dataset.Rid>();
-
-        for (const recipe of Object.values(recipes)) {
-            for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[])
-                outputs.add(datasetRid);
-
-            for (const datasetRid of recipe.inputDatasetRids)
-                inputs.add(datasetRid);
-        }
+        const { outputs, inputs } = Forge.Recipe.getDatasets(recipes);
 
         await this.gatekeeper.assertAll(principal, 'write', outputs);
         await this.gatekeeper.assertAll(principal, 'read', inputs);
@@ -314,14 +328,14 @@ export class ForgeService {
 
             jobs[job.rid] = job;
 
-            for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[])
+            for (const datasetRid of Forge.Recipe.getOutputs(recipe))
                 openings[datasetRid] = { ...recipe.outputTransactions[datasetRid], provenance: { buildRid, jobRid: job.rid } };
         }
 
         const transactions = await this.catalog.openTransactions(principal, { openings, branch: Foundations.MAIN_BRANCH });
 
         for (const job of Object.values(jobs))
-            for (const datasetRid of Object.keys(recipes[job.recipeRid].outputTransactions) as Dataset.Rid[])
+            for (const datasetRid of Forge.Recipe.getOutputs(recipes[job.recipeRid]))
                 job.outputTransactions[datasetRid] = transactions[datasetRid].rid;
 
         return jobs;

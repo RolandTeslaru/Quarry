@@ -61,6 +61,26 @@ export class JobRepository extends Repository(ForgeDB.database) {
         return row ? ForgeDB.Job.toDomain(row) : null;
     }
 
+    /** These jobs, by RID — those the principal can see. */
+    @Transactional()
+    public async getMany(principal: Principal, rids: Forge.Job.Rid[]): Promise<Record<Forge.Job.Rid, Forge.Job>> {
+        const jobs: Record<Forge.Job.Rid, Forge.Job> = {};
+
+        if (rids.length === 0)
+            return jobs;
+
+        const rows = await this.trx
+            .selectFrom('forge.job')
+            .selectAll()
+            .where('rid', 'in', rids)
+            .execute();
+
+        for (const row of rows)
+            jobs[row.rid] = ForgeDB.Job.toDomain(row);
+
+        return jobs;
+    }
+
     @Transactional()
     public async listByBuild(principal: Principal, buildRid: Forge.Build.Rid): Promise<Forge.Job[]> {
         const rows = await this.trx

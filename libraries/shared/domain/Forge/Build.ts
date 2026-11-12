@@ -35,7 +35,7 @@ export namespace Build {
     export namespace Plan {
 
         export const Schema = z.object({
-            roots:    Recipe.Rid.array().min(1),
+            roots:    Recipe.Rid.array(),                         // none: nothing was out of date
             children: z.record(Recipe.Rid, Recipe.Rid.array()),   // every node; a leaf has none
         })
 

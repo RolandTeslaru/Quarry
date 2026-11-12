@@ -10,6 +10,7 @@ import { JobRepository } from '../job/job.repository';
 import { RecipeRepository } from '../recipe/recipe.repository';
 import { RecipeService } from '../recipe/recipe.service';
 import { JobService } from '../job/job.service';
+import { StalenessService } from '../staleness/staleness.service';
 
 /**
  * Forge's three concepts in one module: ForgeRepository's writes span builds and jobs, and
@@ -23,7 +24,7 @@ import { JobService } from '../job/job.service';
         DurableModule.registerQueue(Forge.DurableQueue.RunJob),
         DurableModule.registerEvent(Forge.DurableEvent.RecipeChanged, Forge.DurableEvent.JobSucceeded, Forge.DurableEvent.JobFailed),
     ],
-    providers: [ForgeService, JobService, RecipeService, ForgeRepository, BuildRepository, JobRepository, RecipeRepository, CatalogClient, IdentityClient],
-    exports:   [ForgeService, JobService, RecipeService],
+    providers: [ForgeService, JobService, RecipeService, StalenessService, ForgeRepository, BuildRepository, JobRepository, RecipeRepository, CatalogClient, IdentityClient],
+    exports:   [ForgeService, JobService, RecipeService, StalenessService],
 })
 export class ForgeModule {}

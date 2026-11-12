@@ -52,8 +52,8 @@ describe("Build.Plan", () => {
 
     describe("Schema", () => {
 
-        it("needs at least one root", () => {
-            expect(Build.Plan.Schema.safeParse({ roots: [], children: {} }).success).toBe(false)
+        it("takes an empty plan: a build with nothing out of date", () => {
+            expect(Build.Plan.Schema.safeParse({ roots: [], children: {} }).success).toBe(true)
             expect(Build.Plan.Schema.safeParse(diamond).success).toBe(true)
         })
     })

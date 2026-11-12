@@ -188,6 +188,22 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
         return newest?.incremental?.state ?? null;
     }
 
+    /** The dataset's newest committed transaction on the branch; null if it has none. */
+    @Transactional()
+    async getLatest(principal: Principal, datasetRid: Dataset.Rid, branch: Foundations.Branch): Promise<Catalog.Transaction | null> {
+        const row = await this.trx
+            .selectFrom('catalog.transaction')
+            .selectAll()
+            .where('dataset_rid', '=', datasetRid)
+            .where('branch', '=', branch)
+            .where('status', '=', 'committed')
+            .orderBy('sequence', 'desc')
+            .limit(1)
+            .executeTakeFirst();
+
+        return row ? CatalogDB.Transaction.toDomain(row) : null;
+    }
+
     /**
      * Commits: next sequence on the branch (row lock serialises commits),
      * status committed, `catalog:dataset:updated` published — all in one transaction.

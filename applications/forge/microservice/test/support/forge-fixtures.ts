@@ -181,17 +181,18 @@ export class ForgeHarness {
         return this.buildTarget(principal, { type: 'manual', datasetRids }, onJobFailure);
     }
 
-    /** A build of this target on main. */
+    /** A build of this target on main — of what's out of date, unless forced. */
     public async buildTarget(
         principal:    Principal.User,
         target:       Forge.Build.Target,
         onJobFailure: Forge.Build.OnJobFailure = 'cancel-descendants',
+        forceBuild = false,
     ): Promise<Forge.API.CreateBuild.Response> {
         return this.forge.initializeBuild(principal, {
             branch:           MAIN,
             fallbackBranches: [],
             target,
-            forceBuild:       false,
+            forceBuild,
             onJobFailure,
             retryCount:       0,
         });
@@ -329,7 +330,7 @@ export class ForgeHarness {
         return rows[0]?.status;
     }
 
-    private async commitVersion(principal: Principal.User, datasetRid: Dataset.Rid): Promise<void> {
+    public async commitVersion(principal: Principal.User, datasetRid: Dataset.Rid): Promise<void> {
         await Catalog.API.Dataset.upload(await this.getApi(principal, requireEnv('CATALOG_URL')), datasetRid, { mode: 'snapshot' }, new Blob(['n\n1\n']), 'part-0.csv');
     }
 }

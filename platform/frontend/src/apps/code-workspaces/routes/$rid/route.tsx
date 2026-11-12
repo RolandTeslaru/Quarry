@@ -149,7 +149,7 @@ function WorkspaceLayout({ rid }: WorkspaceLayoutProps) {
             </App.Nav>
 
             {/* The IDE doesn't scroll: right under the nav, no gap, and ending clear of the window's bottom edge. */}
-            <App.Content className='overflow-hidden pt-[calc(var(--app-nav-height)+--spacing(2))] pb-2'>
+            <App.Content className='overflow-hidden pt-[calc(var(--app-nav-height)+var(--surface-gap))] pb-surface-gap'>
                 <div className={cn('min-h-0 flex-1', tab !== 'code' && 'hidden')}>
                     <IDESessionFrame rid={rid} restarting={restart.pending} />
                 </div>

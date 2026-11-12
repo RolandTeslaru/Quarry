@@ -62,12 +62,13 @@ describe('a sync as a Forge build', () => {
         await dropExternalDatabase(external);
     });
 
-    /** Builds the sync's dataset, and waits for it to end. */
+    /** Builds the sync's dataset, and waits for it to end. Forced, as a sync's run is: the source's new data is invisible to Forge. */
     async function build(sync: DataConnection.Sync): Promise<Forge.API.GetBuild.Response> {
         const { build: started } = await Forge.API.createBuild(forge, {
             branch:           Foundations.MAIN_BRANCH,
             fallbackBranches: [],
             target:           { type: 'manual', datasetRids: [sync.outputDatasetRid] },
+            forceBuild:       true,
         });
         let found = await Forge.API.getBuild(forge, started.rid);
 

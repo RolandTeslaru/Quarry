@@ -31,7 +31,8 @@ export function SyncPanel({ source }: Props) {
     const runSync = withTask(async (sync: DataConnection.Sync) => {
         setSelectedRid(sync.rid)
 
-        await ForgeSDK.actions.build.start(sync.outputDatasetRid)
+        // Forced: whether the source has new data is invisible to Forge, so a sync's dataset never reads as out of date.
+        await ForgeSDK.actions.build.start(sync.outputDatasetRid, true)
     })
 
     return (

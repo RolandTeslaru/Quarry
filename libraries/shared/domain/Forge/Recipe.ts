@@ -75,5 +75,31 @@ export namespace Recipe {
         inputDatasetRids:  [...recipe.inputDatasetRids].sort(),
         outputTransaction: recipe.outputTransactions[datasetRid],
     })
+
+    /** The datasets the recipe writes. */
+    export const getOutputs = (recipe: Pick<Recipe, "outputTransactions">) => Object.keys(recipe.outputTransactions) as Dataset.Rid[]
+
+    /** The datasets some recipes write and read. */
+    export interface Datasets {
+        producerOf: Record<Dataset.Rid, Recipe>          // which of them writes each dataset
+        outputs:    Set<Dataset.Rid>
+        inputs:     Set<Dataset.Rid>
+    }
+
+    export function getDatasets(recipes: Record<Rid, Recipe>): Datasets {
+        const datasets: Datasets = { producerOf: {}, outputs: new Set(), inputs: new Set() }
+
+        for (const recipe of Object.values(recipes)) {
+            for (const datasetRid of getOutputs(recipe)) {
+                datasets.producerOf[datasetRid] = recipe
+                datasets.outputs.add(datasetRid)
+            }
+
+            for (const datasetRid of recipe.inputDatasetRids)
+                datasets.inputs.add(datasetRid)
+        }
+
+        return datasets
+    }
 }
 export type Recipe = z.infer<typeof Recipe.Schema>

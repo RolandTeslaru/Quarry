@@ -1,5 +1,14 @@
 @import '@fontsource-variable/geist';
 
+/* Spaceman (Dirk Schaechter, 2001): wide, squared and unicase, for titles. One weight. */
+@font-face {
+    font-family: 'Spaceman';
+    src: url('./fonts/Spaceman.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 @utility input-default {
     @apply bg-input border-input-border focus-visible:border-ring focus-visible:ring-ring/50
     aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive
@@ -154,6 +163,9 @@ code {
     --radius-3xl: calc(var(--radius) + 12px);
     --radius-4xl: calc(var(--radius) + 16px);
 
+    /* The space between surfaces: the shell's sidebar, an app's nav, its sidebars, the window's edge. */
+    --surface-gap: 4px;
+
     /* Font families */
     --font-sans: 'Geist Variable', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
@@ -231,8 +243,10 @@ code {
 
 @theme inline {
     --color-separator: var(--separator);
+    --spacing-surface-gap: var(--surface-gap);
     --font-sans: 'Geist Variable', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+    --font-title: 'Spaceman', 'Geist Variable', system-ui, sans-serif;
 }
 
 /* Braille pulse spinner */

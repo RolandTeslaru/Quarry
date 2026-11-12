@@ -221,14 +221,14 @@ describe('lineage from publishing recipes', () => {
         ]);
         await harness.trash(user, datasets.gone);
 
-        const graph = await harness.library.lineage.getEdgesAndResources(user, [datasets.a, datasets.b, datasets.gone], MAIN);
+        const graph = await harness.library.lineage.getGraph(user, [datasets.a, datasets.b, datasets.gone], MAIN);
 
         expect(graph.edges.map((found) => edge(found.upstreamRid, found.downstreamRid))).toEqual([edge(datasets.a, datasets.b)]);
         expect(Object.keys(graph.resources).sort()).toEqual([datasets.a, datasets.b].sort());
     });
 
     it('reads an empty graph of no resources', async () => {
-        await expect(harness.library.lineage.getEdgesAndResources(user, [], MAIN)).resolves.toEqual({ resources: {}, edges: [] });
+        await expect(harness.library.lineage.getGraph(user, [], MAIN)).resolves.toEqual({ resources: {}, edges: [], parentsOf: {}, childrenOf: {} });
     });
 
     it('lists main, then the branches with an edge the reader can see', async () => {

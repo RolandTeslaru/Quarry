@@ -48,7 +48,7 @@ export class ExplorationService {
             throw new NotFoundException('Not found');
 
         const nodeRids = Object.keys(exploration.nodes) as Library.Resource.Rid[];
-        const { resources, edges } = await this.library.lineage.getEdgesAndResources(principal, nodeRids, exploration.branch);
+        const { resources, edges } = await this.library.lineage.getGraph(principal, nodeRids, exploration.branch);
 
         return {
             exploration,

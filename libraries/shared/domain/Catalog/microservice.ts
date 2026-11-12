@@ -160,6 +160,17 @@ export namespace Microservice {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Each dataset's newest committed transaction on main — its current version, and what wrote it (`provenance`). Null if it has none. */
+    export namespace GetLatestTransactions {
+        export const PATTERN = "catalog.get-latest-transactions"
+
+        export const Request = z.object({ datasetRids: Dataset.Rid.array() })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = z.record(Dataset.Rid, Transaction.Schema.nullable())
+        export type  Response = z.infer<typeof Response>
+    }
+
     /** Aborts the open ones among these — one per dataset; finished ones are skipped, so it's safe to repeat. */
     export namespace AbortTransactions {
         export const PATTERN = "catalog.abort-transactions"
@@ -223,6 +234,7 @@ export namespace Microservice {
         commitTransactions: CommitTransactions,
         abortTransactions:  AbortTransactions,
         getIncrementalStates: GetIncrementalStates,
+        getLatestTransactions: GetLatestTransactions,
         getSignedReadUrls:  GetSignedReadUrls,
         getSignedWriteUrl:  GetSignedWriteUrl,
         registerFile:       RegisterFile,

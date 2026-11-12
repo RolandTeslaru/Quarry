@@ -110,9 +110,9 @@ describe('the ForgeAgent API', () => {
             return datasets.out;
         }
 
-        /** Builds the dataset and claims its job. */
+        /** Builds the dataset and claims its job. Forced: with no inputs, it reads a source Forge can't see — never out of date, as a sync. */
         async function claimNext(datasetRid: Dataset.Rid) {
-            const { jobs } = await harness.build(user, [datasetRid]);
+            const { jobs } = await harness.buildTarget(user, { type: 'manual', datasetRids: [datasetRid] }, 'cancel-descendants', true);
             const [job] = Object.values(jobs);
 
             return harness.forge.claimJob(job.rid, job.attempt);

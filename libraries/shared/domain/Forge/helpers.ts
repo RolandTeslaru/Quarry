@@ -1,6 +1,6 @@
 import type { Dataset } from "../Dataset/Dataset"
 import type { Build } from "./Build"
-import type { Recipe } from "./Recipe"
+import { Recipe } from "./Recipe"
 
 /** Recipes that can never run: on a cycle — reading each other's outputs — or waiting on one. */
 export class PlanCycleError extends Error {
@@ -17,22 +17,18 @@ export class PlanCycleError extends Error {
  * recipes with no parent are the roots. Throws a PlanCycleError if some recipe could never run. Reached as `Build.Plan.create`.
  */
 export function createPlan(recipes: Record<Recipe.Rid, Recipe>): Build.Plan {
-    const producerOf: Record<Dataset.Rid, Recipe.Rid> = {}
+    const { producerOf } = Recipe.getDatasets(recipes)
     const children: Record<Recipe.Rid, Set<Recipe.Rid>> = {}
     const hasParent = new Set<Recipe.Rid>()
 
-    // Which recipe writes each dataset; every recipe starts with no children.
-    for (const recipe of Object.values(recipes)) {
+    // Every recipe starts with no children.
+    for (const recipe of Object.values(recipes))
         children[recipe.rid] = new Set()
-
-        for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[])
-            producerOf[datasetRid] = recipe.rid
-    }
 
     // A recipe is the child of whichever recipe writes one of its inputs — not of itself, when it reads its own output.
     for (const recipe of Object.values(recipes)) {
         for (const datasetRid of recipe.inputDatasetRids) {
-            const parent = producerOf[datasetRid]
+            const parent = producerOf[datasetRid]?.rid
 
             if (!parent || parent === recipe.rid)
                 continue
@@ -107,7 +103,7 @@ export function getConnectingRecipes(recipes: Record<Recipe.Rid, Recipe>, inputR
             if (connecting[recipe.rid])
                 continue
 
-            const outputs = Object.keys(recipe.outputTransactions) as Dataset.Rid[]
+            const outputs = Recipe.getOutputs(recipe)
             let writesInput = false
             let readsReached = false
 

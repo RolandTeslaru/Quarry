@@ -30,7 +30,7 @@ function ShellLayout() {
                 'max-sm:[--shell-sidebar-width:--spacing(14)]',
             )}
         >
-            <div className='p-2 fixed z-50 top-0 h-screen'>
+            <div className='p-surface-gap fixed z-50 top-0 h-screen'>
                 <ShellSidebar expanded={expanded} onToggle={toggleSidebar} />
             </div>
 

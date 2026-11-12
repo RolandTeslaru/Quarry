@@ -39,13 +39,14 @@ export class BuildActions extends ActionGroup<ForgeSDKImpl> {
         return data
     }
 
-    /** Starts a build of the dataset on main: whatever its current recipe says. */
-    public async start(datasetRid: Dataset.Rid): Promise<Forge.Build> {
+    /** Starts a build of the dataset on main: whatever its current recipe says — only if it's out of date, unless forced. */
+    public async start(datasetRid: Dataset.Rid, forceBuild = false): Promise<Forge.Build> {
         try {
             const { build } = await Forge.API.createBuild(api, {
                 branch:           Foundations.MAIN_BRANCH,
                 fallbackBranches: [],
                 target:           { type: 'manual', datasetRids: [datasetRid] },
+                forceBuild,
             })
 
             await this.sdk.invalidate(this.sdk.query.datasetBuilds(datasetRid))

@@ -46,7 +46,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         const outputs: Dataset.Rid[] = [];
 
         for (const recipe of recipes)
-            outputs.push(...Object.keys(recipe.outputTransactions) as Dataset.Rid[]);
+            outputs.push(...Forge.Recipe.getOutputs(recipe));
 
         const outputRids = new Set(outputs);
 
@@ -88,7 +88,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
             const upstreamRids = recipe.inputDatasetRids.length > 0 ? recipe.inputDatasetRids : [producerRid];
 
             for (const upstreamRid of upstreamRids)
-                for (const downstreamRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[])
+                for (const downstreamRid of Forge.Recipe.getOutputs(recipe))
                     edges.push({ upstreamRid, downstreamRid });
         }
 
@@ -97,7 +97,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
         const changes: Durable.Event.InputOf<typeof Forge.DurableEvent.RecipeChanged>[] = [];
 
         for (const recipe of published)
-            for (const datasetRid of Object.keys(recipe.outputTransactions) as Dataset.Rid[]) {
+            for (const datasetRid of Forge.Recipe.getOutputs(recipe)) {
                 const before = previous[datasetRid];
 
                 if (!before || !isDeepStrictEqual(Forge.Recipe.getComputation(before, datasetRid), Forge.Recipe.getComputation(recipe, datasetRid)))
@@ -198,7 +198,7 @@ export class RecipeRepository extends Repository(ForgeDB.database) {
                 .values(recipe.inputDatasetRids.map((datasetRid) => ({ recipe_rid: rid, dataset_rid: datasetRid })))
                 .execute();
 
-        const outputs = Object.keys(recipe.outputTransactions) as Dataset.Rid[];
+        const outputs = Forge.Recipe.getOutputs(recipe);
 
         await this.trx
             .insertInto('forge.recipe_output_dataset')

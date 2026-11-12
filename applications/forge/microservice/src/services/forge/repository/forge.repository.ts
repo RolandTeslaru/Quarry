@@ -51,6 +51,13 @@ export class ForgeRepository extends Repository(ForgeDB.database) {
     ): Promise<Record<Forge.Job.Rid, Forge.Job>> {
         await this._build.insert(principal, build);
 
+        // Nothing out of date: a build with nothing to do, finished as it starts.
+        if (Object.keys(plannedJobs).length === 0) {
+            await this._build.end(principal, build.rid, 'succeeded', new Date());
+
+            return {};
+        }
+
         const jobs = await this._job.insert(principal, build, plannedJobs);
         const roots: Forge.Job[] = [];
 

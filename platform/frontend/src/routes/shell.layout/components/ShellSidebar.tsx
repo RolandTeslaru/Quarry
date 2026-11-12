@@ -113,15 +113,11 @@ function Brand() {
         <Link
             to='/library'
             aria-label='Quarry'
-            className={cn(COLLAPSIBLE, 'flex min-w-0 flex-1 items-center gap-2.5 text-foreground no-underline hover:text-foreground hover:no-underline')}
+            className={cn(COLLAPSIBLE, 'flex min-w-0 flex-1 items-center justify-center pr-[46px] text-foreground no-underline hover:text-foreground hover:no-underline')}
         >
-            <div className='grid h-9 w-[34px] shrink-0 place-items-center rounded-[3px_3px_10px_3px] bg-primary text-2xl font-semibold text-primary-foreground'>
-                Q
-            </div>
-            <span className='text-[21px] font-semibold'>Quarry</span>
-            <span className='ml-auto rounded-[3px] border border-border px-[5px] py-[3px] text-[9px] tracking-[0.8px] text-muted-foreground'>
-                LOCAL
-            </span>
+            {/* Centred on the sidebar, not beside the menu button: the right padding matches the button and its gap.
+                18px: Spaceman is wide, and the wordmark has to fit that space. */}
+            <span className='font-title text-[18px] leading-none'>QUARRY</span>
         </Link>
     )
 }

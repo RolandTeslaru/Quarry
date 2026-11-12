@@ -55,7 +55,7 @@ export function Background({ className, ...props }: ComponentProps<'div'>) {
 
 /**
  * Keeps what it holds clear of the shell's sidebar, which floats over the app:
- * padded by `--shell-sidebar-width`, the sidebar's 8px float inset and the 8px gap
+ * padded by `--shell-sidebar-width`, the sidebar's inset and the gap
  * between panels, so it moves as the sidebar expands. A background around it still reaches under the sidebar.
  */
 export function SafeArea({ className, ...props }: ComponentProps<'div'>) {
@@ -63,7 +63,7 @@ export function SafeArea({ className, ...props }: ComponentProps<'div'>) {
         <div
             data-slot='app-safe-area'
             className={cn(
-                'pl-[calc(var(--shell-sidebar-width)+--spacing(4))] transition-[padding] duration-200 ease-out motion-reduce:transition-none',
+                'pl-[calc(var(--shell-sidebar-width)+var(--surface-gap)*2)] transition-[padding] duration-200 ease-out motion-reduce:transition-none',
                 className,
             )}
             {...props}
@@ -84,7 +84,7 @@ export function Overlay({ className, ...props }: ComponentProps<'div'>) {
         <SafeArea
             data-slot='app-overlay'
             className={cn(
-                `pointer-events-none relative grid h-full min-h-0 gap-y-2 pr-2 *:pointer-events-auto
+                `pointer-events-none relative grid h-full min-h-0 gap-y-surface-gap pr-surface-gap *:pointer-events-auto
                 grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)]
                 [grid-template-areas:'nav_nav_nav'_'left_content_right']`,
                 className,
@@ -145,7 +145,7 @@ export function LeftSidebar({ className, ...props }: ComponentProps<'div'>) {
     return (
         <OverlayKit.Panel
             data-slot='app-left-sidebar'
-            className={cn('mr-2 mb-2 flex min-h-0 flex-col overflow-y-auto [grid-area:left]', className)}
+            className={cn('mr-surface-gap mb-surface-gap flex min-h-0 flex-col overflow-y-auto [grid-area:left]', className)}
             {...props}
         />
     )
@@ -156,7 +156,7 @@ export function RightSidebar({ className, ...props }: ComponentProps<'div'>) {
     return (
         <OverlayKit.Panel
             data-slot='app-right-sidebar'
-            className={cn('mb-2 ml-2 min-h-0 w-80 overflow-y-auto [grid-area:right]', className)}
+            className={cn('mb-surface-gap ml-surface-gap min-h-0 w-80 overflow-y-auto [grid-area:right]', className)}
             {...props}
         />
     )
@@ -172,7 +172,7 @@ function ContentRoot({ className, ...props }: ComponentProps<'main'>) {
             data-slot='app-content'
             className={cn(
                 `col-[content] row-span-full flex min-h-0 min-w-0 flex-col overflow-auto
-                pt-[calc(var(--app-nav-height)+--spacing(4))]`,
+                pt-[calc(var(--app-nav-height)+var(--surface-gap)*2)]`,
                 className,
             )}
             {...props}

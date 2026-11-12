@@ -165,12 +165,13 @@ export class DataConnectionHarness {
         });
     }
 
-    /** A running job of the sync, started by the user: a build of its dataset, claimed as a ForgeAgent would. */
+    /** A running job of the sync, started by the user: a build of its dataset, forced as a sync's run is, claimed as a ForgeAgent would. */
     public async runningJob(principal: Principal.User, sync: DataConnection.Sync): Promise<Forge.Job> {
         const { jobs } = await Forge.API.createBuild(await this.getApi(principal, requireEnv('FORGE_URL')), {
             branch:           Foundations.MAIN_BRANCH,
             fallbackBranches: [],
             target:           { type: 'manual', datasetRids: [sync.outputDatasetRid] },
+            forceBuild:       true,
         });
         const [job] = Object.values(jobs);
         const agent = axios.create({ baseURL: requireEnv('FORGE_URL'), headers: { authorization: `Bearer ${requireEnv('FORGE_AGENT_TOKEN')}` } });
