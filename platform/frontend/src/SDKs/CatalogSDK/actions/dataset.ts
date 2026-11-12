@@ -60,6 +60,26 @@ export class DatasetActions extends ActionGroup<CatalogSDKImpl> {
         return Catalog.API.Dataset.getColumnStats(api, rid)
     }
 
+    /** The first rows read with a draft schema; nothing is saved. */
+    public previewWithSchema(rid: Dataset.Rid, schema: Catalog.ColumnSchema): Promise<Catalog.API.Dataset.PreviewWithSchema.Response> {
+        return Catalog.API.Dataset.previewWithSchema(api, rid, { schema, limit: 20 })
+    }
+
+    /** Saves the schema as a new version — same files, read this way from now on — and refreshes what reads it. */
+    public async setSchema(rid: Dataset.Rid, schema: Catalog.ColumnSchema): Promise<Catalog.API.Dataset.SetSchema.Response> {
+        const data = await Catalog.API.Dataset.setSchema(api, rid, { schema })
+
+        await Promise.all([
+            this.sdk.invalidate(this.sdk.query.dataset(rid)),
+            this.sdk.invalidate(this.sdk.query.views(rid)),
+            this.sdk.invalidate(this.sdk.query.preview(rid)),
+            this.sdk.invalidate(this.sdk.query.latestTransaction(rid)),
+            this.sdk.invalidate(this.sdk.query.columnStats(rid)),
+        ])
+
+        return data
+    }
+
     public async createFromFile(parentRid: Library.Resource.Rid, file: File): Promise<Catalog.API.Dataset.Upload.Response> {
         const data = await Catalog.API.Dataset.createFromFile(api, { parentRid }, file, file.name)
 

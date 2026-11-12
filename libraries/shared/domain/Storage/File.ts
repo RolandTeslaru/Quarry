@@ -40,9 +40,21 @@ export namespace File {
     }
     export type Csv = z.infer<typeof Csv.Schema>
 
-    export const Schema = z.discriminatedUnion("format", [Parquet.Schema, Csv.Schema])
+    /**
+     * JSON — one document, or one per line (`.jsonl`, `.ndjson`) — stored as uploaded, with no schema:
+     * a raw file, read by a transform (`files()`), as in Foundry. Nested values have no column type yet.
+     */
+    export namespace Json {
+        export const Schema = Base.extend({
+            format:   z.literal("json"),
+            rowCount: z.null(),
+        })
+    }
+    export type Json = z.infer<typeof Json.Schema>
 
-    export const Format = z.enum(["parquet", "csv"])
+    export const Schema = z.discriminatedUnion("format", [Parquet.Schema, Csv.Schema, Json.Schema])
+
+    export const Format = z.enum(["parquet", "csv", "json"])
     export type  Format = z.infer<typeof Format>
 
     /** The format a key's or a file name's extension says it is, or null if it's not one we know. */
@@ -51,6 +63,7 @@ export namespace File {
 
         if (lower.endsWith(".parquet")) return "parquet"
         if (lower.endsWith(".csv"))     return "csv"
+        if (lower.endsWith(".json") || lower.endsWith(".jsonl") || lower.endsWith(".ndjson")) return "json"
 
         return null
     }

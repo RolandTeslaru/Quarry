@@ -16,7 +16,7 @@ import { CatalogSDK } from '../sdk'
 
 // The upload's fields (its mode) and the file itself.
 const Schema = Catalog.API.Dataset.Upload.Fields.extend({
-    file: z.instanceof(File, { error: 'Choose a CSV or Parquet file' }),
+    file: z.instanceof(File, { error: 'Choose a CSV, Parquet or JSON file' }),
 })
 
 type FormInput  = z.input<typeof Schema>
@@ -32,7 +32,7 @@ interface Props {
     dialog: DialogSDK.TemplateProps
 }
 
-const ACCEPTED_FILES = '.csv,.parquet'
+const ACCEPTED_FILES = '.csv,.parquet,.json,.jsonl,.ndjson'
 
 /** A new dataset from a CSV or Parquet file, in this folder; opens it when it's created. */
 export function openCreateDatasetFromFileDialog(args: { parentRid: Library.Resource.Rid }) {
@@ -97,8 +97,8 @@ function UploadDialog({ target, dialog }: Props) {
                 <Dialog.Title>{target.kind === 'new' ? 'New dataset from file' : 'Upload file'}</Dialog.Title>
             </Dialog.Header>
             <Dialog.Description>
-                A CSV or Parquet file, stored as uploaded. Its columns and types are inferred, and CSV parsing
-                options are detected.
+                A CSV or Parquet file, stored as uploaded, with its columns and types inferred and CSV parsing options
+                detected — or JSON (.json, .jsonl), kept as raw files with no schema, for a transform to read.
             </Dialog.Description>
 
             <Form.Root {...form}>

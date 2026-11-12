@@ -90,23 +90,30 @@ export class CatalogStorage {
             if (format === 'csv')
                 contentType = 'text/csv';
 
+            if (format === 'json')
+                contentType = 'application/json';
+
             const stored = await this.storage.upload(key, file.stream, contentType);
 
             if (stored.bytes === 0)
                 throw new BadRequestException(`${filename} is empty`);
 
-            const inferred = await this.infer(format, key);
+            let added: Extract<Catalog.Transaction.FileChange, { op: 'add' }>;
+            let inferred: ColumnSchema | null = null;
 
-            let added: Catalog.Transaction.FileChange = {
-                op:          'add',
-                logicalPath: filename,
-                format:      'parquet',
-                key,
-                bytes:       stored.bytes,
-                rowCount:    inferred.rowCount,
-            };
-
-            if (format === 'csv') {
+            // A raw file (JSON) has no schema: a transform reads it. Parquet and CSV describe or are sniffed for theirs.
+            if (format === 'json') {
+                added = {
+                    op:          'add',
+                    logicalPath: filename,
+                    format:      'json',
+                    key,
+                    bytes:       stored.bytes,
+                    rowCount:    null,
+                };
+            }
+            else if (format === 'csv') {
+                inferred = (await this.infer(format, key)).schema;
                 added = {
                     op:          'add',
                     logicalPath: filename,
@@ -116,13 +123,26 @@ export class CatalogStorage {
                     rowCount:    null,
                 };
             }
+            else {
+                const described = await this.infer(format, key);
 
-            let schema: ColumnSchema;
+                inferred = described.schema;
+                added = {
+                    op:          'add',
+                    logicalPath: filename,
+                    format:      'parquet',
+                    key,
+                    bytes:       stored.bytes,
+                    rowCount:    described.rowCount,
+                };
+            }
+
+            let schema: ColumnSchema | null;
 
             if (mode === 'append')
-                schema = await this.append(principal, datasetRid, transaction.rid, added, inferred.schema);
+                schema = await this.append(principal, datasetRid, transaction.rid, added, inferred);
             else
-                schema = await this.snapshot(principal, datasetRid, transaction.rid, added, inferred.schema);
+                schema = await this.snapshot(principal, datasetRid, transaction.rid, added, inferred);
 
             const dataset = await this.datasetRepository.get(principal, datasetRid);
 
@@ -144,14 +164,14 @@ export class CatalogStorage {
         }
     }
 
-    /** The file replaces the dataset's files, and its own schema becomes the dataset's. */
+    /** The file replaces the dataset's files, and its own schema becomes the dataset's — none, for a raw file. */
     private async snapshot(
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,
         added:          Catalog.Transaction.FileChange,
-        schema:         ColumnSchema,
-    ): Promise<ColumnSchema> {
+        schema:         ColumnSchema | null,
+    ): Promise<ColumnSchema | null> {
         await this.transactions.registerChanges(principal, datasetRid, transactionRid, [added]);
         await this.transactions.commit(principal, datasetRid, transactionRid, schema);
 
@@ -159,16 +179,16 @@ export class CatalogStorage {
     }
 
     /**
-     * The file joins the dataset's files under a new name, read with the dataset's schema: it must have the same
-     * format, dialect and columns. The dataset's first file sets the schema, as a snapshot would.
+     * The file joins the dataset's files under a new name. It must have their format; a tabular one is read with the
+     * dataset's schema, so it must have the same dialect and columns too. The dataset's first file sets the schema, as a snapshot would.
      */
     private async append(
         principal:      Principal,
         datasetRid:     Dataset.Rid,
         transactionRid: Catalog.Transaction.Rid,
-        added:          Catalog.Transaction.FileChange,
-        schema:         ColumnSchema,
-    ): Promise<ColumnSchema> {
+        added:          Extract<Catalog.Transaction.FileChange, { op: 'add' }>,
+        schema:         ColumnSchema | null,
+    ): Promise<ColumnSchema | null> {
         const current = await this.transactions.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH);
 
         if (current.files.some((existing) => existing.logicalPath === added.logicalPath)) {
@@ -177,8 +197,22 @@ export class CatalogStorage {
             throw new ConflictException(message);
         }
 
-        if (!current.schema)
+        if (current.files.length === 0)
             return this.snapshot(principal, datasetRid, transactionRid, added, schema);
+
+        if (current.files.some((existing) => existing.format !== added.format)) {
+            const message = `${added.logicalPath} is ${added.format}, the dataset's files are ${current.files[0]!.format} — upload it as a snapshot to replace them`;
+
+            throw new BadRequestException(message);
+        }
+
+        // Raw files: the same format is all there is to match.
+        if (!current.schema || !schema) {
+            await this.transactions.registerChanges(principal, datasetRid, transactionRid, [added]);
+            await this.transactions.commit(principal, datasetRid, transactionRid, null);
+
+            return null;
+        }
 
         if (!sameShape(current.schema, schema)) {
             const message = `${added.logicalPath} doesn't match the dataset's columns or format — upload it as a snapshot to replace the schema`;
@@ -201,8 +235,11 @@ export class CatalogStorage {
     async sample(principal: Principal, datasetRid: Dataset.Rid, rows: number): Promise<DatasetSample> {
         const view = await this.transactions.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH);
 
-        if (!view.schema || view.files.length === 0)
+        if (view.files.length === 0)
             throw new ConflictException('The dataset has no committed data yet');
+
+        if (!view.schema)
+            throw new ConflictException('The dataset holds raw files, with no schema to sample by: a transform reads them with files()');
 
         const urls = view.files.map((file) => this.storage.url(file.key));
         const scan = this.scan(view.schema, urls);
@@ -313,6 +350,49 @@ export class CatalogStorage {
             schema: view.schema,
             rows,
         };
+    }
+
+    /**
+     * The latest view's first rows read with a draft schema — nothing committed. The reader's format must
+     * stay the files'; files that don't read this way are a 400 naming why, as setSchema's check is.
+     */
+    @Audit('read', (_schema: ColumnSchema, limit: number) => ({ op: 'preview', limit }))
+    @SecurityGate('read')
+    async previewWithSchema(
+        principal:  Principal,
+        datasetRid: Dataset.Rid,
+        schema:     ColumnSchema,
+        limit:      number,
+    ): Promise<Catalog.API.Dataset.PreviewWithSchema.Response> {
+        const view = await this.transactions.resolveView(principal, datasetRid, Foundations.MAIN_BRANCH);
+
+        if (view.files.length === 0)
+            return { schema, rows: [] };
+
+        if (view.files.some((file) => file.format !== schema.reader.format)) {
+            const message = `The dataset's files are ${view.files[0]!.format}; the schema's reader must be too`;
+
+            throw new BadRequestException(message);
+        }
+
+        const urls = view.files.map((file) => this.storage.url(file.key));
+        const columns = schema.columns.map((column) => identifier(column.name)).join(', ');
+        const query = `SELECT ${columns} FROM ${this.scan(schema, urls)} LIMIT ${limit}`;
+
+        try {
+            const rows = await this.duckdb.with(async (connection) => {
+                const result = await connection.runAndReadAll(query);
+
+                return result.getRowsJson();
+            });
+
+            return { schema, rows };
+        }
+        catch (error) {
+            const reason = error instanceof Error ? error.message : String(error);
+
+            throw new BadRequestException(`The files don't read with this schema: ${reason}`);
+        }
     }
 
     /**
@@ -499,7 +579,7 @@ export function requireFormat(file: IncomingFile): string {
     if (!filename || !Storage.File.formatOf(filename)) {
         file.stream.resume();                               // or the client keeps sending into a closed request
 
-        throw new BadRequestException('Upload a .csv or .parquet file');
+        throw new BadRequestException('Upload a .csv, .parquet or .json (.jsonl, .ndjson) file');
     }
 
     return filename;

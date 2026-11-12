@@ -125,22 +125,35 @@ export function DatasetAbout({ dataset, view }: Props) {
                             <Detail label='Size'>
                                 <span className='flex flex-col'>
                                     <span>{view ? sizeSummary(view) : '—'}</span>
-                                    {rowCount !== null
-                                        ? <span>{number(rowCount)} rows</span>
-                                        : (
-                                            <button
-                                                type='button'
-                                                className='w-fit text-left text-primary hover:underline disabled:opacity-60'
-                                                disabled={statsRequest.isFetching || !view?.files.length}
-                                                onClick={() => void CatalogSDK.fetch(CatalogSDK.query.columnStats(dataset.rid))}
-                                            >
-                                                {statsRequest.isFetching ? 'Counting rows…' : 'Calculate row count'}
-                                            </button>
-                                        )}
+                                    {/* Raw files have no rows to count: only a dataset with a schema reads as a table. */}
+                                    {view?.schema && rowCount !== null && <span>{number(rowCount)} rows</span>}
+                                    {view?.schema && rowCount === null && (
+                                        <button
+                                            type='button'
+                                            className='w-fit text-left text-primary hover:underline disabled:opacity-60'
+                                            disabled={statsRequest.isFetching || !view.files.length}
+                                            onClick={() => void CatalogSDK.fetch(CatalogSDK.query.columnStats(dataset.rid))}
+                                        >
+                                            {statsRequest.isFetching ? 'Counting rows…' : 'Calculate row count'}
+                                        </button>
+                                    )}
                                 </span>
                             </Detail>
 
-                            <Detail label='Format'>{view?.schema ? formatSummary(view.schema) : '—'}</Detail>
+                            <Detail label='Format'>
+                                <span className='flex flex-col'>
+                                    <span>{view ? formatSummary(view) : '—'}</span>
+                                    {view?.schema?.reader.format === 'csv' && (
+                                        <button
+                                            type='button'
+                                            className='w-fit text-left text-primary hover:underline'
+                                            onClick={() => CatalogSDK.dialogs.openEditSchema({ datasetRid: dataset.rid })}
+                                        >
+                                            Edit schema
+                                        </button>
+                                    )}
+                                </span>
+                            </Detail>
 
                             <Detail label='RID'>
                                 <Copyable value={dataset.rid} what='RID' />
@@ -322,8 +335,16 @@ function UpdatedVia({ transaction }: { transaction: Catalog.Transaction | null }
     return <span>Upload</span>
 }
 
-/** "CSV · comma-separated, quoted with \"" or "Parquet" */
-function formatSummary(schema: Catalog.ColumnSchema): string {
+/** "CSV · comma-separated, quoted with \"", "Parquet", or "Raw JSON files · no schema" */
+function formatSummary(view: Dataset.View): string {
+    const schema = view.schema
+
+    if (!schema && view.files.length > 0)
+        return `Raw ${view.files[0]!.format.toUpperCase()} files · no schema, read by a transform`
+
+    if (!schema)
+        return '—'
+
     if (schema.reader.format === 'parquet')
         return 'Parquet'
 
@@ -356,14 +377,18 @@ function duration(from: Date, to: Date): string {
     return `${Math.floor(seconds / 60)} min ${seconds % 60} s`
 }
 
-/** "5 columns • 1 file • 229 KB" */
+/** "5 columns • 1 file • 229 KB" — or, for raw files with no columns, "2 files • 85 MB" */
 function sizeSummary(view: Dataset.View): string {
-    const columns = view.schema?.columns.length ?? 0
     const files = view.files.length
     let bytes = 0
 
     for (const file of view.files)
         bytes += file.bytes
 
-    return `${number(columns)} columns • ${files} ${files === 1 ? 'file' : 'files'} • ${fileSize(bytes)}`
+    const filesAndBytes = `${files} ${files === 1 ? 'file' : 'files'} • ${fileSize(bytes)}`
+
+    if (!view.schema)
+        return filesAndBytes
+
+    return `${number(view.schema.columns.length)} columns • ${filesAndBytes}`
 }

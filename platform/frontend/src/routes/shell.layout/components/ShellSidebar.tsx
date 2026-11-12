@@ -63,7 +63,7 @@ export function ShellSidebar({ expanded, onToggle }: ShellSidebarProps) {
                 theme === 'light' && 'dark',
                 theme === 'dark' && 'light',
                 // Opaque, so the page behind doesn't tint it.
-                'surface-elevated-sidebar [--material-opacity:100%]',
+                'surface-elevated-sidebar [--material-opacity:100%] rounded-md',
                 // Light on a dark page: the light palette's pale grey, not pure white.
                 '[.dark_&]:bg-(--surface-content)',
                 'group flex h-full w-(--shell-sidebar-width) shrink-0 flex-col overflow-hidden',

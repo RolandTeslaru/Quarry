@@ -89,7 +89,7 @@ describe('the Catalog service, through the main server', () => {
         const { dataset, schema } = await Catalog.API.Dataset.createFromFile(api, { parentRid: projectRid }, file, 'orders.csv');
 
         expect(dataset).toMatchObject({ name: 'orders', parentRid: projectRid });
-        expect(schema.columns.map((column) => column.name)).toEqual(['id', 'amount']);
+        expect(schema?.columns.map((column) => column.name)).toEqual(['id', 'amount']);
 
         const preview = await Catalog.API.Dataset.preview(api, dataset.rid);
 

@@ -25,6 +25,9 @@ export function DatasetColumns({ rid, view }: Props) {
         query => [{ ...query.columnStats(rid), enabled: false }],
     )
 
+    if (!view.schema && view.files.length > 0)
+        return <p className='px-3 py-4 text-sm text-muted-foreground'>Raw files have no columns: a transform reads them and writes a table.</p>
+
     if (!view.schema)
         return <p className='px-3 py-4 text-sm text-muted-foreground'>No schema yet. Upload a file to start.</p>
 

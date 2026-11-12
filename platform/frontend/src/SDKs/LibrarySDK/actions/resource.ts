@@ -51,6 +51,48 @@ export class ResourceActions extends ActionGroup<LibrarySDKImpl> {
         }
     }
 
+    /** The server refuses a name a sibling already has, or a resource the user can't write to; the caller shows why. */
+    public async rename(resource: Library.Resource.Base, request: Library.API.Resource.Rename.Request): Promise<void> {
+        await Library.API.Resource.rename(api, resource.rid, request)
+
+        this.sdk.setState(state => {
+            state.resources[resource.rid].name = request.name
+        })
+
+        // Lists sort by name, and paths, lineage reads and recents carry it.
+        if (resource.parentRid)
+            void this.sdk.invalidate(this.sdk.query.children(resource.parentRid))
+        else
+            void this.sdk.invalidate(this.sdk.query.projects)
+
+        void this.sdk.invalidate({ queryKey: ['library', 'path'] })
+        void this.sdk.invalidate({ queryKey: ['library', 'lineage'] })
+        void AuditSDK.invalidate({ queryKey: ['audit', 'recents'] })
+    }
+
+    /** With everything under it: out of every list, path and lineage read. Nothing restores it yet. */
+    public async trash(resource: Library.Resource.Base): Promise<void> {
+        try {
+            await Library.API.Resource.trash(api, resource.rid)
+
+            if (resource.parentRid)
+                void this.sdk.invalidate(this.sdk.query.children(resource.parentRid))
+            else
+                void this.sdk.invalidate(this.sdk.query.projects)
+
+            void this.sdk.invalidate({ queryKey: ['library', 'path'] })
+            void this.sdk.invalidate({ queryKey: ['library', 'lineage'] })
+            void AuditSDK.invalidate({ queryKey: ['audit', 'recents'] })
+
+            NotificationSDK.toast.success(`Moved ${resource.name} to the trash`)
+        } catch (error) {
+            this.log.error('trash failed', describeError(error))
+            NotificationSDK.toast.error(`Couldn't move ${resource.name} to the trash`, { description: errorMessage(error) })
+
+            throw error
+        }
+    }
+
     public async getChildren(rid: Library.Resource.Rid): Promise<Library.API.Resource.Children.Response> {
         const data = await Library.API.Resource.children(api, rid)
 

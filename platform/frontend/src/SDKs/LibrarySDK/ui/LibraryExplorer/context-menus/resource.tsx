@@ -12,7 +12,7 @@ interface Props {
     rid: Library.Resource.Rid
 }
 
-/** What a card offers: opening it here or elsewhere, moving it, and copying what names it. */
+/** What a card offers: opening it here or elsewhere, renaming or moving it, copying what names it, and trashing it. */
 export function ResourceMenuItems({ rid }: Props) {
     const { setCwd, onItemClick, isItemDisabled } = useLibraryExplorer()
     const router = useRouter()
@@ -51,15 +51,16 @@ export function ResourceMenuItems({ rid }: Props) {
             )}
             <OpenInSubMenu url={url} />
             <ContextMenu.Separator />
+            <ContextMenu.Item icon={<Icon name='edit' />} onSelect={() => LibrarySDK.dialogs.openRenameResource(resource)}>
+                Rename…
+            </ContextMenu.Item>
             {/* A project is at the top of the tree: there's nowhere to move it. */}
             {resource.parentRid && (
-                <>
-                    <ContextMenu.Item icon={<Icon name='arrow-right' />} onSelect={() => openMove(resource)}>
-                        Move to…
-                    </ContextMenu.Item>
-                    <ContextMenu.Separator />
-                </>
+                <ContextMenu.Item icon={<Icon name='arrow-right' />} onSelect={() => openMove(resource)}>
+                    Move to…
+                </ContextMenu.Item>
             )}
+            <ContextMenu.Separator />
             <ContextMenu.Sub>
                 <ContextMenu.SubTrigger icon={<Icon name='duplicate' />}>
                     Copy
@@ -83,6 +84,10 @@ export function ResourceMenuItems({ rid }: Props) {
                     </ContextMenu.Item>
                 </ContextMenu.SubContent>
             </ContextMenu.Sub>
+            <ContextMenu.Separator />
+            <ContextMenu.Item variant='destructive' icon={<Icon name='trash' />} onSelect={() => LibrarySDK.dialogs.openTrashResource(resource)}>
+                Move to trash
+            </ContextMenu.Item>
         </>
     )
 }

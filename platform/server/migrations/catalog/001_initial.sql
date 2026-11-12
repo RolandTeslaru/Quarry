@@ -59,7 +59,7 @@ CREATE TABLE catalog.transaction_change (
     transaction_rid catalog.transaction_rid NOT NULL REFERENCES catalog.transaction(rid) ON DELETE CASCADE,
     logical_path    text NOT NULL,                            -- the file's name within the dataset
     op              text NOT NULL CHECK (op IN ('add', 'remove')),
-    format          text CHECK (format IN ('parquet', 'csv')),
+    format          text CHECK (format IN ('parquet', 'csv', 'json')),
     key             text,                                     -- object storage key, write-once
     bytes           bigint,
     row_count       bigint,                                   -- from a parquet footer; NULL for csv (not counted on upload)

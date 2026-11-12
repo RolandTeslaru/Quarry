@@ -6,7 +6,7 @@ export function Panel({ className, ...props }: ComponentProps<'div'>) {
     return (
         <div
             data-slot='overlay-panel'
-            className={cn('surface-elevated overflow-hidden border shadow-xs shadow-black/5', className)}
+            className={cn('surface-elevated rounded-md overflow-hidden border shadow-xs shadow-black/5', className)}
             {...props}
         />
     )

@@ -371,9 +371,11 @@ export class TransactionRepository extends Repository(CatalogDB.database) {
             else
                 view.set(change.logical_path, { ...CatalogDB.TransactionChange.toFile(change), logicalPath: change.logical_path });
 
+        // A snapshot resets the schema: the newest one since it — none for raw files a snapshot brought.
         const latestSchema = await committed
             .select('schema')
             .where('schema', 'is not', null)
+            .where('sequence', '>=', from)
             .orderBy('sequence', 'desc')
             .limit(1)
             .executeTakeFirst();

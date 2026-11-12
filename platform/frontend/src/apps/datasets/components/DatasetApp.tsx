@@ -57,6 +57,10 @@ export function DatasetApp({ rid }: Props) {
                                         <Icon name='upload' />
                                         Upload file…
                                     </Menubar.Item>
+                                    <Menubar.Item onSelect={() => CatalogSDK.dialogs.openEditSchema({ datasetRid: rid })}>
+                                        <Icon name='th-derived' />
+                                        Edit schema…
+                                    </Menubar.Item>
                                     <Menubar.Item onSelect={refresh}>
                                         <Icon name='refresh' />
                                         Refresh

@@ -62,7 +62,7 @@ export namespace Dataset {
         export const Fields = z.object({ mode: z.enum(["snapshot", "append"]).default("snapshot") })
         export type  Fields = z.infer<typeof Fields>
 
-        export const Response = z.object({ dataset: DatasetD.Schema, schema: ColumnSchema.Schema })
+        export const Response = z.object({ dataset: DatasetD.Schema, schema: ColumnSchema.Schema.nullable() })   // null: raw files
         export type  Response = z.infer<typeof Response>
     }
 
@@ -85,6 +85,21 @@ export namespace Dataset {
             schema: ColumnSchema.Schema.nullable(),                 // null: nothing committed yet
             rows:   z.unknown().array().array(),                    // one array per row, in column order, JSON-safe
         })
+        export type  Response = z.infer<typeof Response>
+    }
+
+    /**
+     * The latest view's first rows read with a draft schema, nothing committed — trying a CSV option or a type
+     * before saving it. 400 if the files don't read that way. Needs read.
+     */
+    export namespace PreviewWithSchema {
+        export const Request = z.object({
+            schema: ColumnSchema.Schema,
+            limit:  z.number().int().min(1).max(1000).default(50),
+        })
+        export type  Request = z.infer<typeof Request>
+
+        export const Response = Preview.Response
         export type  Response = z.infer<typeof Response>
     }
 
@@ -172,6 +187,11 @@ export namespace Dataset {
     export async function preview(api: AxiosInstance, rid: DatasetD.Rid, query: z.input<typeof Preview.Query> = {}): Promise<Preview.Response> {
         const { data } = await api.get(`/api/catalog/datasets/${rid}/preview`, { params: query })
         return Preview.Response.parse(data)
+    }
+
+    export async function previewWithSchema(api: AxiosInstance, rid: DatasetD.Rid, req: z.input<typeof PreviewWithSchema.Request>): Promise<PreviewWithSchema.Response> {
+        const { data } = await api.post(`/api/catalog/datasets/${rid}/preview`, req)
+        return PreviewWithSchema.Response.parse(data)
     }
 
     export async function setSchema(api: AxiosInstance, rid: DatasetD.Rid, req: SetSchema.Request): Promise<SetSchema.Response> {

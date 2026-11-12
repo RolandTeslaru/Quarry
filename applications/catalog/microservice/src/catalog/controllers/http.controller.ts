@@ -59,6 +59,16 @@ export class CatalogController {
         return this.catalog.storage.preview(principal, rid, query.limit);
     }
 
+    @Post(':rid/preview')
+    @HttpCode(200)
+    previewWithSchema(
+        @CurrentPrincipal() principal: Principal.User,
+        @Param('rid', DatasetRidParam) rid: Dataset.Rid,
+        @Body(new ZodPipe(API.Dataset.PreviewWithSchema.Request)) body: API.Dataset.PreviewWithSchema.Request,
+    ): Promise<API.Dataset.PreviewWithSchema.Response> {
+        return this.catalog.storage.previewWithSchema(principal, rid, body.schema, body.limit);
+    }
+
     /** Parquet bytes, not JSON: types survive. The temp file goes once it's sent. */
     @Get(':rid/sample')
     async sample(
