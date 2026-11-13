@@ -141,6 +141,18 @@ describe('object types', () => {
         await expect(harness.as(viewer, () => harness.objectTypes.replace(viewer, objectType.rid, request({ apiName: objectType.apiName })))).rejects.toBeInstanceOf(ForbiddenException);
     });
 
+    it('is listed by name with every object type its reader can see, and not to someone with no access', async () => {
+        const { objectType } = await harness.as(user, () => harness.objectTypes.create(user, request()));
+        const stranger = await harness.createUser('member');
+
+        const listed = await harness.objectTypes.repository.list(user);
+        const names = listed.map((type) => type.name);
+
+        expect(listed.map((type) => type.rid)).toContain(objectType.rid);
+        expect(names).toEqual([...names].sort());
+        expect(await harness.objectTypes.repository.list(stranger)).toEqual([]);
+    });
+
     it('is created and read through the main server, as browsers do', async () => {
         const api = await harness.getApi(user);
         const created = await Ontology.API.ObjectType.create(api, request());

@@ -37,6 +37,12 @@ export namespace ObjectType {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Every live object type the caller can read, by name — Ontology Studio's home. */
+    export namespace List {
+        export const Response = z.object({ objectTypes: ObjectTypeD.Schema.array() })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export namespace Get {
         export const Response = WithMappingHealth
         export type  Response = z.infer<typeof Response>
@@ -60,6 +66,11 @@ export namespace ObjectType {
     export async function create(api: AxiosInstance, req: Create.Request): Promise<Create.Response> {
         const { data } = await api.post("/api/ontology/object-types", req)
         return Create.Response.parse(data)
+    }
+
+    export async function list(api: AxiosInstance): Promise<List.Response> {
+        const { data } = await api.get("/api/ontology/object-types")
+        return List.Response.parse(data)
     }
 
     export async function get(api: AxiosInstance, rid: ObjectTypeD.Rid): Promise<Get.Response> {

@@ -79,7 +79,30 @@ export class ObjectTypeRepository extends Repository(OntologyDB.database) {
         ]);
     }
 
-    /** Null if it isn't a live object type — trashed, or in something trashed — or the principal can't read it. */
+    /** Every live object type the principal can read (RLS), by name. */
+    @Transactional()
+    async list(principal: Principal): Promise<Ontology.ObjectType[]> {
+        const rows = await this.trx
+            .selectFrom('ontology.object_type as o')
+            .innerJoin('library.resource as r', 'r.rid', 'o.rid')
+            .selectAll('r')
+            .select([
+                'o.ontology_rid', 'o.api_name', 'o.plural_display_name', 'o.ui', 'o.backing_dataset_rid',
+                'o.primary_key', 'o.title_property', 'o.properties',
+            ])
+            .where(isLive('r.rid'))
+            .orderBy('r.name')
+            .execute();
+
+        const objectTypes: Ontology.ObjectType[] = [];
+
+        for (const row of rows)
+            objectTypes.push(OntologyDB.ObjectType.fromJoined(row));
+
+        return objectTypes;
+    }
+
+    /** Null if the principal can't read it. A trashed one — or one in something trashed — is @Transactional's 404. */
     @Transactional()
     async get(principal: Principal, rid: Ontology.ObjectType.Rid): Promise<Ontology.ObjectType | null> {
         const objectTypes = await this.getMany(principal, [rid]);

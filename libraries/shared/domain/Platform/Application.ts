@@ -15,6 +15,7 @@ export namespace Application {
         "code-workspaces",
         "forge",
         "lineage-explorer",
+        "ontology-studio",
         "layout-demo",                                   // test apps: the shell's layouts
         "minimal-demo",
     ])

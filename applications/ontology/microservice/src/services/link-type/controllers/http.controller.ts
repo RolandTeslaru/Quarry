@@ -23,6 +23,11 @@ export class LinkTypeController {
         return this.linkTypes.create(principal, body);
     }
 
+    @Get('link-types')
+    async list(@CurrentPrincipal() principal: Principal.User): Promise<API.LinkType.List.Response> {
+        return { linkTypes: await this.linkTypes.repository.list(principal) };
+    }
+
     @Get('link-types/:rid')
     async get(
         @CurrentPrincipal() principal: Principal.User,

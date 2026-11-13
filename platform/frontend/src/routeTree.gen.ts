@@ -22,6 +22,7 @@ import { Route as LayoutDemoRouteRouteImport } from './apps/layout-demo/routes/r
 import { Route as LibraryRouteRouteImport } from './apps/library/routes/route'
 import { Route as LineageExplorerRouteRouteImport } from './apps/lineage-explorer/routes/route'
 import { Route as MinimalDemoRouteRouteImport } from './apps/minimal-demo/routes/route'
+import { Route as OntologyStudioRouteRouteImport } from './apps/ontology-studio/routes/route'
 import { Route as PipelineBuilderRouteRouteImport } from './apps/pipeline-builder/routes/route'
 import { Route as playgroundBlueprintIndexRouteImport } from './routes/playground/blueprint/index'
 import { Route as playgroundStandardIndexRouteImport } from './routes/playground/standard/index'
@@ -38,6 +39,7 @@ import { Route as LibraryRidRouteImport } from './apps/library/routes/$rid'
 import { Route as LineageExplorerIndexRouteImport } from './apps/lineage-explorer/routes/index'
 import { Route as LineageExplorerRidRouteImport } from './apps/lineage-explorer/routes/$rid'
 import { Route as MinimalDemoIndexRouteImport } from './apps/minimal-demo/routes/index'
+import { Route as OntologyStudioIndexRouteImport } from './apps/ontology-studio/routes/index'
 import { Route as PipelineBuilderIndexRouteImport } from './apps/pipeline-builder/routes/index'
 import { Route as CodeWorkspacesRidIndexRouteImport } from './apps/code-workspaces/routes/$rid/index'
 import { Route as CodeWorkspacesRidBranchesRouteImport } from './apps/code-workspaces/routes/$rid/branches'
@@ -108,6 +110,11 @@ const LineageExplorerRouteRoute = LineageExplorerRouteRouteImport.update({
 const MinimalDemoRouteRoute = MinimalDemoRouteRouteImport.update({
   id: '/minimal-demo',
   path: '/minimal-demo',
+  getParentRoute: () => shellDotlayoutIndexRoute,
+} as any)
+const OntologyStudioRouteRoute = OntologyStudioRouteRouteImport.update({
+  id: '/ontology-studio',
+  path: '/ontology-studio',
   getParentRoute: () => shellDotlayoutIndexRoute,
 } as any)
 const PipelineBuilderRouteRoute = PipelineBuilderRouteRouteImport.update({
@@ -191,6 +198,11 @@ const MinimalDemoIndexRoute = MinimalDemoIndexRouteImport.update({
   path: '/',
   getParentRoute: () => MinimalDemoRouteRoute,
 } as any)
+const OntologyStudioIndexRoute = OntologyStudioIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OntologyStudioRouteRoute,
+} as any)
 const PipelineBuilderIndexRoute = PipelineBuilderIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -244,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof LibraryRouteRouteWithChildren
   '/lineage-explorer': typeof LineageExplorerRouteRouteWithChildren
   '/minimal-demo': typeof MinimalDemoRouteRouteWithChildren
+  '/ontology-studio': typeof OntologyStudioRouteRouteWithChildren
   '/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
   '/playground/blueprint': typeof playgroundBlueprintIndexRoute
   '/playground/standard': typeof playgroundStandardIndexRoute
@@ -260,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/library/': typeof LibraryIndexRoute
   '/lineage-explorer/': typeof LineageExplorerIndexRoute
   '/minimal-demo/': typeof MinimalDemoIndexRoute
+  '/ontology-studio/': typeof OntologyStudioIndexRoute
   '/pipeline-builder/': typeof PipelineBuilderIndexRoute
   '/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
   '/code-workspaces/$rid/checks': typeof CodeWorkspacesRidChecksRoute
@@ -286,6 +300,7 @@ export interface FileRoutesByTo {
   '/library': typeof LibraryIndexRoute
   '/lineage-explorer': typeof LineageExplorerIndexRoute
   '/minimal-demo': typeof MinimalDemoIndexRoute
+  '/ontology-studio': typeof OntologyStudioIndexRoute
   '/pipeline-builder': typeof PipelineBuilderIndexRoute
   '/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
   '/code-workspaces/$rid/checks': typeof CodeWorkspacesRidChecksRoute
@@ -309,6 +324,7 @@ export interface FileRoutesById {
   '/_shell/library': typeof LibraryRouteRouteWithChildren
   '/_shell/lineage-explorer': typeof LineageExplorerRouteRouteWithChildren
   '/_shell/minimal-demo': typeof MinimalDemoRouteRouteWithChildren
+  '/_shell/ontology-studio': typeof OntologyStudioRouteRouteWithChildren
   '/_shell/pipeline-builder': typeof PipelineBuilderRouteRouteWithChildren
   '/playground/blueprint': typeof playgroundBlueprintIndexRoute
   '/playground/standard': typeof playgroundStandardIndexRoute
@@ -325,6 +341,7 @@ export interface FileRoutesById {
   '/_shell/library/': typeof LibraryIndexRoute
   '/_shell/lineage-explorer/': typeof LineageExplorerIndexRoute
   '/_shell/minimal-demo/': typeof MinimalDemoIndexRoute
+  '/_shell/ontology-studio/': typeof OntologyStudioIndexRoute
   '/_shell/pipeline-builder/': typeof PipelineBuilderIndexRoute
   '/_shell/code-workspaces/$rid/branches': typeof CodeWorkspacesRidBranchesRoute
   '/_shell/code-workspaces/$rid/checks': typeof CodeWorkspacesRidChecksRoute
@@ -348,6 +365,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/lineage-explorer'
     | '/minimal-demo'
+    | '/ontology-studio'
     | '/pipeline-builder'
     | '/playground/blueprint'
     | '/playground/standard'
@@ -364,6 +382,7 @@ export interface FileRouteTypes {
     | '/library/'
     | '/lineage-explorer/'
     | '/minimal-demo/'
+    | '/ontology-studio/'
     | '/pipeline-builder/'
     | '/code-workspaces/$rid/branches'
     | '/code-workspaces/$rid/checks'
@@ -390,6 +409,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/lineage-explorer'
     | '/minimal-demo'
+    | '/ontology-studio'
     | '/pipeline-builder'
     | '/code-workspaces/$rid/branches'
     | '/code-workspaces/$rid/checks'
@@ -412,6 +432,7 @@ export interface FileRouteTypes {
     | '/_shell/library'
     | '/_shell/lineage-explorer'
     | '/_shell/minimal-demo'
+    | '/_shell/ontology-studio'
     | '/_shell/pipeline-builder'
     | '/playground/blueprint'
     | '/playground/standard'
@@ -428,6 +449,7 @@ export interface FileRouteTypes {
     | '/_shell/library/'
     | '/_shell/lineage-explorer/'
     | '/_shell/minimal-demo/'
+    | '/_shell/ontology-studio/'
     | '/_shell/pipeline-builder/'
     | '/_shell/code-workspaces/$rid/branches'
     | '/_shell/code-workspaces/$rid/checks'
@@ -537,6 +559,13 @@ declare module '@tanstack/react-router' {
       path: '/minimal-demo'
       fullPath: '/minimal-demo'
       preLoaderRoute: typeof MinimalDemoRouteRouteImport
+      parentRoute: typeof shellDotlayoutIndexRoute
+    }
+    '/_shell/ontology-studio': {
+      id: '/_shell/ontology-studio'
+      path: '/ontology-studio'
+      fullPath: '/ontology-studio'
+      preLoaderRoute: typeof OntologyStudioRouteRouteImport
       parentRoute: typeof shellDotlayoutIndexRoute
     }
     '/_shell/pipeline-builder': {
@@ -650,6 +679,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/minimal-demo/'
       preLoaderRoute: typeof MinimalDemoIndexRouteImport
       parentRoute: typeof MinimalDemoRouteRoute
+    }
+    '/_shell/ontology-studio/': {
+      id: '/_shell/ontology-studio/'
+      path: '/'
+      fullPath: '/ontology-studio/'
+      preLoaderRoute: typeof OntologyStudioIndexRouteImport
+      parentRoute: typeof OntologyStudioRouteRoute
     }
     '/_shell/pipeline-builder/': {
       id: '/_shell/pipeline-builder/'
@@ -839,6 +875,17 @@ const MinimalDemoRouteRouteChildren: MinimalDemoRouteRouteChildren = {
 const MinimalDemoRouteRouteWithChildren =
   MinimalDemoRouteRoute._addFileChildren(MinimalDemoRouteRouteChildren)
 
+interface OntologyStudioRouteRouteChildren {
+  OntologyStudioIndexRoute: typeof OntologyStudioIndexRoute
+}
+
+const OntologyStudioRouteRouteChildren: OntologyStudioRouteRouteChildren = {
+  OntologyStudioIndexRoute: OntologyStudioIndexRoute,
+}
+
+const OntologyStudioRouteRouteWithChildren =
+  OntologyStudioRouteRoute._addFileChildren(OntologyStudioRouteRouteChildren)
+
 interface PipelineBuilderRouteRouteChildren {
   PipelineBuilderIndexRoute: typeof PipelineBuilderIndexRoute
 }
@@ -860,6 +907,7 @@ interface shellDotlayoutIndexRouteChildren {
   LibraryRouteRoute: typeof LibraryRouteRouteWithChildren
   LineageExplorerRouteRoute: typeof LineageExplorerRouteRouteWithChildren
   MinimalDemoRouteRoute: typeof MinimalDemoRouteRouteWithChildren
+  OntologyStudioRouteRoute: typeof OntologyStudioRouteRouteWithChildren
   PipelineBuilderRouteRoute: typeof PipelineBuilderRouteRouteWithChildren
 }
 
@@ -873,6 +921,7 @@ const shellDotlayoutIndexRouteChildren: shellDotlayoutIndexRouteChildren = {
   LibraryRouteRoute: LibraryRouteRouteWithChildren,
   LineageExplorerRouteRoute: LineageExplorerRouteRouteWithChildren,
   MinimalDemoRouteRoute: MinimalDemoRouteRouteWithChildren,
+  OntologyStudioRouteRoute: OntologyStudioRouteRouteWithChildren,
   PipelineBuilderRouteRoute: PipelineBuilderRouteRouteWithChildren,
 }
 

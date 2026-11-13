@@ -31,6 +31,12 @@ export namespace LinkType {
         export type  Response = z.infer<typeof Response>
     }
 
+    /** Every live link type the caller can read, by name — Ontology Studio's home. */
+    export namespace List {
+        export const Response = z.object({ linkTypes: LinkTypeD.Schema.array() })
+        export type  Response = z.infer<typeof Response>
+    }
+
     export namespace Get {
         export const Response = WithMappingHealth
         export type  Response = z.infer<typeof Response>
@@ -48,6 +54,11 @@ export namespace LinkType {
     export async function create(api: AxiosInstance, req: Create.Request): Promise<Create.Response> {
         const { data } = await api.post("/api/ontology/link-types", req)
         return Create.Response.parse(data)
+    }
+
+    export async function list(api: AxiosInstance): Promise<List.Response> {
+        const { data } = await api.get("/api/ontology/link-types")
+        return List.Response.parse(data)
     }
 
     export async function get(api: AxiosInstance, rid: LinkTypeD.Rid): Promise<Get.Response> {

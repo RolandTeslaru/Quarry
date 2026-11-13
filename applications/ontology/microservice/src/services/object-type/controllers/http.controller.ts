@@ -22,6 +22,11 @@ export class ObjectTypeController {
         return this.objectTypes.create(principal, body);
     }
 
+    @Get()
+    async list(@CurrentPrincipal() principal: Principal.User): Promise<API.List.Response> {
+        return { objectTypes: await this.objectTypes.repository.list(principal) };
+    }
+
     @Get(':rid')
     async get(
         @CurrentPrincipal() principal: Principal.User,

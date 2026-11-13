@@ -172,6 +172,15 @@ describe('link types', () => {
         expect(replaced.sides.b.apiName).toBe('partnerOfficers');
     });
 
+    it('is listed with every link type its reader can see', async () => {
+        const { linkType } = await harness.as(user, () => harness.linkTypes.create(user, request(
+            { a: side(officer, 'listedEntities', 'many'), b: side(entity, 'listedOfficers', 'many') },
+            { kind: 'dataset', datasetRid: relationships, columns: { a: 'from_id', b: 'to_id' } },
+        )));
+
+        expect((await harness.linkTypes.repository.list(user)).map((link) => link.rid)).toContain(linkType.rid);
+    });
+
     it('refuses an object type it can\'t find, and lists none for one', async () => {
         const unknown = Ontology.ObjectType.createRid();
 

@@ -10,6 +10,7 @@ import { layoutDemoApp } from '@/apps/layout-demo/definition'
 import { libraryApp } from '@/apps/library/definition'
 import { lineageExplorerApp } from '@/apps/lineage-explorer/definition'
 import { minimalDemoApp } from '@/apps/minimal-demo/definition'
+import { ontologyStudioApp } from '@/apps/ontology-studio/definition'
 import { pipelineBuilderApp } from '@/apps/pipeline-builder/definition'
 
 /**
@@ -25,6 +26,7 @@ export const APPS: App.Definition[] = [
     codeWorkspacesApp,
     forgeApp,
     lineageExplorerApp,
+    ontologyStudioApp,
     keychainApp,
     // Test apps for the shell and AppKit; no backend.
     layoutDemoApp,

@@ -69,24 +69,53 @@ export class LinkTypeRepository extends Repository(OntologyDB.database) {
         await this.declareLineage(principal, rid, definition);
     }
 
-    /** Null if it isn't a live link type — trashed, or in something trashed — or the principal can't read it. */
+    /** Null if the principal can't read it. A trashed one — or one in something trashed — is @Transactional's 404. */
     @Transactional()
     async get(principal: Principal, rid: Ontology.LinkType.Rid): Promise<Ontology.LinkType | null> {
-        const rows = await this.selectLive()
+        const row = await this.trx
+            .selectFrom('ontology.link_type as l')
+            .innerJoin('library.resource as r', 'r.rid', 'l.rid')
+            .selectAll('r')
+            .select(['l.ontology_rid', 'l.a_object_type_rid', 'l.b_object_type_rid', 'l.sides', 'l.backing'])
             .where('l.rid', '=', rid)
-            .execute();
+            .executeTakeFirst();
 
-        if (rows.length === 0)
+        if (!row)
             return null;
 
-        return OntologyDB.LinkType.fromJoined(rows[0]);
+        return OntologyDB.LinkType.fromJoined(row);
+    }
+
+    /** Every live link type the principal can read (RLS), by name. */
+    @Transactional()
+    async list(principal: Principal): Promise<Ontology.LinkType[]> {
+        const rows = await this.trx
+            .selectFrom('ontology.link_type as l')
+            .innerJoin('library.resource as r', 'r.rid', 'l.rid')
+            .selectAll('r')
+            .select(['l.ontology_rid', 'l.a_object_type_rid', 'l.b_object_type_rid', 'l.sides', 'l.backing'])
+            .where(isLive('r.rid'))
+            .orderBy('r.name')
+            .execute();
+
+        const linkTypes: Ontology.LinkType[] = [];
+
+        for (const row of rows)
+            linkTypes.push(OntologyDB.LinkType.fromJoined(row));
+
+        return linkTypes;
     }
 
     /** The live link types the principal can read with this object type on either side, by name. */
     @Transactional()
     async listForObjectType(principal: Principal, objectTypeRid: Ontology.ObjectType.Rid): Promise<Ontology.LinkType[]> {
-        const rows = await this.selectLive()
+        const rows = await this.trx
+            .selectFrom('ontology.link_type as l')
+            .innerJoin('library.resource as r', 'r.rid', 'l.rid')
+            .selectAll('r')
+            .select(['l.ontology_rid', 'l.a_object_type_rid', 'l.b_object_type_rid', 'l.sides', 'l.backing'])
             .where((eb) => eb.or([eb('l.a_object_type_rid', '=', objectTypeRid), eb('l.b_object_type_rid', '=', objectTypeRid)]))
+            .where(isLive('r.rid'))
             .orderBy('r.name')
             .execute();
 
@@ -149,12 +178,4 @@ export class LinkTypeRepository extends Repository(OntologyDB.database) {
         await this.library.lineage.declare(principal, rid, Foundations.MAIN_BRANCH, edges);       // joins this transaction
     }
 
-    private selectLive() {
-        return this.trx
-            .selectFrom('ontology.link_type as l')
-            .innerJoin('library.resource as r', 'r.rid', 'l.rid')
-            .selectAll('r')
-            .select(['l.ontology_rid', 'l.a_object_type_rid', 'l.b_object_type_rid', 'l.sides', 'l.backing'])
-            .where(isLive('r.rid'));
-    }
 }
