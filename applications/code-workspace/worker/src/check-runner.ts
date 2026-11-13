@@ -84,7 +84,7 @@ export class CheckRunner implements OnModuleInit {
             const setup = await this.dockerDriver.exec(container, ['quarry-check-setup'], {
                 env: {
                     QUARRY_TOKEN:   token,
-                    QUARRY_GIT_URL: `${config.sessions.serverUrl}/api/git/${checkRun.workspaceRid}.git`,
+                    QUARRY_GIT_URL: CodeWorkspace.Git.getRepositoryUrl(config.sessions.serverUrl, checkRun.workspaceRid),
                     QUARRY_COMMIT:  checkRun.commit,
                 },
                 timeoutMs: SETUP_TIMEOUT_MS,

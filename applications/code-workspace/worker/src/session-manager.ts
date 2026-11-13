@@ -117,7 +117,7 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
             env: {
                 QUARRY_TOKEN:         credentials.token,
                 QUARRY_WORKSPACE_RID: workspaceRid,
-                QUARRY_GIT_URL:       this.getGitUrl(workspaceRid),
+                QUARRY_GIT_URL:       CodeWorkspace.Git.getRepositoryUrl(config.sessions.serverUrl, workspaceRid),
                 QUARRY_SERVER_URL:    config.sessions.serverUrl,
                 QUARRY_APP_URL:       config.appUrl,
                 QUARRY_USER_NAME:     credentials.user.name,
@@ -228,10 +228,6 @@ export class SessionManager implements OnModuleInit, OnModuleDestroy {
     private unregister(session: Session.Schema): void {
         delete this.byKey[Session.getKey(session.workspaceRid, session.userRid)];
         delete this.bySecret[session.secret];
-    }
-
-    private getGitUrl(workspaceRid: CodeWorkspace.Rid): string {
-        return `${config.sessions.serverUrl}/api/git/${workspaceRid}.git`;
     }
 }
 

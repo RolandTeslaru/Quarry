@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { Foundations } from "../Foundations"
+import type { Workspace } from "./Workspace"
 
 /** A workspace's Git repository, as Quarry talks about it: commits, branch heads, authors. */
 export namespace Git {
@@ -13,6 +14,10 @@ export namespace Git {
     /** Every branch's head — the commit it points to now (`refs/heads/<branch>`). */
     export const Heads = z.record(Foundations.Branch, Commit)
     export type  Heads = z.infer<typeof Heads>
+
+    /** The workspace's repository over HTTP, on the main server (it forwards `/api/git` to Code Workspaces): what sessions, check runs and jobs clone. */
+    export const getRepositoryUrl = (serverUrl: string, workspaceRid: Workspace.Rid): string =>
+        `${serverUrl}/api/git/${workspaceRid}.git`
 
     /** Who a commit is by. */
     export const Author = z.object({
