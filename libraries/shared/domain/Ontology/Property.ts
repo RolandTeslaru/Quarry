@@ -1,4 +1,5 @@
 import { z } from "zod"
+import type { ColumnSchema } from "../Catalog/ColumnSchema"
 
 /** A field of an object type, mapped from a column of its backing dataset (docs/design/ontology.md §4). Part of its object type, not a resource. */
 export namespace Property {
@@ -19,6 +20,16 @@ export namespace Property {
 
     /** What a primary key may be. */
     export const PRIMARY_KEY_TYPES: readonly Type[] = ["string", "integer", "long"]
+
+    /** The type of property a column of this type backs; none for `binary`. */
+    export function getTypeOf(columnType: ColumnSchema.Type): Type | null {
+        if (columnType.startsWith("decimal("))
+            return "decimal"
+
+        const result = Type.safeParse(columnType)
+
+        return result.success ? result.data : null
+    }
 
     export const Schema = z.object({
         displayName: z.string().min(1),

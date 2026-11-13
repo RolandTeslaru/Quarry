@@ -3,10 +3,10 @@ import { Button } from '@quarry/standard-ui/foundations/button'
 import { Spinner } from '@quarry/standard-ui/foundations/spinner'
 import { Table } from '@quarry/standard-ui/foundations/table'
 import { Tabs } from '@quarry/standard-ui/foundations/tabs'
-import { Icon, isIconName } from '@quarry/standard-ui/icons'
 import type { Ontology } from '@quarry/shared/domain'
 import { Home } from '@/AppKit'
 import { OntologySDK } from '@/SDKs/OntologySDK/sdk'
+import { ObjectTypeIcon } from '@/SDKs/OntologySDK/ui/ObjectTypeIcon'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { dateTime } from '@/utils/format'
 
@@ -77,6 +77,14 @@ function OntologyStudioHome() {
                             loading={objectTypesRequest.isFetching || linkTypesRequest.isFetching}
                             onClick={refresh}
                         />
+                        <Home.Actions>
+                            <Button variant='outlined' icon='link' onClick={() => OntologySDK.dialogs.openCreateLinkType()}>
+                                New link type
+                            </Button>
+                            <Button intent='success' icon='plus' onClick={() => OntologySDK.dialogs.openCreateObjectType()}>
+                                New object type
+                            </Button>
+                        </Home.Actions>
                     </Home.Toolbar>
 
                     <div className='flex flex-col gap-3 px-6 py-5'>
@@ -97,21 +105,6 @@ function OntologyStudioHome() {
                 </Tabs.Root>
             </Home.Content>
         </Home.Root>
-    )
-}
-
-interface ObjectTypeIconProps {
-    objectType: Ontology.ObjectType
-}
-
-/** The object type's own icon, in its own colour: a palette token, never a hex value. */
-function ObjectTypeIcon({ objectType }: ObjectTypeIconProps) {
-    const name = isIconName(objectType.ui.icon) ? objectType.ui.icon : 'cube'
-
-    return (
-        <span style={{ color: `var(--color-${objectType.ui.color}-600)` }} className='flex shrink-0'>
-            <Icon name={name} size={16} />
-        </span>
     )
 }
 
@@ -139,7 +132,7 @@ function ObjectTypesTable({ objectTypes }: ObjectTypesTableProps) {
                     <Table.Row key={objectType.rid}>
                         <Table.Cell>
                             <span className='flex items-center gap-2'>
-                                <ObjectTypeIcon objectType={objectType} />
+                                <ObjectTypeIcon ui={objectType.ui} />
                                 {objectType.name}
                             </span>
                         </Table.Cell>
@@ -210,7 +203,7 @@ function LinkSide({ side, objectType }: LinkSideProps) {
 
     return (
         <span className='flex items-center gap-1.5'>
-            <ObjectTypeIcon objectType={objectType} />
+            <ObjectTypeIcon ui={objectType.ui} />
             {objectType.name}
             <span className='font-mono text-xs text-muted-foreground'>.{side.apiName}</span>
         </span>

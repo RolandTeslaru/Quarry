@@ -3,6 +3,7 @@ import * as ObjectTypeMod from "./ObjectType"
 import * as PropertyMod   from "./Property"
 import * as LinkTypeMod   from "./LinkType"
 import * as ValidationMod from "./Validation"
+import * as NamingMod     from "./Naming"
 import * as ApiMod        from "./api"
 
 /** Quarry's model of the world on top of datasets: its types (docs/design/ontology.md). One ontology per deployment. */
@@ -15,6 +16,7 @@ export namespace Ontology {
     export import Property   = PropertyMod.Property
     export import LinkType   = LinkTypeMod.LinkType
     export import Validation = ValidationMod.Validation
+    export import Naming     = NamingMod.Naming
 
     export import API = ApiMod.API
 }

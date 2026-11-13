@@ -4,6 +4,7 @@ import { shallow } from 'zustand/shallow'
 import { SDK } from '@quarry/standard-ui/SDKs/SDKManager'
 import { BaseSDK } from '../core/BaseSDK'
 import { OntologyActions } from './actions'
+import { _createOntologyDialogs_, type _OntologySDKDialogs } from './dialogs'
 
 /** The ontology's types — object types and link types — as Ontology Studio shows them (query cache only, for now). */
 @SDK('Ontology')
@@ -15,6 +16,8 @@ export class OntologySDKImpl extends BaseSDK<OntologySDK.State> {
     )
 
     public readonly actions: OntologySDK.Actions = new OntologyActions(this)
+
+    public readonly dialogs: OntologySDK.Dialogs = _createOntologyDialogs_()
 
     public override readonly query = {
         /** Every object type the user can read, by name. */
@@ -42,4 +45,6 @@ export namespace OntologySDK {
     export type State = Record<string, never>
 
     export type Actions = OntologyActions
+
+    export type Dialogs = _OntologySDKDialogs
 }

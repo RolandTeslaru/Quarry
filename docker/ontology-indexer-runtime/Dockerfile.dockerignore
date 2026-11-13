@@ -1,0 +1,3 @@
+# The runtime image needs only the bundled runtime.
+*
+!applications/ontology/indexer-runtime/dist/runtime.js
